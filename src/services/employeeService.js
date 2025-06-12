@@ -26,7 +26,11 @@ export const generateNewEmployeeID = async () => {
 
 export const addEmployee = async (employeeData) => {
   const newID = await generateNewEmployeeID();
-  await setDoc(doc(db, "employees", newID), employeeData);
+  await setDoc(doc(db, "employees", newID), {
+    fullName: employeeData.fullName,
+    position: employeeData.position,
+    clientId: employeeData.clientId, // store clientId
+  });
   return newID;
 };
 
@@ -48,6 +52,7 @@ export const getEmployee = async (id) => {
   }
 };
 
+// ✅ Now supports partial updates (e.g., updating only 1 field or deleting one)
 export const updateEmployee = async (id, updatedData) => {
   const docRef = doc(db, "employees", id);
   await updateDoc(docRef, updatedData);

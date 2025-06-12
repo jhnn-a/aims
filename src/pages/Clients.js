@@ -1,48 +1,21 @@
 import { useState, useEffect } from "react";
 import {
-  addEmployee,
-  getAllEmployees,
-  updateEmployee,
-  deleteEmployee,
-} from "../services/employeeService";
-import { getAllClients } from "../services/clientService";
+  addClient,
+  getAllClients,
+  updateClient,
+  deleteClient,
+} from "../services/clientService";
+import { getAllEmployees } from "../services/employeeService";
 
-const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
+const isValidName = (value) => /^[A-Za-z\s]+$/.test(value.trim());
 
-const EmployeeFormModal = ({
-  data,
-  onChange,
-  onSave,
-  onCancel,
-  isValid,
-  clients,
-}) => (
+const ClientFormModal = ({ data, onChange, onSave, onCancel, isValid }) => (
   <div style={styles.modalOverlay}>
     <div style={styles.modalContent}>
-      <h3>{data.id ? "Edit Employee" : "Add Employee"}</h3>
+      <h3>{data.id ? "Edit Client" : "Add Client"}</h3>
       <div>
-        <label>Full Name:</label>
-        <input name="fullName" value={data.fullName} onChange={onChange} />
-      </div>
-      <div>
-        <label>Position:</label>
-        <input name="position" value={data.position} onChange={onChange} />
-      </div>
-      <div>
-        <label>Client:</label>
-        <select name="clientId" value={data.clientId} onChange={onChange}>
-          <option value="" disabled>
-            Choose Client
-          </option>
-          {clients
-            .slice()
-            .sort((a, b) => a.clientName.localeCompare(b.clientName))
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.clientName}
-              </option>
-            ))}
-        </select>
+        <label>Client Name:</label>
+        <input name="clientName" value={data.clientName} onChange={onChange} />
       </div>
       <div style={{ marginTop: 16 }}>
         <button onClick={onSave} disabled={!isValid}>
@@ -60,7 +33,7 @@ const DeleteConfirmationModal = ({ onConfirm, onCancel }) => (
   <div style={styles.modalOverlay}>
     <div style={styles.modalContent}>
       <h3>Confirm Deletion</h3>
-      <p>Are you sure you want to delete this employee?</p>
+      <p>Are you sure you want to delete this client?</p>
       <div style={{ marginTop: 16 }}>
         <button onClick={onConfirm} style={{ color: "red" }}>
           Delete
@@ -73,18 +46,16 @@ const DeleteConfirmationModal = ({ onConfirm, onCancel }) => (
   </div>
 );
 
-const Employees = () => {
-  const [employees, setEmployees] = useState([]);
+function Clients() {
   const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]); // Store all employees
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState({
     id: null,
-    fullName: "",
-    position: "",
-    clientId: "",
+    clientName: "",
   });
 
   useEffect(() => {
@@ -93,59 +64,32 @@ const Employees = () => {
 
   const loadClientsAndEmployees = async () => {
     setLoading(true);
-    const [employeeData, clientData] = await Promise.all([
-      getAllEmployees(),
+    const [clientData, employeeData] = await Promise.all([
       getAllClients(),
+      getAllEmployees(),
     ]);
-
     setClients(clientData);
-
-    const clientMap = {};
-    clientData.forEach((client) => {
-      clientMap[client.id] = client.clientName;
-    });
-
-    const merged = employeeData.map((emp) => ({
-      ...emp,
-      client:
-        emp.clientId && clientMap[emp.clientId]
-          ? clientMap[emp.clientId]
-          : "(Unknown)",
-    }));
-
-    setEmployees(merged);
+    setEmployees(employeeData);
     setLoading(false);
   };
 
   const handleInput = ({ target: { name, value } }) =>
     setForm((prev) => ({ ...prev, [name]: value }));
 
-  const isFormValid = () =>
-    isValidName(form.fullName) &&
-    isValidName(form.position) &&
-    form.clientId.trim() !== "";
+  const isFormValid = () => isValidName(form.clientName);
 
   const handleSave = async () => {
     if (!isFormValid()) return;
     const payload = {
-      fullName: form.fullName.trim(),
-      position: form.position.trim(),
-      clientId: form.clientId.trim(),
+      clientName: form.clientName.trim(),
     };
-    form.id
-      ? await updateEmployee(form.id, payload)
-      : await addEmployee(payload);
+    form.id ? await updateClient(form.id, payload) : await addClient(payload);
     resetForm();
     loadClientsAndEmployees();
   };
 
-  const handleEdit = (emp) => {
-    setForm({
-      id: emp.id,
-      fullName: emp.fullName,
-      position: emp.position,
-      clientId: emp.clientId || "",
-    });
+  const handleEdit = (client) => {
+    setForm(client);
     setShowForm(true);
   };
 
@@ -155,7 +99,7 @@ const Employees = () => {
   };
 
   const confirmDelete = async () => {
-    await deleteEmployee(selectedId);
+    await deleteClient(selectedId);
     setSelectedId(null);
     setShowConfirm(false);
     loadClientsAndEmployees();
@@ -167,25 +111,26 @@ const Employees = () => {
   };
 
   const resetForm = () => {
-    setForm({ id: null, fullName: "", position: "", clientId: "" });
+    setForm({ id: null, clientName: "" });
     setShowForm(false);
   };
 
-  const resolveClientName = (clientName) => clientName;
+  // Helper: count employees for a given clientId
+  const getEmployeeCount = (clientId) =>
+    employees.filter((emp) => emp.clientId === clientId).length;
 
   return (
     <div style={styles.pageContainer}>
-      <h2>Employee Database</h2>
-      <button onClick={() => setShowForm(true)}>Add New Employee</button>
+      <h2>Client Database</h2>
+      <button onClick={() => setShowForm(true)}>Add New Client</button>
 
       {showForm && (
-        <EmployeeFormModal
+        <ClientFormModal
           data={form}
           onChange={handleInput}
           onSave={handleSave}
           onCancel={resetForm}
           isValid={isFormValid()}
-          clients={clients}
         />
       )}
 
@@ -204,23 +149,21 @@ const Employees = () => {
             <thead>
               <tr>
                 <th style={styles.th}>ID</th>
-                <th style={styles.th}>Full Name</th>
-                <th style={styles.th}>Position</th>
-                <th style={styles.th}>Client</th>
+                <th style={styles.th}>Client Name</th>
+                <th style={styles.th}>Employee Count</th>
                 <th style={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
-                  <td style={styles.td}>{emp.id}</td>
-                  <td style={styles.td}>{emp.fullName}</td>
-                  <td style={styles.td}>{emp.position}</td>
-                  <td style={styles.td}>{resolveClientName(emp.client)}</td>
+              {clients.map((client) => (
+                <tr key={client.id}>
+                  <td style={styles.td}>{client.id}</td>
+                  <td style={styles.td}>{client.clientName}</td>
+                  <td style={styles.td}>{getEmployeeCount(client.id)}</td>
                   <td style={styles.td}>
-                    <button onClick={() => handleEdit(emp)}>Edit</button>
+                    <button onClick={() => handleEdit(client)}>Edit</button>
                     <button
-                      onClick={() => handleDelete(emp.id)}
+                      onClick={() => handleDelete(client.id)}
                       style={{ marginLeft: 8, color: "red" }}
                     >
                       Delete
@@ -234,9 +177,9 @@ const Employees = () => {
       )}
     </div>
   );
-};
+}
 
-export default Employees;
+export default Clients;
 
 const styles = {
   pageContainer: { padding: 16, maxWidth: "100%" },

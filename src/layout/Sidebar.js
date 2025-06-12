@@ -13,8 +13,11 @@ function Sidebar() {
         <li style={{ marginBottom: 12 }}>
           <Link to="/inventory">Inventory</Link>
         </li>
-        <li>
+        <li style={{ marginBottom: 12 }}>
           <Link to="/employees">Employees</Link>
+        </li>
+        <li>
+          <Link to="/clients">Clients</Link> {/* ✅ Added this line */}
         </li>
       </ul>
     </nav>

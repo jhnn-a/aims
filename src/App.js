@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Assets from "./pages/Assets";
 import Employees from "./pages/Employees";
+import Clients from "./pages/Clients"; // ✅ Added
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/employees" element={<Employees />} />
+            <Route path="/clients" element={<Clients />} /> {/* ✅ Added */}
           </Routes>
         </div>
       </div>
