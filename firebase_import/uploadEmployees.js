@@ -15,7 +15,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-// Check if Excel file exists
+// Excel file path
 const excelPath = path.join(__dirname, "employees.xlsx");
 
 if (!fs.existsSync(excelPath)) {
@@ -23,16 +23,15 @@ if (!fs.existsSync(excelPath)) {
   process.exit(1);
 }
 
-// Load Excel file
+// Load Excel data
 const workbook = xlsx.readFile(excelPath);
 const sheet = workbook.Sheets[workbook.SheetNames[0]];
 const data = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
-// Debug output
 console.log(`📄 Total rows read: ${data.length}`);
 console.log("📌 Sample rows:", data.slice(0, 3));
 
-// Helper to convert "Last, First" → "First Last"
+// Convert "Last, First" to "First Last"
 function formatName(rawName) {
   const parts = rawName.split(",");
   if (parts.length === 2) {

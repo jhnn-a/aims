@@ -9,10 +9,8 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 
-// Reference to the 'clients' collection
 const clientsRef = collection(db, "clients");
 
-// Generate new client ID: CLI0001, CLI0002, ...
 export const generateNewClientID = async () => {
   const snapshot = await getDocs(clientsRef);
   const ids = snapshot.docs
@@ -20,20 +18,20 @@ export const generateNewClientID = async () => {
     .filter((id) => id.startsWith("CLI"))
     .map((id) => parseInt(id.replace("CLI", "")))
     .filter((num) => !isNaN(num));
-
   const max = ids.length > 0 ? Math.max(...ids) : 0;
-  const newID = `CLI${String(max + 1).padStart(4, "0")}`;
-  return newID;
+  return `CLI${String(max + 1).padStart(4, "0")}`;
 };
 
-// Add a new client
 export const addClient = async (clientData) => {
   const newID = await generateNewClientID();
-  await setDoc(doc(db, "clients", newID), clientData);
+  const { clientName, employeeCount } = clientData;
+  const dataToWrite = { clientName };
+  if (typeof employeeCount === "number")
+    dataToWrite.employeeCount = employeeCount;
+  await setDoc(doc(db, "clients", newID), dataToWrite);
   return newID;
 };
 
-// Get all clients
 export const getAllClients = async () => {
   const snapshot = await getDocs(clientsRef);
   return snapshot.docs.map((doc) => ({
@@ -42,21 +40,23 @@ export const getAllClients = async () => {
   }));
 };
 
-// Get a single client by ID
 export const getClient = async (id) => {
   const docRef = doc(db, "clients", id);
   const docSnap = await getDoc(docRef);
   return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
 };
 
-// Update a client
 export const updateClient = async (id, updatedData) => {
+  const { clientName, employeeCount } = updatedData;
+  const dataToUpdate = {};
+  if (typeof clientName === "string") dataToUpdate.clientName = clientName;
+  if (typeof employeeCount === "number")
+    dataToUpdate.employeeCount = employeeCount;
   const docRef = doc(db, "clients", id);
-  await updateDoc(docRef, updatedData);
+  await updateDoc(docRef, dataToUpdate);
 };
 
-// Delete a client
 export const deleteClient = async (id) => {
-  const docRef = doc(db, "clients", id);
-  await deleteDoc(docRef);
+  const clientRef = doc(db, "clients", id);
+  await deleteDoc(clientRef);
 };

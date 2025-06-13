@@ -5,7 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Assets from "./pages/Assets";
 import Employees from "./pages/Employees";
-import Clients from "./pages/Clients"; // ✅ Added
+import Clients from "./pages/Clients";
 
 function App() {
   return (
@@ -13,15 +13,15 @@ function App() {
       <Header />
       <div style={{ display: "flex" }}>
         <Sidebar />
-        <div style={{ flex: 1, padding: 16 }}>
+        <main style={{ flex: 1, padding: 16 }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/employees" element={<Employees />} />
-            <Route path="/clients" element={<Clients />} /> {/* ✅ Added */}
+            <Route path="/clients" element={<Clients />} />
           </Routes>
-        </div>
+        </main>
       </div>
     </Router>
   );

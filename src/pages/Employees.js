@@ -8,84 +8,101 @@ import {
 import { getAllClients } from "../services/clientService";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
+const isValidPosition = (value) =>
+  /^[A-Za-zÑñ0-9\s.'\-(),/\\]+$/.test(value.trim());
 
-const EmployeeFormModal = ({
+function EmployeeFormModal({
   data,
   onChange,
   onSave,
   onCancel,
   isValid,
   clients,
-}) => (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalContent}>
-      <h3>{data.id ? "Edit Employee" : "Add Employee"}</h3>
-      <div>
-        <label>Full Name:</label>
-        <input name="fullName" value={data.fullName} onChange={onChange} />
-      </div>
-      <div>
-        <label>Position:</label>
-        <input name="position" value={data.position} onChange={onChange} />
-      </div>
-      <div>
-        <label>Client:</label>
-        <select name="clientId" value={data.clientId} onChange={onChange}>
-          <option value="" disabled>
-            Choose Client
-          </option>
-          {clients
-            .slice()
-            .sort((a, b) => a.clientName.localeCompare(b.clientName))
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.clientName}
-              </option>
-            ))}
-        </select>
-      </div>
-      <div style={{ marginTop: 16 }}>
-        <button onClick={onSave} disabled={!isValid}>
-          Save
-        </button>
-        <button onClick={onCancel} style={{ marginLeft: 8 }}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const DeleteConfirmationModal = ({ onConfirm, onCancel }) => (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalContent}>
-      <h3>Confirm Deletion</h3>
-      <p>Are you sure you want to delete this employee?</p>
-      <div style={{ marginTop: 16 }}>
-        <button onClick={onConfirm} style={{ color: "red" }}>
-          Delete
-        </button>
-        <button onClick={onCancel} style={{ marginLeft: 8 }}>
-          Cancel
-        </button>
+}) {
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modalContent}>
+        <h3>{data.id ? "Edit Employee" : "Add Employee"}</h3>
+        <div>
+          <label>Full Name:</label>
+          <input name="fullName" value={data.fullName} onChange={onChange} />
+        </div>
+        <div>
+          <label>Position:</label>
+          <input name="position" value={data.position} onChange={onChange} />
+        </div>
+        <div>
+          <label>Department:</label>
+          <input
+            name="department"
+            value={data.department}
+            onChange={onChange}
+          />
+        </div>
+        <div>
+          <label>Client:</label>
+          <select name="clientId" value={data.clientId} onChange={onChange}>
+            <option value="" disabled>
+              Choose Client
+            </option>
+            {clients
+              .slice()
+              .sort((a, b) => a.clientName.localeCompare(b.clientName))
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.clientName}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <button onClick={onSave} disabled={!isValid}>
+            Save
+          </button>
+          <button onClick={onCancel} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+}
 
-const Employees = () => {
+function DeleteConfirmationModal({ onConfirm, onCancel }) {
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modalContent}>
+        <h3>Confirm Deletion</h3>
+        <p>Are you sure you want to delete this employee?</p>
+        <div style={{ marginTop: 16 }}>
+          <button onClick={onConfirm} style={{ color: "red" }}>
+            Delete
+          </button>
+          <button onClick={onCancel} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Employees() {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [sortByLastName, setSortByLastName] = useState(false);
   const [form, setForm] = useState({
     id: null,
     fullName: "",
     position: "",
     clientId: "",
+    department: "",
   });
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -97,23 +114,19 @@ const Employees = () => {
       getAllEmployees(),
       getAllClients(),
     ]);
-
     setClients(clientData);
-
-    const clientMap = {};
-    clientData.forEach((client) => {
-      clientMap[client.id] = client.clientName;
-    });
-
-    const merged = employeeData.map((emp) => ({
-      ...emp,
-      client:
-        emp.clientId && clientMap[emp.clientId]
-          ? clientMap[emp.clientId]
-          : "(Unknown)",
-    }));
-
-    setEmployees(merged);
+    const clientMap = Object.fromEntries(
+      clientData.map((client) => [client.id, client.clientName])
+    );
+    setEmployees(
+      employeeData.map((emp) => ({
+        ...emp,
+        client:
+          emp.clientId && clientMap[emp.clientId]
+            ? clientMap[emp.clientId]
+            : "-",
+      }))
+    );
     setLoading(false);
   };
 
@@ -122,8 +135,9 @@ const Employees = () => {
 
   const isFormValid = () =>
     isValidName(form.fullName) &&
-    isValidName(form.position) &&
-    form.clientId.trim() !== "";
+    isValidPosition(form.position) &&
+    form.clientId.trim() !== "" &&
+    form.department.trim() !== "";
 
   const handleSave = async () => {
     if (!isFormValid()) return;
@@ -131,10 +145,13 @@ const Employees = () => {
       fullName: form.fullName.trim(),
       position: form.position.trim(),
       clientId: form.clientId.trim(),
+      department: form.department.trim(),
     };
-    form.id
-      ? await updateEmployee(form.id, payload)
-      : await addEmployee(payload);
+    if (form.id) {
+      await updateEmployee(form.id, payload);
+    } else {
+      await addEmployee(payload);
+    }
     resetForm();
     loadClientsAndEmployees();
   };
@@ -145,6 +162,7 @@ const Employees = () => {
       fullName: emp.fullName,
       position: emp.position,
       clientId: emp.clientId || "",
+      department: emp.department || "",
     });
     setShowForm(true);
   };
@@ -167,16 +185,58 @@ const Employees = () => {
   };
 
   const resetForm = () => {
-    setForm({ id: null, fullName: "", position: "", clientId: "" });
+    setForm({
+      id: null,
+      fullName: "",
+      position: "",
+      clientId: "",
+      department: "",
+    });
     setShowForm(false);
   };
 
-  const resolveClientName = (clientName) => clientName;
+  const toggleSortByLastName = () => {
+    setSortByLastName((prev) => !prev);
+  };
+
+  const getSortedEmployees = () => {
+    if (!sortByLastName) return employees;
+    return [...employees].sort((a, b) => {
+      const lastA = a.fullName.trim().split(/\s+/).slice(-1)[0].toLowerCase();
+      const lastB = b.fullName.trim().split(/\s+/).slice(-1)[0].toLowerCase();
+      return lastA.localeCompare(lastB);
+    });
+  };
+
+  const formatName = (fullName) => {
+    const words = fullName.trim().split(/\s+/);
+    if (sortByLastName && words.length > 1) {
+      const last = words.pop();
+      return `${last} ${words.join(" ")}`;
+    }
+    return fullName;
+  };
+
+  const filteredEmployees = getSortedEmployees().filter((emp) =>
+    emp.fullName.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={styles.pageContainer}>
       <h2>Employee Database</h2>
-      <button onClick={() => setShowForm(true)}>Add New Employee</button>
+      <input
+        type="text"
+        placeholder="Search by name..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: 12, padding: 6, width: 240 }}
+      />
+      <button onClick={() => setShowForm(true)} style={{ marginLeft: 12 }}>
+        Add New Employee
+      </button>
+      <button onClick={toggleSortByLastName} style={{ marginLeft: 12 }}>
+        {sortByLastName ? "Clear Sort" : "Sort by Last Name (A-Z)"}
+      </button>
 
       {showForm && (
         <EmployeeFormModal
@@ -206,17 +266,26 @@ const Employees = () => {
                 <th style={styles.th}>ID</th>
                 <th style={styles.th}>Full Name</th>
                 <th style={styles.th}>Position</th>
+                <th style={styles.th}>Department</th>
                 <th style={styles.th}>Client</th>
                 <th style={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp) => (
-                <tr key={emp.id}>
+              {filteredEmployees.map((emp) => (
+                <tr
+                  key={emp.id}
+                  style={
+                    emp.client === "Joii Workstream"
+                      ? { backgroundColor: "#f0f0f0" }
+                      : {}
+                  }
+                >
                   <td style={styles.td}>{emp.id}</td>
-                  <td style={styles.td}>{emp.fullName}</td>
+                  <td style={styles.td}>{formatName(emp.fullName)}</td>
                   <td style={styles.td}>{emp.position}</td>
-                  <td style={styles.td}>{resolveClientName(emp.client)}</td>
+                  <td style={styles.td}>{emp.department || "-"}</td>
+                  <td style={styles.td}>{emp.client}</td>
                   <td style={styles.td}>
                     <button onClick={() => handleEdit(emp)}>Edit</button>
                     <button
@@ -234,7 +303,7 @@ const Employees = () => {
       )}
     </div>
   );
-};
+}
 
 export default Employees;
 

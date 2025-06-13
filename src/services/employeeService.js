@@ -18,10 +18,18 @@ export const generateNewEmployeeID = async () => {
     .filter((id) => id.startsWith("EMP"))
     .map((id) => parseInt(id.replace("EMP", "")))
     .filter((num) => !isNaN(num));
-
   const max = ids.length > 0 ? Math.max(...ids) : 0;
-  const newID = `EMP${String(max + 1).padStart(4, "0")}`;
-  return newID;
+  return `EMP${String(max + 1).padStart(4, "0")}`;
+};
+
+const updateClientEmployeeCount = async (clientId) => {
+  if (!clientId) return;
+  const employeesSnapshot = await getDocs(employeesRef);
+  const count = employeesSnapshot.docs.filter(
+    (doc) => doc.data().clientId === clientId
+  ).length;
+  const clientRef = doc(db, "clients", clientId);
+  await updateDoc(clientRef, { employeeCount: count });
 };
 
 export const addEmployee = async (employeeData) => {
@@ -29,8 +37,10 @@ export const addEmployee = async (employeeData) => {
   await setDoc(doc(db, "employees", newID), {
     fullName: employeeData.fullName,
     position: employeeData.position,
-    clientId: employeeData.clientId, // store clientId
+    clientId: employeeData.clientId,
+    department: employeeData.department,
   });
+  await updateClientEmployeeCount(employeeData.clientId);
   return newID;
 };
 
@@ -45,20 +55,26 @@ export const getAllEmployees = async () => {
 export const getEmployee = async (id) => {
   const docRef = doc(db, "employees", id);
   const docSnap = await getDoc(docRef);
-  if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() };
+  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+};
+
+export const updateEmployee = async (id, updatedData) => {
+  const oldEmployee = await getEmployee(id);
+  const employeeRef = doc(db, "employees", id);
+  await updateDoc(employeeRef, updatedData);
+  if (oldEmployee && oldEmployee.clientId !== updatedData.clientId) {
+    await updateClientEmployeeCount(oldEmployee.clientId);
+    await updateClientEmployeeCount(updatedData.clientId);
   } else {
-    return null;
+    await updateClientEmployeeCount(updatedData.clientId);
   }
 };
 
-// ✅ Now supports partial updates (e.g., updating only 1 field or deleting one)
-export const updateEmployee = async (id, updatedData) => {
-  const docRef = doc(db, "employees", id);
-  await updateDoc(docRef, updatedData);
-};
-
 export const deleteEmployee = async (id) => {
-  const docRef = doc(db, "employees", id);
-  await deleteDoc(docRef);
+  const employee = await getEmployee(id);
+  const employeeRef = doc(db, "employees", id);
+  await deleteDoc(employeeRef);
+  if (employee && employee.clientId) {
+    await updateClientEmployeeCount(employee.clientId);
+  }
 };

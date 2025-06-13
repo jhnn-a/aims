@@ -9,54 +9,60 @@ import { getAllEmployees } from "../services/employeeService";
 
 const isValidName = (value) => /^[A-Za-z\s]+$/.test(value.trim());
 
-const ClientFormModal = ({ data, onChange, onSave, onCancel, isValid }) => (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalContent}>
-      <h3>{data.id ? "Edit Client" : "Add Client"}</h3>
-      <div>
-        <label>Client Name:</label>
-        <input name="clientName" value={data.clientName} onChange={onChange} />
-      </div>
-      <div style={{ marginTop: 16 }}>
-        <button onClick={onSave} disabled={!isValid}>
-          Save
-        </button>
-        <button onClick={onCancel} style={{ marginLeft: 8 }}>
-          Cancel
-        </button>
+function ClientFormModal({ data, onChange, onSave, onCancel, isValid }) {
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modalContent}>
+        <h3>{data.id ? "Edit Client" : "Add Client"}</h3>
+        <div>
+          <label>Client Name:</label>
+          <input
+            name="clientName"
+            value={data.clientName}
+            onChange={onChange}
+          />
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <button onClick={onSave} disabled={!isValid}>
+            Save
+          </button>
+          <button onClick={onCancel} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+}
 
-const DeleteConfirmationModal = ({ onConfirm, onCancel }) => (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalContent}>
-      <h3>Confirm Deletion</h3>
-      <p>Are you sure you want to delete this client?</p>
-      <div style={{ marginTop: 16 }}>
-        <button onClick={onConfirm} style={{ color: "red" }}>
-          Delete
-        </button>
-        <button onClick={onCancel} style={{ marginLeft: 8 }}>
-          Cancel
-        </button>
+function DeleteConfirmationModal({ onConfirm, onCancel }) {
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modalContent}>
+        <h3>Confirm Deletion</h3>
+        <p>Are you sure you want to delete this client?</p>
+        <div style={{ marginTop: 16 }}>
+          <button onClick={onConfirm} style={{ color: "red" }}>
+            Delete
+          </button>
+          <button onClick={onCancel} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+}
 
 function Clients() {
   const [clients, setClients] = useState([]);
-  const [employees, setEmployees] = useState([]); // Store all employees
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [form, setForm] = useState({
-    id: null,
-    clientName: "",
-  });
+  const [form, setForm] = useState({ id: null, clientName: "" });
+  const [search, setSearch] = useState("");
+  const [sortByAZ, setSortByAZ] = useState(false);
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -64,12 +70,8 @@ function Clients() {
 
   const loadClientsAndEmployees = async () => {
     setLoading(true);
-    const [clientData, employeeData] = await Promise.all([
-      getAllClients(),
-      getAllEmployees(),
-    ]);
+    const [clientData] = await Promise.all([getAllClients()]);
     setClients(clientData);
-    setEmployees(employeeData);
     setLoading(false);
   };
 
@@ -80,9 +82,7 @@ function Clients() {
 
   const handleSave = async () => {
     if (!isFormValid()) return;
-    const payload = {
-      clientName: form.clientName.trim(),
-    };
+    const payload = { clientName: form.clientName.trim() };
     form.id ? await updateClient(form.id, payload) : await addClient(payload);
     resetForm();
     loadClientsAndEmployees();
@@ -115,14 +115,34 @@ function Clients() {
     setShowForm(false);
   };
 
-  // Helper: count employees for a given clientId
-  const getEmployeeCount = (clientId) =>
-    employees.filter((emp) => emp.clientId === clientId).length;
+  let filteredClients = clients.filter((client) =>
+    client.clientName.toLowerCase().includes(search.toLowerCase())
+  );
+  if (sortByAZ) {
+    filteredClients = [...filteredClients].sort((a, b) =>
+      a.clientName.localeCompare(b.clientName)
+    );
+  }
 
   return (
     <div style={styles.pageContainer}>
       <h2>Client Database</h2>
-      <button onClick={() => setShowForm(true)}>Add New Client</button>
+      <input
+        type="text"
+        placeholder="Search by client name..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: 12, padding: 6, width: 240 }}
+      />
+      <button onClick={() => setShowForm(true)} style={{ marginLeft: 12 }}>
+        Add New Client
+      </button>
+      <button
+        onClick={() => setSortByAZ((prev) => !prev)}
+        style={{ marginLeft: 12 }}
+      >
+        {sortByAZ ? "Clear Sort" : "Sort by Name (A-Z)"}
+      </button>
 
       {showForm && (
         <ClientFormModal
@@ -155,11 +175,11 @@ function Clients() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <tr key={client.id}>
                   <td style={styles.td}>{client.id}</td>
                   <td style={styles.td}>{client.clientName}</td>
-                  <td style={styles.td}>{getEmployeeCount(client.id)}</td>
+                  <td style={styles.td}>{client.employeeCount ?? 0}</td>
                   <td style={styles.td}>
                     <button onClick={() => handleEdit(client)}>Edit</button>
                     <button
