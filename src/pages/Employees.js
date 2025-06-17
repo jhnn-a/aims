@@ -6,6 +6,7 @@ import {
   deleteEmployee,
 } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
+import { getAllDevices, updateDevice } from "../services/deviceService";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 const isValidPosition = (value) =>
@@ -103,6 +104,12 @@ function Employees() {
     department: "",
   });
   const [search, setSearch] = useState("");
+  const [showDevicesModal, setShowDevicesModal] = useState(false);
+  const [devicesForEmployee, setDevicesForEmployee] = useState([]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [assigningDevice, setAssigningDevice] = useState(null);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignSearch, setAssignSearch] = useState("");
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -221,6 +228,21 @@ function Employees() {
     emp.fullName.toLowerCase().includes(search.toLowerCase())
   );
 
+  const handleShowDevices = async (employee) => {
+    setSelectedEmployee(employee);
+    const allDevices = await getAllDevices();
+    const assignedDevices = allDevices.filter(
+      (d) => d.assignedTo === employee.id
+    );
+    setDevicesForEmployee(assignedDevices);
+    setShowDevicesModal(true);
+  };
+  const handleCloseDevicesModal = () => {
+    setShowDevicesModal(false);
+    setDevicesForEmployee([]);
+    setSelectedEmployee(null);
+  };
+
   return (
     <div style={styles.pageContainer}>
       <h2>Employee Database</h2>
@@ -256,6 +278,167 @@ function Employees() {
         />
       )}
 
+      {showDevicesModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h3>Devices Assigned to {selectedEmployee?.fullName}</h3>
+            {devicesForEmployee.length === 0 ? (
+              <p>No devices assigned.</p>
+            ) : (
+              <table
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  borderCollapse: "collapse",
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Tag</th>
+                    <th style={styles.th}>Type</th>
+                    <th style={styles.th}>Brand</th>
+                    <th style={styles.th}>Model</th>
+                    <th style={styles.th}>Condition</th>
+                    <th style={styles.th}>Assignment Date</th>
+                    <th style={styles.th}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {devicesForEmployee.map((dev) => (
+                    <tr key={dev.id}>
+                      <td style={styles.td}>{dev.deviceTag}</td>
+                      <td style={styles.td}>{dev.deviceType}</td>
+                      <td style={styles.td}>{dev.brand}</td>
+                      <td style={styles.td}>{dev.model}</td>
+                      <td style={styles.td}>{dev.condition}</td>
+                      <td style={styles.td}>{dev.assignmentDate || ""}</td>
+                      <td style={styles.td}>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await updateDevice(dev.id, {
+                                ...dev,
+                                assignedTo: "",
+                                assignmentDate: "",
+                              });
+                              const allDevices = await getAllDevices();
+                              setDevicesForEmployee(
+                                allDevices.filter(
+                                  (d) => d.assignedTo === selectedEmployee.id
+                                )
+                              );
+                            } catch (err) {
+                              alert(
+                                "Failed to unassign device. Please try again."
+                              );
+                            }
+                          }}
+                          style={{ color: "red", marginRight: 8 }}
+                        >
+                          Unassign
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAssigningDevice(dev);
+                            setAssignModalOpen(true);
+                          }}
+                        >
+                          {dev.assignedTo ? "Reassign" : "Assign"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <button onClick={handleCloseDevicesModal} style={{ marginTop: 16 }}>
+              Close
+            </button>
+            {/* Assign Modal */}
+            {assignModalOpen && assigningDevice && (
+              <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
+                <div style={{ ...styles.modalContent, minWidth: 350 }}>
+                  <h4>Assign Device: {assigningDevice.deviceTag}</h4>
+                  <input
+                    type="text"
+                    placeholder="Search employee..."
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                  />
+                  <ul
+                    style={{
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      padding: 0,
+                      margin: 0,
+                    }}
+                  >
+                    {employees
+                      .filter((emp) => emp.id !== selectedEmployee.id)
+                      .filter((emp) =>
+                        emp.fullName
+                          .toLowerCase()
+                          .includes(assignSearch.toLowerCase())
+                      )
+                      .map((emp) => (
+                        <li
+                          key={emp.id}
+                          style={{ listStyle: "none", marginBottom: 8 }}
+                        >
+                          <button
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              padding: 8,
+                            }}
+                            onClick={async () => {
+                              try {
+                                await updateDevice(assigningDevice.id, {
+                                  ...assigningDevice,
+                                  assignedTo: emp.id,
+                                  assignmentDate: new Date()
+                                    .toISOString()
+                                    .slice(0, 10),
+                                });
+                                const allDevices = await getAllDevices();
+                                setDevicesForEmployee(
+                                  allDevices.filter(
+                                    (d) => d.assignedTo === selectedEmployee.id
+                                  )
+                                );
+                                setAssignModalOpen(false);
+                                setAssigningDevice(null);
+                                setAssignSearch("");
+                              } catch (err) {
+                                alert(
+                                  "Failed to assign device. Please try again."
+                                );
+                              }
+                            }}
+                          >
+                            {emp.fullName}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <button
+                    onClick={() => {
+                      setAssignModalOpen(false);
+                      setAssigningDevice(null);
+                      setAssignSearch("");
+                    }}
+                    style={{ marginTop: 12 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p>Loading...</p>
       ) : (
@@ -282,7 +465,20 @@ function Employees() {
                   }
                 >
                   <td style={styles.td}>{emp.id}</td>
-                  <td style={styles.td}>{formatName(emp.fullName)}</td>
+                  <td style={styles.td}>
+                    <span
+                      style={{ cursor: "pointer", color: "#1976d2" }}
+                      onClick={() => handleShowDevices(emp)}
+                      onMouseOver={(e) =>
+                        (e.currentTarget.style.textDecoration = "none")
+                      }
+                      onMouseOut={(e) =>
+                        (e.currentTarget.style.textDecoration = "none")
+                      }
+                    >
+                      {formatName(emp.fullName)}
+                    </span>
+                  </td>
                   <td style={styles.td}>{emp.position}</td>
                   <td style={styles.td}>{emp.department || "-"}</td>
                   <td style={styles.td}>{emp.client}</td>
