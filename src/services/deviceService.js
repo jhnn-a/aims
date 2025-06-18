@@ -10,7 +10,7 @@ import {
 import { db } from "../utils/firebase";
 
 // Helper to get next available DEV ID
-async function getNextDevId() {
+export async function getNextDevId() {
   const snapshot = await getDocs(collection(db, "devices"));
   let maxDevNum = 0;
   snapshot.forEach((docSnap) => {
@@ -48,9 +48,12 @@ export const addDevice = async (deviceData, tagPrefix = "DEV") => {
   });
   const nextDevId = `DEV${String(maxDevNum + 1).padStart(4, "0")}`;
 
-  // Set deviceTag as a field, not as the document ID
+  // Remove id field if present
+  const { id, ...dataToSave } = deviceData;
+
+  // Ensure we do NOT save an 'id' field in the document
   await setDoc(doc(db, "devices", nextDevId), {
-    ...deviceData,
+    ...dataToSave,
     deviceTag: deviceData.deviceTag, // e.g., JOIIKB0001
   });
 };
@@ -78,12 +81,15 @@ export async function addMultipleDevices(deviceData, quantity, tagPrefix) {
     }
   });
 
-  // Create devices
+  // Remove id field if present
+  const { id, ...dataToSave } = deviceData;
+
+  // Ensure we do NOT save an 'id' field in the document
   for (let i = 1; i <= quantity; i++) {
     const devId = `DEV${String(maxDevNum + i).padStart(4, "0")}`;
     const deviceTag = `${tagPrefix}${String(maxTagNum + i).padStart(4, "0")}`;
     await setDoc(doc(db, "devices", devId), {
-      ...deviceData,
+      ...dataToSave,
       deviceTag,
     });
   }

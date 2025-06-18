@@ -5,6 +5,7 @@ import {
   updateDevice,
 } from "../services/deviceService";
 import { getAllEmployees } from "../services/employeeService";
+import { logDeviceHistory } from "../services/deviceHistoryService"; // <-- add this import
 
 function DeviceFormModal({
   data,
@@ -145,90 +146,6 @@ function DeviceFormModal({
   );
 }
 
-function ConfirmDeleteModal({ onConfirm, onCancel }) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 3000,
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          padding: 24,
-          borderRadius: 8,
-          minWidth: 320,
-        }}
-      >
-        <h3>Confirm Deletion</h3>
-        <p>Are you sure you want to delete this device?</p>
-        <div style={{ marginTop: 16 }}>
-          <button onClick={onConfirm} style={{ color: "red", marginRight: 8 }}>
-            Delete
-          </button>
-          <button onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function UnassignReasonModal({ onConfirm, onCancel }) {
-  const [reason, setReason] = useState("Working");
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 4000,
-      }}
-    >
-      <div
-        style={{
-          background: "#fff",
-          padding: 24,
-          borderRadius: 8,
-          minWidth: 320,
-        }}
-      >
-        <h3>Unassign Device</h3>
-        <p>Please select the reason/condition for unassigning:</p>
-        <select
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 16 }}
-        >
-          <option value="Working">Working (just unassigned)</option>
-          <option value="Needs Repair">Needs Repair</option>
-          <option value="Retired">Retired</option>
-        </select>
-        <div>
-          <button onClick={() => onConfirm(reason)} style={{ marginRight: 8 }}>
-            Confirm
-          </button>
-          <button onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Assets() {
   const [devices, setDevices] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -241,10 +158,9 @@ function Assets() {
   const [assigningDevice, setAssigningDevice] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
   const [showUnassignModal, setShowUnassignModal] = useState(false);
   const [unassignDevice, setUnassignDevice] = useState(null);
+  const [unassignReason, setUnassignReason] = useState("working");
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -285,42 +201,57 @@ function Assets() {
       setSaveError("Please fill in all required fields.");
       return;
     }
-    await updateDevice(form._editDeviceId, form);
+    // Remove id field from payload if present
+    const { id, ...payloadWithoutId } = form;
+    await updateDevice(form._editDeviceId, payloadWithoutId);
     setShowForm(false);
     setForm({});
     loadDevicesAndEmployees();
   };
 
-  const handleDelete = (id) => {
-    setSelectedId(id);
-    setShowConfirm(true);
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this device?")) {
+      await deleteDevice(id);
+      loadDevicesAndEmployees();
+    }
   };
 
-  const confirmDelete = async () => {
-    await deleteDevice(selectedId);
-    setSelectedId(null);
-    setShowConfirm(false);
-    loadDevicesAndEmployees();
-  };
-
-  const cancelDelete = () => {
-    setSelectedId(null);
-    setShowConfirm(false);
-  };
-
-  // Instead of unassigning directly, open the modal
   const handleUnassign = (device) => {
     setUnassignDevice(device);
+    setUnassignReason("working");
     setShowUnassignModal(true);
   };
 
-  // Called when user confirms reason in modal
-  const confirmUnassign = async (reason) => {
+  const confirmUnassign = async () => {
+    if (!unassignDevice) return;
+    let condition = "Working";
+    let reason = "Normal unassign (still working)";
+    if (unassignReason === "repair") {
+      condition = "Needs Repair";
+      reason = "Needs repair";
+    }
+    if (unassignReason === "retired") {
+      condition = "Retired";
+      reason = "Retired";
+    }
+    // Remove id from payload
+    const { id, ...deviceWithoutId } = unassignDevice;
     await updateDevice(unassignDevice.id, {
-      ...unassignDevice,
+      ...deviceWithoutId,
       assignedTo: "",
       assignmentDate: "",
-      condition: reason,
+      status: "Stock Room",
+      condition,
+    });
+    // Log history
+    await logDeviceHistory({
+      employeeId: unassignDevice.assignedTo,
+      deviceId: unassignDevice.id,
+      deviceTag: unassignDevice.deviceTag,
+      action: "unassigned",
+      reason,
+      condition,
+      date: new Date().toISOString(),
     });
     setShowUnassignModal(false);
     setUnassignDevice(null);
@@ -354,15 +285,6 @@ function Assets() {
           setUseSerial={setUseSerial}
           onSerialToggle={() => setUseSerial(!useSerial)}
           editingDevice={form._editDeviceId}
-        />
-      )}
-      {showConfirm && (
-        <ConfirmDeleteModal onConfirm={confirmDelete} onCancel={cancelDelete} />
-      )}
-      {showUnassignModal && (
-        <UnassignReasonModal
-          onConfirm={confirmUnassign}
-          onCancel={cancelUnassign}
         />
       )}
       {loading ? (
@@ -513,13 +435,38 @@ function Assets() {
                       }}
                       onClick={async () => {
                         try {
+                          // If reassigning, log unassign for previous employee
+                          if (
+                            assigningDevice.assignedTo &&
+                            assigningDevice.assignedTo !== emp.id
+                          ) {
+                            await logDeviceHistory({
+                              employeeId: assigningDevice.assignedTo,
+                              deviceId: assigningDevice.id,
+                              deviceTag: assigningDevice.deviceTag,
+                              action: "unassigned",
+                              reason: "Reassigned to another employee",
+                              condition: assigningDevice.condition,
+                              date: new Date().toISOString(),
+                            });
+                          }
+                          // Remove id from payload
+                          const { id, ...deviceWithoutId } = assigningDevice;
                           await updateDevice(assigningDevice.id, {
-                            ...assigningDevice,
+                            ...deviceWithoutId,
                             assignedTo: emp.id,
                             assignmentDate: new Date()
                               .toISOString()
                               .slice(0, 10),
-                            condition: "Working", // <-- always set to Working when assigned
+                          });
+                          // Log assign history
+                          await logDeviceHistory({
+                            employeeId: emp.id,
+                            deviceId: assigningDevice.id,
+                            deviceTag: assigningDevice.deviceTag,
+                            action: "assigned",
+                            reason: "assigned", // <-- add this line
+                            date: new Date().toISOString(),
                           });
                           loadDevicesAndEmployees();
                           setAssignModalOpen(false);
@@ -545,6 +492,79 @@ function Assets() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {showUnassignModal && unassignDevice && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 24,
+              borderRadius: 8,
+              minWidth: 320,
+            }}
+          >
+            <h3>Unassign Device: {unassignDevice.deviceTag}</h3>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontWeight: 600 }}>Reason for unassigning:</label>
+              <div style={{ marginTop: 8 }}>
+                <label>
+                  <input
+                    type="radio"
+                    name="unassignReason"
+                    value="working"
+                    checked={unassignReason === "working"}
+                    onChange={() => setUnassignReason("working")}
+                  />
+                  Normal unassign (still working)
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="radio"
+                    name="unassignReason"
+                    value="repair"
+                    checked={unassignReason === "repair"}
+                    onChange={() => setUnassignReason("repair")}
+                  />
+                  Needs repair
+                </label>
+              </div>
+              <div>
+                <label>
+                  <input
+                    type="radio"
+                    name="unassignReason"
+                    value="retired"
+                    checked={unassignReason === "retired"}
+                    onChange={() => setUnassignReason("retired")}
+                  />
+                  Retired
+                </label>
+              </div>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <button onClick={confirmUnassign} style={{ marginRight: 8 }}>
+                Confirm
+              </button>
+              <button onClick={cancelUnassign}>Cancel</button>
+            </div>
           </div>
         </div>
       )}

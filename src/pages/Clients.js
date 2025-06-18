@@ -7,7 +7,7 @@ import {
 } from "../services/clientService";
 import { getAllEmployees } from "../services/employeeService";
 
-const isValidName = (value) => /^[A-Za-z\s]+$/.test(value.trim());
+const isValidClientName = (value) => value.trim().length > 0; // allow anything except empty
 
 function ClientFormModal({ data, onChange, onSave, onCancel, isValid }) {
   return (
@@ -60,7 +60,10 @@ function Clients() {
   const [showForm, setShowForm] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [form, setForm] = useState({ id: null, clientName: "" });
+  const [form, setForm] = useState({
+    id: null,
+    clientName: "",
+  });
   const [search, setSearch] = useState("");
   const [sortByAZ, setSortByAZ] = useState(false);
 
@@ -78,7 +81,7 @@ function Clients() {
   const handleInput = ({ target: { name, value } }) =>
     setForm((prev) => ({ ...prev, [name]: value }));
 
-  const isFormValid = () => isValidName(form.clientName);
+  const isFormValid = () => isValidClientName(form.clientName);
 
   const handleSave = async () => {
     if (!isFormValid()) return;

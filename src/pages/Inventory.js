@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx"; // <-- add this import
 import { getAllEmployees } from "../services/employeeService";
 import {
   addDevice,
@@ -6,34 +7,33 @@ import {
   deleteDevice,
   getAllDevices,
   addMultipleDevices, // import the new function
+  getNextDevId,
 } from "../services/deviceService";
-import * as XLSX from "xlsx";
+import { logDeviceHistory } from "../services/deviceHistoryService";
 
 const initialForm = {
   deviceType: "",
   deviceTag: "",
   brand: "",
   model: "",
-  quantity: 1,
+  quantity: 1, // new field
   status: "",
-  condition: "",
+  condition: "", // new field
   assignedTo: "",
-  assignmentDate: "",
+  assignmentDate: "", // new field
   remarks: "",
-  dateAdded: "", // <-- add this line
 };
 
 const fieldLabels = {
-  dateAdded: "Date Added", // <-- add this line
   deviceType: "Device Type",
   deviceTag: "Device Tag",
   brand: "Brand",
   model: "Model",
-  quantity: "Quantity",
+  quantity: "Quantity", // new label
   status: "Status",
-  condition: "Condition",
+  condition: "Condition", // new label
   assignedTo: "Assigned To",
-  assignmentDate: "Assignment Date",
+  assignmentDate: "Assignment Date", // new label
   remarks: "Remarks",
 };
 
@@ -259,19 +259,6 @@ function DeviceFormModal({
           </div>
         )}
 
-        {/* Date Added */}
-        <div style={styles.inputGroup}>
-          <label>Date Added:</label>
-          <input
-            type="date"
-            name="dateAdded"
-            value={data.dateAdded || ""}
-            onChange={onChange}
-            style={styles.input}
-            max={new Date().toISOString().slice(0, 10)}
-          />
-        </div>
-
         {/* Remarks */}
         <div style={styles.inputGroup}>
           <label>Remarks:</label>
@@ -308,9 +295,17 @@ function Inventory() {
   const [assigningDevice, setAssigningDevice] = useState(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({
+    current: 0,
+    total: 0,
+  });
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [importProgress, setImportProgress] = useState(null);
+  const [deleteProgress, setDeleteProgress] = useState({
+    current: 0,
+    total: 0,
+  });
 
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
 
@@ -343,8 +338,7 @@ function Inventory() {
     if (name === "assignedTo") {
       setForm((prev) => {
         let newCondition = prev.condition;
-        // Always set to "Working" if assignedTo is set and not empty
-        if (value) {
+        if (value && (prev.condition === "New" || !prev.condition)) {
           newCondition = "Working";
         }
         return {
@@ -442,46 +436,103 @@ function Inventory() {
     if (form.assignedTo && !assignmentDate) {
       assignmentDate = new Date().toISOString().slice(0, 10);
     }
-    // Default dateAdded to today if not set
-    let dateAdded = form.dateAdded;
-    if (!dateAdded) {
-      dateAdded = new Date().toISOString().slice(0, 10);
-    }
-    // Always set condition to "Working" if assignedTo is set
-    let condition = form.condition;
-    if (form.assignedTo) {
-      condition = "Working";
-    } else if (!form.condition) {
-      condition = "New";
-    }
-    // Make sure to use the updated condition in the payload and in the form state
     const payload = {
       ...form,
       status: getStatus(form.assignedTo),
-      condition, // <-- use the updated condition
+      condition: form.condition || "New",
       assignmentDate,
-      dateAdded,
     };
-    // If editing, also update the form state so the modal shows the correct value
-    if (form._editDeviceId) {
-      setForm((prev) => ({ ...prev, condition }));
-    }
     const quantity = parseInt(form.quantity, 10) || 1;
+    let newDeviceTags = [];
+    // Remove id field from payload if present
+    const { id, ...payloadWithoutId } = form;
     if (useSerial) {
-      if (!form._editDeviceId && quantity > 1) {
-        await addMultipleDevices(payload, quantity);
+      if (!form._editDeviceId && quantity === 1) {
+        await addDevice(payloadWithoutId);
+        newDeviceTags = [payload.deviceTag];
+        if (payload.assignedTo) {
+          // Fetch the device by tag after creation
+          const allDevicesNow = await getAllDevices();
+          const newDevice = allDevicesNow.find(
+            (d) =>
+              d.deviceTag === payload.deviceTag &&
+              d.assignedTo === payload.assignedTo
+          );
+          if (newDevice) {
+            await logDeviceHistory({
+              employeeId: payload.assignedTo,
+              deviceId: newDevice.id,
+              deviceTag: newDevice.deviceTag,
+              action: "assigned",
+              date: new Date().toISOString(),
+            });
+          }
+        }
       } else if (!form._editDeviceId) {
-        await addDevice(payload);
+        await addDevice(payloadWithoutId);
+        newDeviceTags = [payload.deviceTag];
       } else {
-        await updateDevice(form._editDeviceId, payload);
+        await updateDevice(form._editDeviceId, payloadWithoutId);
+        newDeviceTags = [payload.deviceTag];
       }
     } else {
-      if (!form._editDeviceId && quantity > 1) {
-        await addMultipleDevices(payload, quantity, tagPrefix);
-      } else if (!form._editDeviceId) {
-        await addDevice(payload, tagPrefix);
+      if (!form._editDeviceId && quantity === 1) {
+        await addDevice(payloadWithoutId, tagPrefix);
+        newDeviceTags = [payload.deviceTag];
+        if (payload.assignedTo) {
+          // Fetch the device by tag after creation
+          const allDevicesNow = await getAllDevices();
+          const newDevice = allDevicesNow.find(
+            (d) =>
+              d.deviceTag === payload.deviceTag &&
+              d.assignedTo === payload.assignedTo
+          );
+          if (newDevice) {
+            await logDeviceHistory({
+              employeeId: payload.assignedTo,
+              deviceId: newDevice.id,
+              deviceTag: newDevice.deviceTag,
+              action: "assigned",
+              date: new Date().toISOString(),
+            });
+          }
+        }
+      } else if (!form._editDeviceId && quantity > 1) {
+        await addMultipleDevices(payloadWithoutId, quantity, tagPrefix);
+        // Generate all new tags
+        const allDevicesAfter = await getAllDevices();
+        const maxTagNum = allDevicesAfter
+          .map((d) => d.deviceTag)
+          .filter((tag) => tag && tag.startsWith(tagPrefix))
+          .map((tag) => parseInt(tag.replace(tagPrefix, "")))
+          .filter((num) => !isNaN(num));
+        const newMax = Math.max(...maxTagNum);
+        newDeviceTags = Array.from(
+          { length: quantity },
+          (_, i) =>
+            `${tagPrefix}${String(newMax - quantity + 1 + i).padStart(4, "0")}`
+        );
       } else {
-        await updateDevice(form._editDeviceId, payload);
+        await updateDevice(form._editDeviceId, payloadWithoutId);
+        newDeviceTags = [payload.deviceTag];
+      }
+    }
+    // Log assignment history for all new devices if assignedTo is set (for multi-add)
+    if (payload.assignedTo && newDeviceTags.length > 1) {
+      const allDevicesNow = await getAllDevices();
+      for (const tag of newDeviceTags) {
+        const newDevice = allDevicesNow.find(
+          (d) => d.deviceTag === tag && d.assignedTo === payload.assignedTo
+        );
+        if (newDevice) {
+          await logDeviceHistory({
+            employeeId: payload.assignedTo,
+            deviceId: newDevice.id,
+            deviceTag: newDevice.deviceTag,
+            action: "assigned",
+            date: new Date().toISOString(),
+          });
+        }
       }
     }
     resetForm();
@@ -519,66 +570,81 @@ function Inventory() {
     setTagError("");
   };
 
-  // Import handler for Excel file with progress
+  // Import Excel handler
   const handleImportExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setLoading(true);
+    setImporting(true);
     setImportProgress({ current: 0, total: 0 });
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const data = evt.target.result;
-      const workbook = XLSX.read(data, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      // Fetch all devices once before the loop
-      const allDevices = await getAllDevices();
+      // Clean up column names: remove leading/trailing spaces and quotes
+      rows = rows.map((row) => {
+        const cleaned = {};
+        Object.keys(row).forEach((key) => {
+          // Remove quotes and trim spaces
+          const cleanKey = key.replace(/['"]+/g, "").trim();
+          cleaned[cleanKey] = row[key];
+        });
+        return cleaned;
+      });
 
-      let addedCount = 0;
-      let totalToAdd = rows.filter(
+      // Filter out empty rows (all fields empty)
+      const filteredRows = rows.filter(
         (row) =>
-          row["Device Tag"] &&
-          !allDevices.some((d) => d.deviceTag === row["Device Tag"])
-      ).length;
-      setImportProgress({ current: 0, total: totalToAdd });
+          row["Device Type"] ||
+          row["Device Tag"] ||
+          row["Brand"] ||
+          row["Model"] ||
+          row["Condition"] ||
+          row["Remarks"]
+      );
 
-      let current = 0;
-      for (const row of rows) {
-        const deviceData = {
-          deviceType: row["Device Type"] || "",
-          deviceTag: row["Device Tag"] || "",
-          brand: row["Brand"] || "",
-          model: row["Model"] || "",
-          quantity: 1,
-          status: "Stock Room",
-          condition: row["Condition"] || "New",
-          assignedTo: "",
-          assignmentDate: "",
-          remarks: row["Remarks"] || "",
-          dateAdded: row["Date Added"] || new Date().toISOString().slice(0, 10),
-        };
+      setImportProgress({ current: 0, total: filteredRows.length });
+
+      let importedCount = 0;
+      for (let i = 0; i < filteredRows.length; i++) {
+        const row = filteredRows[i];
+        setImportProgress({ current: i + 1, total: filteredRows.length });
+        // Only import if required fields are present
         if (
-          deviceData.deviceTag &&
-          !allDevices.some((d) => d.deviceTag === deviceData.deviceTag)
+          row["Device Type"] &&
+          row["Device Tag"] &&
+          row["Brand"] &&
+          row["Condition"]
         ) {
-          await addDevice(deviceData);
-          addedCount++;
-          current++;
-          setImportProgress({ current, total: totalToAdd });
+          try {
+            await addDevice({
+              deviceType: row["Device Type"],
+              deviceTag: row["Device Tag"],
+              brand: row["Brand"],
+              model: row["Model"] || "",
+              condition: row["Condition"],
+              remarks: row["Remarks"] || "",
+              status: "Stock Room",
+              assignedTo: "",
+              assignmentDate: "",
+            });
+            importedCount++;
+          } catch (err) {
+            // Optionally, you can collect errors here
+          }
         }
       }
       await loadDevicesAndEmployees();
-      setLoading(false);
-      setImportProgress(null);
       alert(
-        addedCount > 0
-          ? `Import complete! ${addedCount} device(s) added.`
-          : "No new devices were added (all tags already exist)."
+        `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`
       );
-    };
-    reader.readAsBinaryString(file);
+    } catch (err) {
+      alert("Failed to import. Please check your Excel file format.");
+    }
+    setImporting(false);
+    setImportProgress({ current: 0, total: 0 });
+    e.target.value = ""; // reset file input
   };
 
   // Handle select all checkbox
@@ -586,7 +652,9 @@ function Inventory() {
     const checked = e.target.checked;
     setSelectAll(checked);
     if (checked) {
-      setSelectedIds(devices.filter((d) => !d.assignedTo).map((d) => d.id));
+      setSelectedIds(
+        devices.filter((device) => !device.assignedTo).map((d) => d.id)
+      );
     } else {
       setSelectedIds([]);
     }
@@ -606,32 +674,61 @@ function Inventory() {
       !window.confirm(`Delete ${selectedIds.length} selected device(s)?`)
     )
       return;
-    for (const id of selectedIds) {
-      await deleteDevice(id);
+    setDeleteProgress({ current: 0, total: selectedIds.length });
+    for (let i = 0; i < selectedIds.length; i++) {
+      await deleteDevice(selectedIds[i]);
+      setDeleteProgress({ current: i + 1, total: selectedIds.length });
     }
     setSelectedIds([]);
     setSelectAll(false);
+    setDeleteProgress({ current: 0, total: 0 });
     loadDevicesAndEmployees();
   };
 
   return (
     <div style={styles.pageContainer}>
       <h2>Device Inventory</h2>
-      <button onClick={() => setShowForm(true)}>Add New Device</button>
-      <input
-        type="file"
-        accept=".xlsx,.xls"
-        onChange={handleImportExcel}
-        style={{ marginLeft: 16 }}
-      />
-      {selectedIds.length > 0 && (
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button onClick={() => setShowForm(true)}>Add New Device</button>
+        <label>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: "none" }}
+            onChange={handleImportExcel}
+            disabled={importing}
+          />
+          <button
+            type="button"
+            disabled={importing}
+            style={{ marginLeft: 8 }}
+            onClick={() =>
+              document
+                .querySelector('input[type="file"][accept=".xlsx,.xls"]')
+                .click()
+            }
+          >
+            {importing
+              ? importProgress.total > 0
+                ? `Importing ${importProgress.current}/${importProgress.total}...`
+                : "Importing..."
+              : "Import Excel"}
+          </button>
+        </label>
         <button
+          style={{ marginLeft: 8, color: "red" }}
+          disabled={selectedIds.length === 0 || deleteProgress.total > 0}
           onClick={handleBulkDelete}
-          style={{ marginLeft: 16, color: "red" }}
         >
-          Delete Selected ({selectedIds.length})
+          Delete
         </button>
-      )}
+        {deleteProgress.total > 0 && (
+          <span style={{ marginLeft: 12, color: "#e11d48", fontWeight: 600 }}>
+            Deleting {deleteProgress.current}/{deleteProgress.total}...
+          </span>
+        )}
+      </div>
+
       {showForm && (
         <DeviceFormModal
           data={form}
@@ -651,27 +748,33 @@ function Inventory() {
         />
       )}
 
-      {importProgress && (
-        <div style={{ margin: "12px 0", color: "#1976d2" }}>
-          Importing devices: {importProgress.current}/{importProgress.total}
-        </div>
-      )}
-      {loading && !importProgress && <p>Loading...</p>}
-      {!loading && !devices.length && <p>No devices found. Please import.</p>}
-      {!loading && devices.length > 0 && (
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
         <div style={styles.tableContainer}>
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>
+                <th
+                  style={{
+                    ...styles.th,
+                    width: 32,
+                    minWidth: 32,
+                    maxWidth: 32,
+                    textAlign: "center",
+                  }}
+                >
                   <input
                     type="checkbox"
-                    checked={selectAll}
+                    checked={
+                      devices.filter((d) => !d.assignedTo).length > 0 &&
+                      selectedIds.length ===
+                        devices.filter((d) => !d.assignedTo).length
+                    }
                     onChange={handleSelectAll}
+                    style={{ width: 16, height: 16, margin: 0 }}
                   />
                 </th>
-                <th style={styles.th}>{fieldLabels.dateAdded}</th>{" "}
-                {/* <-- add this line */}
                 <th style={styles.th}>{fieldLabels.deviceType}</th>
                 <th style={styles.th}>{fieldLabels.deviceTag}</th>
                 <th style={styles.th}>{fieldLabels.brand}</th>
@@ -689,17 +792,21 @@ function Inventory() {
                 .filter((device) => !device.assignedTo)
                 .map((device) => (
                   <tr key={device.id}>
-                    <td style={styles.td}>
+                    <td
+                      style={{
+                        ...styles.td,
+                        width: 32,
+                        minWidth: 32,
+                        maxWidth: 32,
+                        textAlign: "center",
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(device.id)}
                         onChange={() => handleSelectOne(device.id)}
+                        style={{ width: 16, height: 16, margin: 0 }}
                       />
-                    </td>
-                    <td style={styles.td}>
-                      {device.dateAdded
-                        ? new Date(device.dateAdded).toLocaleDateString()
-                        : ""}
                     </td>
                     <td style={styles.td}>{device.deviceType}</td>
                     <td style={styles.td}>{device.deviceTag}</td>
@@ -731,15 +838,29 @@ function Inventory() {
                       >
                         {device.assignedTo ? "Reassign" : "Assign"}
                       </button>
+                      {/* Only show Unassign if device is assigned */}
                       {device.assignedTo && (
                         <button
                           style={{ marginLeft: 8, color: "red" }}
                           onClick={async () => {
                             try {
+                              // Remove id from payload
+                              const { id, ...deviceWithoutId } = device;
                               await updateDevice(device.id, {
-                                ...device,
+                                ...deviceWithoutId,
                                 assignedTo: "",
                                 assignmentDate: "",
+                                status: getStatus(""), // Set status to 'Stock Room'
+                              });
+                              // Log history
+                              await logDeviceHistory({
+                                employeeId: device.assignedTo,
+                                deviceId: device.id,
+                                deviceTag: device.deviceTag,
+                                action: "unassigned",
+                                reason: "Unassigned from Inventory",
+                                condition: device.condition,
+                                date: new Date().toISOString(),
                               });
                               loadDevicesAndEmployees();
                             } catch (err) {
@@ -798,14 +919,67 @@ function Inventory() {
                       }}
                       onClick={async () => {
                         try {
-                          await updateDevice(assigningDevice.id, {
-                            ...assigningDevice,
-                            assignedTo: emp.id,
-                            assignmentDate: new Date()
-                              .toISOString()
-                              .slice(0, 10),
-                            condition: "Working", // <-- always set to Working when assigned
-                          });
+                          // If reassigning, log unassign for previous employee
+                          if (
+                            assigningDevice.assignedTo &&
+                            assigningDevice.assignedTo !== emp.id
+                          ) {
+                            // Find previous employee name
+                            const prevEmp = employees.find(
+                              (e) => e.id === assigningDevice.assignedTo
+                            );
+                            const prevEmpName = prevEmp
+                              ? prevEmp.fullName
+                              : assigningDevice.assignedTo;
+                            await logDeviceHistory({
+                              employeeId: assigningDevice.assignedTo,
+                              deviceId: assigningDevice.id,
+                              deviceTag: assigningDevice.deviceTag,
+                              action: "unassigned",
+                              reason: `Reassigned to ${emp.fullName}`,
+                              condition: assigningDevice.condition,
+                              date: new Date().toISOString(),
+                            });
+                            // Remove id from payload
+                            const { id, ...deviceWithoutId } = assigningDevice;
+                            await updateDevice(assigningDevice.id, {
+                              ...deviceWithoutId,
+                              assignedTo: emp.id,
+                              assignmentDate: new Date()
+                                .toISOString()
+                                .slice(0, 10),
+                              status: getStatus(emp.id),
+                            });
+                            // Log assign history with previous employee name
+                            await logDeviceHistory({
+                              employeeId: emp.id,
+                              deviceId: assigningDevice.id,
+                              deviceTag: assigningDevice.deviceTag,
+                              action: "assigned",
+                              reason: `Received from reassignment (${prevEmpName})`,
+                              date: new Date().toISOString(),
+                            });
+                          } else {
+                            // Normal assign
+                            const { id, ...deviceWithoutId } = assigningDevice;
+                            await updateDevice(assigningDevice.id, {
+                              ...deviceWithoutId,
+                              assignedTo: emp.id,
+                              assignmentDate: new Date()
+                                .toISOString()
+                                .slice(0, 10),
+                              status: getStatus(emp.id),
+                            });
+                            await logDeviceHistory({
+                              employeeId: emp.id,
+                              deviceId: assigningDevice.id,
+                              deviceTag: assigningDevice.deviceTag,
+                              action: "assigned",
+                              reason: "assigned",
+                              date: new Date().toISOString(),
+                            });
+                          }
+                          // Refresh device and employee lists
                           loadDevicesAndEmployees();
                           setAssignModalOpen(false);
                           setAssigningDevice(null);
@@ -840,16 +1014,32 @@ function Inventory() {
 export default Inventory;
 
 const styles = {
-  pageContainer: { padding: 16, maxWidth: "100%" },
+  pageContainer: {
+    padding: "16px 0 16px 0", // Only top/bottom padding, no left/right
+    maxWidth: "100%",
+  },
   tableContainer: { marginTop: 16, overflowX: "auto" },
-  table: { width: "100%", minWidth: 800, borderCollapse: "collapse" },
+  table: {
+    width: "100%",
+    minWidth: 800,
+    borderCollapse: "collapse",
+    tableLayout: "auto", // <-- Change from "fixed" to "auto" for autofit
+  },
   th: {
     border: "1px solid #ccc",
     padding: 8,
     backgroundColor: "#f5f5f5",
     textAlign: "left",
+    // Remove any fixed width here except for checkbox column
   },
-  td: { border: "1px solid #ccc", padding: 8 },
+  td: {
+    border: "1px solid #ccc",
+    padding: 8,
+    // Remove maxWidth/width for autofit
+    whiteSpace: "nowrap", // Optional: prevents wrapping, more like Excel autofit
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
   modalOverlay: {
     position: "fixed",
     top: 0,
