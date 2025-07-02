@@ -1,26 +1,31 @@
 import { useState, useEffect } from "react";
-import * as XLSX from "xlsx"; // <-- add this import
+import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import {
   addDevice,
   updateDevice,
   deleteDevice,
   getAllDevices,
-  addMultipleDevices, // import the new function
+  addMultipleDevices,
   getNextDevId,
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { saveAs } from "file-saver";
+
+// ... your initialForm, fieldLabels, deviceTypes, statuses, conditions, DeviceFormModal ... (unchanged)
 
 const initialForm = {
   deviceType: "",
   deviceTag: "",
   brand: "",
   model: "",
-  quantity: 1, // new field
+  quantity: 1,
   status: "",
-  condition: "", // new field
+  condition: "",
   assignedTo: "",
-  assignmentDate: "", // new field
+  assignmentDate: "",
   remarks: "",
 };
 
@@ -29,11 +34,11 @@ const fieldLabels = {
   deviceTag: "Device Tag",
   brand: "Brand",
   model: "Model",
-  quantity: "Quantity", // new label
+  quantity: "Quantity",
   status: "Status",
-  condition: "Condition", // new label
+  condition: "Condition",
   assignedTo: "Assigned To",
-  assignmentDate: "Assignment Date", // new label
+  assignmentDate: "Assignment Date",
   remarks: "Remarks",
 };
 
@@ -47,12 +52,11 @@ const deviceTypes = [
   { label: "PSU", code: "PSU" },
   { label: "RAM", code: "RAM" },
   { label: "SSD", code: "SSD" },
+  { label: "UPS", code: "UPS" },
   { label: "Webcam", code: "W" },
 ];
 
 const statuses = ["Available", "In Use", "Stock Room", "Retired"];
-
-// Simpler device condition options
 const conditions = ["New", "Working", "Needs Repair", "Retired"];
 
 function DeviceFormModal({
@@ -68,49 +72,62 @@ function DeviceFormModal({
   useSerial,
   setUseSerial,
   setTagError,
-  onSerialToggle, // new prop
-  editingDevice, // new prop to determine edit mode
+  onSerialToggle,
+  editingDevice,
 }) {
   const handleSerialToggle = (e) => {
     const checked = e.target.checked;
-    onSerialToggle(checked); // call parent handler
+    onSerialToggle(checked);
   };
 
-  const isEditMode = Boolean(editingDevice); // determine if in edit mode
+  const isEditMode = Boolean(editingDevice);
 
   return (
     <div style={styles.modalOverlay}>
-      <div style={styles.modalContent}>
-        <h3>{data.id ? "Edit Device" : "Add Device"}</h3>
-
-        {/* Device Type Dropdown */}
-        <div style={styles.inputGroup}>
-          <label>Device Type:</label>
-          <select
-            name="deviceType"
-            value={data.deviceType}
-            onChange={onChange}
-            style={styles.input}
-          >
-            <option value="">Select Device Type</option>
-            {deviceTypes.map((type) => (
-              <option key={type.label} value={type.label}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+      <div style={styles.inventoryModalContent}>
+        <h3 style={styles.inventoryModalTitle}>{data.id ? "Edit Device" : "Add Device"}</h3>
+        
+        {/* Row 1: Device Type and Brand */}
+        <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Device Type:</label>
+            <select
+              name="deviceType"
+              value={data.deviceType}
+              onChange={onChange}
+              style={styles.inventoryInput}
+            >
+              <option value="">Select Device Type</option>
+              {deviceTypes.map((type) => (
+                <option key={type.label} value={type.label}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Brand:</label>
+            <input
+              name="brand"
+              value={data.brand}
+              onChange={onChange}
+              style={styles.inventoryInput}
+              autoComplete="off"
+            />
+          </div>
         </div>
 
-        {/* Device Tag with Generator and Serial Option */}
+        {/* Row 2: Device Tag (full width when visible) */}
         {data.deviceType && (
-          <div style={styles.inputGroup}>
-            <label>Device Tag:</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Device Tag:</label>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", width: "100%" }}>
               {!useSerial ? (
                 <>
-                  <span style={{ fontWeight: 600 }}>{`JOII${
-                    deviceTypes.find((t) => t.label === data.deviceType)
-                      ?.code || ""
+                  <span style={{ fontWeight: 600, fontSize: 14, color: "#2563eb", minWidth: "fit-content" }}>{`JOII${
+                    deviceTypes.find((t) => t.label === data.deviceType)?.code ||
+                    ""
                   }`}</span>
                   <input
                     name="deviceTagDigits"
@@ -133,12 +150,16 @@ function DeviceFormModal({
                         },
                       });
                     }}
-                    style={{ width: 60, padding: 6, marginLeft: 4 }}
+                    style={{ width: 70, padding: "8px 12px", borderRadius: 6, border: '1.5px solid #cbd5e1', background: '#f1f5f9', fontSize: 14, height: "36px", boxSizing: "border-box" }}
                     maxLength={4}
                     pattern="\\d{0,4}"
                     placeholder="0001"
                   />
-                  <button type="button" onClick={onGenerateTag}>
+                  <button type="button" onClick={onGenerateTag} style={{
+                    ...styles.inventoryModalButtonSmall,
+                    padding: "6px 12px",
+                    fontSize: 13
+                  }}>
                     Generate
                   </button>
                 </>
@@ -148,133 +169,136 @@ function DeviceFormModal({
                   name="deviceTag"
                   value={data.deviceTag}
                   onChange={onChange}
-                  style={{ flex: 1, padding: 6 }}
+                  style={{ flex: 1, padding: "8px 12px", borderRadius: 6, border: '1.5px solid #cbd5e1', background: '#f1f5f9', fontSize: 14, height: "36px", boxSizing: "border-box" }}
                   maxLength={64}
                   placeholder="Enter Serial Number"
                 />
               )}
             </div>
-            <label style={{ marginTop: 8 }}>
+            <label style={{ marginTop: 8, display: "flex", alignItems: "center", fontWeight: 400, fontSize: 13, color: "#222e3a" }}>
               <input
                 type="checkbox"
                 checked={useSerial}
-                onChange={handleSerialToggle} // use prop function
-                style={{ marginRight: 6 }}
+                onChange={handleSerialToggle}
+                style={{ marginRight: 6, accentColor: "#2563eb" }}
               />
               Use Serial Number Instead
             </label>
             {tagError && (
-              <span style={{ color: "red", fontSize: 12 }}>{tagError}</span>
+              <span style={{ color: "#e57373", fontSize: 12, marginTop: 4, display: "block" }}>{tagError}</span>
             )}
             {saveError && (
-              <span style={{ color: "red", fontSize: 12 }}>{saveError}</span>
+              <span style={{ color: "#e57373", fontSize: 12, marginTop: 4, display: "block" }}>{saveError}</span>
             )}
           </div>
         )}
 
-        {/* Brand Input (no suggestions) */}
-        <div style={styles.inputGroup}>
-          <label>Brand:</label>
-          <input
-            name="brand"
-            value={data.brand}
-            onChange={onChange}
-            style={styles.input}
-            autoComplete="off"
-          />
-        </div>
-
-        {/* Model */}
-        <div style={styles.inputGroup}>
-          <label>Model:</label>
-          <input
-            name="model"
-            value={data.model}
-            onChange={onChange}
-            style={styles.input}
-          />
-        </div>
-
-        {/* Quantity (hide in edit mode) */}
-        {!isEditMode && (
-          <div style={styles.inputGroup}>
-            <label>Quantity:</label>
+        {/* Row 3: Model and Condition */}
+        <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Model:</label>
             <input
-              name="quantity"
-              type="number"
-              min="1"
-              value={data.quantity}
+              name="model"
+              value={data.model}
               onChange={onChange}
-              style={styles.input}
+              style={styles.inventoryInput}
             />
           </div>
-        )}
-
-        {/* Condition Dropdown */}
-        <div style={styles.inputGroup}>
-          <label>Condition:</label>
-          <select
-            name="condition"
-            value={data.condition}
-            onChange={onChange}
-            style={styles.input}
-          >
-            <option value="">Select Condition</option>
-            {conditions.map((cond) => (
-              <option key={cond} value={cond}>
-                {cond}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Assigned To Dropdown */}
-        <div style={styles.inputGroup}>
-          <label>Assigned To:</label>
-          <select
-            name="assignedTo"
-            value={data.assignedTo}
-            onChange={onChange}
-            style={styles.input}
-          >
-            <option value="">Select Employee</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
-        {/* Assignment Date (only show if assignedTo is set) */}
-        {data.assignedTo && (
-          <div style={styles.inputGroup}>
-            <label>Assignment Date:</label>
-            <input
-              type="date"
-              name="assignmentDate"
-              value={data.assignmentDate || ""}
+          
+          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Condition:</label>
+            <select
+              name="condition"
+              value={data.condition}
               onChange={onChange}
-              style={styles.input}
+              style={styles.inventoryInput}
+            >
+              <option value="">Select Condition</option>
+              {conditions.map((cond) => (
+                <option key={cond} value={cond}>
+                  {cond}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Row 4: Quantity (if not editing) and Assigned To */}
+        <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          {!isEditMode && (
+            <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+              <label style={styles.inventoryLabel}>Quantity:</label>
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                value={data.quantity}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              />
+            </div>
+          )}
+          
+          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Assigned To:</label>
+            <select
+              name="assignedTo"
+              value={data.assignedTo}
+              onChange={onChange}
+              style={styles.inventoryInput}
+            >
+              <option value="">Select Employee</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Row 5: Assignment Date and Remarks */}
+        <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          {data.assignedTo && (
+            <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+              <label style={styles.inventoryLabel}>Assignment Date:</label>
+              <input
+                type="date"
+                name="assignmentDate"
+                value={data.assignmentDate || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              />
+            </div>
+          )}
+          
+          <div style={{ ...styles.inventoryInputGroup, flex: data.assignedTo ? 1 : 2, marginBottom: 0 }}>
+            <label style={styles.inventoryLabel}>Remarks:</label>
+            <input
+              name="remarks"
+              value={data.remarks}
+              onChange={onChange}
+              style={styles.inventoryInput}
             />
           </div>
-        )}
-
-        {/* Remarks */}
-        <div style={styles.inputGroup}>
-          <label>Remarks:</label>
-          <input
-            name="remarks"
-            value={data.remarks}
-            onChange={onChange}
-            style={styles.input}
-          />
         </div>
 
-        <div style={{ marginTop: 16 }}>
-          <button onClick={onSave} disabled={!isValid}>
+        {/* Buttons */}
+        <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 10, width: "100%" }}>
+          <button onClick={onSave} disabled={!isValid} style={{
+            ...styles.inventoryModalButton,
+            opacity: isValid ? 1 : 0.6,
+            cursor: isValid ? "pointer" : "not-allowed",
+            padding: "10px 24px",
+            fontSize: 14
+          }}>
             Save
           </button>
-          <button onClick={onCancel} style={{ marginLeft: 8 }}>
+          <button onClick={onCancel} style={{
+            ...styles.inventoryModalButtonSecondary,
+            padding: "10px 24px",
+            fontSize: 14
+          }}>
             Cancel
           </button>
         </div>
@@ -284,6 +308,89 @@ function DeviceFormModal({
 }
 
 function Inventory() {
+
+  // Add this function inside your Inventory component, before the return statement:
+const handleTempDeployDone = async () => {
+  if (!selectedAssignEmployee || !assigningDevice) return;
+  try {
+    // Generate docx for temporary deploy
+    const response = await fetch(
+      "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+    );
+    const content = await response.arrayBuffer();
+    const zip = new PizZip(content);
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
+    // Philippine date logic
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
+    const assignmentDate = phTime.getFullYear() + '-' +
+      String(phTime.getMonth() + 1).padStart(2, '0') + '-' +
+      String(phTime.getDate()).padStart(2, '0');
+    doc.setData({
+      name: emp?.fullName || "",
+      dateHired: emp?.dateHired || "",
+      department: emp?.department || emp?.client || "",
+      position: emp?.position || "",
+      devices: [{
+        assignmentDate: (() => {
+          let dateToFormat = assigningDevice.assignmentDate || assignmentDate;
+          let formattedDate = "";
+          if (dateToFormat) {
+            const dateObj = new Date(dateToFormat);
+            if (!isNaN(dateObj)) {
+              formattedDate = dateObj.toLocaleString('en-US', {
+                year: 'numeric', month: 'long', day: '2-digit'
+              });
+            } else {
+              formattedDate = dateToFormat;
+            }
+          }
+          return formattedDate;
+        })(),
+        deviceType: assigningDevice.deviceType,
+        brand: assigningDevice.brand,
+        deviceTag: assigningDevice.deviceTag,
+        condition: assigningDevice.condition,
+        remarks: "temporary deployed",
+      }],
+      newIssueNewBoxRed: "",
+      newIssueNewBoxBlack: "☐",
+      newIssueStockBoxRed: "",
+      newIssueStockBoxBlack: "☐",
+      wfhNewBoxRed: "",
+      wfhNewBoxBlack: "☐",
+      wfhStockBoxRed: "",
+      wfhStockBoxBlack: "☐",
+    });
+    doc.render();
+    const out = doc.getZip().generate({ type: "blob" });
+    const employeeName = emp?.fullName ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_") : "Employee";
+    const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
+    saveAs(out, fileName);
+    await updateDevice(assigningDevice.id, {
+      ...assigningDevice,
+      assignedTo: selectedAssignEmployee.id,
+      assignmentDate: new Date().toISOString().slice(0, 10),
+      status: "In Use",
+    });
+    await logDeviceHistory({
+      employeeId: selectedAssignEmployee.id,
+      deviceId: assigningDevice.id,
+      deviceTag: assigningDevice.deviceTag,
+      action: "assigned (temporary)",
+      date: new Date().toISOString(),
+    });
+    closeAssignModal();
+    loadDevicesAndEmployees();
+  } catch (err) {
+    alert("Failed to assign device or generate document. Please try again.");
+  }
+};
+
+
+  // --- STATE ---
   const [devices, setDevices] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...initialForm });
@@ -296,17 +403,28 @@ function Inventory() {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignSearch, setAssignSearch] = useState("");
   const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({
-    current: 0,
-    total: 0,
-  });
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
-  const [deleteProgress, setDeleteProgress] = useState({
-    current: 0,
-    total: 0,
-  });
+  const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
+  // Add search state
+  const [deviceSearch, setDeviceSearch] = useState("");
 
+  // Assign modal state
+  const [assignStep, setAssignStep] = useState(0);
+  const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null);
+  const [issueChecks, setIssueChecks] = useState({
+    newIssueNew: false,
+    newIssueStock: false,
+    wfhNew: false,
+    wfhStock: false,
+  });
+  const [showGenerateBtn, setShowGenerateBtn] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [docxBlob, setDocxBlob] = useState(null);
+
+  // --- HANDLERS ---
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
 
   const handleInput = ({ target: { name, value, type } }) => {
@@ -321,7 +439,6 @@ function Inventory() {
         setForm((prev) => ({ ...prev, [name]: value }));
         return;
       }
-      // Only validate JOII format if not using serial
       const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
       if (typeObj) {
         const prefix = `JOII${typeObj.code}`;
@@ -356,7 +473,6 @@ function Inventory() {
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
-    // Always fetch the latest device list from the database
     const allDevices = await getAllDevices();
     const ids = allDevices
       .map((d) => d.deviceTag)
@@ -368,7 +484,6 @@ function Inventory() {
     setForm((prev) => ({ ...prev, deviceTag: newTag }));
   };
 
-  // Load devices and employees from Firestore
   useEffect(() => {
     loadDevicesAndEmployees();
   }, []);
@@ -384,7 +499,6 @@ function Inventory() {
     setLoading(false);
   };
 
-  // Validation for required fields (status removed)
   const isFormValid = () =>
     form.deviceType.trim() !== "" &&
     form.deviceTag.trim() !== "" &&
@@ -398,7 +512,6 @@ function Inventory() {
       setSaveError("Please fill in all required fields.");
       return;
     }
-    // Check for duplicate tag in the database
     const allDevices = await getAllDevices();
     if (useSerial) {
       const serialExists = allDevices.some(
@@ -424,14 +537,12 @@ function Inventory() {
         return;
       }
     }
-    // Use correct tag prefix for device type
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) {
       setSaveError("Invalid device type.");
       return;
     }
     const tagPrefix = `JOII${typeObj.code}`;
-    // Default condition to 'New' if not set
     let assignmentDate = form.assignmentDate;
     if (form.assignedTo && !assignmentDate) {
       assignmentDate = new Date().toISOString().slice(0, 10);
@@ -444,14 +555,12 @@ function Inventory() {
     };
     const quantity = parseInt(form.quantity, 10) || 1;
     let newDeviceTags = [];
-    // Remove id field from payload if present
     const { id, ...payloadWithoutId } = form;
     if (useSerial) {
       if (!form._editDeviceId && quantity === 1) {
         await addDevice(payloadWithoutId);
         newDeviceTags = [payload.deviceTag];
         if (payload.assignedTo) {
-          // Fetch the device by tag after creation
           const allDevicesNow = await getAllDevices();
           const newDevice = allDevicesNow.find(
             (d) =>
@@ -480,7 +589,6 @@ function Inventory() {
         await addDevice(payloadWithoutId, tagPrefix);
         newDeviceTags = [payload.deviceTag];
         if (payload.assignedTo) {
-          // Fetch the device by tag after creation
           const allDevicesNow = await getAllDevices();
           const newDevice = allDevicesNow.find(
             (d) =>
@@ -499,7 +607,6 @@ function Inventory() {
         }
       } else if (!form._editDeviceId && quantity > 1) {
         await addMultipleDevices(payloadWithoutId, quantity, tagPrefix);
-        // Generate all new tags
         const allDevicesAfter = await getAllDevices();
         const maxTagNum = allDevicesAfter
           .map((d) => d.deviceTag)
@@ -517,7 +624,6 @@ function Inventory() {
         newDeviceTags = [payload.deviceTag];
       }
     }
-    // Log assignment history for all new devices if assignedTo is set (for multi-add)
     if (payload.assignedTo && newDeviceTags.length > 1) {
       const allDevicesNow = await getAllDevices();
       for (const tag of newDeviceTags) {
@@ -540,7 +646,6 @@ function Inventory() {
   };
 
   const handleEdit = (device) => {
-    // Copy all fields except id, but keep a hidden _editDeviceId for update
     const { id, ...rest } = device;
     setForm({ ...rest, _editDeviceId: id });
     setShowForm(true);
@@ -553,24 +658,21 @@ function Inventory() {
 
   const resetForm = () => {
     setForm({ ...initialForm });
-    setUseSerial(false); // Always uncheck serial option on cancel/close
+    setUseSerial(false);
     setShowForm(false);
   };
 
-  // Helper to get employee name by ID
   const getEmployeeName = (id) => {
     const emp = employees.find((e) => e.id === id);
     return emp ? emp.fullName : id || "";
   };
 
-  // Move serial toggle logic here
   const handleSerialToggle = (checked) => {
     setUseSerial(checked);
     setForm((prev) => ({ ...prev, deviceTag: "" }));
     setTagError("");
   };
 
-  // Import Excel handler
   const handleImportExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -581,19 +683,14 @@ function Inventory() {
       const workbook = XLSX.read(data, { type: "array" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      // Clean up column names: remove leading/trailing spaces and quotes
       rows = rows.map((row) => {
         const cleaned = {};
         Object.keys(row).forEach((key) => {
-          // Remove quotes and trim spaces
           const cleanKey = key.replace(/['"]+/g, "").trim();
           cleaned[cleanKey] = row[key];
         });
         return cleaned;
       });
-
-      // Filter out empty rows (all fields empty)
       const filteredRows = rows.filter(
         (row) =>
           row["Device Type"] ||
@@ -603,14 +700,11 @@ function Inventory() {
           row["Condition"] ||
           row["Remarks"]
       );
-
       setImportProgress({ current: 0, total: filteredRows.length });
-
       let importedCount = 0;
       for (let i = 0; i < filteredRows.length; i++) {
         const row = filteredRows[i];
         setImportProgress({ current: i + 1, total: filteredRows.length });
-        // Only import if required fields are present
         if (
           row["Device Type"] &&
           row["Device Tag"] &&
@@ -630,9 +724,7 @@ function Inventory() {
               assignmentDate: "",
             });
             importedCount++;
-          } catch (err) {
-            // Optionally, you can collect errors here
-          }
+          } catch (err) {}
         }
       }
       await loadDevicesAndEmployees();
@@ -644,10 +736,9 @@ function Inventory() {
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
-    e.target.value = ""; // reset file input
+    e.target.value = "";
   };
 
-  // Handle select all checkbox
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
     setSelectAll(checked);
@@ -660,14 +751,12 @@ function Inventory() {
     }
   };
 
-  // Handle individual checkbox
   const handleSelectOne = (id) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
     );
   };
 
-  // Bulk delete handler
   const handleBulkDelete = async () => {
     if (
       selectedIds.length === 0 ||
@@ -685,11 +774,227 @@ function Inventory() {
     loadDevicesAndEmployees();
   };
 
+  // --- ASSIGN MODAL LOGIC ---
+  const [assignModalStep, setAssignModalStep] = useState(0);
+  const [assignModalChecks, setAssignModalChecks] = useState({
+    newIssueNew: false,
+    newIssueStock: false,
+    wfhNew: false,
+    wfhStock: false,
+    temporaryDeploy: false,
+  });
+  const [assignModalShowGenerate, setAssignModalShowGenerate] = useState(false);
+  const [assignModalGenerating, setAssignModalGenerating] = useState(false);
+  const [assignModalProgress, setAssignModalProgress] = useState(0);
+  const [assignModalDocxBlob, setAssignModalDocxBlob] = useState(null);
+
+  // Assign Modal Flow
+  const openAssignModal = (device) => {
+    setAssigningDevice(device);
+    setAssignModalOpen(true);
+    setAssignModalStep(1);
+    setSelectedAssignEmployee(null);
+    setAssignModalChecks({
+      newIssueNew: false,
+      newIssueStock: false,
+      wfhNew: false,
+      wfhStock: false,
+      temporaryDeploy: false,
+    });
+    setAssignModalShowGenerate(false);
+    setProgress(0);
+    setGenerating(false);
+    setDocxBlob(null);
+    setAssignSearch("");
+  };
+
+  const closeAssignModal = () => {
+    setAssignModalOpen(false);
+    setAssigningDevice(null);
+    setAssignModalStep(0);
+    setSelectedAssignEmployee(null);
+    setAssignModalChecks({
+      newIssueNew: false,
+      newIssueStock: false,
+      wfhNew: false,
+      wfhStock: false,
+      temporaryDeploy: false,
+    });
+    setAssignModalShowGenerate(false);
+    setProgress(0);
+    setGenerating(false);
+    setDocxBlob(null);
+    setAssignSearch("");
+  };
+
+  const handleAssignModalCheckbox = (e) => {
+    setAssignModalChecks((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.checked,
+    }));
+  };
+
+  const handleAssignModalNext = () => {
+    setAssignModalShowGenerate(true);
+  };
+
+  const handleAssignModalGenerateDocx = async () => {
+    setAssignModalGenerating(true);
+    setAssignModalProgress(10);
+    try {
+      const response = await fetch(
+        "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+      );
+      setAssignModalProgress(20);
+      const content = await response.arrayBuffer();
+      setAssignModalProgress(30);
+      const zip = new PizZip(content);
+      setAssignModalProgress(40);
+      const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+      setAssignModalProgress(50);
+
+      const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
+      // Get all selected devices for assignment
+      const selectedDeviceObjects = devices.filter(d => selectedIds.includes(d.id));
+      // Philippine date logic
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
+      const assignmentDate = phTime.getFullYear() + '-' +
+        String(phTime.getMonth() + 1).padStart(2, '0') + '-' +
+        String(phTime.getDate()).padStart(2, '0');
+
+      doc.setData({
+        name: emp?.fullName || "",
+        dateHired: emp?.dateHired || "",
+        department: emp?.department || emp?.client || "",
+        position: emp?.position || "",
+        devices: selectedDeviceObjects.map(dev => {
+          // Format assignmentDate as 'June 06, 2025'
+          let dateToFormat = dev.assignmentDate || assignmentDate;
+          let formattedDate = "";
+          if (dateToFormat) {
+            const dateObj = new Date(dateToFormat);
+            if (!isNaN(dateObj)) {
+              formattedDate = dateObj.toLocaleString('en-US', {
+                year: 'numeric', month: 'long', day: '2-digit'
+              });
+            } else {
+              formattedDate = dateToFormat;
+            }
+          }
+          return {
+            assignmentDate: formattedDate,
+            deviceType: dev.deviceType,
+            brand: dev.brand,
+            deviceTag: dev.deviceTag,
+            condition: dev.condition,
+            remarks: assignModalChecks.temporaryDeploy ? "temporary deployed" : dev.remarks,
+          };
+        }),
+        // Dual placeholders for colored checkboxes
+        newIssueNewBoxRed: assignModalChecks.newIssueNew ? "◼" : "",
+        newIssueNewBoxBlack: assignModalChecks.newIssueNew ? "" : "☐",
+        newIssueStockBoxRed: assignModalChecks.newIssueStock ? "◼" : "",
+        newIssueStockBoxBlack: assignModalChecks.newIssueStock ? "" : "☐",
+        wfhNewBoxRed: assignModalChecks.wfhNew ? "◼" : "",
+        wfhNewBoxBlack: assignModalChecks.wfhNew ? "" : "☐",
+        wfhStockBoxRed: assignModalChecks.wfhStock ? "◼" : "",
+        wfhStockBoxBlack: assignModalChecks.wfhStock ? "" : "☐",
+      });
+
+      setAssignModalProgress(60);
+      doc.render();
+      setAssignModalProgress(70);
+      const out = doc.getZip().generate({ type: "blob" });
+      setAssignModalDocxBlob(out);
+      setAssignModalProgress(100);
+      setAssignModalGenerating(false);
+    } catch (e) {
+      setAssignModalGenerating(false);
+      alert("Failed to generate document. Please check the template and data.");
+    }
+  };
+
+  // Download and assign devices when user clicks Download DOCX
+const handleDownloadAndAssign = async () => {
+  if (!assignModalDocxBlob) return;
+  const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
+  const employeeName = emp?.fullName ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_") : "Employee";
+  const fileName = `${employeeName} - NEW ISSUE.docx`;
+  saveAs(assignModalDocxBlob, fileName);
+  // Move assigned devices to assets (update their assignedTo, assignmentDate, status, remarks)
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
+  const assignmentDate = phTime.getFullYear() + '-' +
+    String(phTime.getMonth() + 1).padStart(2, '0') + '-' +
+    String(phTime.getDate()).padStart(2, '0');
+  for (const dev of devices.filter(d => selectedIds.includes(d.id))) {
+    await updateDevice(dev.id, {
+      ...dev,
+      assignedTo: selectedAssignEmployee.id,
+      assignmentDate,
+      status: "In Use",
+      remarks: assignModalChecks.temporaryDeploy ? "temporary deployed" : dev.remarks,
+    });
+    await logDeviceHistory({
+      employeeId: selectedAssignEmployee.id,
+      deviceId: dev.id,
+      deviceTag: dev.deviceTag,
+      action: "assigned",
+      date: new Date().toISOString(),
+    });
+  }
+  closeAssignModal();
+  loadDevicesAndEmployees();
+};
+
+  // --- END ASSIGN MODAL LOGIC ---
+
+  // Handler for bulk assign
+const handleBulkAssign = () => {
+  if (selectedIds.length === 0) return;
+  // For now, open assign modal for the first selected device
+  const device = devices.find((d) => d.id === selectedIds[0]);
+  if (device) {
+    openAssignModal(device);
+  }
+  // If you want to support multi-assign, you can extend this logic
+};
+
   return (
     <div style={styles.pageContainer}>
-      <h2>Device Inventory</h2>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <button onClick={() => setShowForm(true)}>Add New Device</button>
+      <div style={styles.headerBarGoogle}>
+        <h2 style={styles.googleTitle}>Device Inventory</h2>
+        <div style={styles.googleSearchBar}>
+          <svg
+            width="22"
+            height="22"
+            style={{ color: "#445F6D", opacity: 0.7 }}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search devices..."
+            value={deviceSearch}
+            onChange={e => setDeviceSearch(e.target.value)}
+            style={styles.googleSearchInput}
+          />
+        </div>
+      </div>
+      <div style={styles.buttonBar}>
+        <button style={styles.button} onClick={() => setShowForm(true)}>
+          Add Device
+        </button>
         <label>
           <input
             type="file"
@@ -701,7 +1006,7 @@ function Inventory() {
           <button
             type="button"
             disabled={importing}
-            style={{ marginLeft: 8 }}
+            style={styles.button}
             onClick={() =>
               document
                 .querySelector('input[type="file"][accept=".xlsx,.xls"]')
@@ -716,14 +1021,29 @@ function Inventory() {
           </button>
         </label>
         <button
-          style={{ marginLeft: 8, color: "red" }}
+          style={{ ...styles.button, background: selectedIds.length ? styles.button.background : styles.buttonDisabled.background, color: selectedIds.length ? styles.button.color : styles.buttonDisabled.color }}
+          disabled={selectedIds.length === 0}
+          onClick={() => handleBulkAssign()}
+        >
+          Assign
+        </button>
+        <button
+          style={{ ...styles.button, background: selectedIds.length ? '#e57373' : styles.buttonDisabled.background, color: selectedIds.length ? '#fff' : styles.buttonDisabled.color }}
           disabled={selectedIds.length === 0 || deleteProgress.total > 0}
           onClick={handleBulkDelete}
         >
           Delete
         </button>
+        <button
+          style={styles.button}
+          onClick={() => {
+            // Function to be implemented
+          }}
+        >
+          New Acquisitions
+        </button>
         {deleteProgress.total > 0 && (
-          <span style={{ marginLeft: 12, color: "#e11d48", fontWeight: 600 }}>
+          <span style={styles.deletingText}>
             Deleting {deleteProgress.current}/{deleteProgress.total}...
           </span>
         )}
@@ -738,13 +1058,13 @@ function Inventory() {
           onGenerateTag={handleGenerateTag}
           employees={employees}
           tagError={tagError}
-          setTagError={setTagError} // pass setTagError to modal
+          setTagError={setTagError}
           saveError={saveError}
           isValid={isFormValid()}
           useSerial={useSerial}
           setUseSerial={setUseSerial}
-          onSerialToggle={handleSerialToggle} // pass serial toggle handler
-          editingDevice={form._editDeviceId} // pass editing device ID
+          onSerialToggle={handleSerialToggle}
+          editingDevice={form._editDeviceId}
         />
       )}
 
@@ -790,6 +1110,17 @@ function Inventory() {
             <tbody>
               {devices
                 .filter((device) => !device.assignedTo)
+                .filter(device => {
+                  const q = deviceSearch.toLowerCase();
+                  return (
+                    device.deviceType?.toLowerCase().includes(q) ||
+                    device.deviceTag?.toLowerCase().includes(q) ||
+                    device.brand?.toLowerCase().includes(q) ||
+                    device.model?.toLowerCase().includes(q) ||
+                    device.condition?.toLowerCase().includes(q) ||
+                    device.remarks?.toLowerCase().includes(q)
+                  );
+                })
                 .map((device) => (
                   <tr key={device.id}>
                     <td
@@ -815,64 +1146,110 @@ function Inventory() {
                     <td style={styles.td}>
                       {getEmployeeName(device.assignedTo)}
                     </td>
-                    <td style={styles.td}>{device.assignmentDate || ""}</td>
+                    <td style={styles.td}>{
+  device.assignmentDate
+    ? (() => {
+        const dateObj = new Date(device.assignmentDate);
+        if (isNaN(dateObj)) return device.assignmentDate;
+        return dateObj.toLocaleString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric'
+        });
+      })()
+    : ''
+}</td>
                     <td style={styles.td}>
                       {device.assignedTo ? "In Use" : "Stock Room"}
                     </td>
                     <td style={styles.td}>{device.condition}</td>
                     <td style={styles.td}>{device.remarks}</td>
                     <td style={styles.td}>
-                      <button onClick={() => handleEdit(device)}>Edit</button>
-                      <button
-                        onClick={() => handleDelete(device.id)}
-                        style={{ marginLeft: 8, color: "red" }}
-                      >
-                        Delete
-                      </button>
-                      <button
-                        style={{ marginLeft: 8 }}
-                        onClick={() => {
-                          setAssigningDevice(device);
-                          setAssignModalOpen(true);
-                        }}
-                      >
-                        {device.assignedTo ? "Reassign" : "Assign"}
-                      </button>
-                      {/* Only show Unassign if device is assigned */}
-                      {device.assignedTo && (
+                      <div style={{ display: "flex", gap: 24, alignItems: "center", justifyContent: "center" }}>
                         <button
-                          style={{ marginLeft: 8, color: "red" }}
-                          onClick={async () => {
-                            try {
-                              // Remove id from payload
-                              const { id, ...deviceWithoutId } = device;
-                              await updateDevice(device.id, {
-                                ...deviceWithoutId,
-                                assignedTo: "",
-                                assignmentDate: "",
-                                status: getStatus(""), // Set status to 'Stock Room'
-                              });
-                              // Log history
-                              await logDeviceHistory({
-                                employeeId: device.assignedTo,
-                                deviceId: device.id,
-                                deviceTag: device.deviceTag,
-                                action: "unassigned",
-                                reason: "Unassigned from Inventory",
-                                condition: device.condition,
-                                date: new Date().toISOString(),
-                              });
-                              loadDevicesAndEmployees();
-                            } catch (err) {
-                              alert(
-                                "Failed to unassign device. Please try again."
-                              );
-                            }
+                          style={{
+                            width: 48,
+                            height: 48,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "none",
+                            outline: "none",
+                            borderRadius: 12,
+                            background: "#eaf7fa",
+                            cursor: "pointer",
+                            transition: "background 0.18s"
                           }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#d0f0f7"}
+                          onMouseLeave={e => e.currentTarget.style.background = "#eaf7fa"}
+                          onClick={() => handleEdit(device)}
+                          title="Edit"
                         >
-                          Unassign
+      <svg width="18" height="18" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+      </svg>
                         </button>
-                      )}
+                        <button
+                          style={{
+                            width: 48,
+                            height: 48,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "none",
+                            outline: "none",
+                            borderRadius: 12,
+                            background: "#ffe9ec",
+                            cursor: "pointer",
+                            transition: "background 0.18s"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = "#ffd6de"}
+                          onMouseLeave={e => e.currentTarget.style.background = "#ffe9ec"}
+                          onClick={() => handleDelete(device.id)}
+                          title="Delete"
+                        >
+      <svg width="18" height="18" fill="none" stroke="#e57373" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+        <line x1="10" y1="11" x2="10" y2="17"/>
+        <line x1="14" y1="11" x2="14" y2="17"/>
+      </svg>
+                        </button>
+                        {device.assignedTo && (
+                          <button
+                            style={styles.iconButton}
+                            title="Unassign"
+                            onClick={async () => {
+                              try {
+                                const { id, ...deviceWithoutId } = device;
+                                await updateDevice(device.id, {
+                                  ...deviceWithoutId,
+                                  assignedTo: "",
+                                  assignmentDate: "",
+                                  status: getStatus(""),
+                                });
+                                await logDeviceHistory({
+                                  employeeId: device.assignedTo,
+                                  deviceId: device.id,
+                                  deviceTag: device.deviceTag,
+                                  action: "unassigned",
+                                  reason: "Unassigned from Inventory",
+                                  condition: device.condition,
+                                  date: new Date().toISOString(),
+                                });
+                                loadDevicesAndEmployees();
+                              } catch (err) {
+                                alert(
+                                  "Failed to unassign device. Please try again."
+                                );
+                              }
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = styles.iconButtonHover.background}
+                            onMouseLeave={e => e.currentTarget.style.background = styles.iconButton.background}
+                          >
+                            <svg width="18" height="18" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -881,129 +1258,193 @@ function Inventory() {
         </div>
       )}
 
+      {/* Assign Modal */}
       {assignModalOpen && assigningDevice && (
-        <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
-          <div style={{ ...styles.modalContent, minWidth: 350 }}>
-            <h4>Assign Device: {assigningDevice.deviceTag}</h4>
-            <input
-              type="text"
-              placeholder="Search employee..."
-              value={assignSearch}
-              onChange={(e) => setAssignSearch(e.target.value)}
-              style={{ width: "100%", marginBottom: 8, padding: 6 }}
-            />
-            <ul
-              style={{
-                maxHeight: 200,
-                overflowY: "auto",
-                padding: 0,
-                margin: 0,
-              }}
-            >
-              {employees
-                .filter((emp) =>
-                  emp.fullName
-                    .toLowerCase()
-                    .includes(assignSearch.toLowerCase())
-                )
-                .map((emp) => (
-                  <li
-                    key={emp.id}
-                    style={{ listStyle: "none", marginBottom: 8 }}
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            {assignModalStep === 1 && (
+              <>
+                <h4 style={styles.modalTitle}>Assign Device: {assigningDevice.deviceTag}</h4>
+                <input
+                  type="text"
+                  placeholder="Search employee..."
+                  value={assignSearch}
+                  onChange={(e) => setAssignSearch(e.target.value)}
+                  style={styles.modalInput}
+                />
+                <ul
+                  style={{
+                    maxHeight: 200,
+                    overflowY: "auto",
+                    padding: 0,
+                    margin: 0,
+                    width: "100%",
+                  }}
+                >
+                  {employees
+                    .filter((emp) =>
+                      emp.fullName
+                        .toLowerCase()
+                        .includes(assignSearch.toLowerCase())
+                    )
+                    .map((emp) => (
+                      <li
+                        key={emp.id}
+                        style={{ listStyle: "none", marginBottom: 8, width: "100%" }}
+                      >
+                        <button
+                          style={{
+                            ...styles.modalButton,
+                            width: "100%",
+                            background: "#f1f5f9",
+                            color: "#2563eb",
+                            border: "1.5px solid #cbd5e1",
+                            fontWeight: 600,
+                            fontSize: 15,
+                          }}
+                          onClick={() => {
+                            setSelectedAssignEmployee(emp);
+                            setAssignModalStep(2);
+                          }}
+                        >
+                          {emp.fullName}
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+                <button
+                  onClick={closeAssignModal}
+                  style={styles.modalButtonSecondary}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+
+            {assignModalStep === 2 && selectedAssignEmployee && (
+              <>
+                <h4 style={styles.modalTitle}>
+                  Asset Accountability Form Options for: <span style={{ color: "#2563eb" }}>{selectedAssignEmployee.fullName}</span>
+                </h4>
+                <div style={styles.modalSection}>
+                  <div style={styles.modalLabel}>New Issue:</div>
+                  <div style={{ display: "flex", gap: 18, marginBottom: 12 }}>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        name="newIssueNew"
+                        checked={assignModalChecks.newIssueNew}
+                        onChange={handleAssignModalCheckbox}
+                        style={styles.modalCheckbox}
+                      /> Newly Purchased
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        name="newIssueStock"
+                        checked={assignModalChecks.newIssueStock}
+                        onChange={handleAssignModalCheckbox}
+                        style={styles.modalCheckbox}
+                      /> Stock
+                    </label>
+                  </div>
+                  <div style={styles.modalLabel}>Work From Home/Borrowed:</div>
+                  <div style={{ display: "flex", gap: 18 }}>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        name="wfhNew"
+                        checked={assignModalChecks.wfhNew}
+                        onChange={handleAssignModalCheckbox}
+                        style={styles.modalCheckbox}
+                      /> Newly Purchased
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center" }}>
+                      <input
+                        type="checkbox"
+                        name="wfhStock"
+                        checked={assignModalChecks.wfhStock}
+                        onChange={handleAssignModalCheckbox}
+                        style={styles.modalCheckbox}
+                      /> Stock
+                    </label>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: "flex", alignItems: "center", fontWeight: 600, color: "#e57373" }}>
+                      <input
+                        type="checkbox"
+                        name="temporaryDeploy"
+                        checked={assignModalChecks.temporaryDeploy}
+                        onChange={handleAssignModalCheckbox}
+                        style={styles.modalCheckbox}
+                      /> Temporary Deploy
+                    </label>
+                  </div>
+                </div>
+                {!assignModalShowGenerate && (
+                  <button
+                    style={styles.modalButton}
+                    onClick={handleAssignModalNext}
                   >
-                    <button
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: 8,
-                      }}
-                      onClick={async () => {
-                        try {
-                          // If reassigning, log unassign for previous employee
-                          if (
-                            assigningDevice.assignedTo &&
-                            assigningDevice.assignedTo !== emp.id
-                          ) {
-                            // Find previous employee name
-                            const prevEmp = employees.find(
-                              (e) => e.id === assigningDevice.assignedTo
-                            );
-                            const prevEmpName = prevEmp
-                              ? prevEmp.fullName
-                              : assigningDevice.assignedTo;
-                            await logDeviceHistory({
-                              employeeId: assigningDevice.assignedTo,
-                              deviceId: assigningDevice.id,
-                              deviceTag: assigningDevice.deviceTag,
-                              action: "unassigned",
-                              reason: `Reassigned to ${emp.fullName}`,
-                              condition: assigningDevice.condition,
-                              date: new Date().toISOString(),
-                            });
-                            // Remove id from payload
-                            const { id, ...deviceWithoutId } = assigningDevice;
-                            await updateDevice(assigningDevice.id, {
-                              ...deviceWithoutId,
-                              assignedTo: emp.id,
-                              assignmentDate: new Date()
-                                .toISOString()
-                                .slice(0, 10),
-                              status: getStatus(emp.id),
-                            });
-                            // Log assign history with previous employee name
-                            await logDeviceHistory({
-                              employeeId: emp.id,
-                              deviceId: assigningDevice.id,
-                              deviceTag: assigningDevice.deviceTag,
-                              action: "assigned",
-                              reason: `Received from reassignment (${prevEmpName})`,
-                              date: new Date().toISOString(),
-                            });
-                          } else {
-                            // Normal assign
-                            const { id, ...deviceWithoutId } = assigningDevice;
-                            await updateDevice(assigningDevice.id, {
-                              ...deviceWithoutId,
-                              assignedTo: emp.id,
-                              assignmentDate: new Date()
-                                .toISOString()
-                                .slice(0, 10),
-                              status: getStatus(emp.id),
-                            });
-                            await logDeviceHistory({
-                              employeeId: emp.id,
-                              deviceId: assigningDevice.id,
-                              deviceTag: assigningDevice.deviceTag,
-                              action: "assigned",
-                              reason: "assigned",
-                              date: new Date().toISOString(),
-                            });
-                          }
-                          // Refresh device and employee lists
-                          loadDevicesAndEmployees();
-                          setAssignModalOpen(false);
-                          setAssigningDevice(null);
-                          setAssignSearch("");
-                        } catch (err) {
-                          alert("Failed to assign device. Please try again.");
-                        }
-                      }}
-                    >
-                      {emp.fullName}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-            <button
-              onClick={() => {
-                setAssignModalOpen(false);
-                setAssigningDevice(null);
-                setAssignSearch("");
-              }}
-              style={{ marginTop: 12 }}
-            >
-              Cancel
-            </button>
+                    Next
+                  </button>
+                )}
+                {assignModalShowGenerate && (
+                  <>
+                    <div style={{ margin: "18px 0", width: "100%" }}>
+                      {assignModalGenerating && (
+                        <div style={{ marginBottom: 8, width: "100%" }}>
+                          <div
+                            style={{
+                              width: "100%",
+                              background: "#e9eef3",
+                              borderRadius: 8,
+                              height: 16,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${assignModalProgress}%`,
+                                background: "#2563eb",
+                                height: 16,
+                                borderRadius: 8,
+                                transition: "width 0.3s",
+                              }}
+                            />
+                          </div>
+                          <span style={{ color: "#2563eb", fontWeight: 500 }}>
+                            Generating: {assignModalProgress < 100 ? `${assignModalProgress}%` : "Done"}
+                          </span>
+                        </div>
+                      )}
+                      {!assignModalGenerating && !assignModalDocxBlob && (
+                        <button
+                          style={{ ...styles.modalButton, background: "#22c55e" }}
+                          onClick={handleAssignModalGenerateDocx}
+                        >
+                          Generate Asset Accountability Form
+                        </button>
+                      )}
+                      {assignModalDocxBlob && (
+                        <button
+                          style={styles.modalButton}
+                          onClick={handleDownloadAndAssign}
+                        >
+                          Download DOCX
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+                <button
+                  onClick={closeAssignModal}
+                  style={styles.modalButtonSecondary}
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1015,30 +1456,149 @@ export default Inventory;
 
 const styles = {
   pageContainer: {
-    padding: "16px 0 16px 0", // Only top/bottom padding, no left/right
+    padding: "32px 0 32px 0",
     maxWidth: "100%",
+    background: "#f7f9fb",
+    minHeight: "100vh",
+    fontFamily: 'Segoe UI, Arial, sans-serif',
   },
-  tableContainer: { marginTop: 16, overflowX: "auto" },
+  headerBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 24,
+    padding: "0 24px",
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 700,
+    color: "#222e3a",
+    letterSpacing: 1,
+    margin: 0,
+  },
+  headerBarGoogle: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    marginBottom: 24,
+    padding: "0 24px",
+  },
+  googleTitle: {
+    color: "#233037",
+    fontWeight: 800,
+    fontSize: 28,
+    marginBottom: 18,
+    letterSpacing: 1,
+    fontFamily: 'Segoe UI, Arial, sans-serif',
+  },
+  googleSearchBar: {
+    display: "flex",
+    alignItems: "center",
+    background: "#fff",
+    borderRadius: 24,
+    boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
+    border: "1.5px solid #e0e7ef",
+    padding: "2px 16px 2px 12px",
+    width: 320,
+    transition: "box-shadow 0.2s, border 0.2s",
+    marginBottom: 0,
+  },
+  googleSearchInput: {
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    fontSize: 17,
+    color: "#233037",
+    padding: "10px 0 10px 8px",
+    width: "100%",
+    fontWeight: 500,
+  },
+  buttonBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 18,
+    padding: "0 24px",
+  },
+  button: {
+    background: "#70C1B3",
+    color: "#233037",
+    border: "none",
+    borderRadius: 8,
+    padding: "10px 22px",
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: "pointer",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    transition: "background 0.2s, box-shadow 0.2s",
+    outline: "none",
+    margin: 0,
+  },
+  buttonDisabled: {
+    background: "#e9eef3",
+    color: "#b0b8c1",
+    cursor: "not-allowed",
+  },
+  tableContainer: {
+    marginTop: 0,
+    overflowX: "auto",
+    padding: "0 24px",
+  },
   table: {
     width: "100%",
-    minWidth: 800,
-    borderCollapse: "collapse",
-    tableLayout: "auto", // <-- Change from "fixed" to "auto" for autofit
+    minWidth: 900,
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
+    overflow: "hidden",
+    tableLayout: 'auto',
   },
   th: {
-    border: "1px solid #ccc",
-    padding: 8,
-    backgroundColor: "#f5f5f5",
+    padding: "16px 12px",
+    background: "#445F6D",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 16,
+    borderBottom: "2px solid #e0e7ef",
     textAlign: "left",
-    // Remove any fixed width here except for checkbox column
+    letterSpacing: 0.2,
+    whiteSpace: 'nowrap',
   },
   td: {
-    border: "1px solid #ccc",
-    padding: 8,
-    // Remove maxWidth/width for autofit
-    whiteSpace: "nowrap", // Optional: prevents wrapping, more like Excel autofit
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+    padding: "14px 12px",
+    color: "#233037",
+    fontSize: 15,
+    borderBottom: "1px solid #e0e7ef",
+    background: "#f7f9fb",
+    verticalAlign: "middle",
+    wordBreak: 'break-word',
+  },
+  iconButton: {
+    background: "none",
+    border: "none",
+    color: "#64748b",
+    fontSize: 18,
+    padding: 6,
+    borderRadius: 6,
+    cursor: "pointer",
+    marginRight: 4,
+    transition: "background 0.2s, color 0.2s",
+    outline: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconButtonHover: {
+    background: "#e0e7ef",
+    color: "#2563eb",
+  },
+  deletingText: {
+    marginLeft: 16,
+    color: "#e57373",
+    fontWeight: 500,
+    fontSize: 15,
   },
   modalOverlay: {
     position: "fixed",
@@ -1046,40 +1606,183 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(34, 46, 58, 0.18)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1000,
+    zIndex: 2000,
   },
   modalContent: {
-    backgroundColor: "#fff",
-    padding: 24,
-    borderRadius: 8,
-    minWidth: 300,
-  },
-  inputGroup: {
-    marginBottom: 12,
+    background: "#fff",
+    padding: 28,
+    borderRadius: 14,
+    minWidth: 260,
+    maxWidth: 340,
+    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
     display: "flex",
     flexDirection: "column",
+    alignItems: "center",
+    position: "relative",
+    border: "1.5px solid #e5e7eb",
+    transition: "box-shadow 0.2s",
   },
-  input: {
-    width: "100%",
-    padding: 6,
-  },
-  suggestionBox: {
-    border: "1px solid #ccc",
+  inventoryModalContent: {
     background: "#fff",
-    position: "absolute",
-    zIndex: 10,
-    width: "100%",
-    maxHeight: 120,
+    padding: 24,
+    borderRadius: 12,
+    minWidth: 700,
+    maxWidth: 780,
+    width: "85vw",
+    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    position: "relative",
+    border: "1.5px solid #e5e7eb",
+    transition: "box-shadow 0.2s",
+    maxHeight: "85vh",
     overflowY: "auto",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
   },
-  suggestionItem: {
-    padding: "6px 12px",
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: "#2563eb",
+    marginBottom: 16,
+    letterSpacing: 0.5,
+    textAlign: "center",
+  },
+  inventoryModalTitle: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: "#2563eb",
+    marginBottom: 18,
+    letterSpacing: 0.5,
+    textAlign: "center",
+    width: "100%",
+  },
+  inventoryInputGroup: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    marginBottom: 12,
+    width: "100%",
+    minWidth: 180,
+  },
+  inventoryLabel: {
+    alignSelf: "flex-start",
+    fontWeight: 500,
+    color: "#222e3a",
+    marginBottom: 4,
+    fontSize: 14,
+  },
+  inventoryInput: {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: 6,
+    border: "1.5px solid #cbd5e1",
+    fontSize: 14,
+    background: "#f1f5f9",
+    color: "#222e3a",
+    outline: "none",
+    marginBottom: 0,
+    transition: "border 0.2s, box-shadow 0.2s",
+    height: "36px",
+    boxSizing: "border-box",
+  },
+  inventoryModalButton: {
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "9px 20px",
+    fontSize: 15,
+    fontWeight: 500,
     cursor: "pointer",
-    borderBottom: "1px solid #eee",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    transition: "background 0.2s, box-shadow 0.2s",
+    outline: "none",
+  },
+  inventoryModalButtonSmall: {
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: 7,
+    padding: "7px 14px",
+    fontSize: 14,
+    fontWeight: 500,
+    cursor: "pointer",
+    marginLeft: 4,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    transition: "background 0.2s, box-shadow 0.2s",
+    outline: "none",
+  },
+  inventoryModalButtonSecondary: {
+    background: "#e0e7ef",
+    color: "#2563eb",
+    border: "none",
+    borderRadius: 8,
+    padding: "9px 20px",
+    fontSize: 15,
+    fontWeight: 500,
+    cursor: "pointer",
+    marginLeft: 4,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    transition: "background 0.2s, box-shadow 0.2s",
+    outline: "none",
+  },
+  modalCheckbox: {
+    accentColor: "#2563eb",
+    width: 18,
+    height: 18,
+    marginRight: 8,
+  },
+  modalSection: {
+    width: "100%",
+    marginBottom: 14,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+  },
+  modalLabel: {
+    fontWeight: 500,
+    color: "#222e3a",
+    marginBottom: 5,
+    fontSize: 15,
+    textAlign: "left",
+    width: "100%",
+  },
+  actionEditButton: {
+    background: "#eaf7fa",
+    border: "none",
+    borderRadius: 12,
+    width: 48,
+    height: 48,
+    padding: 0,
+    cursor: "pointer",
+    transition: "background 0.18s, box-shadow 0.18s",
+    boxShadow: "0 1px 4px rgba(68,95,109,0.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionEditButtonHover: {
+    background: "#d0f0f7",
+  },
+  actionDeleteButton: {
+    background: "#ffe9ec",
+    border: "none",
+    borderRadius: 12,
+    width: 48,
+    height: 48,
+    padding: 0,
+    cursor: "pointer",
+    transition: "background 0.18s, box-shadow 0.18s",
+    boxShadow: "0 1px 4px rgba(68,95,109,0.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionDeleteButtonHover: {
+    background: "#ffd6de",
   },
 };

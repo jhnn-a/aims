@@ -157,6 +157,22 @@ function DeleteConfirmationModal({ onConfirm, onCancel }) {
   );
 }
 
+// SVG Icon components
+const EditIcon = ({ color = "#2563eb" }) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M14.85 3.15a1.5 1.5 0 0 1 2.12 2.12l-9.2 9.2-2.47.35.35-2.47 9.2-9.2Z" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M13.44 5.44l1.12 1.12" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const DeleteIcon = ({ color = "#e11d48" }) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <rect x="5" y="7" width="10" height="8" rx="2" stroke={color} strokeWidth="1.5"/>
+    <path d="M8 9v4M12 9v4" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M3 7h14" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M8.5 4h3a1 1 0 0 1 1 1V7h-5V5a1 1 0 0 1 1-1Z" stroke={color} strokeWidth="1.5"/>
+  </svg>
+);
+
 function Employees() {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
@@ -198,6 +214,11 @@ function Employees() {
     current: 0,
     total: 0,
   });
+  // Add hover state for icon buttons
+  const [hoveredEdit, setHoveredEdit] = useState(null);
+  const [hoveredDelete, setHoveredDelete] = useState(null);
+  const [hoveredEditId, setHoveredEditId] = useState(null);
+  const [hoveredDeleteId, setHoveredDeleteId] = useState(null);
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -596,10 +617,50 @@ function Employees() {
       </div>
       <div style={{ marginBottom: 12 }}>
         <button
-          style={{ color: "red", marginRight: 8 }}
+          style={{
+            ...(selectedIds.length === 0 || deleteProgress.total > 0
+              ? { ...styles.deleteBtn, ...styles.washedOutBtn }
+              : styles.deleteBtn),
+            minWidth: 44,
+            minHeight: 32,
+            fontSize: 14,
+            fontWeight: 700,
+            borderRadius: 7,
+            marginRight: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            outline: "none",
+            transition:
+              "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
+          }}
           disabled={selectedIds.length === 0 || deleteProgress.total > 0}
           onClick={handleBulkDelete}
+          onMouseEnter={(e) => {
+            if (!(selectedIds.length === 0 || deleteProgress.total > 0)) {
+              e.currentTarget.style.background = "#c81e3a";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(selectedIds.length === 0 || deleteProgress.total > 0)) {
+              e.currentTarget.style.background = "#e11d48";
+            }
+          }}
         >
+          {/* Trash SVG icon */}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 20 20"
+            fill="none"
+            style={{ marginRight: 2 }}
+          >
+            <rect x="5.5" y="7.5" width="9" height="8" rx="2" stroke="#fff" strokeWidth="1.5" fill="none"/>
+            <path d="M8 10v4M12 10v4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M3 7.5h14" stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M8.5 4.5h3a1 1 0 0 1 1 1V7.5h-5V5.5a1 1 0 0 1 1-1z" stroke="#fff" strokeWidth="1.5" fill="none"/>
+          </svg>
           Delete Selected
         </button>
         {deleteProgress.total > 0 && (
@@ -629,67 +690,105 @@ function Employees() {
 
       {showDevicesModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3 style={{ color: "#2563eb" }}>
+          <div
+            style={{
+              ...styles.modalContent,
+              maxWidth: 900, // expanded for Actions column
+              minWidth: 540, // slightly wider for comfort
+              width: '97vw', // responsive, but not full width
+              maxHeight: '80vh',
+              padding: '28px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              boxSizing: 'border-box',
+            }}
+          >
+            <h3
+              style={{
+                color: '#2563eb',
+                margin: '0 0 14px 0',
+                fontWeight: 700,
+                fontSize: 20,
+                textAlign: 'center',
+                letterSpacing: 1,
+              }}
+            >
               Devices Assigned to {selectedEmployee?.fullName}
             </h3>
-            <button onClick={handleShowHistory} style={styles.secondaryBtn}>
+            <button onClick={handleShowHistory} style={{ ...styles.secondaryBtn, alignSelf: 'flex-end', marginBottom: 8, fontSize: 14, padding: '7px 16px', borderRadius: 7 }}>
               View History
             </button>
-            {devicesForEmployee.length === 0 ? (
-              <p>No devices assigned.</p>
-            ) : (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Tag</th>
-                    <th style={styles.th}>Type</th>
-                    <th style={styles.th}>Brand</th>
-                    <th style={styles.th}>Model</th>
-                    <th style={styles.th}>Condition</th>
-                    <th style={styles.th}>Assignment Date</th>
-                    <th style={styles.th}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {devicesForEmployee.map((dev) => (
-                    <tr key={dev.id}>
-                      <td style={styles.td}>{dev.deviceTag}</td>
-                      <td style={styles.td}>{dev.deviceType}</td>
-                      <td style={styles.td}>{dev.brand}</td>
-                      <td style={styles.td}>{dev.model}</td>
-                      <td style={styles.td}>{dev.condition}</td>
-                      <td style={styles.td}>{dev.assignmentDate || ""}</td>
-                      <td style={styles.td}>
-                        <button
-                          onClick={() => handleUnassign(dev)}
-                          style={styles.deleteBtn}
-                        >
-                          Unassign
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAssigningDevice(dev);
-                            setAssignModalOpen(true);
-                          }}
-                          style={styles.secondaryBtn}
-                        >
-                          {dev.assignedTo ? "Reassign" : "Assign"}
-                        </button>
-                      </td>
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                marginBottom: 10,
+                borderRadius: 12,
+                background: '#f7f9fb',
+                boxShadow: '0 1px 4px rgba(68,95,109,0.06)',
+                padding: 0,
+                minHeight: 80,
+                maxHeight: '48vh',
+                overflowX: 'auto', // allow horizontal scroll if needed
+              }}
+            >
+              {devicesForEmployee.length === 0 ? (
+                <p style={{ textAlign: 'center', margin: 24 }}>No devices assigned.</p>
+              ) : (
+                <table
+                  style={{
+                    width: '100%',
+                    minWidth: 600, // reduce minWidth since fewer columns
+                    borderCollapse: 'separate',
+                    borderSpacing: 0,
+                    background: '#fff',
+                    borderRadius: 12,
+                    tableLayout: 'fixed',
+                    fontSize: 14,
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '16%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Tag</th>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Type</th>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Brand</th>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Model</th>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Condition</th>
+                      <th style={{ ...styles.th, fontSize: 14, padding: '10px 8px' }}>Assignment Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <button onClick={handleCloseDevicesModal} style={styles.cancelBtn}>
+                  </thead>
+                  <tbody>
+                    {devicesForEmployee.map((dev) => (
+                      <tr key={dev.id}>
+                        <td style={{ ...styles.td, fontWeight: 600, fontSize: 14, padding: '10px 8px' }}>{dev.deviceTag}</td>
+                        <td style={{ ...styles.td, fontSize: 14, padding: '10px 8px' }}>{dev.deviceType}</td>
+                        <td style={{ ...styles.td, fontSize: 14, padding: '10px 8px' }}>{dev.brand}</td>
+                        <td style={{ ...styles.td, fontSize: 14, padding: '10px 8px' }}>{dev.model}</td>
+                        <td style={{ ...styles.td, fontSize: 14, padding: '10px 8px' }}>{dev.condition}</td>
+                        <td style={{ ...styles.td, fontSize: 14, padding: '10px 8px' }}>{dev.assignmentDate || ''}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button onClick={handleCloseDevicesModal} style={{ ...styles.cancelBtn, marginTop: 8, alignSelf: 'flex-end', fontSize: 14, padding: '8px 18px', borderRadius: 7 }}>
               Close
             </button>
             {/* Assign Modal */}
             {assignModalOpen && assigningDevice && (
               <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
                 <div style={{ ...styles.modalContent, minWidth: 350 }}>
-                  <h4 style={{ color: "#2563eb" }}>
+                  <h4 style={{ color: '#2563eb' }}>
                     Assign Device: {assigningDevice.deviceTag}
                   </h4>
                   <input
@@ -697,12 +796,12 @@ function Employees() {
                     placeholder="Search employee..."
                     value={assignSearch}
                     onChange={(e) => setAssignSearch(e.target.value)}
-                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                    style={{ width: '100%', marginBottom: 8, padding: 6 }}
                   />
                   <ul
                     style={{
                       maxHeight: 200,
-                      overflowY: "auto",
+                      overflowY: 'auto',
                       padding: 0,
                       margin: 0,
                     }}
@@ -717,17 +816,17 @@ function Employees() {
                       .map((emp) => (
                         <li
                           key={emp.id}
-                          style={{ listStyle: "none", marginBottom: 8 }}
+                          style={{ listStyle: 'none', marginBottom: 8 }}
                         >
                           <button
                             style={{
-                              width: "100%",
-                              textAlign: "left",
+                              width: '100%',
+                              textAlign: 'left',
                               padding: 8,
                               borderRadius: 6,
-                              border: "1px solid #e5e7eb",
-                              background: "#f8fafc",
-                              cursor: "pointer",
+                              border: '1px solid #e5e7eb',
+                              background: '#f8fafc',
+                              cursor: 'pointer',
                             }}
                             onClick={async () => {
                               try {
@@ -736,7 +835,6 @@ function Employees() {
                                   assigningDevice.assignedTo &&
                                   assigningDevice.assignedTo !== emp.id
                                 ) {
-                                  // Find previous employee name
                                   const prevEmp = employees.find(
                                     (e) => e.id === assigningDevice.assignedTo
                                   );
@@ -747,7 +845,7 @@ function Employees() {
                                     employeeId: assigningDevice.assignedTo,
                                     deviceId: assigningDevice.id,
                                     deviceTag: assigningDevice.deviceTag,
-                                    action: "unassigned",
+                                    action: 'unassigned',
                                     reason: `Reassigned to ${emp.fullName}`,
                                     condition: assigningDevice.condition,
                                     date: new Date().toISOString(),
@@ -768,7 +866,7 @@ function Employees() {
                                     employeeId: emp.id,
                                     deviceId: assigningDevice.id,
                                     deviceTag: assigningDevice.deviceTag,
-                                    action: "assigned",
+                                    action: 'assigned',
                                     reason: `Received from reassignment (${prevEmpName})`,
                                     date: new Date().toISOString(),
                                   });
@@ -787,8 +885,8 @@ function Employees() {
                                     employeeId: emp.id,
                                     deviceId: assigningDevice.id,
                                     deviceTag: assigningDevice.deviceTag,
-                                    action: "assigned",
-                                    reason: "assigned",
+                                    action: 'assigned',
+                                    reason: 'assigned',
                                     date: new Date().toISOString(),
                                   });
                                 }
@@ -803,7 +901,7 @@ function Employees() {
                                 setAssignSearch("");
                               } catch (err) {
                                 alert(
-                                  "Failed to assign device. Please try again."
+                                  'Failed to assign device. Please try again.'
                                 );
                               }
                             }}
@@ -889,48 +987,103 @@ function Employees() {
 
       {showHistoryModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3 style={{ color: "#2563eb" }}>Device Assignment History</h3>
-            {loadingHistory ? (
-              <p>Loading...</p>
-            ) : history.length === 0 ? (
-              <p>No history found.</p>
-            ) : (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Device Tag</th>
-                    <th style={styles.th}>Action</th>
-                    <th style={styles.th}>Date</th>
-                    <th style={styles.th}>Reason</th>
-                    <th style={styles.th}>Delete</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((h) => (
-                    <tr key={h.id}>
-                      <td style={styles.td}>{h.deviceTag}</td>
-                      <td style={styles.td}>{h.action}</td>
-                      <td style={styles.td}>
-                        {new Date(h.date).toLocaleString()}
-                      </td>
-                      <td style={styles.td}>{h.reason || "-"}</td>
-                      <td style={styles.td}>
-                        <button
-                          onClick={() => handleDeleteHistory(h.id)}
-                          style={styles.deleteBtn}
-                        >
-                          Delete
-                        </button>
-                      </td>
+          <div
+            style={{
+              ...styles.modalContent,
+              maxWidth: 820, // expanded for Delete column
+              minWidth: 520, // slightly wider for comfort
+              width: '96vw', // responsive, but not full width
+              maxHeight: '80vh',
+              padding: '32px 32px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              boxSizing: 'border-box',
+            }}
+          >
+            <h3
+              style={{
+                color: '#2563eb',
+                margin: '0 0 18px 0',
+                fontWeight: 700,
+                fontSize: 22,
+                textAlign: 'center',
+                letterSpacing: 1,
+              }}
+            >
+              Device Assignment History
+            </h3>
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                marginBottom: 12,
+                borderRadius: 12,
+                background: '#f7f9fb',
+                boxShadow: '0 1px 4px rgba(68,95,109,0.06)',
+                padding: 0,
+                minHeight: 120,
+                maxHeight: '48vh',
+                overflowX: 'auto', // allow horizontal scroll if needed
+              }}
+            >
+              {loadingHistory ? (
+                <p style={{ textAlign: 'center', margin: 32 }}>Loading...</p>
+              ) : history.length === 0 ? (
+                <p style={{ textAlign: 'center', margin: 32 }}>No history found.</p>
+              ) : (
+                <table
+                  style={{
+                    width: '100%',
+                    minWidth: 700, // ensure table doesn't shrink too much
+                    borderCollapse: 'separate',
+                    borderSpacing: 0,
+                    background: '#fff',
+                    borderRadius: 12,
+                    tableLayout: 'fixed',
+                    fontSize: 15,
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '33%' }} />
+                    <col style={{ width: '12%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th style={{ ...styles.th, fontSize: 15, padding: '10px 8px' }}>Device Tag</th>
+                      <th style={{ ...styles.th, fontSize: 15, padding: '10px 8px' }}>Action</th>
+                      <th style={{ ...styles.th, fontSize: 15, padding: '10px 8px' }}>Date</th>
+                      <th style={{ ...styles.th, fontSize: 15, padding: '10px 8px' }}>Reason</th>
+                      <th style={{ ...styles.th, fontSize: 15, padding: '10px 8px', textAlign: 'center' }}>Delete</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                  </thead>
+                  <tbody>
+                    {history.map((h) => (
+                      <tr key={h.id}>
+                        <td style={{ ...styles.td, fontWeight: 600, fontSize: 15, padding: '10px 8px' }}>{h.deviceTag}</td>
+                        <td style={{ ...styles.td, fontSize: 15, padding: '10px 8px' }}>{h.action}</td>
+                        <td style={{ ...styles.td, fontSize: 15, padding: '10px 8px' }}>{new Date(h.date).toLocaleString()}</td>
+                        <td style={{ ...styles.td, fontSize: 15, padding: '10px 8px' }}>{h.reason || '-'}</td>
+                        <td style={{ ...styles.td, textAlign: 'center', padding: '10px 8px' }}>
+                          <button
+                            onClick={() => handleDeleteHistory(h.id)}
+                            style={{ ...styles.deleteBtn, minWidth: 48, minHeight: 28, padding: '6px 0', fontSize: 13, borderRadius: 7 }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
             <button
               onClick={() => setShowHistoryModal(false)}
-              style={{ marginTop: 16, ...styles.cancelBtn }}
+              style={{ ...styles.cancelBtn, marginTop: 8, alignSelf: 'flex-end' }}
             >
               Close
             </button>
@@ -1027,18 +1180,76 @@ function Employees() {
                   </td>
                   {/* Remove Date Added cell */}
                   <td style={styles.td}>
-                    <button
-                      onClick={() => handleEdit(emp)}
-                      style={styles.actionBtn}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(emp.id)}
-                      style={styles.deleteBtn}
-                    >
-                      Delete
-                    </button>
+                    <div style={{ display: "flex", gap: 24 }}>
+                      <button
+                        style={{
+                          width: 48,
+                          height: 48,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "none",
+                          outline: "none",
+                          borderRadius: 12,
+                          background: "#eaf7fa",
+                          cursor: "pointer",
+                          transition: "background 0.18s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#d0f0f7")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "#eaf7fa")}
+                        onClick={() => handleEdit(emp)}
+                        title="Edit"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="#2563eb"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        style={{
+                          width: 48,
+                          height: 48,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "none",
+                          outline: "none",
+                          borderRadius: 12,
+                          background: "#ffe9ec",
+                          cursor: "pointer",
+                          transition: "background 0.18s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#ffd6de")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "#ffe9ec")}
+                        onClick={() => handleDelete(emp.id)}
+                        title="Delete"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="#e57373"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1054,9 +1265,9 @@ export default Employees;
 
 const styles = {
   pageContainer: {
-    padding: "16px 0 16px 0", // Only top/bottom padding, no left/right
+    padding: "32px 0 32px 0",
     maxWidth: "100%",
-    background: "#f8fafc",
+    background: "#f7f9fb",
     minHeight: "100vh",
     fontFamily: "Segoe UI, Arial, sans-serif",
   },
@@ -1065,11 +1276,11 @@ const styles = {
     alignItems: "center",
     gap: 8,
     marginBottom: 18,
-    paddingLeft: 0, // align with Inventory
+    paddingLeft: 0,
   },
   pageTitle: {
-    color: "#2563eb",
-    fontWeight: 700,
+    color: "#233037",
+    fontWeight: 800,
     fontSize: 28,
     margin: 0,
   },
@@ -1078,7 +1289,7 @@ const styles = {
     alignItems: "center",
     gap: 8,
     marginBottom: 18,
-    paddingLeft: 0, // align with Inventory
+    paddingLeft: 0,
   },
   input: {
     padding: "10px 14px",
@@ -1102,104 +1313,118 @@ const styles = {
   },
   tableContainer: {
     marginTop: 16,
-    overflowX: "auto",
     background: "#fff",
     borderRadius: 16,
-    boxShadow: "0 2px 12px #2563eb0a",
+    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
     padding: 0,
-    maxWidth: "100vw",
     width: "100%",
+    maxWidth: "100vw",
+    overflowX: "unset", // Remove horizontal scroll
   },
   table: {
     width: "100%",
-    minWidth: 900,
-    borderCollapse: "collapse",
+    minWidth: 0, // Allow table to shrink
+    borderCollapse: "separate",
+    borderSpacing: 0,
     background: "#fff",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
-    tableLayout: "auto",
-    maxWidth: "1400px",
+    tableLayout: "fixed", // Make columns auto-fit
+    maxWidth: "100%",
     margin: "0 auto",
   },
   th: {
-    border: "1px solid #e5e7eb",
-    padding: "6px 4px",
-    backgroundColor: "#f1f5f9",
+    padding: "16px 12px",
+    background: "#445F6D",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 16,
+    borderBottom: "2px solid #e0e7ef",
     textAlign: "left",
-    fontWeight: 600,
-    color: "#2563eb",
-    fontSize: 14,
-    whiteSpace: "nowrap",
+    letterSpacing: 0.2,
+    whiteSpace: "normal",
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
   td: {
-    border: "1px solid #e5e7eb",
-    padding: "6px 4px",
-    background: "#fff",
-    fontSize: 14,
-    whiteSpace: "nowrap",
+    padding: "14px 12px",
+    color: "#233037",
+    fontSize: 15,
+    borderBottom: "1px solid #e0e7ef",
+    background: "#f7f9fb",
+    verticalAlign: "middle",
+    wordBreak: "break-word",
+    whiteSpace: "normal",
     overflow: "hidden",
     textOverflow: "ellipsis",
-    maxWidth: 180,
+    maxWidth: "none",
   },
   actionBtn: {
-    background: "#2563eb",
-    color: "#fff",
+    background: "#70C1B3",
+    color: "#233037",
     border: "none",
-    borderRadius: 6,
-    padding: "4px 10px",
-    fontWeight: 600,
-    fontSize: 12,
+    borderRadius: 7,
+    padding: "7px 16px",
+    fontWeight: 700,
+    fontSize: 13,
     marginRight: 4,
     cursor: "pointer",
     transition: "background 0.18s",
     minWidth: 36,
-    minHeight: 24,
+    minHeight: 28,
     display: "inline-block",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
   },
   secondaryBtn: {
-    background: "#e2e8f0",
-    color: "#2563eb",
+    background: "#FFE066",
+    color: "#233037",
     border: "none",
-    borderRadius: 6,
-    padding: "4px 10px",
-    fontWeight: 600,
-    fontSize: 12,
+    borderRadius: 7,
+    padding: "7px 16px",
+    fontWeight: 700,
+    fontSize: 13,
     cursor: "pointer",
     transition: "background 0.18s",
     marginRight: 4,
     minWidth: 36,
-    minHeight: 24,
+    minHeight: 28,
     display: "inline-block",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
   },
   deleteBtn: {
     background: "#e11d48",
     color: "#fff",
     border: "none",
-    borderRadius: 6,
-    padding: "4px 10px",
-    fontWeight: 600,
-    fontSize: 12,
+    borderRadius: 7,
+    padding: "7px 16px",
+    fontWeight: 700,
+    fontSize: 13,
     cursor: "pointer",
     marginLeft: 0,
-    transition: "background 0.18s",
+    transition: "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
     minWidth: 36,
-    minHeight: 24,
+    minHeight: 28,
     display: "inline-block",
     boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
-    borderWidth: "2px",
-    borderStyle: "solid",
-    borderColor: "#e11d48",
     outline: "none",
+    opacity: 1,
+  },
+  // Add a washed out style for disabled state
+  washedOutBtn: {
+    background: "#f3f4f6",
+    color: "#b91c1c",
+    opacity: 0.65,
+    cursor: "not-allowed",
+    border: "none",
+    boxShadow: "none",
   },
   cancelBtn: {
-    background: "#e2e8f0",
-    color: "#18181a",
+    background: "#e0e7ef",
+    color: "#233037",
     border: "none",
     borderRadius: 8,
-    padding: "6px 18px",
-    fontWeight: 600,
+    padding: "8px 18px",
+    fontWeight: 700,
     fontSize: 14,
     marginLeft: 8,
     cursor: "pointer",
@@ -1228,9 +1453,30 @@ const styles = {
   modalTitle: {
     margin: "0 0 18px 0",
     fontWeight: 700,
-    color: "#18181a",
+    color: "#233037",
     letterSpacing: 1,
     fontSize: 22,
     textAlign: "center",
+  },
+  iconBtn: {
+    background: "none",
+    border: "none",
+    padding: 6,
+    borderRadius: 6,
+    cursor: "pointer",
+    marginRight: 4,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "background 0.18s, box-shadow 0.18s",
+    boxShadow: "none",
+  },
+  iconBtnHover: {
+    background: "#e0f7f4",
+    boxShadow: "0 2px 8px rgba(112,193,179,0.10)",
+  },
+  iconBtnDeleteHover: {
+    background: "#ffe4ec",
+    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
   },
 };

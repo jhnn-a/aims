@@ -2,14 +2,14 @@ function Header() {
   return (
     <header
       style={{
-        background: "linear-gradient(90deg, #f8fafc 0%, #e0e7ff 100%)",
-        color: "#2563eb",
+        background: "#233037", // Gunmetal
+        color: "#FFE066", // Naples yellow accent
         padding: "8px 0 8px 18px",
         fontWeight: 800,
         fontSize: 16,
         letterSpacing: 1.1,
-        boxShadow: "0 2px 16px rgba(37,99,235,0.07)",
-        borderBottom: "1px solid #e5e7eb",
+        boxShadow: "0 2px 16px rgba(35,48,55,0.12)",
+        borderBottom: "2px solid #445F6D", // Harmonize with sidebar
         fontFamily: "Segoe UI, Arial, sans-serif",
         display: "flex",
         alignItems: "center",
@@ -27,7 +27,7 @@ function Header() {
           display: "block",
         }}
       />
-      <span style={{ color: "#18181a", fontWeight: 700, fontSize: 14 }}>
+      <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, letterSpacing: 0.5 }}>
         Assets & Inventory Management System
       </span>
     </header>

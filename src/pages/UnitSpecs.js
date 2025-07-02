@@ -9,9 +9,13 @@ import {
 } from "firebase/firestore";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
+// Import react-hot-toast
+import { Toaster, toast } from "react-hot-toast";
 
 const emptyUnit = {
   Tag: "",
+  cpuGen: "", // New field for CPU generation
+  cpuModel: "", // New field for CPU model
   CPU: "",
   RAM: "",
   Drive: "",
@@ -32,6 +36,17 @@ const inputStyle = {
   transition: "border 0.2s",
 };
 
+const inputGroupStyle = {
+  marginBottom: "1rem",
+};
+
+const labelStyle = {
+  display: "block",
+  marginBottom: "0.5rem",
+  fontWeight: "600",
+  color: "#334155",
+};
+
 const selectStyle = {
   ...inputStyle,
   background: "#f8fafc",
@@ -50,79 +65,136 @@ const statusOptions = [
   { label: "Defective", value: "Defective" },
 ];
 
-const tableStyle = {
+// --- Modern Table Styles (harmonized with Assets.js palette) ---
+const palette = {
+  header: "#445F6D",
+  background: "#f7f9fb",
+  accent: "#70C1B3",
+  highlight: "#FFE066",
+  text: "#233037",
+};
+
+const tableCardStyle = {
   width: "100%",
   borderCollapse: "separate",
   borderSpacing: 0,
-  background: "#fff",
-  borderRadius: 12,
-  boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+  background: palette.background,
+  borderRadius: 18,
+  boxShadow: "0 4px 24px rgba(68,95,109,0.10)",
   marginTop: 18,
   marginBottom: 32,
   overflow: "hidden",
+  minWidth: 320,
 };
 
-const thStyle = {
-  background: "#18181a",
+const thModernStyle = {
+  background: palette.header,
   color: "#fff",
-  fontWeight: 600,
-  padding: "12px 8px",
-  fontSize: 15,
+  fontWeight: 700,
+  padding: "14px 10px",
+  fontSize: 16,
   letterSpacing: 1,
   border: "none",
   whiteSpace: "nowrap",
   verticalAlign: "middle",
-  borderRight: "1px solid #cbd5e1",
+  borderRight: `1px solid ${palette.background}`,
   cursor: "pointer",
+  textAlign: "left",
 };
 
-const tdStyle = {
-  padding: "10px 8px",
+const tdModernStyle = {
+  padding: "12px 10px",
   fontSize: 15,
-  borderBottom: "1px solid #e5e7eb",
-  background: "#f9fafb",
-  whiteSpace: "nowrap",
+  borderBottom: `1px solid #e5e7eb`,
+  background: palette.background,
+  color: palette.text,
+  whiteSpace: "normal", // allow wrapping
+  wordBreak: "break-word", // break long words
   verticalAlign: "middle",
   textOverflow: "ellipsis",
   overflow: "hidden",
-  maxWidth: 180,
-  borderRight: "1px solid #cbd5e1",
+  maxWidth: 140, // reduce for better fit
+  borderRight: `1px solid #e5e7eb`,
   position: "relative",
+  transition: "background 0.18s",
 };
 
-const actionBtn = {
-  background: "#2563eb",
+const trHoverStyle = {
+  background: "#eaf4f2",
+};
+
+const modernActionBtn = {
+  background: palette.accent,
+  color: palette.text,
+  border: "none",
+  borderRadius: 8,
+  padding: "8px 12px",
+  fontWeight: 600,
+  fontSize: 14,
+  cursor: "pointer",
+  transition: "background 0.2s, box-shadow 0.2s",
+  boxShadow: "0 2px 8px rgba(112,193,179,0.10)",
+  outline: "none",
+};
+const modernActionBtnHover = {
+  background: palette.highlight,
+  color: palette.header,
+};
+
+const modernDeleteBtn = {
+  background: "#e11d48",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
-  padding: "8px 20px",
-  fontWeight: 600,
+  borderRadius: 8,
+  padding: "8px 18px",
+  fontWeight: 700,
   fontSize: 15,
+  marginLeft: 10,
   cursor: "pointer",
-  marginRight: 8,
-  transition: "background 0.2s, box-shadow 0.2s",
-  boxShadow: "0 2px 8px rgba(37,99,235,0.10)",
+  transition: "background 0.2s",
 };
 
 const pencilBtn = {
-  background: "none",
+  background: "transparent",
   border: "none",
   cursor: "pointer",
-  padding: 0,
+  padding: "6px",
   margin: 0,
-  position: "absolute",
-  top: "50%",
-  right: 25,
-  transform: "translateY(-50%)",
   display: "flex",
   alignItems: "center",
-  opacity: 0.3,
-  transition: "opacity 0.2s",
-  zIndex: 2,
+  opacity: 0.6,
+  transition: "opacity 0.2s, background-color 0.2s",
+  borderRadius: "50%",
 };
 
 const pencilBtnHover = {
   opacity: 1,
+  backgroundColor: "#e2e8f0",
+};
+
+const trashBtn = {
+  background: "transparent",
+  border: "none",
+  cursor: "pointer",
+  padding: "6px",
+  margin: 0,
+  display: "flex",
+  alignItems: "center",
+  opacity: 0.6,
+  transition: "opacity 0.2s, background-color 0.2s",
+  borderRadius: "50%",
+};
+
+const trashBtnHover = {
+  opacity: 1,
+  backgroundColor: "#fee2e2",
+};
+
+const actionBtnRow = {
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
 };
 
 const pencilIcon = (
@@ -137,7 +209,27 @@ const pencilIcon = (
   </svg>
 );
 
+const trashIcon = (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#e11d48"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="3 6 5 6 21 6"></polyline>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+    <line x1="10" y1="11" x2="10" y2="17"></line>
+    <line x1="14" y1="11" x2="14" y2="17"></line>
+  </svg>
+);
+
 const cpuGenOptions = ["i3", "i5", "i7"];
+
+const ramOptions = Array.from({ length: 32 }, (_, i) => i + 1);
 
 const UnitSpecs = () => {
   const [inventory, setInventory] = useState([]);
@@ -149,6 +241,12 @@ const UnitSpecs = () => {
   const [editCollection, setEditCollection] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [hoveredRow, setHoveredRow] = useState({ id: null, collection: "" });
+  const [confirmSingleDelete, setConfirmSingleDelete] = useState(null);
+
+  // Pagination State
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [deployedPage, setDeployedPage] = useState(1);
+  const ITEMS_PER_PAGE = 10; // Number of items per page
 
   // Sorting and Filtering State
   const [sortConfig, setSortConfig] = useState({
@@ -201,6 +299,17 @@ const UnitSpecs = () => {
   const [selectedToDelete, setSelectedToDelete] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Close filter popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (filterPopup.open) {
+        setFilterPopup({ open: false, column: null, table: null, anchor: null });
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [filterPopup.open]);
+
   // Import Excel handler
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
     const file = e.target.files[0];
@@ -229,7 +338,7 @@ const UnitSpecs = () => {
         await setDoc(doc(db, targetTable, unit.Tag), unit);
       }
       fetchData();
-      alert("Import successful!");
+      toast.success("Excel data imported successfully!");
     };
     reader.readAsBinaryString(file);
     // Reset input so same file can be re-imported if needed
@@ -255,7 +364,17 @@ const UnitSpecs = () => {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prevForm) => {
+      const newForm = { ...prevForm, [name]: value };
+
+      // Combine cpuGen and cpuModel into the main CPU field
+      if (name === "cpuGen" || name === "cpuModel") {
+        newForm.CPU = `${newForm.cpuGen} - ${newForm.cpuModel}`.trim();
+      }
+      
+      return newForm;
+    });
   };
 
   const handleAddToChange = (e) => {
@@ -265,19 +384,57 @@ const UnitSpecs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.Tag || form.Tag.trim() === "") {
-      alert("TAG is required.");
+      toast.error("TAG is a required field.");
       return;
     }
+
+    // --- Create a new object for submission with formatted RAM ---
+    const unitData = {
+      ...form,
+      // Ensure RAM is stored with "GB" suffix
+      RAM: form.RAM ? `${form.RAM}GB` : "",
+    };
+
+    // --- Improved Validation ---
+    // 1. RAM validation (now checks the numeric part from the form state)
+    if (form.RAM && !/^\d+$/.test(form.RAM.toString())) {
+      toast.error("RAM must be a valid number.");
+      return;
+    }
+
+    // 2. CPU validation (must contain i3, i5, or i7)
+    if (unitData.CPU && !/i[357]/i.test(unitData.CPU)) {
+      toast.error("CPU format must include i3, i5, or i7.");
+      return;
+    }
+
+    // 3. Duplicate Tag validation
+    if (!editId) { // Only for new units
+      const allUnits = [...inventory, ...deployed];
+      const tagExists = allUnits.some(unit => unit.Tag === unitData.Tag);
+      if (tagExists) {
+        toast.error(`Tag '${unitData.Tag}' already exists.`);
+        return;
+      }
+    }
+
+
     if (editId) {
       const collectionName = editCollection;
-      await setDoc(doc(db, collectionName, form.Tag), form);
-      if (editId !== form.Tag) {
+      await setDoc(doc(db, collectionName, unitData.Tag), unitData);
+      if (editId !== unitData.Tag) {
         await deleteDoc(doc(db, collectionName, editId));
       }
       setEditId(null);
       setEditCollection("");
+      toast.success(`Unit ${unitData.Tag} updated successfully!`);
     } else {
-      await setDoc(doc(db, addTo, form.Tag), form);
+      await setDoc(doc(db, addTo, unitData.Tag), unitData);
+      toast.success(
+        `Unit ${unitData.Tag} added to ${
+          addTo === "InventoryUnits" ? "Inventory" : "Deployed"
+        }!`
+      );
     }
     setForm(emptyUnit);
     setShowModal(false);
@@ -290,13 +447,23 @@ const UnitSpecs = () => {
     await setDoc(doc(db, to, newUnit.Tag), newUnit);
     await deleteDoc(doc(db, from, unit.id));
     fetchData();
+    toast.success(
+      `Unit ${unit.Tag} moved to ${to === "InventoryUnits" ? "Inventory" : "Deployed"}.`
+    );
   };
 
   const handleEdit = (unit, collectionName) => {
+    // Parse CPU field to populate cpuGen and cpuModel for editing
+    const cpuParts = (unit.CPU || "").split(" - ");
+    const cpuGen = cpuParts[0] || "";
+    const cpuModel = cpuParts.length > 1 ? cpuParts.slice(1).join(" - ") : "";
+
     setForm({
       Tag: unit.Tag || "",
+      cpuGen: cpuGen,
+      cpuModel: cpuModel,
       CPU: unit.CPU || "",
-      RAM: unit.RAM || "",
+      RAM: parseRam(unit.RAM) || "",
       Drive: unit.Drive || "",
       GPU: unit.GPU || "",
       Status: unit.Status || "",
@@ -440,6 +607,7 @@ const UnitSpecs = () => {
             : [...arr, value],
         };
       });
+      setInventoryPage(1); // Reset to first page on filter change
     } else {
       setDeployedFilters((prev) => {
         const arr = prev[column] || [];
@@ -450,6 +618,7 @@ const UnitSpecs = () => {
             : [...arr, value],
         };
       });
+      setDeployedPage(1); // Reset to first page on filter change
     }
   };
 
@@ -473,12 +642,27 @@ const UnitSpecs = () => {
     setDeleteMode({ table: null, active: false });
     setSelectedToDelete([]);
     fetchData();
+    toast.success(`${selectedToDelete.length} unit(s) deleted successfully.`);
   };
 
   const cancelDeleteMode = () => {
     setDeleteMode({ table: null, active: false });
     setSelectedToDelete([]);
     setShowDeleteConfirm(false);
+  };
+
+  const handleConfirmSingleDelete = async () => {
+    if (!confirmSingleDelete) return;
+    const { unit, collectionName } = confirmSingleDelete;
+    try {
+      await deleteDoc(doc(db, collectionName, unit.id));
+      fetchData();
+      toast.success(`Unit ${unit.Tag} has been deleted.`);
+    } catch (error) {
+      toast.error("Failed to delete unit.");
+      console.error("Error deleting document: ", error);
+    }
+    setConfirmSingleDelete(null);
   };
 
   // Render filter popup for any column
@@ -551,11 +735,9 @@ const UnitSpecs = () => {
     );
   };
 
-  // Delete confirmation modal
-  const renderDeleteConfirmModal = () => {
-    const table = deleteMode.table;
-    const data = table === "InventoryUnits" ? inventory : deployed;
-    const units = data.filter((u) => selectedToDelete.includes(u.id));
+  const renderSingleDeleteConfirmModal = () => {
+    if (!confirmSingleDelete) return null;
+    const { unit } = confirmSingleDelete;
     return (
       <div
         style={{
@@ -575,7 +757,7 @@ const UnitSpecs = () => {
           style={{
             background: "#fff",
             padding: "32px 36px",
-            borderRadius: 16,
+            borderRadius: "16px",
             minWidth: 340,
             boxShadow: "0 8px 32px rgba(37,99,235,0.18)",
             position: "relative",
@@ -596,21 +778,21 @@ const UnitSpecs = () => {
             Confirm Delete
           </h2>
           <div style={{ marginBottom: 18, color: "#18181a", fontWeight: 500 }}>
-            Are you sure you want to delete the following unit
-            {units.length > 1 ? "s" : ""}?
-            <ul
+            Are you sure you want to delete the following unit?
+            <div
               style={{
-                margin: "12px 0 0 18px",
-                color: "#e11d48",
+                margin: "12px 0",
+                padding: "10px",
+                background: "#fee2e2",
+                borderRadius: "8px",
+                textAlign: "center",
+                color: "#b91c1c",
                 fontWeight: 700,
               }}
             >
-              {units.map((u) => (
-                <li key={u.id}>
-                  {u.Tag} {u.CPU && `- ${u.CPU}`}
-                </li>
-              ))}
-            </ul>
+              {unit.Tag} {unit.CPU && `- ${unit.CPU}`}
+            </div>
+            This action cannot be undone.
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
             <button
@@ -624,9 +806,9 @@ const UnitSpecs = () => {
                 fontSize: 16,
                 cursor: "pointer",
               }}
-              onClick={confirmDelete}
+              onClick={handleConfirmSingleDelete}
             >
-              Confirm
+              Delete
             </button>
             <button
               style={{
@@ -639,7 +821,7 @@ const UnitSpecs = () => {
                 fontSize: 16,
                 cursor: "pointer",
               }}
-              onClick={cancelDeleteMode}
+              onClick={() => setConfirmSingleDelete(null)}
             >
               Cancel
             </button>
@@ -650,50 +832,33 @@ const UnitSpecs = () => {
   };
 
   // --- Table with Sorting and Filtering ---
-  const renderTable = (data, collectionName) => {
+  const renderTable = (data, collectionName, currentPage, setCurrentPage) => {
     // Use correct filter state
     const filters =
       collectionName === "InventoryUnits" ? inventoryFilters : deployedFilters;
     let filtered = filterData(data, filters);
     let sorted = sortData(filtered);
 
+    // --- Pagination Logic ---
+    const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+    const paginatedData = sorted.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+    );
+
+    const handlePageChange = (newPage) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+        setCurrentPage(newPage);
+      }
+    };
+
     return (
-      <div style={{ position: "relative" }}>
-        {deleteMode.active && deleteMode.table === collectionName && (
-          <div
-            style={{
-              marginBottom: 10,
-              color: "#e11d48",
-              fontWeight: 600,
-              fontSize: 16,
-            }}
-          >
-            Click the checkbox next to the unit that you want to delete.
-            {selectedToDelete.length === 0 && (
-              <button
-                style={{
-                  marginLeft: 18,
-                  background: "#e2e8f0",
-                  color: "#18181a",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "6px 18px",
-                  fontWeight: 600,
-                  fontSize: 15,
-                  cursor: "pointer",
-                }}
-                onClick={cancelDeleteMode}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        )}
-        <table style={tableStyle}>
+      <div style={{ position: "relative", width: "100%", overflowX: "auto" }}>
+        <table style={tableCardStyle}>
           <thead>
             <tr>
               {deleteMode.active && deleteMode.table === collectionName && (
-                <th style={{ ...thStyle, width: 40, textAlign: "center" }}></th>
+                <th style={{ ...thModernStyle, width: 40, textAlign: "center" }}></th>
               )}
               {[
                 "Tag",
@@ -705,7 +870,7 @@ const UnitSpecs = () => {
                 "OS",
                 "Remarks",
               ].map((col) => (
-                <th key={col} style={{ ...thStyle, position: "relative" }}>
+                <th key={col} style={{ ...thModernStyle, position: "relative" }}>
                   <span
                     // Remove filter for Tag column
                     onClick={
@@ -718,7 +883,7 @@ const UnitSpecs = () => {
                       textDecoration:
                         col !== "Tag" ? "underline dotted" : undefined,
                       cursor: col !== "Tag" ? "pointer" : undefined,
-                      color: col === "CPU" ? "#fff" : undefined,
+                      color: col === "CPU" ? palette.highlight : undefined,
                       fontWeight: col === "CPU" ? 700 : undefined,
                       fontSize: col === "CPU" ? 16 : undefined,
                       display: "inline-block",
@@ -745,7 +910,7 @@ const UnitSpecs = () => {
               ))}
               <th
                 style={{
-                  ...thStyle,
+                  ...thModernStyle,
                   borderRight: "none",
                   position: "relative",
                 }}
@@ -755,7 +920,7 @@ const UnitSpecs = () => {
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={
@@ -767,7 +932,7 @@ const UnitSpecs = () => {
                     textAlign: "center",
                     padding: 24,
                     color: "#64748b",
-                    background: "#f1f5f9",
+                    background: palette.background,
                   }}
                 >
                   No{" "}
@@ -778,9 +943,14 @@ const UnitSpecs = () => {
                 </td>
               </tr>
             ) : (
-              sorted.map((unit) => (
+              paginatedData.map((unit) => (
                 <tr
                   key={unit.id}
+                  style={
+                    hoveredRow.id === unit.id && hoveredRow.collection === collectionName
+                      ? trHoverStyle
+                      : undefined
+                  }
                   onMouseEnter={() =>
                     setHoveredRow({ id: unit.id, collection: collectionName })
                   }
@@ -789,7 +959,7 @@ const UnitSpecs = () => {
                   }
                 >
                   {deleteMode.active && deleteMode.table === collectionName && (
-                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                    <td style={{ ...tdModernStyle, textAlign: "center" }}>
                       <input
                         type="checkbox"
                         checked={selectedToDelete.includes(unit.id)}
@@ -798,27 +968,34 @@ const UnitSpecs = () => {
                       />
                     </td>
                   )}
-                  <td style={tdStyle}>{unit.Tag}</td>
-                  <td style={tdStyle}>{unit.CPU}</td>
-                  <td style={tdStyle}>{unit.RAM}</td>
-                  <td style={tdStyle}>{unit.Drive}</td>
-                  <td style={tdStyle}>{unit.GPU}</td>
-                  <td style={tdStyle}>{unit.Status}</td>
-                  <td style={tdStyle}>{unit.OS}</td>
-                  <td style={tdStyle}>{unit.Remarks}</td>
+                  <td style={tdModernStyle}>{unit.Tag}</td>
+                  <td style={tdModernStyle}>{unit.CPU}</td>
+                  <td style={tdModernStyle}>
+                    {unit.RAM && `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
+                  </td>
+                  <td style={tdModernStyle}>{unit.Drive}</td>
+                  <td style={tdModernStyle}>{unit.GPU}</td>
+                  <td style={tdModernStyle}>{unit.Status}</td>
+                  <td style={tdModernStyle}>{unit.OS}</td>
+                  <td style={tdModernStyle}>{unit.Remarks}</td>
                   <td
                     style={{
-                      ...tdStyle,
-                      position: "relative",
+                      ...tdModernStyle,
                       minWidth: 110,
-                      paddingRight: 30,
+                      background: "inherit",
                     }}
                   >
                     {!deleteMode.active && (
-                      <>
+                      <div style={actionBtnRow}>
                         {collectionName === "InventoryUnits" ? (
                           <button
-                            style={actionBtn}
+                            style={{
+                              ...modernActionBtn,
+                              ...(hoveredRow.id === unit.id &&
+                              hoveredRow.collection === collectionName
+                                ? modernActionBtnHover
+                                : {}),
+                            }}
                             onClick={() =>
                               handleMove(
                                 unit,
@@ -827,11 +1004,17 @@ const UnitSpecs = () => {
                               )
                             }
                           >
-                            Move to Deployed
+                            Move
                           </button>
                         ) : (
                           <button
-                            style={actionBtn}
+                            style={{
+                              ...modernActionBtn,
+                              ...(hoveredRow.id === unit.id &&
+                              hoveredRow.collection === collectionName
+                                ? modernActionBtnHover
+                                : {}),
+                            }}
                             onClick={() =>
                               handleMove(
                                 unit,
@@ -840,7 +1023,7 @@ const UnitSpecs = () => {
                               )
                             }
                           >
-                            Move to Inventory
+                            Move
                           </button>
                         )}
                         <button
@@ -856,7 +1039,22 @@ const UnitSpecs = () => {
                         >
                           {pencilIcon}
                         </button>
-                      </>
+                        <button
+                          style={{
+                            ...trashBtn,
+                            ...(hoveredRow.id === unit.id &&
+                            hoveredRow.collection === collectionName
+                              ? trashBtnHover
+                              : {}),
+                          }}
+                          onClick={() =>
+                            setConfirmSingleDelete({ unit, collectionName })
+                          }
+                          title="Delete"
+                        >
+                          {trashIcon}
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -864,23 +1062,48 @@ const UnitSpecs = () => {
             )}
           </tbody>
         </table>
-        {/* Delete button appears when at least one checkbox is selected */}
+        {totalPages > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              marginTop: 20,
+              marginBottom: 10,
+            }}
+          >
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{ ...modernActionBtn, background: "#e2e8f0", color: palette.text }}
+            >
+              Previous
+            </button>
+            <span
+              style={{
+                margin: "0 16px",
+                color: palette.text,
+                fontWeight: 600,
+                fontSize: 16,
+              }}
+            >
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{ ...modernActionBtn, background: "#e2e8f0", color: palette.text }}
+            >
+              Next
+            </button>
+          </div>
+        )}
         {deleteMode.active &&
           deleteMode.table === collectionName &&
           selectedToDelete.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <button
-                style={{
-                  background: "#e11d48",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 28px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  marginRight: 12,
-                }}
+                style={modernDeleteBtn}
                 onClick={handleDeleteSelected}
               >
                 Delete Selected
@@ -888,7 +1111,7 @@ const UnitSpecs = () => {
               <button
                 style={{
                   background: "#e2e8f0",
-                  color: "#18181a",
+                  color: palette.text,
                   border: "none",
                   borderRadius: 8,
                   padding: "10px 22px",
@@ -987,20 +1210,46 @@ const UnitSpecs = () => {
               required
               style={inputStyle}
             />
-            <input
-              name="CPU"
-              placeholder="CPU Gen"
-              value={form.CPU}
-              onChange={handleChange}
-              style={inputStyle}
-            />
-            <input
-              name="RAM"
-              placeholder="RAM"
-              value={form.RAM}
-              onChange={handleChange}
-              style={inputStyle}
-            />
+            {/* New CPU Gen and Model fields */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <select
+                name="cpuGen"
+                value={form.cpuGen}
+                onChange={handleChange}
+                style={{ ...selectStyle, flex: 1 }}
+                required
+              >
+                <option value="">Select Gen</option>
+                {cpuGenOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="cpuModel"
+                placeholder="CPU Model (e.g., 10400)"
+                value={form.cpuModel}
+                onChange={handleChange}
+                style={{ ...inputStyle, flex: 2 }}
+              />
+            </div>
+            <div style={inputGroupStyle}>
+              <label style={labelStyle}>RAM (GB)</label>
+              <select
+                name="RAM"
+                value={form.RAM}
+                onChange={handleChange}
+                style={selectStyle}
+              >
+                <option value="">Select RAM</option>
+                {ramOptions.map((ram) => (
+                  <option key={ram} value={ram}>
+                    {ram} GB
+                  </option>
+                ))}
+              </select>
+            </div>
             <input
               name="Drive"
               placeholder="MAIN DRIVE"
@@ -1108,199 +1357,346 @@ const UnitSpecs = () => {
     return () => window.removeEventListener("click", close);
   }, [filterPopup.open]);
 
+  // --- Modern Header Button Styles (match Assets.js) ---
+  const headerBtn = {
+    border: "none",
+    borderRadius: 20,
+    fontWeight: 700,
+    fontSize: 15,
+    padding: "8px 28px",
+    marginLeft: 16,
+    cursor: "pointer",
+    transition: "background 0.18s, color 0.18s, box-shadow 0.18s",
+    boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+    outline: "none",
+    display: "inline-block",
+  };
+  const addBtn = {
+    ...headerBtn,
+    background: palette.header,
+    color: "#fff",
+  };
+  const importBtn = {
+    ...headerBtn,
+    background: "#22c55e",
+    color: "#fff",
+  };
+  const deleteBtn = {
+    ...headerBtn,
+    background: "#e11d48",
+    color: "#fff",
+  };
+  const addBtnHover = { background: "#233037" };
+  const importBtnHover = { background: "#16a34a" };
+  const deleteBtnHover = { background: "#b91c1c" };
+
+  // --- Modernized Page Container ---
   return (
-    <div
-      style={{
-        fontFamily: "Segoe UI, Arial, sans-serif",
-        background: "#f1f5f9",
-        minHeight: "100vh",
-        padding: "32px 0",
-        display: "flex",
-        justifyContent: "center",
-      }}
-    >
+    <div style={{ padding: 20, fontFamily: "Segoe UI, Arial, sans-serif" }}>
+      <Toaster position="top-center" reverseOrder={false} />
       <div
         style={{
-          maxWidth: 1400,
-          width: "100%",
-          margin: "0 auto",
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-          padding: "32px 36px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
         }}
       >
-        {/* Inventory Units Table */}
-        <div
-          style={{ display: "flex", alignItems: "center", marginBottom: 10 }}
+        <h1 style={{ color: "#1e293b", margin: 0, fontWeight: 700 }}>
+          Unit Specifications
+        </h1>
+        <button
+          style={{
+            background: palette.accent,
+            color: palette.text,
+            border: "none",
+            borderRadius: 8,
+            padding: "12px 28px",
+            fontWeight: 700,
+            fontSize: 17,
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(112,193,179,0.10)",
+            outline: "none",
+            transition: "background 0.2s, box-shadow 0.2s",
+          }}
+          onClick={() => {
+            setForm(emptyUnit);
+            setEditId(null);
+            setEditCollection("");
+            setShowModal(true);
+          }}
         >
+          + Add Unit
+        </button>
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: "36px 40px",
+              borderRadius: 18,
+              minWidth: 400,
+              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              position: "relative",
+              fontFamily: "Segoe UI, Arial, sans-serif",
+              maxWidth: 420,
+            }}
+          >
+            <button
+              onClick={handleCancelEdit}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 18,
+                background: "none",
+                border: "none",
+                fontSize: 26,
+                color: "#888",
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+              aria-label="Close"
+              title="Close"
+            >
+              ×
+            </button>
+            <h2
+              style={{
+                margin: "0 0 18px 0",
+                fontWeight: 700,
+                color: "#18181a",
+                letterSpacing: 1,
+                fontSize: 22,
+                textAlign: "center",
+              }}
+            >
+              {editId ? "Edit Unit" : "Add Unit"}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              {!editId && (
+                <select
+                  value={addTo}
+                  onChange={handleAddToChange}
+                  style={{
+                    ...selectStyle,
+                    marginBottom: 18,
+                    background: "#eef2ff",
+                  }}
+                >
+                  <option value="InventoryUnits">Inventory</option>
+                  <option value="DeployedUnits">Deployed</option>
+                </select>
+              )}
+              <div style={{ display: "grid", gap: 14 }}>
+                <input
+                  name="Tag"
+                  placeholder="TAG"
+                  value={form.Tag}
+                  onChange={handleChange}
+                  required
+                  style={inputStyle}
+                />
+                {/* New CPU Gen and Model fields */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <select
+                    name="cpuGen"
+                    value={form.cpuGen}
+                    onChange={handleChange}
+                    style={{ ...selectStyle, flex: 1 }}
+                    required
+                  >
+                    <option value="">Select Gen</option>
+                    {cpuGenOptions.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    name="cpuModel"
+                    placeholder="CPU Model (e.g., 10400)"
+                    value={form.cpuModel}
+                    onChange={handleChange}
+                    style={{ ...inputStyle, flex: 2 }}
+                  />
+                </div>
+                <div style={inputGroupStyle}>
+                  <label style={labelStyle}>RAM (GB)</label>
+                  <select
+                    name="RAM"
+                    value={form.RAM}
+                    onChange={handleChange}
+                    style={selectStyle}
+                  >
+                    <option value="">Select RAM</option>
+                    {ramOptions.map((ram) => (
+                      <option key={ram} value={ram}>
+                        {ram} GB
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  name="Drive"
+                  placeholder="MAIN DRIVE"
+                  value={form.Drive}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
+                <input
+                  name="GPU"
+                  placeholder="GPU"
+                  value={form.GPU}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
+                {/* Status select */}
+                <select
+                  name="Status"
+                  value={form.Status}
+                  onChange={handleChange}
+                  style={selectStyle}
+                  required
+                >
+                  <option value="">Select Status</option>
+                  {statusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {/* OS select */}
+                <select
+                  name="OS"
+                  value={form.OS}
+                  onChange={handleChange}
+                  style={selectStyle}
+                  required
+                >
+                  <option value="">Select OS</option>
+                  {osOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  name="Remarks"
+                  placeholder="REMARKS"
+                  value={form.Remarks}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
+              </div>
+              <div
+                style={{
+                  marginTop: 28,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 12,
+                }}
+              >
+                <button
+                  type="submit"
+                  style={{
+                    background: "#18181a",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 28px",
+                    fontWeight: 600,
+                    fontSize: 16,
+                    cursor: "pointer",
+                    boxShadow: "0 2px 8px rgba(37,99,235,0.08)",
+                  }}
+                >
+                  {editId ? "Save Changes" : "Add Unit"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  style={{
+                    background: "#e2e8f0",
+                    color: "#374151",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 22px",
+                    fontWeight: 600,
+                    fontSize: 16,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {/* Inventory Table */}
+        <div>
           <h2
             style={{
               display: "inline-block",
               color: "#18181a",
               fontWeight: 700,
-              fontSize: 22,
+              fontSize: 18,
               margin: 0,
+              marginBottom: 12,
             }}
           >
             Inventory Units
           </h2>
-          <button
-            style={{
-              ...actionBtn,
-              background: "#18181a",
-              color: "#fff",
-              marginLeft: 18,
-              padding: "8px 22px",
-              fontSize: 15,
-            }}
-            onClick={() => {
-              setAddTo("InventoryUnits");
-              setShowModal(true);
-            }}
-          >
-            Add Unit
-          </button>
-          {/* Import Excel Button */}
-          <label
-            style={{
-              background: "#22c55e",
-              color: "#fff",
-              borderRadius: 8,
-              padding: "8px 22px",
-              fontWeight: 700,
-              fontSize: 15,
-              marginLeft: 10,
-              cursor: "pointer",
-              display: "inline-block",
-            }}
-          >
-            Import
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={(e) => handleImportExcel(e, "InventoryUnits")}
-            />
-          </label>
-          {!deleteMode.active && (
-            <button
-              style={{
-                background: "#e11d48",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 22px",
-                fontWeight: 700,
-                fontSize: 15,
-                marginLeft: 10,
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                setDeleteMode({ table: "InventoryUnits", active: true });
-                setSelectedToDelete([]);
-              }}
-            >
-              Delete
-            </button>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
+          ) : (
+            renderTable(inventory, "InventoryUnits", inventoryPage, setInventoryPage)
           )}
         </div>
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
-        ) : (
-          renderTable(inventory, "InventoryUnits")
-        )}
 
-        {/* Deployed Units Table */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: 10,
-            marginTop: 38,
-          }}
-        >
+        {/* Deployed Table */}
+        <div>
           <h2
             style={{
               display: "inline-block",
               color: "#18181a",
               fontWeight: 700,
-              fontSize: 22,
+              fontSize: 18,
               margin: 0,
+              marginBottom: 12,
             }}
           >
             Deployed Units
           </h2>
-          <button
-            style={{
-              ...actionBtn,
-              background: "#18181a",
-              color: "#fff",
-              marginLeft: 18,
-              padding: "8px 22px",
-              fontSize: 15,
-            }}
-            onClick={() => {
-              setAddTo("DeployedUnits");
-              setShowModal(true);
-            }}
-          >
-            Add Unit
-          </button>
-          {/* Import Excel Button for Deployed */}
-          <label
-            style={{
-              background: "#22c55e",
-              color: "#fff",
-              borderRadius: 8,
-              padding: "8px 22px",
-              fontWeight: 700,
-              fontSize: 15,
-              marginLeft: 10,
-              cursor: "pointer",
-              display: "inline-block",
-            }}
-          >
-            Import
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={(e) => handleImportExcel(e, "DeployedUnits")}
-            />
-          </label>
-          {!deleteMode.active && (
-            <button
-              style={{
-                background: "#e11d48",
-                color: "#fff",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 22px",
-                fontWeight: 700,
-                fontSize: 15,
-                marginLeft: 10,
-                cursor: "pointer",
-              }}
-              onClick={() => {
-                setDeleteMode({ table: "DeployedUnits", active: true });
-                setSelectedToDelete([]);
-              }}
-            >
-              Delete
-            </button>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
+          ) : (
+            renderTable(deployed, "DeployedUnits", deployedPage, setDeployedPage)
           )}
         </div>
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
-        ) : (
-          renderTable(deployed, "DeployedUnits")
-        )}
       </div>
-      {/* Modal for Add/Edit */}
-      {showModal && renderModal()}
+
       {/* Delete confirmation modal */}
-      {showDeleteConfirm && renderDeleteConfirmModal()}
+      {confirmSingleDelete && renderSingleDeleteConfirmModal()}
     </div>
   );
 };

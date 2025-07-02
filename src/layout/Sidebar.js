@@ -1,14 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 
 const sidebarStyle = {
-  background: "linear-gradient(180deg, #f8fafc 60%, #e3eafc 100%)",
+  background: "#445F6D", // Payne's gray
   minHeight: "100vh",
   padding: "36px 0 24px 0",
-  boxShadow: "2px 0 16px rgba(37,99,235,0.04)",
+  boxShadow: "2px 0 16px rgba(68,95,109,0.10)",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  borderRight: "1px solid #e5e7eb",
+  borderRight: "1px solid #5a768a",
   transition: "background 0.2s",
   zIndex: 10,
   position: "relative",
@@ -39,7 +39,7 @@ const linkStyle = {
   width: "100%",
   padding: "12px 22px",
   borderRadius: 18,
-  color: "#334155",
+  color: "#fff", // White for contrast
   textDecoration: "none",
   fontWeight: 500,
   fontSize: 17,
@@ -55,21 +55,18 @@ const linkStyle = {
 };
 
 const activeLinkStyle = {
-  background: "linear-gradient(90deg, #e0e7ff 0%, #f1f5f9 100%)",
-  color: "#2563eb",
+  background: "linear-gradient(90deg, #FFE066 60%, #70C1B3 90%, rgba(112,193,179,0) 100%)", // Fade to transparent right
+  color: "#233037", // Gunmetal for active
   fontWeight: 700,
-  boxShadow: "0 2px 12px 0 #2563eb0a",
-  borderTopRightRadius: 18,
-  borderBottomRightRadius: 18,
-  borderTopLeftRadius: 18,
-  borderBottomLeftRadius: 18,
+  boxShadow: "0 2px 12px 0 #FFE06633",
+  borderRadius: 0, // No rounded corners
   marginRight: 0,
 };
 
 const dividerStyle = {
   width: "80%",
   height: 1,
-  background: "#e5e7eb",
+  background: "#5a768a", // Slightly lighter than sidebar
   margin: "24px auto 18px auto",
   border: "none",
 };
@@ -80,7 +77,7 @@ const bottomBoxStyle = {
   width: "100%",
   textAlign: "center",
   fontSize: 13,
-  color: "#94a3b8",
+  color: "#FFE066", // Naples yellow for accent
   letterSpacing: 0.2,
   fontFamily: "Segoe UI, Arial, sans-serif",
 };

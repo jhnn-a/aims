@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
+import { exportDashboardToExcel } from '../utils/exportDashboardToExcel';
+import { getDeviceHistory } from "../services/deviceHistoryService";
 
 // Simple bar component
 function Bar({ label, value, max, color = "#2563eb" }) {
@@ -125,6 +127,11 @@ function Dashboard() {
   const [workingCount, setWorkingCount] = useState(0);
   const [needsRepairCount, setNeedsRepairCount] = useState(0);
   const [newCount, setNewCount] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(null);
+  const [modalDevices, setModalDevices] = useState([]);
+  const [systemHistory, setSystemHistory] = useState([]); // New state for system history
+  const [employeeMap, setEmployeeMap] = useState({}); // Map employeeId to employeeName
 
   useEffect(() => {
     async function fetchData() {
@@ -139,6 +146,17 @@ function Dashboard() {
       setInUseCount(devices.filter((d) => d.status === "In Use").length);
       setStockCount(devices.filter((d) => d.status === "Stock Room").length);
       setRetiredCount(devices.filter((d) => d.status === "Retired").length);
+
+      // Build employeeId → employeeName map
+      const empMap = {};
+      employees.forEach(emp => {
+        // Use emp.id (the Firestore document ID) as the key, and trim the fullName
+        const docId = (emp.id || emp.employeeId || '').toString().trim().toUpperCase();
+        if (docId && emp.fullName) {
+          empMap[docId] = emp.fullName.trim();
+        }
+      });
+      setEmployeeMap(empMap);
 
       // Count device types
       const typeMap = {};
@@ -157,9 +175,27 @@ function Dashboard() {
         devices.filter((d) => d.condition === "Needs Repair").length
       );
       setNewCount(devices.filter((d) => d.condition === "New").length);
+      // Save all devices for modal filtering
+      setAllDevices(devices);
+
+      // Fetch system history (real data from Firestore)
+      const history = await getDeviceHistory();
+      // Sort by date descending (most recent first)
+      const sorted = history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      // Only keep the last 10 logs, most recent first
+      const last10 = sorted.slice(0, 10);
+      // For now, just display the last 10
+      const formatted = last10.map(entry => ({
+        event: formatHistoryEvent(entry, empMap),
+        date: formatShortDate(entry.date)
+      }));
+      setSystemHistory(formatted); // Only keep the last 10 logs, most recent first
     }
     fetchData();
   }, []);
+
+  // Store all devices for modal filtering
+  const [allDevices, setAllDevices] = useState([]);
 
   // Find the max for bar scaling
   const maxDevices = Math.max(
@@ -185,23 +221,13 @@ function Dashboard() {
   ];
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto", fontFamily: 'Segoe UI, Arial, sans-serif' }}>
       <h2
-        style={{
-          color: "#2563eb",
-          fontWeight: 700,
-          marginBottom: 24,
-        }}
+        style={sectionTitleStyle}
       >
         Dashboard Overview
       </h2>
-      <div
-        style={{
-          display: "flex",
-          gap: 24,
-          marginBottom: 32,
-        }}
-      >
+      <div style={{ display: "flex", gap: 24, marginBottom: 32 }}>
         <div style={widgetStyle}>
           <div style={widgetTitle}>Employees</div>
           <div style={widgetValue}>{employeeCount}</div>
@@ -214,181 +240,449 @@ function Dashboard() {
           <div style={widgetTitle}>Clients</div>
           <div style={widgetValue}>{clientCount}</div>
         </div>
-      </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 32,
-          flexWrap: "wrap",
-          marginBottom: 32,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 320 }}>
-          <h3
-            style={{
-              color: "#2563eb",
-              fontWeight: 600,
-              marginBottom: 12,
-            }}
-          >
-            Device Status (Bar)
-          </h3>
-          <Bar
-            label="In Use"
-            value={inUseCount}
-            max={deviceCount}
-            color="#2563eb"
-          />
-          <Bar
-            label="Stock Room"
-            value={stockCount}
-            max={deviceCount}
-            color="#22c55e"
-          />
-          <Bar
-            label="Retired"
-            value={retiredCount}
-            max={deviceCount}
-            color="#e11d48"
-          />
+        <div style={{ flex: 1 }}>
+          <div style={cardStyle}>
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: 32 }}>
+              <div style={{ fontWeight: 600, fontSize: 15, color: "#64748B", marginBottom: 8 }}>Device History</div>
+              <div style={{ maxHeight: "60px", overflowY: systemHistory.length > 2 ? "auto" : "hidden", padding: "10px 2px", scrollbarWidth: "thin", msOverflowStyle: "auto", margin: "0 -24px", minHeight: 40 }}>
+                {systemHistory.length === 0 ? (
+                  <div style={{ color: "#64748b", textAlign: "center", padding: 8, fontSize: 12 }}>
+                    No recent activity.
+                  </div>
+                ) : (
+                  <ul style={{ listStyleType: "none", padding: 0, margin: 0 }}>
+                    {systemHistory.map((entry, index) => (
+                      <li
+                        key={index}
+                        style={{
+                          padding: "6px 12px",
+                          borderBottom: "1px solid #e0e7ef",
+                          color: "#233037",
+                          fontSize: 12,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{entry.date}:</span> {entry.event}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 320 }}>
-          <h3
-            style={{
-              color: "#2563eb",
-              fontWeight: 600,
-              marginBottom: 12,
-            }}
-          >
-            Device Status (Donut)
-          </h3>
-          <div style={{ display: "flex", gap: 24 }}>
-            {donutData.map((d) => (
-              <Donut
-                key={d.label}
-                label={d.label}
-                value={d.value}
-                total={deviceCount}
-                color={d.color}
-              />
+      </div>
+      <div style={{ display: "flex", gap: 32, flexWrap: "wrap", marginBottom: 32 }}>
+        <div style={cardStyle}>
+          <div style={sectionTitleStyle}>Device Status</div>
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 32 }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <Bar label="In Use" value={inUseCount} max={deviceCount} color="#2563eb" />
+              <Bar label="Stock Room" value={stockCount} max={deviceCount} color="#22c55e" />
+              <Bar label="Retired" value={retiredCount} max={deviceCount} color="#e11d48" />
+            </div>
+            <div style={{ display: "flex", gap: 24 }}>
+              {donutData.map((d) => (
+                <Donut
+                  key={d.label}
+                  label={d.label}
+                  value={d.value}
+                  total={deviceCount}
+                  color={d.color}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ marginBottom: 32, display: "flex", gap: 24 }}>
+        <div style={{ flex: 1 }}>
+          <div style={cardStyle}>
+            <div style={sectionTitleStyle}>Device Condition Overview</div>
+            <div style={{ display: "flex", gap: 24 }}>
+              {conditionDonutData.map((d) => (
+                <Donut
+                  key={d.label}
+                  label={d.label}
+                  value={d.value}
+                  total={deviceCount}
+                  color={d.color}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={cardStyle}>
+            <div style={sectionTitleStyle}>Devices Needing Repair</div>
+            <div style={{ maxHeight: "160px", overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", background: "#f7f9fb", borderRadius: "12px", textAlign: "center" }}>
+                <thead>
+                  <tr style={{ background: "#e0e7ef" }}>
+                    <th style={{ padding: "10px 20px", color: "#445F6D", fontWeight: 600, fontSize: 16, borderBottom: "2px solid #e0e7ef" }}>Device Tag</th>
+                    <th style={{ padding: "10px 20px", color: "#445F6D", fontWeight: 600, fontSize: 16, borderBottom: "2px solid #e0e7ef" }}>Device Type</th>
+                    <th style={{ padding: "10px 20px", color: "#445F6D", fontWeight: 600, fontSize: 16, borderBottom: "2px solid #e0e7ef" }}>Brand</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDevices.filter(dev => dev.condition === "Needs Repair").length === 0 ? (
+                    <tr>
+                      <td colSpan={3} style={{ color: "#22c55e", fontWeight: 600, fontSize: 18, padding: 16, textAlign: "center" }}>
+                        No devices need repair.
+                      </td>
+                    </tr>
+                  ) : (
+                    allDevices.filter(dev => dev.condition === "Needs Repair").map(dev => (
+                      <tr key={dev.deviceTag} style={{ borderBottom: "1px solid #e0e7ef" }}>
+                        <td style={{ padding: 10, color: "#233037", fontWeight: 500 }}>{dev.deviceTag}</td>
+                        <td style={{ padding: 10, color: "#233037", fontWeight: 500, textAlign: "center" }}>{dev.deviceType || "Unknown"}</td>
+                        <td style={{ padding: 10, color: "#233037", fontWeight: 500, textAlign: "center" }}>{dev.brand}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ marginBottom: 32 }}>
+        <div style={cardStyle}>
+          <div style={sectionTitleStyle}>Devices by Type</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 18, justifyContent: "center", alignItems: "center" }}>
+            {deviceTypes.map((dt) => (
+              <div
+                key={dt.type}
+                style={{
+                  background: "#f8fafc",
+                  borderRadius: 12,
+                  boxShadow: "0 2px 12px #2563eb0a",
+                  border: "1.5px solid #e0e7ef",
+                  padding: "18px 24px",
+                  minWidth: 120,
+                  textAlign: "center",
+                  marginBottom: 8,
+                  cursor: "pointer",
+                  transition: "box-shadow 0.2s, border 0.2s",
+                }}
+                onClick={() => {
+                  setModalType(dt.type);
+                  setModalDevices(allDevices.filter(d => (d.deviceType || "Unknown") === dt.type));
+                  setModalOpen(true);
+                }}
+                title={`View all ${dt.type}`}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    color: "#2563eb",
+                    fontSize: 18,
+                  }}
+                >
+                  {dt.count}
+                </div>
+                <div
+                  style={{
+                    color: "#64748b",
+                    fontWeight: 600,
+                    fontSize: 15,
+                  }}
+                >
+                  {dt.type}
+                </div>
+                <div
+                  style={{
+                    marginTop: 8,
+                    height: 8,
+                    width: "100%",
+                    background: "#e5e7eb",
+                    borderRadius: 4,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${deviceCount ? (dt.count / deviceCount) * 100 : 0}%`,
+                      background: "#2563eb",
+                      borderRadius: 4,
+                      transition: "width 0.4s",
+                    }}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </div>
-      {/* Device Condition Donut */}
       <div style={{ marginBottom: 32 }}>
-        <h3 style={{ color: "#2563eb", fontWeight: 600, marginBottom: 12 }}>
-          Device Condition Overview
-        </h3>
-        <div style={{ display: "flex", gap: 24 }}>
-          {conditionDonutData.map((d) => (
-            <Donut
-              key={d.label}
-              label={d.label}
-              value={d.value}
-              total={deviceCount}
-              color={d.color}
-            />
-          ))}
+        <div style={cardStyle}>
+          <div style={sectionTitleStyle}>Restock Alerts</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", background: "#f7f9fb", borderRadius: 12, overflow: "hidden" }}>
+            <thead>
+              <tr style={{ background: "#e0e7ef" }}>
+                <th style={{ padding: 10, color: "#445F6D", fontWeight: 700, fontSize: 16, borderBottom: "2px solid #e0e7ef", textAlign: "left" }}>Device Type</th>
+                <th style={{ padding: 10, color: "#445F6D", fontWeight: 600, fontSize: 16, borderBottom: "2px solid #e0e7ef", textAlign: "center" }}>Count</th>
+                <th style={{ padding: 10, color: "#445F6D", fontWeight: 600, fontSize: 16, borderBottom: "2px solid #e0e7ef", textAlign: "center" }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deviceTypes.length === 0 ? (
+                <tr>
+                  <td colSpan={3} style={{ color: "#22c55e", fontWeight: 600, fontSize: 18, padding: 16, textAlign: "center" }}>
+                    No device types found.
+                  </td>
+                </tr>
+              ) : (
+                deviceTypes.map(dt => {
+                  const needsRestock = dt.count < 10;
+                  return (
+                    <tr key={dt.type} style={{ borderBottom: "1px solid #e0e7ef", background: needsRestock ? "#fff7f7" : undefined }}>
+                      <td style={{ padding: 10, color: needsRestock ? "#b45309" : "#233037", fontWeight: 500 }}>{dt.type}</td>
+                      <td style={{ padding: 10, color: needsRestock ? "#e11d48" : "#2563eb", fontWeight: 500, textAlign: "center", fontSize: 17 }}>{dt.count}</td>
+                      <td style={{ padding: 10, textAlign: "center" }}>
+                        {needsRestock ? (
+                          <span style={{ color: "#e11d48", fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            {/* Flat warning icon SVG */}
+                            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" style={{ display: 'inline', verticalAlign: 'middle' }}><path d="M10 3.5c-.3 0-.57.16-.71.42l-6.5 12A.75.75 0 0 0 3.5 17h13a.75.75 0 0 0 .67-1.08l-6.5-12A.75.75 0 0 0 10 3.5zm0 2.1 5.2 9.9H4.8L10 5.6zm-.75 3.65a.75.75 0 0 1 1.5 0v3.25a.75.75 0 0 1-1.5 0V9.25zm.75 6.25a.88.88 0 1 1 0-1.75.88.88 0 0 1 0 1.75z" fill="#e11d48"/></svg>
+                            Needs to restock
+                          </span>
+                        ) : (
+                          <span style={{ color: "#22c55e", fontWeight: 500 }}>Sufficient</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div style={{ marginBottom: 32 }}>
-        <h3
-          style={{
-            color: "#2563eb",
-            fontWeight: 600,
-            marginBottom: 12,
-          }}
-        >
-          Devices by Type
-        </h3>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
-          {deviceTypes.map((dt) => (
-            <div
-              key={dt.type}
+      {/* Modal for device list by type */}
+      {modalOpen && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(34,46,58,0.18)",
+          zIndex: 3000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <div style={{
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 4px 24px #2563eb18, 0 1.5px 6px #2563eb0a",
+            border: "1.5px solid #e0e7ef",
+            padding: 32,
+            minWidth: 340,
+            maxWidth: 600,
+            width: "100%",
+            maxHeight: 500,
+            overflowY: "auto",
+            position: "relative",
+          }}>
+            <button
+              onClick={() => setModalOpen(false)}
               style={{
-                background: "#fff",
-                borderRadius: 12,
-                boxShadow: "0 2px 12px #2563eb0a",
-                padding: "18px 24px",
-                minWidth: 120,
-                textAlign: "center",
-                marginBottom: 8,
+                position: "absolute",
+                top: 16,
+                right: 16,
+                background: "#e0e7ef",
+                border: "none",
+                borderRadius: 8,
+                width: 32,
+                height: 32,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 20,
+                color: "#233037",
+                transition: "background 0.2s",
               }}
+              title="Close"
             >
-              <div
-                style={{
-                  fontWeight: 700,
-                  color: "#2563eb",
-                  fontSize: 18,
-                }}
-              >
-                {dt.count}
-              </div>
-              <div
-                style={{
-                  color: "#64748b",
-                  fontWeight: 600,
-                  fontSize: 15,
-                }}
-              >
-                {dt.type}
-              </div>
-              <div
-                style={{
-                  marginTop: 8,
-                  height: 8,
-                  width: "100%",
-                  background: "#e5e7eb",
-                  borderRadius: 4,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${
-                      deviceCount ? (dt.count / deviceCount) * 100 : 0
-                    }%`,
-                    background: "#2563eb",
-                    borderRadius: 4,
-                    transition: "width 0.4s",
-                  }}
-                />
-              </div>
+              ×
+            </button>
+            <div style={{ fontWeight: 700, fontSize: 20, color: "#2563eb", marginBottom: 18, textAlign: "center" }}>
+              {modalType} Devices
             </div>
-          ))}
+            {modalDevices.length === 0 ? (
+              <div style={{ color: "#64748b", textAlign: "center", margin: 32 }}>
+                No devices found.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#f7f9fb" }}>
+                    <th style={{ padding: 8, color: "#64748b", fontWeight: 600, fontSize: 15, borderBottom: "1.5px solid #e0e7ef" }}>Tag</th>
+                    <th style={{ padding: 8, color: "#64748b", fontWeight: 600, fontSize: 15, borderBottom: "1.5px solid #e0e7ef" }}>Brand</th>
+                    <th style={{ padding: 8, color: "#64748b", fontWeight: 600, fontSize: 15, borderBottom: "1.5px solid #e0e7ef" }}>Model</th>
+                    <th style={{ padding: 8, color: "#64748b", fontWeight: 600, fontSize: 15, borderBottom: "1.5px solid #e0e7ef" }}>Status</th>
+                    <th style={{ padding: 8, color: "#64748b", fontWeight: 600, fontSize: 15, borderBottom: "1.5px solid #e0e7ef" }}>Assigned To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {modalDevices.map((dev) => (
+                    <tr
+                      key={dev.deviceTag}
+                      style={{ borderBottom: "1px solid #e0e7ef" }}
+                    >
+                      <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.deviceTag}</td>
+                      <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.brand}</td>
+                      <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.model}</td>
+                      <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.status}</td>
+                      <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>
+                        {dev.assignedTo && employeeMap[String(dev.assignedTo).trim().toUpperCase()]
+                          ? employeeMap[String(dev.assignedTo).trim().toUpperCase()]
+                          : dev.assignedTo || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      {/* Export to Excel button at the bottom */}
+      <button
+        onClick={() => exportDashboardToExcel({
+          allDevices,
+        })}
+        style={{
+          background: "#2563eb",
+          color: "#fff",
+          border: "none",
+          borderRadius: 8,
+          padding: "10px 22px",
+          fontWeight: 700,
+          fontSize: 16,
+          cursor: "pointer",
+          margin: '32px auto 0 auto',
+          display: 'block',
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          transition: "background 0.2s, box-shadow 0.2s",
+        }}
+        title="Export all device data to Excel"
+      >
+        Export All Device Data to Excel
+      </button>
     </div>
   );
 }
 
+// Helper to format device history events
+function formatHistoryEvent(entry, employeeMap = {}) {
+  const device = entry.deviceTag ? `Device ${entry.deviceTag}` : "Device";
+  let employee = entry.employeeName || null;
+  if (!employee && entry.employeeId && employeeMap[entry.employeeId]) {
+    employee = employeeMap[entry.employeeId];
+  }
+  // If employee is still null, do not show any employee info
+  if (entry.action === "assigned" && device && employee) {
+    return `${device} assigned to ${employee}`;
+  }
+  if (entry.action === "unassigned" && device && employee) {
+    return `${device} unassigned from ${employee}`;
+  }
+  if (entry.action === "returned" && device && employee) {
+    return `${device} returned by ${employee}`;
+  }
+  if (entry.action === "retired" && device) {
+    return `${device} retired`;
+  }
+  if (entry.action === "added" && device) {
+    return `${device} added to inventory`;
+  }
+  if (entry.action === "status change" && device && entry.status) {
+    return `${device} status changed to '${entry.status}'`;
+  }
+  // fallback: show as much as possible
+  if (device && employee) {
+    return `${device} (${employee}): ${entry.action || "Event"}`;
+  }
+  if (device) {
+    return `${device}: ${entry.action || "Event"}`;
+  }
+  return entry.action || "Event";
+}
+
+// Helper to format date as MM-DD HH:mm
+function formatShortDate(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hour = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${month}-${day} ${hour}:${min}`;
+}
+
 const widgetStyle = {
-  background: "#fff",
+  background: "#ffffff", // Ensure the fill color is white
   borderRadius: 16,
-  boxShadow: "0 2px 12px #2563eb0a",
-  padding: "24px 32px",
+  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+  border: "1px solid #e0e7ef",
+  padding: "20px 28px",
   minWidth: 160,
   textAlign: "center",
   display: "flex",
   flexDirection: "column",
+  justifyContent: "center", // Center content vertically
   alignItems: "center",
 };
 
 const widgetTitle = {
   color: "#64748b",
   fontWeight: 600,
-  fontSize: 16,
-  marginBottom: 8,
+  fontSize: 15,
+  marginBottom: 0, // Remove bottom margin to bring text closer to the top
   letterSpacing: 0.2,
 };
 
 const widgetValue = {
   color: "#2563eb",
   fontWeight: 800,
-  fontSize: 32,
+  fontSize: 36, // Increased font size for blue values
   letterSpacing: 1,
+  textAlign: "center", // Center the values
+};
+
+const cardStyle = {
+  background: "#fff",
+  borderRadius: 16,
+  boxShadow: "0 4px 16px #2563eb18, 0 1.5px 6px #2563eb0a",
+  border: "1.5px solid #e0e7ef",
+  padding: "24px 28px",
+  marginBottom: 0,
+  minWidth: 320,
+  flex: 1,
+  position: "relative",
+  overflow: "visible",
+};
+
+const sectionTitleStyle = {
+  color: "#233037",
+  fontWeight: 800,
+  fontSize: 26,
+  marginBottom: 16,
+  fontFamily: 'Segoe UI, Arial, sans-serif',
+};
+
+const cardTitleStyle = {
+  color: "#2563eb",
+  fontWeight: 600,
+  marginBottom: 18,
+  fontSize: 18,
+  letterSpacing: 0.2,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
 };
 
 export default Dashboard;
