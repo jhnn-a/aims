@@ -901,13 +901,13 @@ function Assets() {
   return (
     <div
       style={{
-        padding: '2vw',
+        padding: '16px',
         background: "#f7f9fb",
         minHeight: "100vh",
         fontFamily: 'Segoe UI, Arial, sans-serif',
-        maxWidth: 1200,
-        margin: '0 auto',
         width: '100%',
+        maxWidth: '100%',
+        margin: 0,
         boxSizing: 'border-box',
       }}
     >
@@ -915,7 +915,7 @@ function Assets() {
         style={{
           color: "#233037",
           fontWeight: 800,
-          fontSize: '2rem',
+          fontSize: 'clamp(1.5rem, 4vw, 2.5rem)',
           marginBottom: 18,
           wordBreak: 'break-word',
         }}
