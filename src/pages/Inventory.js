@@ -365,19 +365,6 @@ const handleTempDeployDone = async () => {
   // Add search state
   const [deviceSearch, setDeviceSearch] = useState("");
 
-  // --- FILTERED DEVICES (for table and select all logic) ---
-  const filteredDevices = devices.filter(device => {
-    const q = deviceSearch.toLowerCase();
-    return (
-      device.deviceType?.toLowerCase().includes(q) ||
-      device.deviceTag?.toLowerCase().includes(q) ||
-      device.brand?.toLowerCase().includes(q) ||
-      device.model?.toLowerCase().includes(q) ||
-      device.condition?.toLowerCase().includes(q) ||
-      device.remarks?.toLowerCase().includes(q)
-    );
-  });
-
   // Assign modal state
   const [assignStep, setAssignStep] = useState(0);
   const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null);
@@ -403,9 +390,14 @@ const [newAcqForm, setNewAcqForm] = useState({
   acquisitionDate: "",
   startTag: "",
   endTag: "",
+  supplier: "", // Added supplier field for modal only
 });
 const [newAcqError, setNewAcqError] = useState("");
 const [newAcqLoading, setNewAcqLoading] = useState(false);
+const [assignSerialManually, setAssignSerialManually] = useState(false);
+const [manualQuantity, setManualQuantity] = useState(1);
+const [showManualSerialPanel, setShowManualSerialPanel] = useState(false);
+const [manualSerials, setManualSerials] = useState([]);
 
   // --- HANDLERS ---
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
@@ -677,14 +669,26 @@ const [newAcqLoading, setNewAcqLoading] = useState(false);
     e.target.value = "";
   };
 
-  // Update handleSelectAll to only select filtered devices
+  // --- FILTERED DEVICES ---
+const filteredDevices = devices.filter(device => {
+  const q = deviceSearch.toLowerCase();
+  return (
+    device.deviceType?.toLowerCase().includes(q) ||
+    device.deviceTag?.toLowerCase().includes(q) ||
+    device.brand?.toLowerCase().includes(q) ||
+    device.model?.toLowerCase().includes(q) ||
+    device.condition?.toLowerCase().includes(q) ||
+    device.remarks?.toLowerCase().includes(q)
+  );
+});
+
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
     setSelectAll(checked);
     if (checked) {
       setSelectedIds(filteredDevices.map((d) => d.id));
     } else {
-      setSelectedIds([]);
+      setSelectedIds(selectedIds.filter(id => !filteredDevices.some(d => d.id === id)));
     }
   };
 
@@ -730,17 +734,6 @@ const [newAcqLoading, setNewAcqLoading] = useState(false);
     setAssigningDevice(device);
     setAssignModalOpen(true);
     setAssignModalStep(1);
-    setSelectedAssignEmployee(null);
-    setAssignModalChecks({
-      newIssueNew: false,
-      newIssueStock: false,
-      wfhNew: false,
-      wfhStock: false,
-      temporaryDeploy: false,
-    });
-    setAssignModalShowGenerate(false);
-    setProgress(0);
-    setGenerating(false);
     setDocxBlob(null);
     setAssignSearch("");
   };
@@ -970,13 +963,134 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     setNewAcqError("");
   };
 
+  const handleManualSerialToggle = (e) => {
+    const checked = e.target.checked;
+    setAssignSerialManually(checked);
+    if (!checked) {
+      setShowManualSerialPanel(false);
+      setManualSerials([]);
+    }
+  };
+
+  const handleQuantityChange = (e) => {
+    const qty = parseInt(e.target.value) || 1;
+    setManualQuantity(Math.max(1, Math.min(100, qty))); // Limit between 1-100
+  };
+
+  const handleProceedToManualEntry = () => {
+    if (!newAcqForm.deviceType || !newAcqForm.brand || !newAcqForm.condition) {
+      setNewAcqError("Please fill in Device Type, Brand, and Condition first.");
+      return;
+    }
+    // Initialize serial inputs array
+    const serialsArray = Array(manualQuantity).fill("").map((_, index) => ({
+      id: index,
+      serial: ""
+    }));
+    setManualSerials(serialsArray);
+    setShowManualSerialPanel(true);
+  };
+
+  const handleManualSerialChange = (index, value) => {
+    setManualSerials(prev => 
+      prev.map((item, i) => 
+        i === index ? { ...item, serial: value } : item
+      )
+    );
+  };
+
+  const handleManualSerialSubmit = async () => {
+    setNewAcqError("");
+    setNewAcqLoading(true);
+    
+    try {
+      // Validate all serials are filled
+      const emptySerials = manualSerials.filter(item => !item.serial.trim());
+      if (emptySerials.length > 0) {
+        setNewAcqError("Please fill in all serial numbers.");
+        setNewAcqLoading(false);
+        return;
+      }
+
+      // Check for duplicate serials in the input
+      const serialValues = manualSerials.map(item => item.serial.trim());
+      const duplicateSerials = serialValues.filter((serial, index) => serialValues.indexOf(serial) !== index);
+      if (duplicateSerials.length > 0) {
+        setNewAcqError("Duplicate serial numbers found. Please use unique serials.");
+        setNewAcqLoading(false);
+        return;
+      }
+
+      // Check against existing devices
+      const allDevices = await getAllDevices();
+      const existingSerials = serialValues.filter(serial => 
+        allDevices.some(device => device.deviceTag && device.deviceTag.toLowerCase() === serial.toLowerCase())
+      );
+      
+      if (existingSerials.length > 0) {
+        setNewAcqError(`Serial numbers already exist: ${existingSerials.join(", ")}`);
+        setNewAcqLoading(false);
+        return;
+      }
+
+      // Add devices with manual serials
+      let added = 0;
+      for (const serialItem of manualSerials) {
+        const payload = {
+          deviceType: newAcqForm.deviceType,
+          deviceTag: serialItem.serial.trim(),
+          brand: newAcqForm.brand,
+          model: newAcqForm.model || "",
+          condition: newAcqForm.condition,
+          remarks: newAcqForm.remarks || "",
+          status: "Stock Room",
+          assignedTo: "",
+          assignmentDate: "",
+          acquisitionDate: newAcqForm.acquisitionDate || "",
+        };
+        
+        try {
+          await addDevice(payload);
+          added++;
+        } catch (err) {
+          console.error("Failed to add device:", err);
+        }
+      }
+
+      await loadDevicesAndEmployees();
+      alert(`Added ${added} device(s) with manual serials.`);
+      
+      // Reset form
+      setShowNewAcqModal(false);
+      setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "", supplier: "" });
+      setAssignSerialManually(false);
+      setShowManualSerialPanel(false);
+      setManualSerials([]);
+      setManualQuantity(1);
+    } catch (err) {
+      setNewAcqError("Failed to add devices. Please try again.");
+    }
+    setNewAcqLoading(false);
+  };
+
   const handleNewAcqSubmit = async () => {
+    if (assignSerialManually) {
+      // If manual serial assignment, proceed to manual entry panel
+      handleProceedToManualEntry();
+      return;
+    }
+
+    // Regular bulk add workflow
     setNewAcqError("");
     setNewAcqLoading(true);
     try {
       await addDevicesInBulk(newAcqForm);
       setShowNewAcqModal(false);
-      setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "" });
+      setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "", supplier: "" });
+      setAssignSerialManually(false);
+      setShowManualSerialPanel(false);
+      setManualSerials([]);
+      setManualQuantity(1);
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
@@ -1105,8 +1219,8 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                   <input
                     type="checkbox"
                     checked={
-                      filteredDevices.length > 0 &&
-                      filteredDevices.every((d) => selectedIds.includes(d.id))
+                      devices.length > 0 &&
+                      selectedIds.length === devices.length
                     }
                     onChange={handleSelectAll}
                     style={{ width: 16, height: 16, margin: 0 }}
@@ -1127,7 +1241,18 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
               </tr>
             </thead>
             <tbody>
-              {filteredDevices
+              {devices
+                .filter(device => {
+                  const q = deviceSearch.toLowerCase();
+                  return (
+                    device.deviceType?.toLowerCase().includes(q) ||
+                    device.deviceTag?.toLowerCase().includes(q) ||
+                    device.brand?.toLowerCase().includes(q) ||
+                    device.model?.toLowerCase().includes(q) ||
+                    device.condition?.toLowerCase().includes(q) ||
+                    device.remarks?.toLowerCase().includes(q)
+                  );
+                })
                 .map((device) => (
                   <tr key={device.id}>
                     <td
@@ -1414,7 +1539,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         <div style={styles.modalOverlay}>
           <div style={styles.inventoryModalContent}>
             <h3 style={styles.inventoryModalTitle}>New Acquisitions (Bulk Add)</h3>
-            <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
               <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
                 <label style={styles.inventoryLabel}>Device Type:</label>
                 <select
@@ -1440,7 +1565,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                 />
               </div>
             </div>
-            <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
               <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
                 <label style={styles.inventoryLabel}>Model:</label>
                 <input
@@ -1466,7 +1591,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                 </select>
               </div>
             </div>
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
               <label style={styles.inventoryLabel}>Remarks:</label>
               <input
                 name="remarks"
@@ -1475,7 +1600,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                 style={styles.inventoryInput}
               />
             </div>
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
               <label style={styles.inventoryLabel}>Acquisition Date:</label>
               <input
                 name="acquisitionDate"
@@ -1485,47 +1610,161 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                 style={styles.inventoryInput}
               />
             </div>
-            <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+              <label style={styles.inventoryLabel}>Supplier:</label>
+              <input
+                name="supplier"
+                value={newAcqForm.supplier}
+                onChange={handleNewAcqInput}
+                style={styles.inventoryInput}
+                placeholder="Enter supplier name"
+              />
+            </div>
+            
+            {/* Manual Serial Assignment Option */}
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", fontWeight: 500, fontSize: 13, color: "#2563eb" }}>
                 <input
-                  name="startTag"
-                  value={newAcqForm.startTag}
-                  onChange={handleNewAcqInput}
+                  type="checkbox"
+                  checked={assignSerialManually}
+                  onChange={handleManualSerialToggle}
+                  style={{ marginRight: 6, accentColor: "#2563eb" }}
+                />
+                Assign Serial Manually
+              </label>
+            </div>
+
+            {assignSerialManually ? (
+              <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                <label style={styles.inventoryLabel}>Quantity:</label>
+                <input
+                  type="number"
+                  value={manualQuantity}
+                  onChange={handleQuantityChange}
                   style={styles.inventoryInput}
-                  maxLength={4}
-                  placeholder="0001"
+                  min="1"
+                  max="100"
+                  placeholder="Enter quantity"
                 />
               </div>
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
-                <input
-                  name="endTag"
-                  value={newAcqForm.endTag}
-                  onChange={handleNewAcqInput}
-                  style={styles.inventoryInput}
-                  maxLength={4}
-                  placeholder="0015"
-                />
+            ) : (
+              <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                  <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
+                  <input
+                    name="startTag"
+                    value={newAcqForm.startTag}
+                    onChange={handleNewAcqInput}
+                    style={styles.inventoryInput}
+                    maxLength={4}
+                    placeholder="0001"
+                  />
+                </div>
+                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                  <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
+                  <input
+                    name="endTag"
+                    value={newAcqForm.endTag}
+                    onChange={handleNewAcqInput}
+                    style={styles.inventoryInput}
+                    maxLength={4}
+                    placeholder="0015"
+                  />
+                </div>
               </div>
-            </div>
-            {newAcqError && <span style={{ color: "#e57373", fontSize: 13, marginBottom: 8 }}>{newAcqError}</span>}
-            <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 10, width: "100%" }}>
-              <button
-                onClick={handleNewAcqSubmit}
-                disabled={newAcqLoading}
-                style={{ ...styles.inventoryModalButton, opacity: newAcqLoading ? 0.6 : 1 }}
-              >
-                {newAcqLoading ? "Adding..." : "Add Devices"}
-              </button>
-              <button
-                onClick={() => setShowNewAcqModal(false)}
-                style={styles.inventoryModalButtonSecondary}
-                disabled={newAcqLoading}
-              >
-                Cancel
-              </button>
-            </div>
+            )}
+            
+            {/* Manual Serial Entry Panel */}
+            {showManualSerialPanel && (
+              <div style={{ 
+                border: "1.5px solid #cbd5e1", 
+                borderRadius: 8, 
+                padding: 16, 
+                marginBottom: 10, 
+                background: "#f8fafc",
+                maxHeight: 300,
+                overflowY: "auto"
+              }}>
+                <h4 style={{ 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: "#2563eb", 
+                  marginBottom: 12, 
+                  textAlign: "center" 
+                }}>
+                  Enter Serial Numbers ({manualSerials.length} devices)
+                </h4>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+                  {manualSerials.map((item, index) => (
+                    <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
+                      <label style={{ ...styles.inventoryLabel, fontSize: 12 }}>
+                        Device {index + 1}:
+                      </label>
+                      <input
+                        type="text"
+                        value={item.serial}
+                        onChange={(e) => handleManualSerialChange(index, e.target.value)}
+                        style={{ ...styles.inventoryInput, height: "28px", fontSize: 12 }}
+                        placeholder={`Serial ${index + 1}`}
+                        maxLength={64}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8 }}>
+                  <button
+                    onClick={handleManualSerialSubmit}
+                    disabled={newAcqLoading}
+                    style={{ 
+                      ...styles.inventoryModalButton, 
+                      fontSize: 13, 
+                      padding: "8px 16px",
+                      opacity: newAcqLoading ? 0.6 : 1 
+                    }}
+                  >
+                    {newAcqLoading ? "Adding..." : "Add All Devices"}
+                  </button>
+                  <button
+                    onClick={() => setShowManualSerialPanel(false)}
+                    style={{ 
+                      ...styles.inventoryModalButtonSecondary, 
+                      fontSize: 13, 
+                      padding: "8px 16px" 
+                    }}
+                    disabled={newAcqLoading}
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {newAcqError && <span style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}>{newAcqError}</span>}
+            
+            {!showManualSerialPanel && (
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8, width: "100%" }}>
+                <button
+                  onClick={handleNewAcqSubmit}
+                  disabled={newAcqLoading}
+                  style={{ ...styles.inventoryModalButton, opacity: newAcqLoading ? 0.6 : 1 }}
+                >
+                  {newAcqLoading ? "Adding..." : assignSerialManually ? "Proceed to Serial Entry" : "Add Devices"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNewAcqModal(false);
+                    setAssignSerialManually(false);
+                    setShowManualSerialPanel(false);
+                    setManualSerials([]);
+                    setManualQuantity(1);
+                  }}
+                  style={styles.inventoryModalButtonSecondary}
+                  disabled={newAcqLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1709,11 +1948,11 @@ const styles = {
   },
   inventoryModalContent: {
     background: "#fff",
-    padding: 24,
+    padding: 20,
     borderRadius: 12,
-    minWidth: 700,
-    maxWidth: 780,
-    width: "85vw",
+    minWidth: 480,
+    maxWidth: 520,
+    width: "70vw",
     boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
     display: "flex",
     flexDirection: "column",
@@ -1733,10 +1972,10 @@ const styles = {
     textAlign: "center",
   },
   inventoryModalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 700,
     color: "#2563eb",
-    marginBottom: 18,
+    marginBottom: 14,
     letterSpacing: 0.5,
     textAlign: "center",
     width: "100%",
@@ -1745,16 +1984,16 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: 10,
     width: "100%",
-    minWidth: 180,
+    minWidth: 140,
   },
   inventoryLabel: {
     alignSelf: "flex-start",
     fontWeight: 500,
     color: "#222e3a",
-    marginBottom: 4,
-    fontSize: 14,
+    marginBottom: 3,
+    fontSize: 13,
   },
   inventoryInput: {
     width: '100%',
@@ -1764,7 +2003,7 @@ const styles = {
     borderRadius: 5,
     border: '1.2px solid #cbd5e1',
     background: '#f1f5f9',
-    height: '32px',
+    height: '30px',
     boxSizing: 'border-box',
     marginBottom: 0,
   },
