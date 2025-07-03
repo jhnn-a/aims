@@ -999,6 +999,19 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     );
   };
 
+  const handleImportSerials = (importText) => {
+    const lines = importText.split('\n').map(line => line.trim()).filter(line => line);
+    setManualSerials(prev => {
+      const updated = [...prev];
+      lines.forEach((serial, index) => {
+        if (index < updated.length) {
+          updated[index] = { ...updated[index], serial };
+        }
+      });
+      return updated;
+    });
+  };
+
   const handleManualSerialSubmit = async () => {
     setNewAcqError("");
     setNewAcqLoading(true);
@@ -1538,232 +1551,334 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       {showNewAcqModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.inventoryModalContent}>
-            <h3 style={styles.inventoryModalTitle}>New Acquisitions (Bulk Add)</h3>
-            <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>Device Type:</label>
-                <select
-                  name="deviceType"
-                  value={newAcqForm.deviceType}
-                  onChange={handleNewAcqInput}
-                  style={styles.inventoryInput}
-                >
-                  <option value="">Select Device Type</option>
-                  {deviceTypes.map((type) => (
-                    <option key={type.label} value={type.label}>{type.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>Brand:</label>
-                <input
-                  name="brand"
-                  value={newAcqForm.brand}
-                  onChange={handleNewAcqInput}
-                  style={styles.inventoryInput}
-                  autoComplete="off"
-                />
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>Model:</label>
-                <input
-                  name="model"
-                  value={newAcqForm.model}
-                  onChange={handleNewAcqInput}
-                  style={styles.inventoryInput}
-                />
-              </div>
-              
-              <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                <label style={styles.inventoryLabel}>Condition:</label>
-                <select
-                  name="condition"
-                  value={newAcqForm.condition}
-                  onChange={handleNewAcqInput}
-                  style={styles.inventoryInput}
-                >
-                  <option value="">Select Condition</option>
-                  {conditions.map((cond) => (
-                    <option key={cond} value={cond}>{cond}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-              <label style={styles.inventoryLabel}>Remarks:</label>
-              <input
-                name="remarks"
-                value={newAcqForm.remarks}
-                onChange={handleNewAcqInput}
-                style={styles.inventoryInput}
-              />
-            </div>
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-              <label style={styles.inventoryLabel}>Acquisition Date:</label>
-              <input
-                name="acquisitionDate"
-                type="date"
-                value={newAcqForm.acquisitionDate || ""}
-                onChange={handleNewAcqInput}
-                style={styles.inventoryInput}
-              />
-            </div>
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-              <label style={styles.inventoryLabel}>Supplier:</label>
-              <input
-                name="supplier"
-                value={newAcqForm.supplier}
-                onChange={handleNewAcqInput}
-                style={styles.inventoryInput}
-                placeholder="Enter supplier name"
-              />
-            </div>
-            
-            {/* Manual Serial Assignment Option */}
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-              <label style={{ display: "flex", alignItems: "center", fontWeight: 500, fontSize: 13, color: "#2563eb" }}>
-                <input
-                  type="checkbox"
-                  checked={assignSerialManually}
-                  onChange={handleManualSerialToggle}
-                  style={{ marginRight: 6, accentColor: "#2563eb" }}
-                />
-                Assign Serial Manually
-              </label>
-            </div>
+            {!showManualSerialPanel ? (
+              <>
+                <h3 style={styles.inventoryModalTitle}>New Acquisitions (Bulk Add)</h3>
+                <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                    <label style={styles.inventoryLabel}>Device Type:</label>
+                    <select
+                      name="deviceType"
+                      value={newAcqForm.deviceType}
+                      onChange={handleNewAcqInput}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select Device Type</option>
+                      {deviceTypes.map((type) => (
+                        <option key={type.label} value={type.label}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                    <label style={styles.inventoryLabel}>Brand:</label>
+                    <input
+                      name="brand"
+                      value={newAcqForm.brand}
+                      onChange={handleNewAcqInput}
+                      style={styles.inventoryInput}
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                    <label style={styles.inventoryLabel}>Model:</label>
+                    <input
+                      name="model"
+                      value={newAcqForm.model}
+                      onChange={handleNewAcqInput}
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+                  
+                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                    <label style={styles.inventoryLabel}>Condition:</label>
+                    <select
+                      name="condition"
+                      value={newAcqForm.condition}
+                      onChange={handleNewAcqInput}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select Condition</option>
+                      {conditions.map((cond) => (
+                        <option key={cond} value={cond}>{cond}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                  <label style={styles.inventoryLabel}>Remarks:</label>
+                  <input
+                    name="remarks"
+                    value={newAcqForm.remarks}
+                    onChange={handleNewAcqInput}
+                    style={styles.inventoryInput}
+                  />
+                </div>
+                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                  <label style={styles.inventoryLabel}>Acquisition Date:</label>
+                  <input
+                    name="acquisitionDate"
+                    type="date"
+                    value={newAcqForm.acquisitionDate || ""}
+                    onChange={handleNewAcqInput}
+                    style={styles.inventoryInput}
+                  />
+                </div>
+                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                  <label style={styles.inventoryLabel}>Supplier:</label>
+                  <input
+                    name="supplier"
+                    value={newAcqForm.supplier}
+                    onChange={handleNewAcqInput}
+                    style={styles.inventoryInput}
+                    placeholder="Enter supplier name"
+                  />
+                </div>
+                
+                {/* Manual Serial Assignment Option */}
+                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", fontWeight: 500, fontSize: 13, color: "#2563eb" }}>
+                    <input
+                      type="checkbox"
+                      checked={assignSerialManually}
+                      onChange={handleManualSerialToggle}
+                      style={{ marginRight: 6, accentColor: "#2563eb" }}
+                    />
+                    Assign Serial Manually
+                  </label>
+                </div>
 
-            {assignSerialManually ? (
-              <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                <label style={styles.inventoryLabel}>Quantity:</label>
-                <input
-                  type="number"
-                  value={manualQuantity}
-                  onChange={handleQuantityChange}
-                  style={styles.inventoryInput}
-                  min="1"
-                  max="100"
-                  placeholder="Enter quantity"
-                />
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                  <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
-                  <input
-                    name="startTag"
-                    value={newAcqForm.startTag}
-                    onChange={handleNewAcqInput}
-                    style={styles.inventoryInput}
-                    maxLength={4}
-                    placeholder="0001"
-                  />
-                </div>
-                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                  <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
-                  <input
-                    name="endTag"
-                    value={newAcqForm.endTag}
-                    onChange={handleNewAcqInput}
-                    style={styles.inventoryInput}
-                    maxLength={4}
-                    placeholder="0015"
-                  />
-                </div>
-              </div>
-            )}
-            
-            {/* Manual Serial Entry Panel */}
-            {showManualSerialPanel && (
-              <div style={{ 
-                border: "1.5px solid #cbd5e1", 
-                borderRadius: 8, 
-                padding: 16, 
-                marginBottom: 10, 
-                background: "#f8fafc",
-                maxHeight: 300,
-                overflowY: "auto"
-              }}>
-                <h4 style={{ 
-                  fontSize: 14, 
-                  fontWeight: 600, 
-                  color: "#2563eb", 
-                  marginBottom: 12, 
-                  textAlign: "center" 
-                }}>
-                  Enter Serial Numbers ({manualSerials.length} devices)
-                </h4>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
-                  {manualSerials.map((item, index) => (
-                    <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
-                      <label style={{ ...styles.inventoryLabel, fontSize: 12 }}>
-                        Device {index + 1}:
-                      </label>
+                {assignSerialManually ? (
+                  <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                    <label style={styles.inventoryLabel}>Quantity:</label>
+                    <input
+                      type="number"
+                      value={manualQuantity}
+                      onChange={handleQuantityChange}
+                      style={styles.inventoryInput}
+                      min="1"
+                      max="100"
+                      placeholder="Enter quantity"
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                    <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                      <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
                       <input
-                        type="text"
-                        value={item.serial}
-                        onChange={(e) => handleManualSerialChange(index, e.target.value)}
-                        style={{ ...styles.inventoryInput, height: "28px", fontSize: 12 }}
-                        placeholder={`Serial ${index + 1}`}
-                        maxLength={64}
+                        name="startTag"
+                        value={newAcqForm.startTag}
+                        onChange={handleNewAcqInput}
+                        style={styles.inventoryInput}
+                        maxLength={4}
+                        placeholder="0001"
                       />
                     </div>
-                  ))}
+                    <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                      <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
+                      <input
+                        name="endTag"
+                        value={newAcqForm.endTag}
+                        onChange={handleNewAcqInput}
+                        style={styles.inventoryInput}
+                        maxLength={4}
+                        placeholder="0015"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {newAcqError && <span style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}>{newAcqError}</span>}
+                
+                <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8, width: "100%" }}>
+                  <button
+                    onClick={handleNewAcqSubmit}
+                    disabled={newAcqLoading}
+                    style={{ ...styles.inventoryModalButton, opacity: newAcqLoading ? 0.6 : 1 }}
+                  >
+                    {newAcqLoading ? "Adding..." : assignSerialManually ? "Proceed to Serial Entry" : "Add Devices"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewAcqModal(false);
+                      setAssignSerialManually(false);
+                      setShowManualSerialPanel(false);
+                      setManualSerials([]);
+                      setManualQuantity(1);
+                    }}
+                    style={styles.inventoryModalButtonSecondary}
+                    disabled={newAcqLoading}
+                  >
+                    Cancel
+                  </button>
                 </div>
-                <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8 }}>
+              </>
+            ) : (
+              /* Manual Serial Entry Panel */
+              <>
+                <h3 style={styles.inventoryModalTitle}>
+                  Enter Serial Numbers - {newAcqForm.deviceType} ({manualSerials.length} devices)
+                </h3>
+                
+                <div style={{ 
+                  marginBottom: 16, 
+                  padding: 12, 
+                  background: "#f1f5f9", 
+                  borderRadius: 8, 
+                  border: "1px solid #cbd5e1",
+                  width: "100%"
+                }}>
+                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
+                    <strong>Device Details:</strong>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#475569" }}>
+                    Type: {newAcqForm.deviceType} | Brand: {newAcqForm.brand} | Model: {newAcqForm.model || "N/A"} | Condition: {newAcqForm.condition}
+                  </div>
+                </div>
+
+                {/* Import Section */}
+                <div style={{
+                  width: "100%",
+                  marginBottom: 16,
+                  padding: 12,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8
+                }}>
+                  <div style={{ 
+                    fontSize: 13, 
+                    fontWeight: 600, 
+                    color: "#374151", 
+                    marginBottom: 8 
+                  }}>
+                    Quick Import Serial Numbers
+                  </div>
+                  <div style={{ 
+                    fontSize: 12, 
+                    color: "#64748b", 
+                    marginBottom: 8 
+                  }}>
+                    Paste serial numbers below (one per line) to auto-fill the entry fields:
+                  </div>
+                  <textarea
+                    style={{
+                      width: "100%",
+                      height: 80,
+                      padding: 8,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontFamily: "monospace",
+                      resize: "vertical",
+                      boxSizing: "border-box",
+                      marginBottom: 8
+                    }}
+                    placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
+                    onChange={(e) => {
+                      const importText = e.target.value;
+                      if (importText.trim()) {
+                        handleImportSerials(importText);
+                      }
+                    }}
+                  />
+                  <div style={{ 
+                    fontSize: 11, 
+                    color: "#6b7280", 
+                    fontStyle: "italic" 
+                  }}>
+                    Tip: Copy from Excel/Notepad and paste here to quickly fill all serial fields
+                  </div>
+                </div>
+
+                <div style={{ 
+                  width: "100%",
+                  maxHeight: 300,
+                  overflowY: "auto",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: 16,
+                  background: "#fafbfc"
+                }}>
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", 
+                    gap: 12 
+                  }}>
+                    {manualSerials.map((item, index) => (
+                      <div key={item.id} style={{ 
+                        background: "#fff",
+                        padding: 10,
+                        borderRadius: 6,
+                        border: "1px solid #e2e8f0",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                      }}>
+                        <label style={{ 
+                          ...styles.inventoryLabel, 
+                          fontSize: 12, 
+                          fontWeight: 600, 
+                          color: "#374151",
+                          marginBottom: 4
+                        }}>
+                          Device #{index + 1}
+                        </label>
+                        <input
+                          type="text"
+                          value={item.serial}
+                          onChange={(e) => handleManualSerialChange(index, e.target.value)}
+                          style={{ 
+                            width: "100%",
+                            padding: "6px 8px",
+                            border: "1px solid #d1d5db",
+                            borderRadius: 4,
+                            fontSize: 13,
+                            backgroundColor: "#fff",
+                            boxSizing: "border-box"
+                          }}
+                          placeholder={`Enter serial number`}
+                          maxLength={64}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {newAcqError && (
+                  <div style={{ 
+                    marginTop: 12, 
+                    padding: 8, 
+                    background: "#fef2f2", 
+                    border: "1px solid #fecaca", 
+                    borderRadius: 6,
+                    color: "#dc2626",
+                    fontSize: 12,
+                    width: "100%"
+                  }}>
+                    {newAcqError}
+                  </div>
+                )}
+
+                <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 10, width: "100%" }}>
                   <button
                     onClick={handleManualSerialSubmit}
                     disabled={newAcqLoading}
                     style={{ 
                       ...styles.inventoryModalButton, 
-                      fontSize: 13, 
-                      padding: "8px 16px",
-                      opacity: newAcqLoading ? 0.6 : 1 
+                      opacity: newAcqLoading ? 0.6 : 1,
+                      background: "#22c55e"
                     }}
                   >
-                    {newAcqLoading ? "Adding..." : "Add All Devices"}
+                    {newAcqLoading ? "Adding Devices..." : "Add All Devices"}
                   </button>
                   <button
                     onClick={() => setShowManualSerialPanel(false)}
-                    style={{ 
-                      ...styles.inventoryModalButtonSecondary, 
-                      fontSize: 13, 
-                      padding: "8px 16px" 
-                    }}
+                    style={styles.inventoryModalButtonSecondary}
                     disabled={newAcqLoading}
                   >
-                    Back
+                    Back to Form
                   </button>
                 </div>
-              </div>
-            )}
-
-            {newAcqError && <span style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}>{newAcqError}</span>}
-            
-            {!showManualSerialPanel && (
-              <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8, width: "100%" }}>
-                <button
-                  onClick={handleNewAcqSubmit}
-                  disabled={newAcqLoading}
-                  style={{ ...styles.inventoryModalButton, opacity: newAcqLoading ? 0.6 : 1 }}
-                >
-                  {newAcqLoading ? "Adding..." : assignSerialManually ? "Proceed to Serial Entry" : "Add Devices"}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowNewAcqModal(false);
-                    setAssignSerialManually(false);
-                    setShowManualSerialPanel(false);
-                    setManualSerials([]);
-                    setManualQuantity(1);
-                  }}
-                  style={styles.inventoryModalButtonSecondary}
-                  disabled={newAcqLoading}
-                >
-                  Cancel
-                </button>
-              </div>
+              </>
             )}
           </div>
         </div>
