@@ -4,6 +4,7 @@ import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
 import { exportDashboardToExcel } from '../utils/exportDashboardToExcel';
 import { getDeviceHistory } from "../services/deviceHistoryService";
+import { getUnitSpecsByTag } from "../services/unitSpecsService";
 
 // Simple bar component
 function Bar({ label, value, max, color = "#2563eb" }) {
@@ -132,6 +133,11 @@ function Dashboard() {
   const [modalDevices, setModalDevices] = useState([]);
   const [systemHistory, setSystemHistory] = useState([]); // New state for system history
   const [employeeMap, setEmployeeMap] = useState({}); // Map employeeId to employeeName
+  // State for device specifications popup
+  const [hoveredDevice, setHoveredDevice] = useState(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [unitSpecs, setUnitSpecs] = useState(null);
+  const [loadingSpecs, setLoadingSpecs] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -530,7 +536,46 @@ function Dashboard() {
                   {modalDevices.map((dev) => (
                     <tr
                       key={dev.deviceTag}
-                      style={{ borderBottom: "1px solid #e0e7ef" }}
+                      style={{ 
+                        borderBottom: "1px solid #e0e7ef",
+                        cursor: modalType === "PC" ? "pointer" : "default",
+                        transition: "background-color 0.2s",
+                        backgroundColor: hoveredDevice?.deviceTag === dev.deviceTag ? "#f8fafc" : "transparent"
+                      }}
+                      onMouseEnter={async (e) => {
+                        if (modalType === "PC") {
+                          console.log("Hovered PC device:", dev); // Debug log
+                          setHoveredDevice(dev);
+                          setLoadingSpecs(true);
+                          setUnitSpecs(null);
+                          
+                          // Fetch unit specifications by device tag
+                          try {
+                            const specs = await getUnitSpecsByTag(dev.deviceTag);
+                            console.log("Unit specs found:", specs); // Debug log
+                            setUnitSpecs(specs);
+                          } catch (error) {
+                            console.error("Error fetching unit specs:", error);
+                          } finally {
+                            setLoadingSpecs(false);
+                          }
+                        }
+                      }}
+                      onMouseMove={(e) => {
+                        if (modalType === "PC" && hoveredDevice) {
+                          setPopupPosition({
+                            x: e.clientX + 15, // Position popup to the right of cursor
+                            y: e.clientY - 10  // Position popup slightly above cursor
+                          });
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (modalType === "PC") {
+                          setHoveredDevice(null);
+                          setUnitSpecs(null);
+                          setLoadingSpecs(false);
+                        }
+                      }}
                     >
                       <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.deviceTag}</td>
                       <td style={{ padding: 8, color: "#233037", fontSize: 15 }}>{dev.brand}</td>
@@ -549,6 +594,109 @@ function Dashboard() {
           </div>
         </div>
       )}
+      
+      {/* Device specifications popup for PC devices */}
+      {hoveredDevice && modalType === "PC" && (
+        <div style={{
+          position: "fixed",
+          left: popupPosition.x,
+          top: popupPosition.y,
+          background: "#fff",
+          border: "1.5px solid #e0e7ef",
+          borderRadius: 12,
+          boxShadow: "0 8px 32px rgba(37, 99, 235, 0.15), 0 2px 8px rgba(37, 99, 235, 0.08)",
+          padding: 16,
+          zIndex: 4000,
+          minWidth: 280,
+          maxWidth: 350,
+          pointerEvents: "none", // Prevents popup from interfering with mouse events
+        }}>
+          <div style={{
+            fontWeight: 700,
+            fontSize: 16,
+            color: "#2563eb",
+            marginBottom: 12,
+            borderBottom: "1px solid #e0e7ef",
+            paddingBottom: 8,
+          }}>
+            {hoveredDevice.deviceTag} Specifications
+          </div>
+          
+          {loadingSpecs ? (
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              padding: "20px 0",
+              color: "#64748b" 
+            }}>
+              Loading specifications...
+            </div>
+          ) : unitSpecs ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>CPU:</span>
+                <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                  {unitSpecs.CPU || "Not specified"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>RAM:</span>
+                <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                  {unitSpecs.RAM || "Not specified"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>Drive:</span>
+                <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                  {unitSpecs.Drive || "Not specified"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>OS:</span>
+                <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                  {unitSpecs.OS || "Not specified"}
+                </span>
+              </div>
+              {unitSpecs.GPU && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>GPU:</span>
+                  <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                    {unitSpecs.GPU}
+                  </span>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>Status:</span>
+                <span style={{ color: "#233037", fontSize: 14, fontWeight: 500 }}>
+                  {unitSpecs.Status || "Not specified"}
+                </span>
+              </div>
+              {unitSpecs.Remarks && (
+                <div style={{ marginTop: 4 }}>
+                  <span style={{ fontWeight: 600, color: "#64748b", fontSize: 14 }}>Remarks:</span>
+                  <div style={{ color: "#233037", fontSize: 14, fontWeight: 500, marginTop: 4, wordWrap: "break-word" }}>
+                    {unitSpecs.Remarks}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center", 
+              padding: "20px 0",
+              color: "#64748b",
+              textAlign: "center",
+              fontSize: 14
+            }}>
+              No specifications found for this device
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Export to Excel button at the bottom */}
       <button
         onClick={() => exportDashboardToExcel({
