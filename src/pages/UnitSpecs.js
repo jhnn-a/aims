@@ -303,7 +303,12 @@ const UnitSpecs = () => {
   useEffect(() => {
     const handleClickOutside = () => {
       if (filterPopup.open) {
-        setFilterPopup({ open: false, column: null, table: null, anchor: null });
+        setFilterPopup({
+          open: false,
+          column: null,
+          table: null,
+          anchor: null,
+        });
       }
     };
     document.addEventListener("click", handleClickOutside);
@@ -372,7 +377,7 @@ const UnitSpecs = () => {
       if (name === "cpuGen" || name === "cpuModel") {
         newForm.CPU = `${newForm.cpuGen} - ${newForm.cpuModel}`.trim();
       }
-      
+
       return newForm;
     });
   };
@@ -409,15 +414,15 @@ const UnitSpecs = () => {
     }
 
     // 3. Duplicate Tag validation
-    if (!editId) { // Only for new units
+    if (!editId) {
+      // Only for new units
       const allUnits = [...inventory, ...deployed];
-      const tagExists = allUnits.some(unit => unit.Tag === unitData.Tag);
+      const tagExists = allUnits.some((unit) => unit.Tag === unitData.Tag);
       if (tagExists) {
         toast.error(`Tag '${unitData.Tag}' already exists.`);
         return;
       }
     }
-
 
     if (editId) {
       const collectionName = editCollection;
@@ -448,7 +453,9 @@ const UnitSpecs = () => {
     await deleteDoc(doc(db, from, unit.id));
     fetchData();
     toast.success(
-      `Unit ${unit.Tag} moved to ${to === "InventoryUnits" ? "Inventory" : "Deployed"}.`
+      `Unit ${unit.Tag} moved to ${
+        to === "InventoryUnits" ? "Inventory" : "Deployed"
+      }.`
     );
   };
 
@@ -858,7 +865,9 @@ const UnitSpecs = () => {
           <thead>
             <tr>
               {deleteMode.active && deleteMode.table === collectionName && (
-                <th style={{ ...thModernStyle, width: 40, textAlign: "center" }}></th>
+                <th
+                  style={{ ...thModernStyle, width: 40, textAlign: "center" }}
+                ></th>
               )}
               {[
                 "Tag",
@@ -870,7 +879,10 @@ const UnitSpecs = () => {
                 "OS",
                 "Remarks",
               ].map((col) => (
-                <th key={col} style={{ ...thModernStyle, position: "relative" }}>
+                <th
+                  key={col}
+                  style={{ ...thModernStyle, position: "relative" }}
+                >
                   <span
                     // Remove filter for Tag column
                     onClick={
@@ -947,7 +959,8 @@ const UnitSpecs = () => {
                 <tr
                   key={unit.id}
                   style={
-                    hoveredRow.id === unit.id && hoveredRow.collection === collectionName
+                    hoveredRow.id === unit.id &&
+                    hoveredRow.collection === collectionName
                       ? trHoverStyle
                       : undefined
                   }
@@ -971,7 +984,8 @@ const UnitSpecs = () => {
                   <td style={tdModernStyle}>{unit.Tag}</td>
                   <td style={tdModernStyle}>{unit.CPU}</td>
                   <td style={tdModernStyle}>
-                    {unit.RAM && `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
+                    {unit.RAM &&
+                      `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
                   </td>
                   <td style={tdModernStyle}>{unit.Drive}</td>
                   <td style={tdModernStyle}>{unit.GPU}</td>
@@ -1075,7 +1089,11 @@ const UnitSpecs = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              style={{ ...modernActionBtn, background: "#e2e8f0", color: palette.text }}
+              style={{
+                ...modernActionBtn,
+                background: "#e2e8f0",
+                color: palette.text,
+              }}
             >
               Previous
             </button>
@@ -1092,7 +1110,11 @@ const UnitSpecs = () => {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              style={{ ...modernActionBtn, background: "#e2e8f0", color: palette.text }}
+              style={{
+                ...modernActionBtn,
+                background: "#e2e8f0",
+                color: palette.text,
+              }}
             >
               Next
             </button>
@@ -1102,10 +1124,7 @@ const UnitSpecs = () => {
           deleteMode.table === collectionName &&
           selectedToDelete.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <button
-                style={modernDeleteBtn}
-                onClick={handleDeleteSelected}
-              >
+              <button style={modernDeleteBtn} onClick={handleDeleteSelected}>
                 Delete Selected
               </button>
               <button
@@ -1669,7 +1688,12 @@ const UnitSpecs = () => {
           {loading ? (
             <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
           ) : (
-            renderTable(inventory, "InventoryUnits", inventoryPage, setInventoryPage)
+            renderTable(
+              inventory,
+              "InventoryUnits",
+              inventoryPage,
+              setInventoryPage
+            )
           )}
         </div>
 
@@ -1690,7 +1714,12 @@ const UnitSpecs = () => {
           {loading ? (
             <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
           ) : (
-            renderTable(deployed, "DeployedUnits", deployedPage, setDeployedPage)
+            renderTable(
+              deployed,
+              "DeployedUnits",
+              deployedPage,
+              setDeployedPage
+            )
           )}
         </div>
       </div>

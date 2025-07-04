@@ -190,19 +190,94 @@ function Clients() {
             <thead>
               <tr>
                 {/* To adjust table width, edit the width/minWidth/maxWidth values below */}
-                <th style={{ ...styles.th, width: 70, minWidth: 50, maxWidth: 80 }}>ID</th>
-                <th style={{ ...styles.th, width: 140, minWidth: 100, maxWidth: 180 }}>Client Name</th>
-                <th style={{ ...styles.th, width: 60, minWidth: 40, maxWidth: 80, textAlign: "center" }}>Employee Count</th>
-                <th style={{ ...styles.th, width: 70, minWidth: 50, maxWidth: 90, textAlign: "center" }}>Actions</th>
+                <th
+                  style={{
+                    ...styles.th,
+                    width: 70,
+                    minWidth: 50,
+                    maxWidth: 80,
+                  }}
+                >
+                  ID
+                </th>
+                <th
+                  style={{
+                    ...styles.th,
+                    width: 140,
+                    minWidth: 100,
+                    maxWidth: 180,
+                  }}
+                >
+                  Client Name
+                </th>
+                <th
+                  style={{
+                    ...styles.th,
+                    width: 60,
+                    minWidth: 40,
+                    maxWidth: 80,
+                    textAlign: "center",
+                  }}
+                >
+                  Employee Count
+                </th>
+                <th
+                  style={{
+                    ...styles.th,
+                    width: 70,
+                    minWidth: 50,
+                    maxWidth: 90,
+                    textAlign: "center",
+                  }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredClients.map((client) => (
                 <tr key={client.id}>
-                  <td style={{ ...styles.td, width: 70, minWidth: 50, maxWidth: 80 }}>{client.id}</td>
-                  <td style={{ ...styles.td, width: 140, minWidth: 100, maxWidth: 180 }}>{client.clientName}</td>
-                  <td style={{ ...styles.td, width: 60, minWidth: 40, maxWidth: 80, textAlign: "center" }}>{client.employeeCount ?? 0}</td>
-                  <td style={{ ...styles.td, width: 70, minWidth: 50, maxWidth: 90, textAlign: "center", padding: 0 }}>
+                  <td
+                    style={{
+                      ...styles.td,
+                      width: 70,
+                      minWidth: 50,
+                      maxWidth: 80,
+                    }}
+                  >
+                    {client.id}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      width: 140,
+                      minWidth: 100,
+                      maxWidth: 180,
+                    }}
+                  >
+                    {client.clientName}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      width: 60,
+                      minWidth: 40,
+                      maxWidth: 80,
+                      textAlign: "center",
+                    }}
+                  >
+                    {client.employeeCount ?? 0}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      width: 70,
+                      minWidth: 50,
+                      maxWidth: 90,
+                      textAlign: "center",
+                      padding: 0,
+                    }}
+                  >
                     <div
                       style={{
                         display: "flex",
@@ -226,14 +301,27 @@ function Clients() {
                           cursor: "pointer",
                           transition: "background 0.18s",
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#d0f0f7"}
-                        onMouseLeave={e => e.currentTarget.style.background = "#eaf7fa"}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#d0f0f7")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "#eaf7fa")
+                        }
                         onClick={() => handleEdit(client)}
                         title="Edit"
                       >
-                        <svg width="16" height="16" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <path d="M12 20h9"/>
-                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="#2563eb"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                         </svg>
                       </button>
                       <button
@@ -250,16 +338,29 @@ function Clients() {
                           cursor: "pointer",
                           transition: "background 0.18s",
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#ffd6de"}
-                        onMouseLeave={e => e.currentTarget.style.background = "#ffe9ec"}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#ffd6de")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "#ffe9ec")
+                        }
                         onClick={() => handleDelete(client.id)}
                         title="Delete"
                       >
-                        <svg width="16" height="16" fill="none" stroke="#e57373" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-                          <line x1="10" y1="11" x2="10" y2="17"/>
-                          <line x1="14" y1="11" x2="14" y2="17"/>
+                        <svg
+                          width="16"
+                          height="16"
+                          fill="none"
+                          stroke="#e57373"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          viewBox="0 0 24 24"
+                        >
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                          <line x1="10" y1="11" x2="10" y2="17" />
+                          <line x1="14" y1="11" x2="14" y2="17" />
                         </svg>
                       </button>
                     </div>
@@ -291,7 +392,7 @@ const styles = {
     margin: 0,
     marginBottom: 18,
     letterSpacing: 1,
-    fontFamily: 'Segoe UI, Arial, sans-serif',
+    fontFamily: "Segoe UI, Arial, sans-serif",
   },
   searchBarRow: {
     display: "flex",
@@ -299,7 +400,7 @@ const styles = {
     gap: 10,
     marginBottom: 18,
     paddingLeft: 0,
-    flexWrap: 'wrap',
+    flexWrap: "wrap",
   },
   searchBarContainer: {
     display: "flex",
@@ -364,7 +465,7 @@ const styles = {
     width: "100%",
     minWidth: 0, // Allow table to shrink
     borderCollapse: "separate",
-    borderSpacing: 0 ,
+    borderSpacing: 0,
     background: "#fff",
     borderRadius: 16,
     overflow: "hidden",

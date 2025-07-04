@@ -1,4 +1,18 @@
+import { auth } from "../utils/firebase";
+import { useNavigate } from "react-router-dom";
+
 function Header() {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      navigate("/login");
+    } catch (error) {
+      alert("Logout failed. Please try again.");
+    }
+  };
+
   return (
     <header
       style={{
@@ -15,21 +29,49 @@ function Header() {
         alignItems: "center",
         minHeight: 36,
         userSelect: "none",
+        justifyContent: "space-between", // Add this for right-aligned button
       }}
     >
-      <img
-        src={require("./joii.png")}
-        alt="JOII"
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <img
+          src={require("./joii.png")}
+          alt="JOII"
+          style={{
+            height: 28,
+            width: "auto",
+            marginRight: 10,
+            display: "block",
+          }}
+        />
+        <span
+          style={{
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 15,
+            letterSpacing: 0.5,
+          }}
+        >
+          Assets & Inventory Management System
+        </span>
+      </div>
+      <button
+        onClick={handleLogout}
         style={{
-          height: 28,
-          width: "auto",
-          marginRight: 10,
-          display: "block",
+          background: "#FFE066",
+          color: "#233037",
+          border: "none",
+          borderRadius: 4,
+          padding: "6px 18px",
+          fontWeight: 700,
+          fontSize: 14,
+          cursor: "pointer",
+          marginRight: 18,
+          boxShadow: "0 1px 4px rgba(35,48,55,0.08)",
+          transition: "background 0.2s",
         }}
-      />
-      <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, letterSpacing: 0.5 }}>
-        Assets & Inventory Management System
-      </span>
+      >
+        Logout
+      </button>
     </header>
   );
 }

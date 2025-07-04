@@ -55,7 +55,8 @@ const linkStyle = {
 };
 
 const activeLinkStyle = {
-  background: "linear-gradient(90deg, #FFE066 60%, #70C1B3 90%, rgba(112,193,179,0) 100%)", // Fade to transparent right
+  background:
+    "linear-gradient(90deg, #FFE066 60%, #70C1B3 90%, rgba(112,193,179,0) 100%)", // Fade to transparent right
   color: "#233037", // Gunmetal for active
   fontWeight: 700,
   boxShadow: "0 2px 12px 0 #FFE06633",
@@ -82,7 +83,7 @@ const bottomBoxStyle = {
   fontFamily: "Segoe UI, Arial, sans-serif",
 };
 
-function Sidebar() {
+function Sidebar({ user }) {
   const location = useLocation();
   const links = [
     { to: "/", label: "Dashboard" },
@@ -92,6 +93,10 @@ function Sidebar() {
     { to: "/clients", label: "Clients" },
     { to: "/unit-specs", label: "Unit Specs" },
   ];
+  // Add User Management link for admins
+  if (user && user.role === "admin") {
+    links.push({ to: "/user-management", label: "User Management" });
+  }
   return (
     <nav style={sidebarStyle}>
       <ul style={ulStyle}>
