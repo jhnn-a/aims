@@ -912,20 +912,17 @@ const handleNewAcquisitions = async () => {
 // The actual logic for adding devices in bulk:
 const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, acquisitionDate, startTag, endTag }) => {
   if (!deviceType || !brand || !condition || !startTag || !endTag) {
-    alert("Please fill in all required fields.");
-    return;
+    throw new Error("Please fill in all required fields.");
   }
   const typeObj = deviceTypes.find((t) => t.label === deviceType);
   if (!typeObj) {
-    alert("Invalid device type.");
-    return;
+    throw new Error("Invalid device type.");
   }
   const prefix = `JOII${typeObj.code}`;
   const start = parseInt(startTag, 10);
   const end = parseInt(endTag, 10);
   if (isNaN(start) || isNaN(end) || start > end || start < 0 || end < 0 || (end - start + 1) > 100) {
-    alert("Invalid tag range (max 100 at a time, start <= end, numbers only).");
-    return;
+    throw new Error("Invalid tag range (max 100 at a time, start <= end, numbers only).");
   }
   const allDevices = await getAllDevices();
   let added = 0;
@@ -937,13 +934,13 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       deviceType,
       deviceTag,
       brand,
-      model,
+      model: model || "",
       condition,
-      remarks,
+      remarks: remarks || "",
       status: "Stock Room",
       assignedTo: "",
       assignmentDate: "",
-      acquisitionDate,
+      acquisitionDate: acquisitionDate || "",
     };
     try {
       if (existing) {
@@ -952,10 +949,12 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         await addDevice(payload);
       }
       added++;
-    } catch {}
+    } catch (error) {
+      console.error(`Failed to add/update device ${deviceTag}:`, error);
+    }
   }
   await loadDevicesAndEmployees();
-  alert(`Added/updated ${added} device(s).`);
+  return added;
 };
 
   const handleNewAcqInput = ({ target: { name, value } }) => {
@@ -1071,6 +1070,24 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       }
 
       await loadDevicesAndEmployees();
+      
+      // Generate document for manual serial devices
+      try {
+        const deviceList = manualSerials.map(serialItem => ({
+          deviceTag: serialItem.serial.trim(),
+          deviceType: newAcqForm.deviceType,
+          brand: newAcqForm.brand,
+          model: newAcqForm.model,
+          condition: newAcqForm.condition,
+          remarks: newAcqForm.remarks
+        }));
+        
+        await generateAcquisitionDocument(deviceList, newAcqForm);
+      } catch (docError) {
+        console.error("Document generation failed:", docError);
+        // Continue even if document generation fails
+      }
+      
       alert(`Added ${added} device(s) with manual serials.`);
       
       // Reset form
@@ -1096,18 +1113,217 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     // Regular bulk add workflow
     setNewAcqError("");
     setNewAcqLoading(true);
+    setProgress(0);
     try {
-      await addDevicesInBulk(newAcqForm);
+      // Validate required fields
+      if (!newAcqForm.deviceType || !newAcqForm.brand || !newAcqForm.condition || !newAcqForm.startTag || !newAcqForm.endTag) {
+        setNewAcqError("Please fill in all required fields.");
+        setNewAcqLoading(false);
+        return;
+      }
+
+      setProgress(10);
+      
+      // Calculate device tags for document generation
+      const startNum = parseInt(newAcqForm.startTag.replace(/\D/g, ''), 10);
+      const endNum = parseInt(newAcqForm.endTag.replace(/\D/g, ''), 10);
+      
+      if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+        setNewAcqError("Invalid tag range. Please check start and end tags.");
+        setNewAcqLoading(false);
+        return;
+      }
+
+      const quantity = endNum - startNum + 1;
+      setProgress(20);
+      
+      // Get device type prefix
+      const typeObj = deviceTypes.find((t) => t.label === newAcqForm.deviceType);
+      if (!typeObj) {
+        setNewAcqError("Invalid device type.");
+        setNewAcqLoading(false);
+        return;
+      }
+      const prefix = `JOII${typeObj.code}`;
+      
+      // Generate device list for document
+      const deviceList = [];
+      for (let i = 0; i < quantity; i++) {
+        const deviceTag = `${prefix}${String(startNum + i).padStart(4, '0')}`;
+        deviceList.push({
+          deviceTag,
+          deviceType: newAcqForm.deviceType,
+          brand: newAcqForm.brand,
+          model: newAcqForm.model,
+          condition: newAcqForm.condition,
+          remarks: newAcqForm.remarks
+        });
+      }
+
+      setProgress(40);
+
+      // Add devices to database
+      const addedCount = await addDevicesInBulk(newAcqForm);
+      
+      setProgress(70);
+      
+      // Generate document
+      try {
+        await generateAcquisitionDocument(deviceList, newAcqForm);
+        setProgress(100);
+        alert(`Successfully added ${addedCount} device(s) and generated acquisition document!`);
+      } catch (docError) {
+        console.error("Document generation failed:", docError);
+        alert(`Successfully added ${addedCount} device(s), but document generation failed: ${docError.message}`);
+      }
+      
       setShowNewAcqModal(false);
       setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "", supplier: "" });
       setAssignSerialManually(false);
       setShowManualSerialPanel(false);
       setManualSerials([]);
       setManualQuantity(1);
+      setProgress(0);
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
     setNewAcqLoading(false);
+  };
+
+  // Generate New Asset Acquisition Record Form document with multiple tables
+  const generateAcquisitionDocument = async (devices, acquisitionData) => {
+    try {
+      console.log("Starting document generation...", { devicesCount: devices.length, acquisitionData });
+      
+      // Load the template
+      const templatePath = "/src/AccountabilityForms/NEW ASSET ACQUISITION RECORD FORM.docx";
+      const response = await fetch(templatePath);
+      
+      if (!response.ok) {
+        throw new Error("Template file not found. Please ensure NEW ASSET ACQUISITION RECORD FORM.docx is in /public/src/AccountabilityForms/");
+      }
+      
+      console.log("Template loaded successfully");
+      
+      const arrayBuffer = await response.arrayBuffer();
+      
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error("Template file is empty or corrupted");
+      }
+      
+      console.log("Template file size:", arrayBuffer.byteLength, "bytes");
+      
+      let zip, doc;
+      try {
+        zip = new PizZip(arrayBuffer);
+        doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+      } catch (zipError) {
+        console.error("Error parsing template file:", zipError);
+        throw new Error("Template file is not a valid DOCX file. Please ensure it's a proper Word document.");
+      }
+
+      // Configuration: rows per table (28 rows per page as requested)
+      const ROWS_PER_TABLE = 28;
+
+      // Prepare device data with common format
+      const formattedDevices = devices.map(device => ({
+        acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
+        supplier: acquisitionData.supplier || "Not specified",
+        quantity: "1", // Each device is quantity 1
+        deviceType: device.deviceType || acquisitionData.deviceType,
+        brand: device.brand || acquisitionData.brand,
+        deviceTag: device.deviceTag || device.serial,
+        remarks: device.remarks || acquisitionData.remarks || ""
+      }));
+
+      console.log("Formatted devices:", formattedDevices.length);
+
+      // Split devices across multiple tables (28 rows per page)
+      const devicesPage1 = formattedDevices.slice(0, ROWS_PER_TABLE);
+      const devicesPage2 = formattedDevices.slice(ROWS_PER_TABLE, ROWS_PER_TABLE * 2);
+      const devicesPage3 = formattedDevices.slice(ROWS_PER_TABLE * 2, ROWS_PER_TABLE * 3);
+      const devicesPage4 = formattedDevices.slice(ROWS_PER_TABLE * 3);
+
+      // Prepare template data
+      const templateData = {
+        // Original single table (for backward compatibility)
+        devices: formattedDevices,
+        
+        // Split tables
+        devicesPage1: devicesPage1,
+        devicesPage2: devicesPage2,
+        devicesPage3: devicesPage3,
+        devicesPage4: devicesPage4,
+        
+        // Metadata
+        totalDevices: formattedDevices.length,
+        acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
+        supplier: acquisitionData.supplier || "Not specified",
+        
+        // Page indicators (for conditional display)
+        hasPage2: devicesPage2.length > 0,
+        hasPage3: devicesPage3.length > 0,
+        hasPage4: devicesPage4.length > 0,
+        
+        // Summary counts
+        page1Count: devicesPage1.length,
+        page2Count: devicesPage2.length,
+        page3Count: devicesPage3.length,
+        page4Count: devicesPage4.length
+      };
+
+      console.log('Template data structure:', {
+        totalDevices: templateData.totalDevices,
+        page1Count: templateData.page1Count,
+        page2Count: templateData.page2Count,
+        page3Count: templateData.page3Count,
+        page4Count: templateData.page4Count
+      });
+
+      // Render the document
+      try {
+        doc.render(templateData);
+        console.log("Document rendered successfully");
+      } catch (renderError) {
+        console.error("Error rendering template:", renderError);
+        console.log("Template data being used:", templateData);
+        
+        // If rendering fails, provide helpful error message
+        if (renderError.message.includes("tag")) {
+          throw new Error("Template rendering failed. The DOCX template may be missing required placeholders. Please check the template structure.");
+        } else {
+          throw new Error(`Template rendering failed: ${renderError.message}`);
+        }
+      }
+
+      // Generate and download
+      const output = doc.getZip().generate({
+        type: "blob",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `NEW_ASSET_ACQUISITION_RECORD_FORM-${currentDate}.docx`;
+      
+      console.log("Downloading document:", fileName);
+      saveAs(output, fileName);
+      
+      return true;
+    } catch (error) {
+      console.error("Error generating document:", error);
+      
+      // Provide more specific error guidance
+      if (error.message.includes("Template file not found")) {
+        throw new Error("Template file not found. Please ensure 'NEW ASSET ACQUISITION RECORD FORM.docx' exists in the /public/src/AccountabilityForms/ folder.");
+      } else if (error.message.includes("not a valid DOCX")) {
+        throw new Error("The template file appears to be corrupted. Please replace it with a valid Word document (.docx file).");
+      } else {
+        throw error;
+      }
+    }
   };
 
   return (
@@ -1691,6 +1907,32 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
 
                 {newAcqError && <span style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}>{newAcqError}</span>}
                 
+                {/* Progress bar */}
+                {newAcqLoading && (
+                  <div style={{ width: "100%", marginBottom: 12 }}>
+                    <div style={{
+                      width: "100%",
+                      background: "#e9eef3",
+                      borderRadius: 8,
+                      height: 8,
+                      marginBottom: 6,
+                    }}>
+                      <div style={{
+                        width: `${progress}%`,
+                        background: "#2563eb",
+                        height: 8,
+                        borderRadius: 8,
+                        transition: "width 0.3s",
+                      }} />
+                    </div>
+                    <span style={{ color: "#2563eb", fontWeight: 500, fontSize: 12 }}>
+                      {progress < 40 ? "Preparing devices..." : 
+                       progress < 70 ? "Adding to database..." : 
+                       progress < 100 ? "Generating document..." : "Complete!"}
+                    </span>
+                  </div>
+                )}
+                
                 <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 8, width: "100%" }}>
                   <button
                     onClick={handleNewAcqSubmit}
@@ -1935,7 +2177,7 @@ const styles = {
     border: "1.5px solid #e0e7ef",
     padding: "2px 16px 2px 12px",
     width: 320,
-    transition: "box-shadow 0.2s, border 0.2s",
+    transition: "box-shadow  0.2s, border 0.2s",
     marginBottom: 0,
   },
   googleSearchInput: {
