@@ -365,6 +365,10 @@ const handleTempDeployDone = async () => {
   // Add search state
   const [deviceSearch, setDeviceSearch] = useState("");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [devicesPerPage, setDevicesPerPage] = useState(50);
+
   // Assign modal state
   const [assignStep, setAssignStep] = useState(0);
   const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null);
@@ -472,6 +476,16 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   useEffect(() => {
     loadDevicesAndEmployees();
   }, []);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deviceSearch]);
+
+  // Reset pagination when devicesPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [devicesPerPage]);
 
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
@@ -694,11 +708,34 @@ const filteredDevices = devices.filter(device => {
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
+    
+    // Filter devices based on search
+    const filteredDevices = devices.filter(device => {
+      const q = deviceSearch.toLowerCase();
+      return (
+        device.deviceType?.toLowerCase().includes(q) ||
+        device.deviceTag?.toLowerCase().includes(q) ||
+        device.brand?.toLowerCase().includes(q) ||
+        device.model?.toLowerCase().includes(q) ||
+        device.condition?.toLowerCase().includes(q) ||
+        device.remarks?.toLowerCase().includes(q)
+      );
+    });
+
+    // Get current page devices
+    const startIndex = (currentPage - 1) * devicesPerPage;
+    const endIndex = startIndex + devicesPerPage;
+    const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
+    
     setSelectAll(checked);
     if (checked) {
-      setSelectedIds(filteredDevices.map((d) => d.id));
+      // Add current page device IDs to selection
+      const newSelectedIds = [...selectedIds, ...currentPageDevices.map(d => d.id).filter(id => !selectedIds.includes(id))];
+      setSelectedIds(newSelectedIds);
     } else {
-      setSelectedIds(selectedIds.filter(id => !filteredDevices.some(d => d.id === id)));
+      // Remove current page device IDs from selection
+      const currentPageIds = currentPageDevices.map(d => d.id);
+      setSelectedIds(selectedIds.filter(id => !currentPageIds.includes(id)));
     }
   };
 
@@ -1669,46 +1706,65 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       {loading ? (
         <p>Loading...</p>
       ) : (
-        <div style={styles.tableContainer}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    ...styles.th,
-                    width: 32,
-                    minWidth: 32,
-                    maxWidth: 32,
-                    textAlign: "center",
-                  }}
-                >
-                  <input
+        <>
+          <div style={styles.tableContainer}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th
+                    style={{
+                      ...styles.th,
+                      width: 32,
+                      minWidth: 32,
+                      maxWidth: 32,
+                      textAlign: "center",
+                    }}
+                  >                  <input
                     type="checkbox"
-                    checked={
-                      devices.length > 0 &&
-                      selectedIds.length === devices.length
-                    }
+                    checked={(() => {
+                      // Filter devices based on search
+                      const filteredDevices = devices.filter(device => {
+                        const q = deviceSearch.toLowerCase();
+                        return (
+                          device.deviceType?.toLowerCase().includes(q) ||
+                          device.deviceTag?.toLowerCase().includes(q) ||
+                          device.brand?.toLowerCase().includes(q) ||
+                          device.model?.toLowerCase().includes(q) ||
+                          device.condition?.toLowerCase().includes(q) ||
+                          device.remarks?.toLowerCase().includes(q)
+                        );
+                      });
+
+                      // Get current page devices
+                      const startIndex = (currentPage - 1) * devicesPerPage;
+                      const endIndex = startIndex + devicesPerPage;
+                      const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
+                      
+                      return currentPageDevices.length > 0 && 
+                             currentPageDevices.every(device => selectedIds.includes(device.id));
+                    })()}
                     onChange={handleSelectAll}
                     style={{ width: 16, height: 16, margin: 0 }}
                   />
-                </th>
-                <th style={styles.th}>{fieldLabels.deviceType}</th>
-                <th style={styles.th}>{fieldLabels.deviceTag}</th>
-                <th style={styles.th}>{fieldLabels.brand}</th>
-                <th style={styles.th}>{fieldLabels.model}</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>{fieldLabels.condition}</th>
-                <th style={styles.th}>{fieldLabels.remarks}</th>
-                <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
-                <th style={{
-                  ...styles.th,
-                  textAlign: "center",
-                }}>Actions</th>
-              </tr>
-            </thead>
+                  </th>
+                  <th style={styles.th}>{fieldLabels.deviceType}</th>
+                  <th style={styles.th}>{fieldLabels.deviceTag}</th>
+                  <th style={styles.th}>{fieldLabels.brand}</th>
+                  <th style={styles.th}>{fieldLabels.model}</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={styles.th}>{fieldLabels.condition}</th>
+                  <th style={styles.th}>{fieldLabels.remarks}</th>
+                  <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
+                  <th style={{
+                    ...styles.th,
+                    textAlign: "center",
+                  }}>Actions</th>
+                </tr>
+              </thead>
             <tbody>
-              {devices
-                .filter(device => {
+              {(() => {
+                // Filter devices based on search
+                const filteredDevices = devices.filter(device => {
                   const q = deviceSearch.toLowerCase();
                   return (
                     device.deviceType?.toLowerCase().includes(q) ||
@@ -1718,8 +1774,15 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                     device.condition?.toLowerCase().includes(q) ||
                     device.remarks?.toLowerCase().includes(q)
                   );
-                })
-                .map((device) => (
+                });
+
+                // Calculate pagination
+                const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
+                const startIndex = (currentPage - 1) * devicesPerPage;
+                const endIndex = startIndex + devicesPerPage;
+                const currentDevices = filteredDevices.slice(startIndex, endIndex);
+
+                return currentDevices.map((device) => (
                   <tr key={device.id}>
                     <td
                       style={{
@@ -1803,16 +1866,189 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                       </div>
                     </td>
                   </tr>
-                ))}
+                ));
+              })()}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {(() => {
+          const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
+          const startIndex = (currentPage - 1) * devicesPerPage + 1;
+          const endIndex = Math.min(currentPage * devicesPerPage, filteredDevices.length);
+          
+          if (totalPages <= 1) return null;
+          
+          return (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: "20px",
+                padding: "16px 20px",
+                background: "#fff",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+              }}
+            >
+              <div
+                style={{
+                  color: "#445F6D",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <span>Showing {startIndex} - {endIndex} of {filteredDevices.length} devices</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "13px" }}>Show:</span>
+                  <select
+                    value={devicesPerPage}
+                    onChange={(e) => {
+                      setDevicesPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #e0e7ef",
+                      fontSize: "13px",
+                      background: "#fff",
+                      color: "#445F6D",
+                    }}
+                  >
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  First
+                </button>
+                
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Previous
+                </button>
+                
+                {/* Page Numbers */}
+                {(() => {
+                  const pageNumbers = [];
+                  const maxVisiblePages = 5;
+                  let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                  
+                  if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                  }
+                  
+                  for (let i = startPage; i <= endPage; i++) {
+                    pageNumbers.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #e0e7ef",
+                          background: i === currentPage ? "#70C1B3" : "#fff",
+                          color: i === currentPage ? "#fff" : "#445F6D",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          minWidth: "40px",
+                        }}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+                  
+                  return pageNumbers;
+                })()}
+                
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Next
+                </button>
+                
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Last
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+        </>
       )}
 
       {/* Assign Modal */}
       {assignModalOpen && assigningDevice && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
+          <div style={{
+            ...styles.modalContent,
+            minWidth: 420,
+            maxWidth: 480,
+            padding: 24,
+          }}>
             {assignModalStep === 1 && (
               <>
                 <h4 style={styles.modalTitle}>Assign Device: {assigningDevice.deviceTag}</h4>
@@ -1821,15 +2057,40 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                   placeholder="Search employee..."
                   value={assignSearch}
                   onChange={(e) => setAssignSearch(e.target.value)}
-                  style={styles.modalInput}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    border: "1.5px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    background: "#f8fafc",
+                    color: "#1f2937",
+                    marginBottom: 16,
+                    boxSizing: "border-box",
+                    outline: "none",
+                    transition: "border-color 0.2s, background 0.2s",
+                    fontFamily: 'Segoe UI, Arial, sans-serif',
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#2563eb";
+                    e.target.style.background = "#fff";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#cbd5e1";
+                    e.target.style.background = "#f8fafc";
+                  }}
                 />
-                <ul
+                <div
                   style={{
                     maxHeight: 200,
                     overflowY: "auto",
                     padding: 0,
                     margin: 0,
                     width: "100%",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    background: "#f9fafb",
+                    marginBottom: 16,
                   }}
                 >
                   {employees
@@ -1839,19 +2100,32 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                         .includes(assignSearch.toLowerCase())
                     )
                     .map((emp) => (
-                      <li
+                      <div
                         key={emp.id}
-                        style={{ listStyle: "none", marginBottom: 8, width: "100%" }}
+                        style={{ width: "100%" }}
                       >
                         <button
                           style={{
-                            ...styles.modalButton,
                             width: "100%",
-                            background: "#f1f5f9",
-                            color: "#2563eb",
-                            border: "1.5px solid #cbd5e1",
-                            fontWeight: 600,
+                            background: "#fff",
+                            color: "#374151",
+                            border: "none",
+                            borderBottom: "1px solid #e5e7eb",
+                            fontWeight: 500,
                             fontSize: 15,
+                            padding: "12px 16px",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "all 0.2s",
+                            fontFamily: 'Segoe UI, Arial, sans-serif',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = "#f3f4f6";
+                            e.target.style.color = "#2563eb";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = "#fff";
+                            e.target.style.color = "#374151";
                           }}
                           onClick={() => {
                             setSelectedAssignEmployee(emp);
@@ -1860,15 +2134,17 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                         >
                           {emp.fullName}
                         </button>
-                      </li>
+                      </div>
                     ))}
-                </ul>
-                <button
-                  onClick={closeAssignModal}
-                  style={styles.modalButtonSecondary}
-                >
-                  Cancel
-                </button>
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                  <button
+                    onClick={closeAssignModal}
+                    style={styles.inventoryModalButtonSecondary}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </>
             )}
 
@@ -1877,123 +2153,221 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                 <h4 style={styles.modalTitle}>
                   Asset Accountability Form Options for: <span style={{ color: "#2563eb" }}>{selectedAssignEmployee.fullName}</span>
                 </h4>
-                <div style={styles.modalSection}>
-                  <div style={styles.modalLabel}>New Issue:</div>
-                  <div style={{ display: "flex", gap: 18, marginBottom: 12 }}>
-                    <label style={{ display: "flex", alignItems: "center" }}>
+                <div style={{
+                  ...styles.modalSection,
+                  background: "#f8fafc",
+                  padding: 16,
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  marginBottom: 16,
+                }}>
+                  <div style={{
+                    ...styles.modalLabel,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: 12,
+                  }}>New Issue:</div>
+                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
+                    <label style={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      fontSize: 14,
+                      color: "#475569",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}>
                       <input
                         type="checkbox"
                         name="newIssueNew"
                         checked={assignModalChecks.newIssueNew}
                         onChange={handleAssignModalCheckbox}
-                        style={styles.modalCheckbox}
+                        style={{
+                          ...styles.modalCheckbox,
+                          accentColor: "#2563eb",
+                          marginRight: 8,
+                        }}
                       /> Newly Purchased
                     </label>
-                    <label style={{ display: "flex", alignItems: "center" }}>
+                    <label style={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      fontSize: 14,
+                      color: "#475569",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}>
                       <input
                         type="checkbox"
                         name="newIssueStock"
                         checked={assignModalChecks.newIssueStock}
                         onChange={handleAssignModalCheckbox}
-                        style={styles.modalCheckbox}
+                        style={{
+                          ...styles.modalCheckbox,
+                          accentColor: "#2563eb",
+                          marginRight: 8,
+                        }}
                       /> Stock
                     </label>
                   </div>
-                  <div style={styles.modalLabel}>Work From Home/Borrowed:</div>
-                  <div style={{ display: "flex", gap: 18 }}>
-                    <label style={{ display: "flex", alignItems: "center" }}>
+                  <div style={{
+                    ...styles.modalLabel,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: 12,
+                  }}>Work From Home/Borrowed:</div>
+                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
+                    <label style={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      fontSize: 14,
+                      color: "#475569",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}>
                       <input
                         type="checkbox"
                         name="wfhNew"
                         checked={assignModalChecks.wfhNew}
                         onChange={handleAssignModalCheckbox}
-                        style={styles.modalCheckbox}
+                        style={{
+                          ...styles.modalCheckbox,
+                          accentColor: "#2563eb",
+                          marginRight: 8,
+                        }}
                       /> Newly Purchased
                     </label>
-                    <label style={{ display: "flex", alignItems: "center" }}>
+                    <label style={{ 
+                      display: "flex", 
+                      alignItems: "center",
+                      fontSize: 14,
+                      color: "#475569",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}>
                       <input
                         type="checkbox"
                         name="wfhStock"
                         checked={assignModalChecks.wfhStock}
                         onChange={handleAssignModalCheckbox}
-                        style={styles.modalCheckbox}
+                        style={{
+                          ...styles.modalCheckbox,
+                          accentColor: "#2563eb",
+                          marginRight: 8,
+                        }}
                       /> Stock
                     </label>
                   </div>
-                  <div style={{ marginTop: 14 }}>
-                    <label style={{ display: "flex", alignItems: "center", fontWeight: 600, color: "#e57373" }}>
+                  <div style={{ marginTop: 4 }}>
+                    <label style={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      fontSize: 14,
+                      fontWeight: 600, 
+                      color: "#dc2626",
+                      cursor: "pointer",
+                    }}>
                       <input
                         type="checkbox"
                         name="temporaryDeploy"
                         checked={assignModalChecks.temporaryDeploy}
                         onChange={handleAssignModalCheckbox}
-                        style={styles.modalCheckbox}
+                        style={{
+                          ...styles.modalCheckbox,
+                          accentColor: "#dc2626",
+                          marginRight: 8,
+                        }}
                       /> Temporary Deploy
                     </label>
                   </div>
                 </div>
                 {!assignModalShowGenerate && (
-                  <button
-                    style={styles.modalButton}
-                    onClick={handleAssignModalNext}
-                  >
-                    Next
-                  </button>
+                  <div style={{ display: "flex", justifyContent: "center", gap: 12, width: "100%" }}>
+                    <button
+                      style={styles.inventoryModalButton}
+                      onClick={handleAssignModalNext}
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={closeAssignModal}
+                      style={styles.inventoryModalButtonSecondary}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
                 {assignModalShowGenerate && (
                   <>
                     <div style={{ margin: "18px 0", width: "100%" }}>
                       {assignModalGenerating && (
-                        <div style={{ marginBottom: 8, width: "100%" }}>
+                        <div style={{ marginBottom: 12, width: "100%" }}>
                           <div
                             style={{
                               width: "100%",
-                              background: "#e9eef3",
+                              background: "#e2e8f0",
                               borderRadius: 8,
-                              height: 16,
-                              marginBottom: 4,
+                              height: 8,
+                              marginBottom: 8,
+                              overflow: "hidden",
                             }}
                           >
                             <div
                               style={{
                                 width: `${assignModalProgress}%`,
                                 background: "#2563eb",
-                                height: 16,
+                                height: 8,
                                 borderRadius: 8,
-                                transition: "width 0.3s",
+                                transition: "width 0.3s ease",
                               }}
                             />
                           </div>
-                          <span style={{ color: "#2563eb", fontWeight: 500 }}>
-                            Generating: {assignModalProgress < 100 ? `${assignModalProgress}%` : "Done"}
-                          </span>
+                          <div style={{ 
+                            textAlign: "center",
+                            color: "#2563eb", 
+                            fontWeight: 600,
+                            fontSize: 14,
+                          }}>
+                            Generating: {assignModalProgress < 100 ? `${assignModalProgress}%` : "Complete"}
+                          </div>
                         </div>
                       )}
-                      {!assignModalGenerating && !assignModalDocxBlob && (
+                      <div style={{ display: "flex", justifyContent: "center", gap: 12, width: "100%" }}>
+                        {!assignModalGenerating && !assignModalDocxBlob && (
+                          <button
+                            style={{ 
+                              ...styles.inventoryModalButton, 
+                              background: "#22c55e",
+                              boxShadow: "0 2px 4px rgba(34, 197, 94, 0.2)",
+                            }}
+                            onClick={handleAssignModalGenerateDocx}
+                          >
+                            Generate Asset Accountability Form
+                          </button>
+                        )}
+                        {assignModalDocxBlob && (
+                          <button
+                            style={{
+                              ...styles.inventoryModalButton,
+                              background: "#2563eb",
+                              boxShadow: "0 2px 4px rgba(37, 99, 235, 0.2)",
+                            }}
+                            onClick={handleDownloadAndAssign}
+                          >
+                            Download DOCX
+                          </button>
+                        )}
                         <button
-                          style={{ ...styles.modalButton, background: "#22c55e" }}
-                          onClick={handleAssignModalGenerateDocx}
+                          onClick={closeAssignModal}
+                          style={styles.inventoryModalButtonSecondary}
                         >
-                          Generate Asset Accountability Form
+                          Cancel
                         </button>
-                      )}
-                      {assignModalDocxBlob && (
-                        <button
-                          style={styles.modalButton}
-                          onClick={handleDownloadAndAssign}
-                        >
-                          Download DOCX
-                        </button>
-                      )}
+                      </div>
                     </div>
                   </>
                 )}
-                <button
-                  onClick={closeAssignModal}
-                  style={styles.modalButtonSecondary}
-                >
-                  Cancel
-                </button>
               </>
             )}
           </div>
