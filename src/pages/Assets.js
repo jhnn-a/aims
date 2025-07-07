@@ -439,10 +439,22 @@ function Assets() {
   const [unassignGenerating, setUnassignGenerating] = useState(false);
   const [unassignProgress, setUnassignProgress] = useState(0);
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
+  const [currentPage, setCurrentPage] = useState(1);
+  const [devicesPerPage, setDevicesPerPage] = useState(50);
 
   useEffect(() => {
     loadDevicesAndEmployees();
   }, []);
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  // Reset to first page when devices per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [devicesPerPage]);
 
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
@@ -450,7 +462,9 @@ function Assets() {
       getAllDevices(),
       getAllEmployees(),
     ]);
-    setDevices(allDevices); // Show all devices, not just assigned
+    // Filter to only show assigned devices (devices with assignedTo value)
+    const assignedDevices = allDevices.filter(device => device.assignedTo && device.assignedTo.trim() !== "");
+    setDevices(assignedDevices);
     setEmployees(allEmployees);
     setLoading(false);
   };
@@ -537,14 +551,45 @@ function Assets() {
   };
 
   // Checklist logic
+  const filteredDevices = devices.filter((device) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (device.deviceTag || "").toLowerCase().includes(q) ||
+      (device.deviceType || "").toLowerCase().includes(q) ||
+      (device.brand || "").toLowerCase().includes(q) ||
+      (device.model || "").toLowerCase().includes(q) ||
+      (getEmployeeName(device.assignedTo) || "")
+        .toLowerCase()
+        .includes(q) ||
+      (device.condition || "").toLowerCase().includes(q) ||
+      (device.remarks || "").toLowerCase().includes(q)
+    );
+  });
+  
+  const currentPageDevices = filteredDevices.slice(
+    (currentPage - 1) * devicesPerPage,
+    currentPage * devicesPerPage
+  );
+  
   const isAllSelected =
-    devices.length > 0 && selectedDeviceIds.length === devices.length;
+    currentPageDevices.length > 0 && 
+    currentPageDevices.every(device => selectedDeviceIds.includes(device.id));
   const isIndeterminate =
-    selectedDeviceIds.length > 0 && selectedDeviceIds.length < devices.length;
+    currentPageDevices.some(device => selectedDeviceIds.includes(device.id)) && 
+    !isAllSelected;
 
   const toggleSelectAll = () => {
-    if (isAllSelected) setSelectedDeviceIds([]);
-    else setSelectedDeviceIds(devices.map((d) => d.id));
+    if (isAllSelected) {
+      // Unselect all devices on current page
+      setSelectedDeviceIds(prev => 
+        prev.filter(id => !currentPageDevices.some(device => device.id === id))
+      );
+    } else {
+      // Select all devices on current page
+      const currentPageIds = currentPageDevices.map(d => d.id);
+      setSelectedDeviceIds(prev => [...new Set([...prev, ...currentPageIds])]);
+    }
   };
   const toggleSelectDevice = (id) => {
     const device = devices.find((d) => d.id === id);
@@ -985,26 +1030,25 @@ function Assets() {
   return (
     <div
       style={{
-        padding: "2vw",
+        padding: "20px",
         background: "#f7f9fb",
         minHeight: "100vh",
         fontFamily: "Segoe UI, Arial, sans-serif",
-        maxWidth: 1200,
-        margin: "0 auto",
         width: "100%",
         boxSizing: "border-box",
+        overflowX: "auto",
       }}
     >
       <h2
         style={{
           color: "#233037",
           fontWeight: 800,
-          fontSize: "2rem",
+          fontSize: "32px",
           marginBottom: 18,
           wordBreak: "break-word",
         }}
       >
-        Assets
+        Assigned Assets
       </h2>
       {/* Outlined Multiple Devices section with search and buttons */}
       <div
@@ -1013,8 +1057,8 @@ function Assets() {
           alignItems: "flex-end",
           marginBottom: 24,
           marginTop: 8,
-          maxWidth: 900,
           width: "100%",
+          maxWidth: "1200px",
         }}
       >
         {/* Search bar (outside outline, left-aligned) */}
@@ -1056,14 +1100,14 @@ function Assets() {
             </svg>
             <input
               type="text"
-              placeholder="Search by tag, type, brand, model..."
+              placeholder="Search assigned assets..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 border: "none",
                 outline: "none",
                 background: "transparent",
-                fontSize: "1.1rem",
+                fontSize: "18px",
                 color: "#233037",
                 padding: "10px 0 10px 8px",
                 width: "100%",
@@ -1157,12 +1201,12 @@ function Assets() {
             borderRadius: 12,
             boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
             overflow: "hidden",
-            tableLayout: "auto",
+            tableLayout: "fixed",
           }}
         >
           <thead>
             <tr style={{ background: "#445F6D" }}>
-              <th style={{ padding: 12, border: "none" }}>
+              <th style={{ padding: 12, border: "none", width: "4%" }}>
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -1180,6 +1224,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "12%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Device Tag
@@ -1190,6 +1236,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "8%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Type
@@ -1200,6 +1248,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "10%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Brand
@@ -1210,6 +1260,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "17%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Model
@@ -1220,6 +1272,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "17%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Assigned To
@@ -1230,6 +1284,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "12%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Condition
@@ -1240,16 +1296,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
-                }}
-              >
-                Status
-              </th>
-              <th
-                style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
-                  border: "none",
+                  width: "14%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Assignment Date
@@ -1260,6 +1308,8 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
+                  width: "22%",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Remarks
@@ -1270,9 +1320,9 @@ function Assets() {
                   fontWeight: 600,
                   padding: 12,
                   border: "none",
-                  minWidth: 60, // Minimize width
-                  maxWidth: 70,
+                  width: "6%",
                   textAlign: "center",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Actions
@@ -1280,24 +1330,23 @@ function Assets() {
             </tr>
           </thead>
           <tbody>
-            {devices
-              .filter((device) => {
-                const q = search.trim().toLowerCase();
-                if (!q) return true;
-                return (
-                  (device.deviceTag || "").toLowerCase().includes(q) ||
-                  (device.deviceType || "").toLowerCase().includes(q) ||
-                  (device.brand || "").toLowerCase().includes(q) ||
-                  (device.model || "").toLowerCase().includes(q) ||
-                  (getEmployeeName(device.assignedTo) || "")
-                    .toLowerCase()
-                    .includes(q) ||
-                  (device.condition || "").toLowerCase().includes(q) ||
-                  (device.status || "").toLowerCase().includes(q) ||
-                  (device.remarks || "").toLowerCase().includes(q)
-                );
-              })
-              .map((device) => {
+            {currentPageDevices.length === 0 ? (
+              <tr>
+                <td 
+                  colSpan="10" 
+                  style={{
+                    padding: "40px 20px",
+                    textAlign: "center",
+                    color: "#667085",
+                    fontSize: "16px",
+                    fontWeight: "500",
+                  }}
+                >
+                  {search ? "No assigned devices found matching your search." : "No assigned devices to display."}
+                </td>
+              </tr>
+            ) : (
+              currentPageDevices.map((device) => {
                 return (
                   <tr key={device.id}>
                     <td
@@ -1323,7 +1372,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1334,7 +1385,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1345,7 +1398,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1356,7 +1411,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1367,7 +1424,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1378,7 +1437,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1389,18 +1450,9 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
-                        fontSize: "1em",
-                      }}
-                    >
-                      {device.status}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
                     >
@@ -1417,9 +1469,12 @@ function Assets() {
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
                         color: "#233037",
-                        wordBreak: "break-word",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                         fontSize: "1em",
                       }}
+                      title={device.remarks || ""}
                     >
                       {device.remarks || ""}
                     </td>
@@ -1427,9 +1482,9 @@ function Assets() {
                       style={{
                         padding: "0.7em 0.5em",
                         borderBottom: "1px solid #e0e7ef",
-                        minWidth: 60, // Minimize width
-                        maxWidth: 70,
+                        width: "6%",
                         textAlign: "center",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       <div
@@ -1514,10 +1569,177 @@ function Assets() {
                     </td>
                   </tr>
                 );
-              })}
+              })
+            )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {(() => {
+        const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
+        const startIndex = (currentPage - 1) * devicesPerPage + 1;
+        const endIndex = Math.min(currentPage * devicesPerPage, filteredDevices.length);
+        
+        if (totalPages <= 1) return null;
+        
+        return (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "20px",
+              padding: "16px 20px",
+              background: "#fff",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+            }}
+          >
+            <div
+              style={{
+                color: "#445F6D",
+                fontSize: "14px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <span>Showing {startIndex} - {endIndex} of {filteredDevices.length} devices</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "13px" }}>Show:</span>
+                <select
+                  value={devicesPerPage}
+                  onChange={(e) => {
+                    setDevicesPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: "4px",
+                    border: "1px solid #e0e7ef",
+                    fontSize: "13px",
+                    background: "#fff",
+                    color: "#445F6D",
+                  }}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
+                </select>
+              </div>
+            </div>
+            
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e0e7ef",
+                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+              >
+                First
+              </button>
+              
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e0e7ef",
+                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+              >
+                Previous
+              </button>
+              
+              {/* Page Numbers */}
+              {(() => {
+                const pageNumbers = [];
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+                
+                for (let i = startPage; i <= endPage; i++) {
+                  pageNumbers.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e7ef",
+                        background: i === currentPage ? "#70C1B3" : "#fff",
+                        color: i === currentPage ? "#fff" : "#445F6D",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        minWidth: "40px",
+                      }}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                
+                return pageNumbers;
+              })()}
+              
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e0e7ef",
+                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+              >
+                Next
+              </button>
+              
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e0e7ef",
+                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  fontWeight: "500",
+                }}
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Bulk Reassign/Unassign Modal */}
       {bulkReassignModalOpen && (
