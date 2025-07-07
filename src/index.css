@@ -1,21 +1,22 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap');
 
-body {
-  margin: 0;
-  font-family: 'proxima-nova', Arial, Helvetica, sans-serif;
-  font-style: normal;
+@font-face {
+  font-family: 'proxima-nova';
+  src: url('./fonts/Proxima-Nova-Regular.woff') format('woff');
   font-weight: 300;
-  font-size: 16px;
-  line-height: 21px;
-  color: rgb(29, 37, 54);
+  font-style: normal;
+  font-display: swap;
 }
 
-/* Ensure all form elements and buttons inherit the font styles */
-input, button, select, textarea {
-  font-family: inherit;
-  font-style: inherit;
-  font-weight: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  color: inherit;
+html, body, #root, * {
+  font-family: 'proxima-nova', Arial, Helvetica, sans-serif !important;
+  font-style: normal;
+  font-weight: 300;
+  color: rgb(29, 37, 54);
+  font-size: 17px;
+  line-height: 24px;
+}
+
+body {
+  margin: 0;
 }
