@@ -1,22 +1,6 @@
-@import url('https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap');
-
-@font-face {
-  font-family: 'proxima-nova';
-  src: url('./fonts/Proxima-Nova-Regular.woff') format('woff');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-html, body, #root, * {
-  font-family: 'proxima-nova', Arial, Helvetica, sans-serif !important;
-  font-style: normal;
-  font-weight: 300;
-  color: rgb(29, 37, 54);
-  font-size: 17px;
-  line-height: 24px;
-}
+@import url('https://fonts.googleapis.com/css?family=Montserrat:300,700&display=swap');
 
 body {
   margin: 0;
+  font-family: 'Montserrat', Arial, Helvetica, sans-serif;
 }
