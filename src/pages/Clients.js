@@ -9,63 +9,245 @@ import { getAllEmployees } from "../services/employeeService";
 
 const isValidClientName = (value) => value.trim().length > 0; // allow anything except empty
 
-function ClientFormModal({ data, onChange, onSave, onCancel, isValid }) {
+function ClientFormModal({ data, onChange, onSave, onCancel }) {
+  const [showError, setShowError] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSaveClick = async () => {
+    if (!data.clientName.trim()) {
+      setShowError(true);
+      return;
+    }
+    setShowError(false);
+    setSaving(true);
+    onSave(); // Modal will close immediately, loading handled outside
+    setSaving(false);
+  };
+
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
-        <h3 style={styles.modalTitle}>
-          {data.id ? "Edit Client" : "Add Client"}
+        <h3 style={{ ...styles.modalTitleBold, marginBottom: 6 }}>
+          {data.id ? "Edit Client Details" : "Add New Client"}
         </h3>
-        <div>
-          <label style={styles.modalLabel}>Client Name:</label>
-          <input
-            name="clientName"
-            value={data.clientName}
-            onChange={onChange}
-            style={styles.modalInput}
-          />
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <button
-            onClick={onSave}
-            disabled={!isValid}
-            style={styles.modalButton}
+        <div
+          style={{
+            ...styles.modalFormSection,
+            padding: "18px 18px 14px 18px",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                marginBottom: 0,
+              }}
+            >
+              <label
+                style={{ ...styles.modalLabel, marginBottom: 0, padding: 0 }}
+              >
+                Client Name:{" "}
+              </label>
+              <span
+                style={{
+                  color: "#e53935",
+                  fontWeight: 300,
+                  fontSize: 15,
+                  marginTop: 2,
+                }}
+              >
+                *
+              </span>
+            </div>
+            <div style={{ width: "100%" }}>
+              <input
+                name="clientName"
+                value={data.clientName}
+                onChange={(e) => {
+                  onChange(e);
+                  if (showError) setShowError(false);
+                }}
+                style={{
+                  ...styles.modalInput,
+                  marginTop: 0,
+                  marginBottom: 0,
+                  width: "100%",
+                }}
+                placeholder="Enter client name (e.g. ABC Holdings, Inc.)"
+                disabled={saving}
+              />
+              {showError && (
+                <div
+                  style={{
+                    color: "#e53935",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    marginTop: 4,
+                  }}
+                >
+                  * Client Name is required
+                </div>
+              )}
+            </div>
+          </div>
+          <div
+            style={{
+              ...styles.modalButtonRow,
+              gap: 8,
+              justifyContent: "flex-end",
+              width: "100%",
+            }}
           >
-            Save
-          </button>
-          <button
-            onClick={onCancel}
-            style={{ ...styles.modalButton, marginLeft: 8 }}
-          >
-            Cancel
-          </button>
+            <button
+              onClick={handleSaveClick}
+              style={{
+                ...styles.actionBtn,
+                width: "50%",
+                borderRadius: 5,
+                transition: "background 0.2s, color 0.2s, opacity 0.2s",
+                opacity: saving ? 0.7 : 1,
+              }}
+              disabled={saving}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#1F2637";
+                e.currentTarget.style.color = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = styles.actionBtn.background;
+                e.currentTarget.style.color = styles.actionBtn.color;
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={onCancel}
+              style={{
+                ...styles.actionBtn,
+                width: "50%",
+                borderRadius: 5,
+                background: "#fff",
+                color: styles.modalButton.color || "#000",
+                transition: "background 0.2s, color 0.2s",
+              }}
+              disabled={saving}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#1F2637";
+                e.currentTarget.style.color = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.color =
+                  styles.modalButton.color || "#000";
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function DeleteConfirmationModal({ onConfirm, onCancel }) {
+function DeleteConfirmationModal({ onConfirm, onCancel, deleting }) {
+  const [hovered, setHovered] = useState({ delete: false, cancel: false });
   return (
     <div style={styles.modalOverlay}>
-      <div style={styles.modalContent}>
-        <h3 style={styles.modalTitle}>Confirm Deletion</h3>
-        <p style={styles.modalText}>
-          Are you sure you want to delete this client?
-        </p>
-        <div style={{ marginTop: 16 }}>
-          <button
-            onClick={onConfirm}
-            style={{ ...styles.modalButton, color: "red" }}
+      <div
+        style={{
+          ...styles.modalContent,
+          width: 400,
+          minWidth: 400,
+          maxWidth: 400,
+        }}
+      >
+        <h3 style={{ ...styles.modalTitleBold, marginBottom: 6 }}>
+          Confirm Deletion
+        </h3>
+        <div
+          style={{
+            ...styles.modalFormSection,
+            padding: "18px 18px 14px 18px",
+            gap: 10,
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
+              fontStyle: "normal",
+              fontWeight: 300,
+              color: "#000",
+              fontSize: 15,
+              lineHeight: "22px",
+              margin: 0,
+              marginBottom: 0,
+              textAlign: "left",
+              maxWidth: 340,
+              wordBreak: "break-word",
+            }}
           >
-            Delete
-          </button>
-          <button
-            onClick={onCancel}
-            style={{ ...styles.modalButton, marginLeft: 8 }}
+            Are you sure you want to permanently delete this client?{" "}
+            <span style={{ fontWeight: 400, color: "#e53935" }}>
+              This action cannot be undone.
+            </span>
+          </p>
+          <div
+            style={{
+              ...styles.modalButtonRow,
+              gap: 8,
+              justifyContent: "flex-end",
+              width: "100%",
+              marginTop: 0,
+            }}
           >
-            Cancel
-          </button>
+            <button
+              onClick={onConfirm}
+              style={{
+                ...styles.actionBtn,
+                width: "50%",
+                borderRadius: 5,
+                background: hovered.delete ? "#e53935" : "#fff",
+                color: hovered.delete ? "#fff" : "#e53935",
+                fontWeight: 700,
+                border: "1.5px solid #e53935",
+                transition: "background 0.2s, color 0.2s, opacity 0.2s",
+                opacity: deleting ? 0.7 : 1,
+                boxShadow: hovered.delete
+                  ? "0 2px 8px rgba(229,57,53,0.10)"
+                  : "none",
+              }}
+              disabled={deleting}
+              onMouseEnter={() => setHovered((h) => ({ ...h, delete: true }))}
+              onMouseLeave={() => setHovered((h) => ({ ...h, delete: false }))}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </button>
+            <button
+              onClick={onCancel}
+              style={{
+                ...styles.actionBtn,
+                width: "50%",
+                borderRadius: 5,
+                background: hovered.cancel ? "#1F2637" : "#fff",
+                color: hovered.cancel
+                  ? "#fff"
+                  : styles.modalButton.color || "#000",
+                border: "1.5px solid #e0e7ef",
+                transition: "background 0.2s, color 0.2s",
+                boxShadow: hovered.cancel
+                  ? "0 2px 8px rgba(31,38,55,0.10)"
+                  : "none",
+              }}
+              disabled={deleting}
+              onMouseEnter={() => setHovered((h) => ({ ...h, cancel: true }))}
+              onMouseLeave={() => setHovered((h) => ({ ...h, cancel: false }))}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -404,7 +586,7 @@ function Clients() {
                       width: 70,
                       minWidth: 50,
                       maxWidth: 80,
-                      textAlign: "center", // Center Client ID cell
+                      textAlign: "center", // Change to "left" if you want left alignment
                     }}
                   >
                     {client.id}
@@ -600,15 +782,18 @@ const styles = {
     border: "none",
     outline: "none",
     background: "transparent",
-    fontSize: 17,
-    color: "rgb(29, 37, 54)",
-    padding: "10px 0 10px 8px",
+    fontSize: 15,
+    color: "#000",
+    padding: "8px",
     width: "100%",
     fontWeight: 300,
     minWidth: 0,
-    lineHeight: "24px",
+    lineHeight: "15px",
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
+    marginBottom: 0,
+    marginTop: 0,
+    borderRadius: 5,
   },
   actionBtn: {
     background: "#FFD87D",
@@ -643,10 +828,10 @@ const styles = {
     fontStyle: "normal",
   },
   tableContainer: {
-    marginTop: 16,
-    background: "#f5f7fa", // subtle background to visually anchor the table
-    borderRadius: 16,
-    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
+    marginTop: 0, // was 16, now 0 for closer spacing to the title
+    background: "#fff",
+    borderRadius: 24, // increased for a lighter look
+    boxShadow: "0 2px 12px rgba(68,95,109,0.10)", // slightly more shadow
     padding: 0,
     width: "100%",
     maxWidth: "100vw",
@@ -660,11 +845,11 @@ const styles = {
   },
   table: {
     width: "100%",
-    minWidth: 0, // Allow table to shrink
+    minWidth: 0,
     borderCollapse: "separate",
-    borderSpacing: 0,
+    borderSpacing: "0 8px", // add vertical gap between rows
     background: "#fff",
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: "hidden",
     tableLayout: "fixed", // Make columns auto-fit
     maxWidth: "100%",
@@ -677,10 +862,10 @@ const styles = {
     lineHeight: "24px",
   },
   th: {
-    padding: "6px 8px", // slightly reduced vertical padding for less row height
+    padding: "14px 16px", // increased vertical and horizontal padding
     background: "#1D2536",
     color: "#fff",
-    fontWeight: 400, // slightly bolder for header
+    fontWeight: 400,
     fontSize: 17,
     borderBottom: "2px solid #e0e7ef",
     textAlign: "center",
@@ -690,14 +875,14 @@ const styles = {
     textOverflow: "ellipsis",
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
-    lineHeight: "22px", // slightly reduced
+    lineHeight: "26px", // slightly increased
   },
   td: {
-    padding: "5px 8px", // slightly reduced vertical padding for less row height
+    padding: "12px 16px",
     color: "rgb(29, 37, 54)",
     fontSize: 17,
-    borderBottom: "1px solid #e0e7ef",
-    background: "#EFF2F4", // updated table body background
+    borderBottom: "1.5px solid #f0f2f7",
+    background: "#fff", // set to pure white
     verticalAlign: "middle",
     wordBreak: "break-word",
     whiteSpace: "normal",
@@ -707,7 +892,7 @@ const styles = {
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
     fontWeight: 300,
-    lineHeight: "22px", // slightly reduced
+    lineHeight: "26px",
     textAlign: "left",
   },
   modalOverlay: {
@@ -724,9 +909,10 @@ const styles = {
   },
   modalContent: {
     backgroundColor: "#fff",
-    padding: 24,
+    padding: 32, // was 24, now 32 for more width
     borderRadius: 14,
-    minWidth: 300,
+    minWidth: 400, // was 300, now 400 for a wider modal
+    maxWidth: 520,
     boxShadow: "0 6px 24px rgba(68,95,109,0.13)",
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
@@ -745,48 +931,68 @@ const styles = {
     margin: 0,
     marginBottom: 12,
   },
+  modalTitleBold: {
+    fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
+    fontStyle: "normal",
+    fontWeight: 700,
+    color: "rgb(29, 37, 54)",
+    fontSize: 22,
+    lineHeight: "28px",
+    margin: 0,
+    marginBottom: 6, // reduced from 18 for closer spacing
+    letterSpacing: 0.2,
+    textAlign: "left",
+    padding: 0,
+  },
+  modalFormSection: {
+    background: "#EFF2F4",
+    borderRadius: 10,
+    padding: "18px 18px 14px 18px",
+    marginBottom: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+  },
   modalLabel: {
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
     fontWeight: 300,
-    color: "rgb(29, 37, 54)",
-    fontSize: 17,
-    lineHeight: "24px",
-    marginBottom: 4,
+    color: "#000",
+    fontSize: 15,
+    lineHeight: "15px",
+    marginBottom: 0, // was 4, now 0 for closer spacing
     display: "block",
-  },
-  modalText: {
-    fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
-    fontStyle: "normal",
-    fontWeight: 300,
-    color: "rgb(29, 37, 54)",
-    fontSize: 17,
-    lineHeight: "24px",
-    margin: 0,
-    marginBottom: 12,
+    padding: "5px 0 0 0",
   },
   modalInput: {
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
     fontWeight: 300,
-    color: "rgb(29, 37, 54)",
-    fontSize: 17,
-    lineHeight: "24px",
-    padding: "8px 10px",
+    color: "#000",
+    fontSize: 15,
+    lineHeight: "15px",
+    padding: "8px",
     border: "1px solid #e0e7ef",
     borderRadius: 6,
-    marginTop: 4,
+    marginTop: 2, // was 4, now 2 for closer spacing
     marginBottom: 8,
     width: "100%",
     boxSizing: "border-box",
     background: "#fff",
     outline: "none",
   },
+  modalButtonRow: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginTop: 10,
+  },
   modalButton: {
     fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
     fontStyle: "normal",
     fontWeight: 300,
-    color: "rgb(29, 37, 54)",
+    color: "#000",
     fontSize: 15,
     lineHeight: "15px",
     background: "#f7f9fb",
