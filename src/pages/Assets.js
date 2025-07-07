@@ -786,7 +786,7 @@ function Assets() {
     transferor,
     transferee,
     devices,
-    templatePath = "/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx",
+    templatePath = "/aims/public/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx",
     docxFileName,
   }) {
     try {
@@ -890,7 +890,7 @@ function Assets() {
     try {
       // Use correct fetch path for public folder
       const response = await fetch(
-        "/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        "/aims/public/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
       );
       setUnassignProgress(30);
       const arrayBuffer = await response.arrayBuffer();
@@ -963,7 +963,7 @@ function Assets() {
     try {
       // Use correct fetch path for public folder
       const response = await fetch(
-        "/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        "/aims/public/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
       );
       setUnassignProgress(30);
       const arrayBuffer = await response.arrayBuffer();
@@ -1347,8 +1347,21 @@ function Assets() {
               </tr>
             ) : (
               currentPageDevices.map((device) => {
+                const isSelected = selectedDeviceIds.includes(device.id);
                 return (
-                  <tr key={device.id}>
+                  <tr
+                    key={device.id}
+                    style={{
+                      background: isSelected ? '#e6f7f3' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'background 0.15s',
+                    }}
+                    onClick={e => {
+                      if (e.target.type !== 'checkbox') {
+                        toggleSelectDevice(device.id);
+                      }
+                    }}
+                  >
                     <td
                       style={{
                         padding: "0.7em 0.5em",
@@ -1357,8 +1370,9 @@ function Assets() {
                     >
                       <input
                         type="checkbox"
-                        checked={selectedDeviceIds.includes(device.id)}
+                        checked={isSelected}
                         onChange={() => toggleSelectDevice(device.id)}
+                        onClick={e => e.stopPropagation()}
                         style={{
                           width: 18,
                           height: 18,
