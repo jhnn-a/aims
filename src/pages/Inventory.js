@@ -381,23 +381,32 @@ const handleTempDeployDone = async () => {
 
   // --- STATE for New Acquisitions Modal ---
 const [showNewAcqModal, setShowNewAcqModal] = useState(false);
-const [newAcqForm, setNewAcqForm] = useState({
-  deviceType: "",
-  brand: "",
-  model: "",
-  condition: "",
-  remarks: "",
-  acquisitionDate: "",
-  startTag: "",
-  endTag: "",
-  supplier: "", // Added supplier field for modal only
-});
+const [newAcqTabs, setNewAcqTabs] = useState([
+  {
+    id: 1,
+    label: "Device Type 1",
+    data: {
+      deviceType: "",
+      brand: "",
+      model: "",
+      condition: "",
+      remarks: "",
+      acquisitionDate: "",
+      startTag: "",
+      endTag: "",
+      supplier: "",
+    }
+  }
+]);
+const [activeTabId, setActiveTabId] = useState(1);
+const [nextTabId, setNextTabId] = useState(2);
 const [newAcqError, setNewAcqError] = useState("");
 const [newAcqLoading, setNewAcqLoading] = useState(false);
 const [assignSerialManually, setAssignSerialManually] = useState(false);
 const [manualQuantity, setManualQuantity] = useState(1);
 const [showManualSerialPanel, setShowManualSerialPanel] = useState(false);
 const [manualSerials, setManualSerials] = useState([]);
+const [activeManualTabId, setActiveManualTabId] = useState(1);
 
   // --- HANDLERS ---
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
@@ -911,6 +920,8 @@ const handleNewAcquisitions = async () => {
 
 // The actual logic for adding devices in bulk:
 const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, acquisitionDate, startTag, endTag }) => {
+  console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
+  
   if (!deviceType || !brand || !condition || !startTag || !endTag) {
     throw new Error("Please fill in all required fields.");
   }
@@ -942,6 +953,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       assignmentDate: "",
       acquisitionDate: acquisitionDate || "",
     };
+    console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
     try {
       if (existing) {
         await updateDevice(existing.id, payload);
@@ -954,61 +966,182 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     }
   }
   await loadDevicesAndEmployees();
+  console.log(`addDevicesInBulk completed: added ${added} devices of type "${deviceType}"`);
   return added;
 };
 
   const handleNewAcqInput = ({ target: { name, value } }) => {
-    setNewAcqForm((prev) => ({ ...prev, [name]: value }));
+    setNewAcqTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, data: { ...tab.data, [name]: value } }
+          : tab
+      )
+    );
     setNewAcqError("");
+  };
+
+  // Tab management functions
+  const addNewTab = () => {
+    const newTab = {
+      id: nextTabId,
+      label: `Device Type ${nextTabId}`,
+      data: {
+        deviceType: "",
+        brand: "",
+        model: "",
+        condition: "",
+        remarks: "",
+        acquisitionDate: "",
+        startTag: "",
+        endTag: "",
+        supplier: "",
+        useManualSerial: false,
+        manualQuantity: 1,
+        manualSerials: [],
+      }
+    };
+    setNewAcqTabs(prev => [...prev, newTab]);
+    setActiveTabId(nextTabId);
+    setNextTabId(prev => prev + 1);
+  };
+
+  const removeTab = (tabId) => {
+    if (newAcqTabs.length <= 1) return; // Don't allow removing the last tab
+    
+    setNewAcqTabs(prev => prev.filter(tab => tab.id !== tabId));
+    
+    // If we're removing the active tab, switch to another tab
+    if (tabId === activeTabId) {
+      const remainingTabs = newAcqTabs.filter(tab => tab.id !== tabId);
+      setActiveTabId(remainingTabs[0].id);
+    }
+  };
+
+  const switchTab = (tabId) => {
+    setActiveTabId(tabId);
+    setNewAcqError("");
+  };
+
+  const getCurrentTabData = () => {
+    return newAcqTabs.find(tab => tab.id === activeTabId)?.data || {};
   };
 
   const handleManualSerialToggle = (e) => {
     const checked = e.target.checked;
-    setAssignSerialManually(checked);
+    
+    // Update the current tab's manual serial setting
+    setNewAcqTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, data: { ...tab.data, useManualSerial: checked } }
+          : tab
+      )
+    );
+    
     if (!checked) {
-      setShowManualSerialPanel(false);
-      setManualSerials([]);
+      // Clear manual serial data for this tab
+      setNewAcqTabs(prevTabs => 
+        prevTabs.map(tab => 
+          tab.id === activeTabId 
+            ? { 
+                ...tab, 
+                data: { 
+                  ...tab.data, 
+                  manualQuantity: 1,
+                  manualSerials: []
+                } 
+              }
+            : tab
+        )
+      );
     }
   };
 
   const handleQuantityChange = (e) => {
     const qty = parseInt(e.target.value) || 1;
-    setManualQuantity(Math.max(1, Math.min(100, qty))); // Limit between 1-100
-  };
-
-  const handleProceedToManualEntry = () => {
-    if (!newAcqForm.deviceType || !newAcqForm.brand || !newAcqForm.condition) {
-      setNewAcqError("Please fill in Device Type, Brand, and Condition first.");
-      return;
-    }
-    // Initialize serial inputs array
-    const serialsArray = Array(manualQuantity).fill("").map((_, index) => ({
-      id: index,
-      serial: ""
-    }));
-    setManualSerials(serialsArray);
-    setShowManualSerialPanel(true);
-  };
-
-  const handleManualSerialChange = (index, value) => {
-    setManualSerials(prev => 
-      prev.map((item, i) => 
-        i === index ? { ...item, serial: value } : item
+    const newQuantity = Math.max(1, Math.min(100, qty));
+    
+    // Update the current tab's manual quantity
+    setNewAcqTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTabId 
+          ? { ...tab, data: { ...tab.data, manualQuantity: newQuantity } }
+          : tab
       )
     );
   };
 
-  const handleImportSerials = (importText) => {
-    const lines = importText.split('\n').map(line => line.trim()).filter(line => line);
-    setManualSerials(prev => {
-      const updated = [...prev];
-      lines.forEach((serial, index) => {
-        if (index < updated.length) {
-          updated[index] = { ...updated[index], serial };
-        }
-      });
-      return updated;
+  const handleProceedToManualEntry = () => {
+    // Validate all tabs that require manual serial assignment
+    const manualTabs = newAcqTabs.filter(tab => tab.data.useManualSerial);
+    
+    for (const tab of manualTabs) {
+      if (!tab.data.deviceType || !tab.data.brand || !tab.data.condition) {
+        setNewAcqError(`Please fill in Device Type, Brand, and Condition for ${tab.label}.`);
+        return;
+      }
+    }
+    
+    // Initialize serial inputs for all manual tabs
+    const updatedTabs = newAcqTabs.map(tab => {
+      if (tab.data.useManualSerial && (!tab.data.manualSerials || tab.data.manualSerials.length === 0)) {
+        const serialsArray = Array(tab.data.manualQuantity || 1).fill("").map((_, index) => ({
+          id: index,
+          serial: ""
+        }));
+        return {
+          ...tab,
+          data: {
+            ...tab.data,
+            manualSerials: serialsArray
+          }
+        };
+      }
+      return tab;
     });
+    
+    setNewAcqTabs(updatedTabs);
+    setActiveManualTabId(manualTabs[0]?.id || 1);
+    setShowManualSerialPanel(true);
+  };
+
+  const handleManualSerialChange = (tabId, index, value) => {
+    setNewAcqTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === tabId 
+          ? {
+              ...tab,
+              data: {
+                ...tab.data,
+                manualSerials: tab.data.manualSerials.map((item, i) => 
+                  i === index ? { ...item, serial: value } : item
+                )
+              }
+            }
+          : tab
+      )
+    );
+  };
+
+  const handleImportSerials = (tabId, importText) => {
+    const lines = importText.split('\n').map(line => line.trim()).filter(line => line);
+    setNewAcqTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === tabId 
+          ? {
+              ...tab,
+              data: {
+                ...tab.data,
+                manualSerials: tab.data.manualSerials.map((item, index) => ({
+                  ...item,
+                  serial: lines[index] || item.serial
+                }))
+              }
+            }
+          : tab
+      )
+    );
   };
 
   const handleManualSerialSubmit = async () => {
@@ -1045,58 +1178,111 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         return;
       }
 
-      // Add devices with manual serials
-      let added = 0;
-      for (const serialItem of manualSerials) {
-        const payload = {
-          deviceType: newAcqForm.deviceType,
-          deviceTag: serialItem.serial.trim(),
-          brand: newAcqForm.brand,
-          model: newAcqForm.model || "",
-          condition: newAcqForm.condition,
-          remarks: newAcqForm.remarks || "",
-          status: "Stock Room",
-          assignedTo: "",
-          assignmentDate: "",
-          acquisitionDate: newAcqForm.acquisitionDate || "",
-        };
+      // Add devices with manual serials for each tab
+      let allDeviceList = [];
+      let totalAdded = 0;
+      
+      // Get all tabs with manual serial assignment
+      const manualTabs = newAcqTabs.filter(tab => tab.data.useManualSerial);
+      
+      for (const tab of manualTabs) {
+        const tabData = tab.data;
+        let tabDeviceList = [];
+        let added = 0;
         
-        try {
-          await addDevice(payload);
-          added++;
-        } catch (err) {
-          console.error("Failed to add device:", err);
+        for (const serialItem of tabData.manualSerials) {
+          const payload = {
+            deviceType: tabData.deviceType,
+            deviceTag: serialItem.serial.trim(),
+            brand: tabData.brand,
+            model: tabData.model || "",
+            condition: tabData.condition,
+            remarks: tabData.remarks || "",
+            status: "Stock Room",
+            assignedTo: "",
+            assignmentDate: "",
+            acquisitionDate: tabData.acquisitionDate || "",
+          };
+          
+          tabDeviceList.push(payload);
+          
+          try {
+            await addDevice(payload);
+            added++;
+          } catch (error) {
+            console.error(`Failed to add device ${serialItem.serial}:`, error);
+          }
+        }
+        
+        allDeviceList = [...allDeviceList, ...tabDeviceList];
+        totalAdded += added;
+      }
+      
+      // Also process non-manual tabs (range-based)
+      const rangeTabs = newAcqTabs.filter(tab => !tab.data.useManualSerial);
+      for (const tab of rangeTabs) {
+        const tabData = tab.data;
+        if (tabData.deviceType && tabData.brand && tabData.condition && tabData.startTag && tabData.endTag) {
+          const rangeAdded = await addDevicesInBulk(tabData);
+          totalAdded += rangeAdded;
+          
+          // Add to document generation list
+          const startNum = parseInt(tabData.startTag.replace(/\D/g, ''), 10);
+          const endNum = parseInt(tabData.endTag.replace(/\D/g, ''), 10);
+          const typeObj = deviceTypes.find((t) => t.label === tabData.deviceType);
+          const prefix = `JOII${typeObj.code}`;
+          
+          for (let i = startNum; i <= endNum; i++) {
+            const deviceTag = `${prefix}${String(i).padStart(4, '0')}`;
+            allDeviceList.push({
+              deviceTag,
+              deviceType: tabData.deviceType,
+              brand: tabData.brand,
+              model: tabData.model || "",
+              condition: tabData.condition,
+              remarks: tabData.remarks || ""
+            });
+          }
         }
       }
 
       await loadDevicesAndEmployees();
       
-      // Generate document for manual serial devices
+      // Generate document for all devices
       try {
-        const deviceList = manualSerials.map(serialItem => ({
-          deviceTag: serialItem.serial.trim(),
-          deviceType: newAcqForm.deviceType,
-          brand: newAcqForm.brand,
-          model: newAcqForm.model,
-          condition: newAcqForm.condition,
-          remarks: newAcqForm.remarks
-        }));
-        
-        await generateAcquisitionDocument(deviceList, newAcqForm);
+        await generateAcquisitionDocument(allDeviceList, newAcqTabs[0].data);
       } catch (docError) {
         console.error("Document generation failed:", docError);
         // Continue even if document generation fails
       }
       
-      alert(`Added ${added} device(s) with manual serials.`);
+      alert(`Added ${totalAdded} device(s) successfully.`);
       
       // Reset form
       setShowNewAcqModal(false);
-      setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "", supplier: "" });
-      setAssignSerialManually(false);
+      setNewAcqTabs([
+        {
+          id: 1,
+          label: "Device Type 1",
+          data: {
+            deviceType: "",
+            brand: "",
+            model: "",
+            condition: "",
+            remarks: "",
+            acquisitionDate: "",
+            startTag: "",
+            endTag: "",
+            supplier: "",
+            useManualSerial: false,
+            manualQuantity: 1,
+            manualSerials: [],
+          }
+        }
+      ]);
+      setActiveTabId(1);
+      setNextTabId(2);
       setShowManualSerialPanel(false);
-      setManualSerials([]);
-      setManualQuantity(1);
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
@@ -1104,81 +1290,126 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
   };
 
   const handleNewAcqSubmit = async () => {
-    if (assignSerialManually) {
-      // If manual serial assignment, proceed to manual entry panel
+    // Check if any tab uses manual serial assignment
+    const hasManualTabs = newAcqTabs.some(tab => tab.data.useManualSerial);
+    
+    if (hasManualTabs) {
+      // If any tab has manual serial assignment, proceed to manual entry panel
       handleProceedToManualEntry();
       return;
     }
 
-    // Regular bulk add workflow
+    // Regular bulk add workflow for all tabs (range-based only)
     setNewAcqError("");
     setNewAcqLoading(true);
     setProgress(0);
+    
     try {
-      // Validate required fields
-      if (!newAcqForm.deviceType || !newAcqForm.brand || !newAcqForm.condition || !newAcqForm.startTag || !newAcqForm.endTag) {
-        setNewAcqError("Please fill in all required fields.");
+      // Validate only range-based tabs have required fields
+      const rangeTabs = newAcqTabs.filter(tab => !tab.data.useManualSerial);
+      const invalidTabs = rangeTabs.filter(tab => 
+        !tab.data.deviceType || !tab.data.brand || !tab.data.condition || 
+        !tab.data.startTag || !tab.data.endTag
+      );
+      
+      if (invalidTabs.length > 0) {
+        setNewAcqError(`Please fill in all required fields for range-based device types.`);
         setNewAcqLoading(false);
         return;
       }
 
       setProgress(10);
       
-      // Calculate device tags for document generation
-      const startNum = parseInt(newAcqForm.startTag.replace(/\D/g, ''), 10);
-      const endNum = parseInt(newAcqForm.endTag.replace(/\D/g, ''), 10);
+      let allDeviceList = [];
+      let totalAdded = 0;
       
-      if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
-        setNewAcqError("Invalid tag range. Please check start and end tags.");
-        setNewAcqLoading(false);
-        return;
-      }
+      // Process each range-based tab
+      for (let i = 0; i < rangeTabs.length; i++) {
+        const tabData = rangeTabs[i].data;
+        
+        console.log(`Processing range-based tab ${i + 1} (${rangeTabs[i].label}) with device type:`, tabData.deviceType);
+        
+        // Calculate device tags for document generation
+        const startNum = parseInt(tabData.startTag.replace(/\D/g, ''), 10);
+        const endNum = parseInt(tabData.endTag.replace(/\D/g, ''), 10);
+        
+        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+          setNewAcqError(`Invalid tag range in ${rangeTabs[i].label}. Please check start and end tags.`);
+          setNewAcqLoading(false);
+          return;
+        }
 
-      const quantity = endNum - startNum + 1;
-      setProgress(20);
-      
-      // Get device type prefix
-      const typeObj = deviceTypes.find((t) => t.label === newAcqForm.deviceType);
-      if (!typeObj) {
-        setNewAcqError("Invalid device type.");
-        setNewAcqLoading(false);
-        return;
+        const quantity = endNum - startNum + 1;
+        
+        // Get device type prefix
+        const typeObj = deviceTypes.find((t) => t.label === tabData.deviceType);
+        if (!typeObj) {
+          setNewAcqError(`Invalid device type in ${rangeTabs[i].label}.`);
+          setNewAcqLoading(false);
+          return;
+        }
+        const prefix = `JOII${typeObj.code}`;
+        
+        // Generate device list for this tab
+        const tabDeviceList = [];
+        for (let j = 0; j < quantity; j++) {
+          const deviceTag = `${prefix}${String(startNum + j).padStart(4, '0')}`;
+          tabDeviceList.push({
+            deviceTag,
+            deviceType: tabData.deviceType,
+            brand: tabData.brand,
+            model: tabData.model,
+            condition: tabData.condition,
+            remarks: tabData.remarks
+          });
+        }
+        
+        allDeviceList = [...allDeviceList, ...tabDeviceList];
+        
+        // Add devices to database for this tab
+        console.log(`Adding ${quantity} devices of type "${tabData.deviceType}" from tab ${i + 1}`);
+        const addedCount = await addDevicesInBulk(tabData);
+        totalAdded += addedCount;
+        console.log(`Successfully added ${addedCount} devices from tab ${i + 1}`);
+        
+        setProgress(30 + (i + 1) * (40 / rangeTabs.length));
       }
-      const prefix = `JOII${typeObj.code}`;
-      
-      // Generate device list for document
-      const deviceList = [];
-      for (let i = 0; i < quantity; i++) {
-        const deviceTag = `${prefix}${String(startNum + i).padStart(4, '0')}`;
-        deviceList.push({
-          deviceTag,
-          deviceType: newAcqForm.deviceType,
-          brand: newAcqForm.brand,
-          model: newAcqForm.model,
-          condition: newAcqForm.condition,
-          remarks: newAcqForm.remarks
-        });
-      }
-
-      setProgress(40);
-
-      // Add devices to database
-      const addedCount = await addDevicesInBulk(newAcqForm);
       
       setProgress(70);
       
-      // Generate document
+      // Generate single document with all devices
       try {
-        await generateAcquisitionDocument(deviceList, newAcqForm);
+        // Use the first tab's common data for document metadata
+        const firstTabData = newAcqTabs[0].data;
+        await generateAcquisitionDocument(allDeviceList, firstTabData);
         setProgress(100);
-        alert(`Successfully added ${addedCount} device(s) and generated acquisition document!`);
+        alert(`Successfully added ${totalAdded} device(s) across ${rangeTabs.length} device type(s) and generated acquisition document!`);
       } catch (docError) {
         console.error("Document generation failed:", docError);
-        alert(`Successfully added ${addedCount} device(s), but document generation failed: ${docError.message}`);
+        alert(`Successfully added ${totalAdded} device(s), but document generation failed: ${docError.message}`);
       }
       
+      // Reset all tabs
       setShowNewAcqModal(false);
-      setNewAcqForm({ deviceType: "", brand: "", model: "", condition: "", remarks: "", acquisitionDate: "", startTag: "", endTag: "", supplier: "" });
+      setNewAcqTabs([
+        {
+          id: 1,
+          label: "Device Type 1",
+          data: {
+            deviceType: "",
+            brand: "",
+            model: "",
+            condition: "",
+            remarks: "",
+            acquisitionDate: "",
+            startTag: "",
+            endTag: "",
+            supplier: "",
+          }
+        }
+      ]);
+      setActiveTabId(1);
+      setNextTabId(2);
       setAssignSerialManually(false);
       setShowManualSerialPanel(false);
       setManualSerials([]);
@@ -1770,140 +2001,260 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
             {!showManualSerialPanel ? (
               <>
                 <h3 style={styles.inventoryModalTitle}>New Acquisitions (Bulk Add)</h3>
-                <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                    <label style={styles.inventoryLabel}>Device Type:</label>
-                    <select
-                      name="deviceType"
-                      value={newAcqForm.deviceType}
-                      onChange={handleNewAcqInput}
-                      style={styles.inventoryInput}
-                    >
-                      <option value="">Select Device Type</option>
-                      {deviceTypes.map((type) => (
-                        <option key={type.label} value={type.label}>{type.label}</option>
+                
+                {/* Tab Navigation */}
+                <div style={{ width: "100%", marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                    <div style={{ 
+                      display: "flex", 
+                      gap: 2, 
+                      flex: 1,
+                      overflowX: "auto",
+                      scrollbarWidth: "none",
+                      msOverflowStyle: "none",
+                      WebkitScrollbar: { display: "none" },
+                      minWidth: 0
+                    }}>
+                      {newAcqTabs.map((tab, index) => (
+                        <div key={tab.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                          <button
+                            onClick={() => switchTab(tab.id)}
+                            title={newAcqTabs.length > 6 ? tab.label : undefined}
+                            style={{
+                              ...styles.tabButton,
+                              background: tab.id === activeTabId ? "#2563eb" : "#f1f5f9",
+                              color: tab.id === activeTabId ? "#fff" : "#64748b",
+                              borderBottomLeftRadius: tab.id === activeTabId ? 0 : 6,
+                              borderBottomRightRadius: tab.id === activeTabId ? 0 : 6,
+                              // Responsive sizing based on number of tabs
+                              minWidth: Math.max(80, Math.min(120, 480 / newAcqTabs.length - 10)),
+                              maxWidth: newAcqTabs.length > 4 ? 100 : 120,
+                              fontSize: newAcqTabs.length > 6 ? 11 : 13,
+                              padding: newAcqTabs.length > 6 ? "6px 8px" : "8px 12px",
+                            }}
+                          >
+                            <span style={{ 
+                              overflow: "hidden", 
+                              textOverflow: "ellipsis", 
+                              whiteSpace: "nowrap",
+                              flex: 1
+                            }}>
+                              {newAcqTabs.length > 6 ? `T${index + 1}` : tab.label}
+                            </span>
+                            {newAcqTabs.length > 1 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeTab(tab.id);
+                                }}
+                                style={{
+                                  marginLeft: 4,
+                                  background: "none",
+                                  border: "none",
+                                  color: tab.id === activeTabId ? "#fff" : "#64748b",
+                                  cursor: "pointer",
+                                  fontSize: 14,
+                                  padding: 0,
+                                  width: 16,
+                                  height: 16,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderRadius: 2,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </button>
+                        </div>
                       ))}
-                    </select>
-                  </div>
-                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                    <label style={styles.inventoryLabel}>Brand:</label>
-                    <input
-                      name="brand"
-                      value={newAcqForm.brand}
-                      onChange={handleNewAcqInput}
-                      style={styles.inventoryInput}
-                      autoComplete="off"
-                    />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                    <label style={styles.inventoryLabel}>Model:</label>
-                    <input
-                      name="model"
-                      value={newAcqForm.model}
-                      onChange={handleNewAcqInput}
-                      style={styles.inventoryInput}
-                    />
+                    </div>
+                    <button
+                      onClick={addNewTab}
+                      style={{
+                        ...styles.addTabButton,
+                        marginLeft: 8,
+                        flexShrink: 0,
+                      }}
+                      title="Add another device type"
+                    >
+                      +
+                    </button>
                   </div>
                   
-                  <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                    <label style={styles.inventoryLabel}>Condition:</label>
-                    <select
-                      name="condition"
-                      value={newAcqForm.condition}
-                      onChange={handleNewAcqInput}
-                      style={styles.inventoryInput}
-                    >
-                      <option value="">Select Condition</option>
-                      {conditions.map((cond) => (
-                        <option key={cond} value={cond}>{cond}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                  <label style={styles.inventoryLabel}>Remarks:</label>
-                  <input
-                    name="remarks"
-                    value={newAcqForm.remarks}
-                    onChange={handleNewAcqInput}
-                    style={styles.inventoryInput}
-                  />
-                </div>
-                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                  <label style={styles.inventoryLabel}>Acquisition Date:</label>
-                  <input
-                    name="acquisitionDate"
-                    type="date"
-                    value={newAcqForm.acquisitionDate || ""}
-                    onChange={handleNewAcqInput}
-                    style={styles.inventoryInput}
-                  />
-                </div>
-                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                  <label style={styles.inventoryLabel}>Supplier:</label>
-                  <input
-                    name="supplier"
-                    value={newAcqForm.supplier}
-                    onChange={handleNewAcqInput}
-                    style={styles.inventoryInput}
-                    placeholder="Enter supplier name"
-                  />
-                </div>
-                
-                {/* Manual Serial Assignment Option */}
-                <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                  <label style={{ display: "flex", alignItems: "center", fontWeight: 500, fontSize: 13, color: "#2563eb" }}>
-                    <input
-                      type="checkbox"
-                      checked={assignSerialManually}
-                      onChange={handleManualSerialToggle}
-                      style={{ marginRight: 6, accentColor: "#2563eb" }}
-                    />
-                    Assign Serial Manually
-                  </label>
+                  {/* Tab Content Border */}
+                  <div style={{
+                    width: "100%",
+                    height: 2,
+                    background: "#2563eb",
+                    borderRadius: "0 6px 0 0",
+                    marginBottom: 16
+                  }} />
                 </div>
 
-                {assignSerialManually ? (
-                  <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
-                    <label style={styles.inventoryLabel}>Quantity:</label>
-                    <input
-                      type="number"
-                      value={manualQuantity}
-                      onChange={handleQuantityChange}
-                      style={styles.inventoryInput}
-                      min="1"
-                      max="100"
-                      placeholder="Enter quantity"
-                    />
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
-                    <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                      <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
-                      <input
-                        name="startTag"
-                        value={newAcqForm.startTag}
-                        onChange={handleNewAcqInput}
-                        style={styles.inventoryInput}
-                        maxLength={4}
-                        placeholder="0001"
-                      />
-                    </div>
-                    <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
-                      <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
-                      <input
-                        name="endTag"
-                        value={newAcqForm.endTag}
-                        onChange={handleNewAcqInput}
-                        style={styles.inventoryInput}
-                        maxLength={4}
-                        placeholder="0015"
-                      />
-                    </div>
-                  </div>
-                )}
+                {/* Current Tab Content */}
+                {(() => {
+                  const currentData = getCurrentTabData();
+                  const currentTab = newAcqTabs.find(tab => tab.id === activeTabId);
+                  return (
+                    <>
+                      {/* Tab Info Banner */}
+                      <div style={{
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 6,
+                        padding: "8px 12px",
+                        marginBottom: 12,
+                        fontSize: 13,
+                        color: "#64748b"
+                      }}>
+                        <strong>Configuring:</strong> {currentTab?.label} 
+                        {currentData.deviceType && (
+                          <span style={{ color: "#2563eb", marginLeft: 8 }}>
+                            → {currentData.deviceType}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                        <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                          <label style={styles.inventoryLabel}>Device Type:</label>
+                          <select
+                            name="deviceType"
+                            value={currentData.deviceType}
+                            onChange={handleNewAcqInput}
+                            style={styles.inventoryInput}
+                          >
+                            <option value="">Select Device Type</option>
+                            {deviceTypes.map((type) => (
+                              <option key={type.label} value={type.label}>{type.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                          <label style={styles.inventoryLabel}>Brand:</label>
+                          <input
+                            name="brand"
+                            value={currentData.brand}
+                            onChange={handleNewAcqInput}
+                            style={styles.inventoryInput}
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                        <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                          <label style={styles.inventoryLabel}>Model:</label>
+                          <input
+                            name="model"
+                            value={currentData.model}
+                            onChange={handleNewAcqInput}
+                            style={styles.inventoryInput}
+                          />
+                        </div>
+                        
+                        <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                          <label style={styles.inventoryLabel}>Condition:</label>
+                          <select
+                            name="condition"
+                            value={currentData.condition}
+                            onChange={handleNewAcqInput}
+                            style={styles.inventoryInput}
+                          >
+                            <option value="">Select Condition</option>
+                            {conditions.map((cond) => (
+                              <option key={cond} value={cond}>{cond}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                        <label style={styles.inventoryLabel}>Remarks:</label>
+                        <input
+                          name="remarks"
+                          value={currentData.remarks}
+                          onChange={handleNewAcqInput}
+                          style={styles.inventoryInput}
+                        />
+                      </div>
+                      <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                        <label style={styles.inventoryLabel}>Acquisition Date:</label>
+                        <input
+                          name="acquisitionDate"
+                          type="date"
+                          value={currentData.acquisitionDate || ""}
+                          onChange={handleNewAcqInput}
+                          style={styles.inventoryInput}
+                        />
+                      </div>
+                      <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                        <label style={styles.inventoryLabel}>Supplier:</label>
+                        <input
+                          name="supplier"
+                          value={currentData.supplier}
+                          onChange={handleNewAcqInput}
+                          style={styles.inventoryInput}
+                          placeholder="Enter supplier name"
+                        />
+                      </div>
+                      
+                      {/* Manual Serial Assignment Option */}
+                      <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                        <label style={{ display: "flex", alignItems: "center", fontWeight: 500, fontSize: 13, color: "#2563eb" }}>
+                          <input
+                            type="checkbox"
+                            checked={currentData.useManualSerial || false}
+                            onChange={handleManualSerialToggle}
+                            style={{ marginRight: 6, accentColor: "#2563eb" }}
+                          />
+                          Assign Serial Manually for this Device Type
+                        </label>
+                      </div>
+
+                      {currentData.useManualSerial ? (
+                        <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                          <label style={styles.inventoryLabel}>Quantity:</label>
+                          <input
+                            type="number"
+                            value={currentData.manualQuantity || 1}
+                            onChange={handleQuantityChange}
+                            style={styles.inventoryInput}
+                            min="1"
+                            max="100"
+                            placeholder="Enter quantity"
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 12, width: "100%", marginBottom: 10 }}>
+                          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                            <label style={styles.inventoryLabel}>Start Tag (e.g. 0009):</label>
+                            <input
+                              name="startTag"
+                              value={currentData.startTag}
+                              onChange={handleNewAcqInput}
+                              style={styles.inventoryInput}
+                              maxLength={4}
+                              placeholder="0001"
+                            />
+                          </div>
+                          <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                            <label style={styles.inventoryLabel}>End Tag (e.g. 0015):</label>
+                            <input
+                              name="endTag"
+                              value={currentData.endTag}
+                              onChange={handleNewAcqInput}
+                              style={styles.inventoryInput}
+                              maxLength={4}
+                              placeholder="0015"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {newAcqError && <span style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}>{newAcqError}</span>}
                 
@@ -1939,15 +2290,36 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                     disabled={newAcqLoading}
                     style={{ ...styles.inventoryModalButton, opacity: newAcqLoading ? 0.6 : 1 }}
                   >
-                    {newAcqLoading ? "Adding..." : assignSerialManually ? "Proceed to Serial Entry" : "Add Devices"}
+                    {newAcqLoading ? "Adding..." : 
+                     newAcqTabs.some(tab => tab.data.useManualSerial) ? "Proceed to Serial Entry" : 
+                     "Add Devices"}
                   </button>
                   <button
                     onClick={() => {
                       setShowNewAcqModal(false);
-                      setAssignSerialManually(false);
+                      setNewAcqTabs([
+                        {
+                          id: 1,
+                          label: "Device Type 1",
+                          data: {
+                            deviceType: "",
+                            brand: "",
+                            model: "",
+                            condition: "",
+                            remarks: "",
+                            acquisitionDate: "",
+                            startTag: "",
+                            endTag: "",
+                            supplier: "",
+                            useManualSerial: false,
+                            manualQuantity: 1,
+                            manualSerials: [],
+                          }
+                        }
+                      ]);
+                      setActiveTabId(1);
+                      setNextTabId(2);
                       setShowManualSerialPanel(false);
-                      setManualSerials([]);
-                      setManualQuantity(1);
                     }}
                     style={styles.inventoryModalButtonSecondary}
                     disabled={newAcqLoading}
@@ -1960,166 +2332,233 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
               /* Manual Serial Entry Panel */
               <>
                 <h3 style={styles.inventoryModalTitle}>
-                  Enter Serial Numbers - {newAcqForm.deviceType} ({manualSerials.length} devices)
+                  Enter Serial Numbers ({newAcqTabs.filter(tab => tab.data.useManualSerial).length} Device Type{newAcqTabs.filter(tab => tab.data.useManualSerial).length > 1 ? 's' : ''})
                 </h3>
                 
-                <div style={{ 
-                  marginBottom: 16, 
-                  padding: 12, 
-                  background: "#f1f5f9", 
-                  borderRadius: 8, 
-                  border: "1px solid #cbd5e1",
-                  width: "100%"
-                }}>
-                  <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
-                    <strong>Device Details:</strong>
-                  </div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>
-                    Type: {newAcqForm.deviceType} | Brand: {newAcqForm.brand} | Model: {newAcqForm.model || "N/A"} | Condition: {newAcqForm.condition}
-                  </div>
-                </div>
-
-                {/* Import Section */}
-                <div style={{
-                  width: "100%",
-                  marginBottom: 16,
-                  padding: 12,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8
-                }}>
-                  <div style={{ 
-                    fontSize: 13, 
-                    fontWeight: 600, 
-                    color: "#374151", 
-                    marginBottom: 8 
-                  }}>
-                    Quick Import Serial Numbers
-                  </div>
-                  <div style={{ 
-                    fontSize: 12, 
-                    color: "#64748b", 
-                    marginBottom: 8 
-                  }}>
-                    Paste serial numbers below (one per line) to auto-fill the entry fields:
-                  </div>
-                  <textarea
-                    style={{
-                      width: "100%",
-                      height: 80,
-                      padding: 8,
-                      border: "1px solid #d1d5db",
-                      borderRadius: 4,
-                      fontSize: 12,
-                      fontFamily: "monospace",
-                      resize: "vertical",
-                      boxSizing: "border-box",
-                      marginBottom: 8
-                    }}
-                    placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
-                    onChange={(e) => {
-                      const importText = e.target.value;
-                      if (importText.trim()) {
-                        handleImportSerials(importText);
-                      }
-                    }}
-                  />
-                  <div style={{ 
-                    fontSize: 11, 
-                    color: "#6b7280", 
-                    fontStyle: "italic" 
-                  }}>
-                    Tip: Copy from Excel/Notepad and paste here to quickly fill all serial fields
-                  </div>
-                </div>
-
-                <div style={{ 
-                  width: "100%",
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  padding: 16,
-                  background: "#fafbfc"
-                }}>
-                  <div style={{ 
-                    display: "grid", 
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", 
-                    gap: 12 
-                  }}>
-                    {manualSerials.map((item, index) => (
-                      <div key={item.id} style={{ 
-                        background: "#fff",
-                        padding: 10,
-                        borderRadius: 6,
-                        border: "1px solid #e2e8f0",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-                      }}>
-                        <label style={{ 
-                          ...styles.inventoryLabel, 
-                          fontSize: 12, 
-                          fontWeight: 600, 
-                          color: "#374151",
-                          marginBottom: 4
-                        }}>
-                          Device #{index + 1}
-                        </label>
-                        <input
-                          type="text"
-                          value={item.serial}
-                          onChange={(e) => handleManualSerialChange(index, e.target.value)}
-                          style={{ 
+                {(() => {
+                  const manualTabs = newAcqTabs.filter(tab => tab.data.useManualSerial);
+                  const currentManualTab = manualTabs.find(tab => tab.id === activeManualTabId) || manualTabs[0];
+                  
+                  return (
+                    <>
+                      {manualTabs.length > 1 && (
+                        <div style={{ width: "100%", marginBottom: 16 }}>
+                          <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+                            <div style={{ 
+                              display: "flex", 
+                              gap: 2, 
+                              flex: 1,
+                              overflowX: "auto",
+                              scrollbarWidth: "none",
+                              msOverflowStyle: "none",
+                              WebkitScrollbar: { display: "none" },
+                              minWidth: 0
+                            }}>
+                              {manualTabs.map((tab, index) => (
+                                <div key={tab.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                                  <button
+                                    onClick={() => setActiveManualTabId(tab.id)}
+                                    style={{
+                                      ...styles.tabButton,
+                                      background: tab.id === activeManualTabId ? "#22c55e" : "#f1f5f9",
+                                      color: tab.id === activeManualTabId ? "#fff" : "#64748b",
+                                      borderBottomLeftRadius: tab.id === activeManualTabId ? 0 : 6,
+                                      borderBottomRightRadius: tab.id === activeManualTabId ? 0 : 6,
+                                      minWidth: Math.max(80, Math.min(120, 480 / manualTabs.length - 10)),
+                                      maxWidth: manualTabs.length > 4 ? 100 : 120,
+                                      fontSize: manualTabs.length > 6 ? 11 : 13,
+                                      padding: manualTabs.length > 6 ? "6px 8px" : "8px 12px",
+                                    }}
+                                  >
+                                    <span style={{ 
+                                      overflow: "hidden", 
+                                      textOverflow: "ellipsis", 
+                                      whiteSpace: "nowrap",
+                                      flex: 1
+                                    }}>
+                                      {manualTabs.length > 6 ? `T${index + 1}` : tab.data.deviceType || tab.label}
+                                    </span>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          {/* Tab Content Border */}
+                          <div style={{
                             width: "100%",
-                            padding: "6px 8px",
-                            border: "1px solid #d1d5db",
-                            borderRadius: 4,
-                            fontSize: 13,
-                            backgroundColor: "#fff",
-                            boxSizing: "border-box"
+                            height: 2,
+                            background: "#22c55e",
+                            borderRadius: "0 6px 0 0",
+                            marginBottom: 16
+                          }} />
+                        </div>
+                      )}
+                      
+                      {currentManualTab && (
+                        <>
+                          <div style={{ 
+                            marginBottom: 16, 
+                            padding: 12, 
+                            background: "#f1f5f9", 
+                            borderRadius: 8, 
+                            border: "1px solid #cbd5e1",
+                            width: "100%"
+                          }}>
+                            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>
+                              <strong>Device Details:</strong>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#475569" }}>
+                              Type: {currentManualTab.data.deviceType} | Brand: {currentManualTab.data.brand} | Model: {currentManualTab.data.model || "N/A"} | Condition: {currentManualTab.data.condition} | Qty: {currentManualTab.data.manualSerials?.length || 0}
+                            </div>
+                          </div>
+
+                          {/* Import Section */}
+                          <div style={{
+                            width: "100%",
+                            marginBottom: 16,
+                            padding: 12,
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8
+                          }}>
+                            <div style={{ 
+                              fontSize: 13, 
+                              fontWeight: 600, 
+                              color: "#374151", 
+                              marginBottom: 8 
+                            }}>
+                              Quick Import Serial Numbers
+                            </div>
+                            <div style={{ 
+                              fontSize: 12, 
+                              color: "#64748b", 
+                              marginBottom: 8 
+                            }}>
+                              Paste serial numbers below (one per line) to auto-fill the entry fields:
+                            </div>
+                            <textarea
+                              style={{
+                                width: "100%",
+                                height: 80,
+                                padding: 8,
+                                border: "1px solid #d1d5db",
+                                borderRadius: 4,
+                                fontSize: 12,
+                                fontFamily: "monospace",
+                                resize: "vertical",
+                                boxSizing: "border-box",
+                                marginBottom: 8
+                              }}
+                              placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
+                              onChange={(e) => {
+                                const importText = e.target.value;
+                                if (importText.trim()) {
+                                  handleImportSerials(currentManualTab.id, importText);
+                                }
+                              }}
+                            />
+                            <div style={{ 
+                              fontSize: 11, 
+                              color: "#6b7280", 
+                              fontStyle: "italic" 
+                            }}>
+                              Tip: Copy from Excel/Notepad and paste here to quickly fill all serial fields
+                            </div>
+                          </div>
+
+                          <div style={{ 
+                            width: "100%",
+                            maxHeight: 300,
+                            overflowY: "auto",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            padding: 16,
+                            background: "#fafbfc"
+                          }}>
+                            <div style={{ 
+                              display: "grid", 
+                              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", 
+                              gap: 12 
+                            }}>
+                              {currentManualTab.data.manualSerials?.map((item, index) => (
+                                <div key={item.id} style={{ 
+                                  background: "#fff",
+                                  padding: 10,
+                                  borderRadius: 6,
+                                  border: "1px solid #e2e8f0",
+                                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                                }}>
+                                  <label style={{ 
+                                    ...styles.inventoryLabel, 
+                                    fontSize: 12, 
+                                    fontWeight: 600, 
+                                    color: "#374151",
+                                    marginBottom: 4
+                                  }}>
+                                    Device #{index + 1}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.serial}
+                                    onChange={(e) => handleManualSerialChange(currentManualTab.id, index, e.target.value)}
+                                    style={{ 
+                                      width: "100%",
+                                      padding: "6px 8px",
+                                      border: "1px solid #d1d5db",
+                                      borderRadius: 4,
+                                      fontSize: 13,
+                                      backgroundColor: "#fff",
+                                      boxSizing: "border-box"
+                                    }}
+                                    placeholder={`Enter serial number`}
+                                    maxLength={64}
+                                  />
+                                </div>
+                              )) || []}
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {newAcqError && (
+                        <div style={{ 
+                          marginTop: 12, 
+                          padding: 8, 
+                          background: "#fef2f2", 
+                          border: "1px solid #fecaca", 
+                          borderRadius: 6,
+                          color: "#dc2626",
+                          fontSize: 12,
+                          width: "100%"
+                        }}>
+                          {newAcqError}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 10, width: "100%" }}>
+                        <button
+                          onClick={handleManualSerialSubmit}
+                          disabled={newAcqLoading}
+                          style={{ 
+                            ...styles.inventoryModalButton, 
+                            opacity: newAcqLoading ? 0.6 : 1,
+                            background: "#22c55e"
                           }}
-                          placeholder={`Enter serial number`}
-                          maxLength={64}
-                        />
+                        >
+                          {newAcqLoading ? "Adding Devices..." : "Add All Devices"}
+                        </button>
+                        <button
+                          onClick={() => setShowManualSerialPanel(false)}
+                          style={styles.inventoryModalButtonSecondary}
+                          disabled={newAcqLoading}
+                        >
+                          Back to Form
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {newAcqError && (
-                  <div style={{ 
-                    marginTop: 12, 
-                    padding: 8, 
-                    background: "#fef2f2", 
-                    border: "1px solid #fecaca", 
-                    borderRadius: 6,
-                    color: "#dc2626",
-                    fontSize: 12,
-                    width: "100%"
-                  }}>
-                    {newAcqError}
-                  </div>
-                )}
-
-                <div style={{ marginTop: 16, display: "flex", justifyContent: "center", gap: 10, width: "100%" }}>
-                  <button
-                    onClick={handleManualSerialSubmit}
-                    disabled={newAcqLoading}
-                    style={{ 
-                      ...styles.inventoryModalButton, 
-                      opacity: newAcqLoading ? 0.6 : 1,
-                      background: "#22c55e"
-                    }}
-                  >
-                    {newAcqLoading ? "Adding Devices..." : "Add All Devices"}
-                  </button>
-                  <button
-                    onClick={() => setShowManualSerialPanel(false)}
-                    style={styles.inventoryModalButtonSecondary}
-                    disabled={newAcqLoading}
-                  >
-                    Back to Form
-                  </button>
-                </div>
+                    </>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -2459,5 +2898,38 @@ const styles = {
   },
   actionDeleteButtonHover: {
     background: "#ffd6de",
+  },
+  // Tab styles for the New Acquisitions modal
+  tabButton: {
+    border: "none",
+    padding: "8px 12px",
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
+    borderRadius: "6px 6px 0 0",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    minWidth: 80,
+    maxWidth: 120,
+    justifyContent: "space-between",
+    flexShrink: 0,
+  },
+  addTabButton: {
+    background: "#f1f5f9",
+    color: "#64748b",
+    border: "1px solid #e2e8f0",
+    borderRadius: 6,
+    width: 32,
+    height: 32,
+    fontSize: 16,
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "all 0.2s",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
   },
 };
