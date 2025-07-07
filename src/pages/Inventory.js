@@ -407,6 +407,7 @@ const [manualQuantity, setManualQuantity] = useState(1);
 const [showManualSerialPanel, setShowManualSerialPanel] = useState(false);
 const [manualSerials, setManualSerials] = useState([]);
 const [activeManualTabId, setActiveManualTabId] = useState(1);
+const [importTexts, setImportTexts] = useState({}); // Track import text per tab
 
   // --- HANDLERS ---
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
@@ -1142,6 +1143,9 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
           : tab
       )
     );
+    
+    // Clear the import text for this tab after importing (optional - user can also use Clear button)
+    setImportTexts(prev => ({ ...prev, [tabId]: "" }));
   };
 
   const handleManualSerialSubmit = async () => {
@@ -1283,6 +1287,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       setActiveTabId(1);
       setNextTabId(2);
       setShowManualSerialPanel(false);
+      setImportTexts({}); // Clear all import texts
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
@@ -1413,6 +1418,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       setAssignSerialManually(false);
       setShowManualSerialPanel(false);
       setManualSerials([]);
+      setImportTexts({}); // Clear all import texts
       setManualQuantity(1);
       setProgress(0);
     } catch (err) {
@@ -2320,6 +2326,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                       setActiveTabId(1);
                       setNextTabId(2);
                       setShowManualSerialPanel(false);
+                      setImportTexts({}); // Clear all import texts
                     }}
                     style={styles.inventoryModalButtonSecondary}
                     disabled={newAcqLoading}
@@ -2357,7 +2364,9 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                               {manualTabs.map((tab, index) => (
                                 <div key={tab.id} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
                                   <button
-                                    onClick={() => setActiveManualTabId(tab.id)}
+                                    onClick={() => {
+                                      setActiveManualTabId(tab.id);
+                                    }}
                                     style={{
                                       ...styles.tabButton,
                                       background: tab.id === activeManualTabId ? "#22c55e" : "#f1f5f9",
@@ -2435,7 +2444,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                               color: "#64748b", 
                               marginBottom: 8 
                             }}>
-                              Paste serial numbers below (one per line) to auto-fill the entry fields:
+                              Paste serial numbers below (one per line) and click "Import Serials":
                             </div>
                             <textarea
                               style={{
@@ -2451,19 +2460,64 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                                 marginBottom: 8
                               }}
                               placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
+                              value={importTexts[currentManualTab.id] || ""}
                               onChange={(e) => {
                                 const importText = e.target.value;
-                                if (importText.trim()) {
+                                // Only update the import text state, don't auto-import
+                                setImportTexts(prev => ({ ...prev, [currentManualTab.id]: importText }));
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                const importText = importTexts[currentManualTab.id];
+                                if (importText && importText.trim()) {
                                   handleImportSerials(currentManualTab.id, importText);
                                 }
                               }}
-                            />
+                              style={{
+                                background: "#22c55e",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "6px 12px",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                marginBottom: 8,
+                                marginRight: 8,
+                                opacity: (importTexts[currentManualTab.id] && importTexts[currentManualTab.id].trim()) ? 1 : 0.6
+                              }}
+                              disabled={!(importTexts[currentManualTab.id] && importTexts[currentManualTab.id].trim())}
+                            >
+                              Import Serials
+                              {importTexts[currentManualTab.id] && importTexts[currentManualTab.id].trim() && 
+                                ` (${importTexts[currentManualTab.id].split('\n').filter(line => line.trim()).length})`
+                              }
+                            </button>
+                            <button
+                              onClick={() => {
+                                setImportTexts(prev => ({ ...prev, [currentManualTab.id]: "" }));
+                              }}
+                              style={{
+                                background: "#6b7280",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "6px 12px",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                marginBottom: 8
+                              }}
+                            >
+                              Clear
+                            </button>
                             <div style={{ 
                               fontSize: 11, 
                               color: "#6b7280", 
                               fontStyle: "italic" 
                             }}>
-                              Tip: Copy from Excel/Notepad and paste here to quickly fill all serial fields
+                              Tip: Copy from Excel/Notepad, paste here, then click "Import Serials" to fill all serial fields
                             </div>
                           </div>
 
@@ -2549,7 +2603,10 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                           {newAcqLoading ? "Adding Devices..." : "Add All Devices"}
                         </button>
                         <button
-                          onClick={() => setShowManualSerialPanel(false)}
+                          onClick={() => {
+                            setShowManualSerialPanel(false);
+                            setImportTexts({}); // Clear import texts when going back
+                          }}
                           style={styles.inventoryModalButtonSecondary}
                           disabled={newAcqLoading}
                         >
