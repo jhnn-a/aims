@@ -272,7 +272,16 @@ function App() {
       <Header user={user} />
       <div style={{ display: "flex" }}>
         <Sidebar user={user} />
-        <main style={{ flex: 1, padding: 16 }}>
+        <main
+          style={{
+            flex: 1,
+            padding: 16,
+            backgroundColor: "#F9F9F9",
+            minHeight: "100vh",
+            width: "100vw",
+            boxSizing: "border-box",
+          }}
+        >
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard user={user} />} />
