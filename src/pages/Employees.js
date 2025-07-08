@@ -445,7 +445,7 @@ function Employees() {
       action: "unassigned",
       reason,
       condition,
-      date: new Date().toISOString(),
+      date: new Date(), // Store full timestamp for precise ordering
     });
     setShowUnassignModal(false);
     setUnassignDevice(null);
@@ -1032,7 +1032,7 @@ function Employees() {
                                     action: "unassigned",
                                     reason: `Reassigned to ${emp.fullName}`,
                                     condition: assigningDevice.condition,
-                                    date: new Date().toISOString(),
+                                    date: new Date(), // Store full timestamp for precise ordering
                                   });
                                   // Assign to new employee
                                   // Remove id from payload
@@ -1052,7 +1052,7 @@ function Employees() {
                                     deviceTag: assigningDevice.deviceTag,
                                     action: "assigned",
                                     reason: `Received from reassignment (${prevEmpName})`,
-                                    date: new Date().toISOString(),
+                                    date: new Date(), // Store full timestamp for precise ordering
                                   });
                                 } else {
                                   // Normal assign
@@ -1071,7 +1071,7 @@ function Employees() {
                                     deviceTag: assigningDevice.deviceTag,
                                     action: "assigned",
                                     reason: "assigned",
-                                    date: new Date().toISOString(),
+                                    date: new Date(), // Store full timestamp for precise ordering
                                   });
                                 }
                                 const allDevices = await getAllDevices();

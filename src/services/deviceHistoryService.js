@@ -42,7 +42,7 @@ export const logDeviceHistory = async ({
     deviceId,
     deviceTag: deviceTag || null, // always store
     action,
-    date: date || new Date().toISOString(),
+    date: date || new Date(), // Always store as Date object for consistent timestamps
     reason: reason || null,
     condition: condition || null,
   });
@@ -57,6 +57,80 @@ export const getDeviceHistoryForEmployee = async (employeeId) => {
   );
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+};
+
+// Get all history for a device by deviceTag, most recent first
+export const getDeviceHistoryByTag = async (deviceTag) => {
+  console.log("Querying device history for tag:", deviceTag);
+  
+  try {
+    // Simple query without orderBy first
+    const q = query(
+      historyCollection,
+      where("deviceTag", "==", deviceTag)
+    );
+    
+    console.log("Executing Firestore query...");
+    const snapshot = await getDocs(q);
+    console.log("Query completed, found documents:", snapshot.size);
+    
+    const records = snapshot.docs.map((doc) => {
+      const data = { id: doc.id, ...doc.data() };
+      console.log("History record:", data);
+      return data;
+    });
+    
+    // Sort by date on client side
+    const sortedRecords = records.sort((a, b) => {
+      const dateA = new Date(a.date || 0);
+      const dateB = new Date(b.date || 0);
+      return dateB - dateA; // Most recent first
+    });
+    
+    console.log("Returning sorted records:", sortedRecords);
+    return sortedRecords;
+    
+  } catch (error) {
+    console.error("Error in getDeviceHistoryByTag:", error);
+    throw error;
+  }
+};
+
+// Get all history for a device by deviceId, most recent first
+export const getDeviceHistoryById = async (deviceId) => {
+  console.log("Querying device history for ID:", deviceId);
+  
+  try {
+    // Simple query without orderBy first
+    const q = query(
+      historyCollection,
+      where("deviceId", "==", deviceId)
+    );
+    
+    console.log("Executing Firestore query...");
+    const snapshot = await getDocs(q);
+    console.log("Query completed, found documents:", snapshot.size);
+    
+    const records = snapshot.docs.map((doc) => {
+      const data = { id: doc.id, ...doc.data() };
+      console.log("History record:", data);
+      return data;
+    });
+    
+    // Sort by date on client side
+    const sortedRecords = records.sort((a, b) => {
+      const dateA = new Date(a.date || 0);
+      const dateB = new Date(b.date || 0);
+      return dateB - dateA; // Most recent first
+    });
+    
+    console.log("Returning sorted records:", sortedRecords);
+    return sortedRecords;
+    
+  } catch (error) {
+    console.error("Error in getDeviceHistoryById:", error);
+    throw error;
+  }
 };
 
 // Delete a single history entry by its document ID
@@ -90,4 +164,46 @@ export const addDeviceHistoryEntry = async (entry) => {
     employeeName: resolvedName || null, // always store as employeeName
     deviceTag: entry.deviceTag || null,
   });
+};
+
+// Test function to create sample device history
+export const createSampleDeviceHistory = async (deviceTag, deviceId) => {
+  const sampleHistory = [
+    {
+      employeeId: null,
+      employeeName: null,
+      deviceId: deviceId,
+      deviceTag: deviceTag,
+      action: "added",
+      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+      reason: null,
+      condition: null,
+    },
+    {
+      employeeId: "EMP001",
+      employeeName: "John Doe",
+      deviceId: deviceId,
+      deviceTag: deviceTag,
+      action: "assigned",
+      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+      reason: null,
+      condition: null,
+    },
+    {
+      employeeId: "EMP001",
+      employeeName: "John Doe",
+      deviceId: deviceId,
+      deviceTag: deviceTag,
+      action: "unassigned",
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+      reason: "Device upgrade",
+      condition: "Working",
+    }
+  ];
+
+  for (const entry of sampleHistory) {
+    await addDoc(historyCollection, entry);
+  }
+  
+  return sampleHistory.length;
 };

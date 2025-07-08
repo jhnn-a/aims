@@ -56,6 +56,9 @@ export const addDevice = async (deviceData, tagPrefix = "DEV") => {
     ...dataToSave,
     deviceTag: deviceData.deviceTag, // e.g., JOIIKB0001
   });
+  
+  // Return the device with its ID
+  return { id: nextDevId, ...dataToSave, deviceTag: deviceData.deviceTag };
 };
 
 export async function addMultipleDevices(deviceData, quantity, tagPrefix) {

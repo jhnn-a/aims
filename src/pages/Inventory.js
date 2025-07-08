@@ -13,6 +13,7 @@ import { logDeviceHistory } from "../services/deviceHistoryService";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
+import DeviceHistory from "../components/DeviceHistory";
 
 const initialForm = {
   deviceType: "",
@@ -52,6 +53,52 @@ const deviceTypes = [
 
 const statuses = ["Available", "In Use", "Stock Room", "Retired"];
 const conditions = ["New", "Working", "Needs Repair", "Retired"];
+
+// Utility function to format dates consistently as MM/DD/YYYY
+const formatDateToMMDDYYYY = (dateString) => {
+  if (!dateString) return "";
+  
+  // Handle different date formats
+  let date;
+  if (typeof dateString === "number") {
+    // Excel serial date
+    date = new Date(Math.round((dateString - 25569) * 86400 * 1000));
+  } else if (typeof dateString === "string") {
+    date = new Date(dateString);
+  } else {
+    return "";
+  }
+  
+  if (isNaN(date)) return "";
+  
+  // Format as MM/DD/YYYY
+  return (date.getMonth() + 1).toString().padStart(2, "0") +
+         "/" +
+         date.getDate().toString().padStart(2, "0") +
+         "/" +
+         date.getFullYear();
+};
+
+// Utility function to convert MM/DD/YYYY to YYYY-MM-DD for date input
+const formatDateToYYYYMMDD = (dateString) => {
+  if (!dateString) return "";
+  
+  // If already in YYYY-MM-DD format, return as is
+  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return dateString;
+  }
+  
+  // Convert MM/DD/YYYY to YYYY-MM-DD
+  const parts = dateString.split('/');
+  if (parts.length === 3) {
+    const month = parts[0].padStart(2, '0');
+    const day = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+  
+  return "";
+};
 
 function DeviceFormModal({
   data,
@@ -232,7 +279,7 @@ function DeviceFormModal({
           <input
             name="acquisitionDate"
             type="date"
-            value={data.acquisitionDate || ""}
+            value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
             onChange={onChange}
             style={styles.inventoryInput}
           />
@@ -327,15 +374,16 @@ const handleTempDeployDone = async () => {
     await updateDevice(assigningDevice.id, {
       ...assigningDevice,
       assignedTo: selectedAssignEmployee.id,
-      assignmentDate: new Date().toISOString().slice(0, 10),
+      assignmentDate: new Date(), // Store full timestamp for precise ordering
       status: "In Use",
     });
     await logDeviceHistory({
       employeeId: selectedAssignEmployee.id,
+      employeeName: selectedAssignEmployee.fullName,
       deviceId: assigningDevice.id,
       deviceTag: assigningDevice.deviceTag,
       action: "assigned (temporary)",
-      date: new Date().toISOString(),
+      date: new Date(), // Store full timestamp for precise ordering
     });
     closeAssignModal();
     loadDevicesAndEmployees();
@@ -364,6 +412,9 @@ const handleTempDeployDone = async () => {
   const [deleteProgress, setDeleteProgress] = useState({ current: 0, total: 0 });
   // Add search state
   const [deviceSearch, setDeviceSearch] = useState("");
+  // Device history state
+  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -416,6 +467,36 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   // --- HANDLERS ---
   const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
 
+  // Helper function to get unassigned devices (for inventory display)
+  const getUnassignedDevices = (devicesArray, searchQuery = "") => {
+    return devicesArray
+      .filter(device => {
+        // First filter: Only show devices that are NOT assigned
+        const isNotAssigned = !device.assignedTo || device.assignedTo === "";
+        if (!isNotAssigned) return false;
+        
+        // Second filter: Search functionality
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          return (
+            device.deviceType?.toLowerCase().includes(q) ||
+            device.deviceTag?.toLowerCase().includes(q) ||
+            device.brand?.toLowerCase().includes(q) ||
+            device.model?.toLowerCase().includes(q) ||
+            device.condition?.toLowerCase().includes(q) ||
+            device.remarks?.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // Sort by ID in descending order so newer devices appear first
+        const aNum = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
+        const bNum = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+        return bNum - aNum;
+      });
+  };
+
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
       setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
@@ -453,6 +534,12 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
           condition: newCondition,
         };
       });
+      return;
+    }
+    if (name === "acquisitionDate") {
+      // Convert YYYY-MM-DD to MM/DD/YYYY for storage
+      const formattedDate = formatDateToMMDDYYYY(value);
+      setForm((prev) => ({ ...prev, [name]: formattedDate }));
       return;
     }
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -550,13 +637,31 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
     };
     if (useSerial) {
       if (!form._editDeviceId) {
-        await addDevice(payload);
+        const newDevice = await addDevice(payload);
+        // Log device creation
+        await logDeviceHistory({
+          employeeId: null,
+          employeeName: null,
+          deviceId: newDevice.id,
+          deviceTag: payload.deviceTag,
+          action: "added",
+          date: new Date(), // Store full timestamp for precise ordering
+        });
       } else {
         await updateDevice(form._editDeviceId, payload);
       }
     } else {
       if (!form._editDeviceId) {
-        await addDevice(payload, tagPrefix);
+        const newDevice = await addDevice(payload, tagPrefix);
+        // Log device creation
+        await logDeviceHistory({
+          employeeId: null,
+          employeeName: null,
+          deviceId: newDevice.id,
+          deviceTag: payload.deviceTag,
+          action: "added",
+          date: new Date(), // Store full timestamp for precise ordering
+        });
       } else {
         await updateDevice(form._editDeviceId, payload);
       }
@@ -566,9 +671,45 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   };
 
   const handleEdit = (device) => {
-    const { id, ...rest } = device;
-    setForm({ ...rest, _editDeviceId: id });
+    const { id, ...deviceData } = device;
+    
+    // Map all device fields to the form, ensuring all fields are included
+    const formData = {
+      deviceType: deviceData.deviceType || "",
+      deviceTag: deviceData.deviceTag || "",
+      brand: deviceData.brand || "",
+      model: deviceData.model || "",
+      status: deviceData.status || "",
+      condition: deviceData.condition || "",
+      remarks: deviceData.remarks || "",
+      acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
+      assignedTo: deviceData.assignedTo || "",
+      assignmentDate: deviceData.assignmentDate || "",
+      _editDeviceId: id
+    };
+    
+    setForm(formData);
+    
+    // Check if this device uses a serial number format (no JOII prefix)
+    const typeObj = deviceTypes.find((t) => t.label === deviceData.deviceType);
+    const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
+    const isSerialFormat = deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
+    setUseSerial(isSerialFormat);
+    
     setShowForm(true);
+  };
+
+  const handleShowDeviceHistory = (device) => {
+    console.log("Opening device history for device:", device);
+    console.log("Device tag:", device.deviceTag);
+    console.log("Device ID:", device.id);
+    setSelectedDeviceForHistory(device);
+    setShowDeviceHistory(true);
+  };
+
+  const handleCloseDeviceHistory = () => {
+    setShowDeviceHistory(false);
+    setSelectedDeviceForHistory(null);
   };
 
   const handleDelete = async (id) => {
@@ -634,27 +775,8 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
           row["Condition"]
         ) {
           // Convert Excel serial date to mm/dd/yyyy if needed
-          let acquisitionDate = row["Acquisition Date"] || "";
-          if (typeof acquisitionDate === "number") {
-            const jsDate = new Date(Math.round((acquisitionDate - 25569) * 86400 * 1000));
-            acquisitionDate =
-              (jsDate.getMonth() + 1).toString().padStart(2, "0") +
-              "/" +
-              jsDate.getDate().toString().padStart(2, "0") +
-              "/" +
-              jsDate.getFullYear();
-          } else if (typeof acquisitionDate === "string" && acquisitionDate) {
-            // Try to parse and reformat if not already mm/dd/yyyy
-            const d = new Date(acquisitionDate);
-            if (!isNaN(d)) {
-              acquisitionDate =
-                (d.getMonth() + 1).toString().padStart(2, "0") +
-                "/" +
-                d.getDate().toString().padStart(2, "0") +
-                "/" +
-                d.getFullYear();
-            }
-          }
+          let acquisitionDate = formatDateToMMDDYYYY(row["Acquisition Date"]);
+          
           // Check for duplicate deviceTag
           const existing = allDevices.find(
             (d) => d.deviceTag && d.deviceTag.toLowerCase() === row["Device Tag"].toLowerCase()
@@ -694,33 +816,13 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   };
 
   // --- FILTERED DEVICES ---
-const filteredDevices = devices.filter(device => {
-  const q = deviceSearch.toLowerCase();
-  return (
-    device.deviceType?.toLowerCase().includes(q) ||
-    device.deviceTag?.toLowerCase().includes(q) ||
-    device.brand?.toLowerCase().includes(q) ||
-    device.model?.toLowerCase().includes(q) ||
-    device.condition?.toLowerCase().includes(q) ||
-    device.remarks?.toLowerCase().includes(q)
-  );
-});
+const filteredDevices = getUnassignedDevices(devices, deviceSearch);
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
     
-    // Filter devices based on search
-    const filteredDevices = devices.filter(device => {
-      const q = deviceSearch.toLowerCase();
-      return (
-        device.deviceType?.toLowerCase().includes(q) ||
-        device.deviceTag?.toLowerCase().includes(q) ||
-        device.brand?.toLowerCase().includes(q) ||
-        device.model?.toLowerCase().includes(q) ||
-        device.condition?.toLowerCase().includes(q) ||
-        device.remarks?.toLowerCase().includes(q)
-      );
-    });
+    // Filter devices based on search AND exclude assigned devices
+    const filteredDevices = getUnassignedDevices(devices, deviceSearch);
 
     // Get current page devices
     const startIndex = (currentPage - 1) * devicesPerPage;
@@ -911,16 +1013,17 @@ const handleDownloadAndAssign = async () => {
     await updateDevice(dev.id, {
       ...dev,
       assignedTo: selectedAssignEmployee.id,
-      assignmentDate,
+      assignmentDate: new Date(), // Store full timestamp for precise ordering
       status: "In Use",
       remarks: assignModalChecks.temporaryDeploy ? "temporary deployed" : dev.remarks,
     });
     await logDeviceHistory({
       employeeId: selectedAssignEmployee.id,
+      employeeName: selectedAssignEmployee.fullName,
       deviceId: dev.id,
       deviceTag: dev.deviceTag,
       action: "assigned",
-      date: new Date().toISOString(),
+      date: new Date(), // Store full timestamp for precise ordering
     });
   }
   closeAssignModal();
@@ -1012,7 +1115,13 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     setNewAcqTabs(prevTabs => 
       prevTabs.map(tab => 
         tab.id === activeTabId 
-          ? { ...tab, data: { ...tab.data, [name]: value } }
+          ? { 
+              ...tab, 
+              data: { 
+                ...tab.data, 
+                [name]: name === "acquisitionDate" ? formatDateToMMDDYYYY(value) : value 
+              } 
+            }
           : tab
       )
     );
@@ -1730,18 +1839,8 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                   >                  <input
                     type="checkbox"
                     checked={(() => {
-                      // Filter devices based on search
-                      const filteredDevices = devices.filter(device => {
-                        const q = deviceSearch.toLowerCase();
-                        return (
-                          device.deviceType?.toLowerCase().includes(q) ||
-                          device.deviceTag?.toLowerCase().includes(q) ||
-                          device.brand?.toLowerCase().includes(q) ||
-                          device.model?.toLowerCase().includes(q) ||
-                          device.condition?.toLowerCase().includes(q) ||
-                          device.remarks?.toLowerCase().includes(q)
-                        );
-                      });
+                      // Filter devices based on search AND exclude assigned devices
+                      const filteredDevices = getUnassignedDevices(devices, deviceSearch);
 
                       // Get current page devices
                       const startIndex = (currentPage - 1) * devicesPerPage;
@@ -1771,18 +1870,8 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
               </thead>
             <tbody>
               {(() => {
-                // Filter devices based on search
-                const filteredDevices = devices.filter(device => {
-                  const q = deviceSearch.toLowerCase();
-                  return (
-                    device.deviceType?.toLowerCase().includes(q) ||
-                    device.deviceTag?.toLowerCase().includes(q) ||
-                    device.brand?.toLowerCase().includes(q) ||
-                    device.model?.toLowerCase().includes(q) ||
-                    device.condition?.toLowerCase().includes(q) ||
-                    device.remarks?.toLowerCase().includes(q)
-                  );
-                });
+                // Filter devices based on search AND exclude assigned devices
+                const filteredDevices = getUnassignedDevices(devices, deviceSearch);
 
                 // Calculate pagination
                 const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
@@ -1809,13 +1898,28 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                       />
                     </td>
                     <td style={styles.td}>{device.deviceType}</td>
-                    <td style={styles.td}>{device.deviceTag}</td>
+                    <td style={styles.td}>
+                      <span 
+                        onClick={() => handleShowDeviceHistory(device)}
+                        style={{
+                          cursor: "pointer",
+                          color: "#2563eb",
+                          textDecoration: "underline",
+                          transition: "color 0.2s"
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = "#1d4ed8"}
+                        onMouseLeave={(e) => e.currentTarget.style.color = "#2563eb"}
+                        title="Click to view device history"
+                      >
+                        {device.deviceTag}
+                      </span>
+                    </td>
                     <td style={styles.td}>{device.brand}</td>
                     <td style={styles.td}>{device.model}</td>
                     <td style={styles.td}>{device.status || "Stock Room"}</td>
                     <td style={styles.td}>{device.condition}</td>
                     <td style={styles.td}>{device.remarks}</td>
-                    <td style={styles.td}>{device.acquisitionDate ? device.acquisitionDate : ""}</td>
+                    <td style={styles.td}>{device.acquisitionDate ? formatDateToMMDDYYYY(device.acquisitionDate) : ""}</td>
                     <td style={{
                       ...styles.td,
                       textAlign: "center",
@@ -2572,7 +2676,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                         <input
                           name="acquisitionDate"
                           type="date"
-                          value={currentData.acquisitionDate || ""}
+                          value={formatDateToYYYYMMDD(currentData.acquisitionDate) || ""}
                           onChange={handleNewAcqInput}
                           style={styles.inventoryInput}
                         />
@@ -3002,6 +3106,15 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
             )}
           </div>
         </div>
+      )}
+      
+      {/* Device History Modal */}
+      {showDeviceHistory && selectedDeviceForHistory && (
+        <DeviceHistory
+          deviceTag={selectedDeviceForHistory.deviceTag}
+          deviceId={selectedDeviceForHistory.id}
+          onClose={handleCloseDeviceHistory}
+        />
       )}
     </div>
   );
