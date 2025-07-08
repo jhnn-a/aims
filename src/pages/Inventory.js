@@ -1140,7 +1140,15 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
     });
     
     setNewAcqTabs(updatedTabs);
-    setActiveManualTabId(manualTabs[0]?.id || 1);
+    
+    // Set active manual tab to the current active tab if it uses manual serial, otherwise use the first manual tab
+    const currentTabUsesManualSerial = newAcqTabs.find(tab => tab.id === activeTabId)?.data.useManualSerial;
+    if (currentTabUsesManualSerial) {
+      setActiveManualTabId(activeTabId);
+    } else {
+      setActiveManualTabId(manualTabs[0]?.id || 1);
+    }
+    
     setShowManualSerialPanel(true);
   };
 
@@ -1499,8 +1507,8 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         throw new Error("Template file is not a valid DOCX file. Please ensure it's a proper Word document.");
       }
 
-      // Configuration: rows per table (28 rows per page as requested)
-      const ROWS_PER_TABLE = 28;
+      // Configuration: rows per table (20 rows per page as requested)
+      const ROWS_PER_TABLE = 20;
 
       // Prepare device data with common format
       const formattedDevices = devices.map(device => ({
