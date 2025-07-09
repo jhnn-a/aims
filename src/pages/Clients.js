@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   addClient,
   getAllClients,
@@ -8,6 +8,18 @@ import {
 import { getAllEmployees } from "../services/employeeService";
 
 const isValidClientName = (value) => value.trim().length > 0; // allow anything except empty
+
+// --- Modal shared style variables ---
+const MODAL_WIDTH = 420;
+const MODAL_PADDING = 32;
+const MODAL_RADIUS = 16;
+const MODAL_HEADER_FONT_SIZE = "1.5rem";
+const MODAL_HEADER_MARGIN = "0 0 18px 0";
+const MODAL_FORM_GAP = 18;
+const MODAL_FORM_PADDING = "20px 20px 16px 20px";
+const MODAL_BUTTON_ROW_GAP = 12;
+const MODAL_BUTTON_HEIGHT = 44;
+const MODAL_BUTTON_FONT_SIZE = "1rem";
 
 function ClientFormModal({ data, onChange, onSave, onCancel }) {
   const [showError, setShowError] = useState(false);
@@ -26,15 +38,37 @@ function ClientFormModal({ data, onChange, onSave, onCancel }) {
 
   return (
     <div style={styles.modalOverlay}>
-      <div style={styles.modalContent}>
-        <h3 style={{ ...styles.modalTitleBold, marginBottom: 6 }}>
+      <div
+        style={{
+          ...styles.modalContent,
+          width: MODAL_WIDTH,
+          minWidth: MODAL_WIDTH,
+          maxWidth: MODAL_WIDTH,
+          padding: MODAL_PADDING,
+          borderRadius: MODAL_RADIUS,
+        }}
+      >
+        <h3
+          style={{
+            fontSize: MODAL_HEADER_FONT_SIZE,
+            margin: MODAL_HEADER_MARGIN,
+            color: "#1D2636",
+            letterSpacing: 0.2,
+            textAlign: "left",
+            fontWeight: "inherit", // explicitly inherit (default)
+          }}
+        >
           {data.id ? "Edit Client Details" : "Add New Client"}
         </h3>
         <div
           style={{
-            ...styles.modalFormSection,
-            padding: "18px 18px 14px 18px",
-            gap: 10,
+            background: "#EFF2F4",
+            borderRadius: 10,
+            padding: MODAL_FORM_PADDING,
+            marginBottom: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: MODAL_FORM_GAP,
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -91,9 +125,11 @@ function ClientFormModal({ data, onChange, onSave, onCancel }) {
           </div>
           <div
             style={{
-              ...styles.modalButtonRow,
-              gap: 8,
+              display: "flex",
+              flexDirection: "row",
               justifyContent: "flex-end",
+              gap: MODAL_BUTTON_ROW_GAP,
+              marginTop: 10,
               width: "100%",
             }}
           >
@@ -102,7 +138,10 @@ function ClientFormModal({ data, onChange, onSave, onCancel }) {
               style={{
                 ...styles.actionBtn,
                 width: "50%",
-                borderRadius: 5,
+                borderRadius: 6,
+                height: MODAL_BUTTON_HEIGHT,
+                fontSize: MODAL_BUTTON_FONT_SIZE,
+                fontWeight: 400,
                 transition: "background 0.2s, color 0.2s, opacity 0.2s",
                 opacity: saving ? 0.7 : 1,
               }}
@@ -123,9 +162,12 @@ function ClientFormModal({ data, onChange, onSave, onCancel }) {
               style={{
                 ...styles.actionBtn,
                 width: "50%",
-                borderRadius: 5,
+                borderRadius: 6,
+                height: MODAL_BUTTON_HEIGHT,
                 background: "#fff",
                 color: styles.modalButton.color || "#000",
+                fontSize: MODAL_BUTTON_FONT_SIZE,
+                fontWeight: 400,
                 transition: "background 0.2s, color 0.2s",
               }}
               disabled={saving}
@@ -155,29 +197,46 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deleting }) {
       <div
         style={{
           ...styles.modalContent,
-          width: 400,
-          minWidth: 400,
-          maxWidth: 400,
+          width: MODAL_WIDTH,
+          minWidth: MODAL_WIDTH,
+          maxWidth: MODAL_WIDTH,
+          padding: MODAL_PADDING,
+          borderRadius: MODAL_RADIUS,
         }}
       >
-        <h3 style={{ ...styles.modalTitleBold, marginBottom: 6 }}>
+        <h3
+          style={{
+            fontSize: MODAL_HEADER_FONT_SIZE,
+            margin: MODAL_HEADER_MARGIN,
+            color: "#1D2636",
+            letterSpacing: 0.2,
+            textAlign: "left",
+            fontWeight: "inherit", // explicitly inherit (default)
+          }}
+        >
           Confirm Deletion
         </h3>
         <div
           style={{
-            ...styles.modalFormSection,
-            padding: "18px 18px 14px 18px",
-            gap: 10,
+            background: "#EFF2F4",
+            borderRadius: 10,
+            padding: MODAL_FORM_PADDING,
+            marginBottom: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: MODAL_FORM_GAP,
           }}
         >
           <p
             style={{
-              fontFamily: "Montserrat, Arial, Helvetica, sans-serif",
+              fontFamily: "Inter, Arial, Helvetica, sans-serif",
               margin: 0,
               marginBottom: 0,
               textAlign: "left",
               maxWidth: 340,
               wordBreak: "break-word",
+              fontSize: "1rem",
+              color: "#1D2636",
             }}
           >
             Are you sure you want to permanently delete this client?{" "}
@@ -187,11 +246,12 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deleting }) {
           </p>
           <div
             style={{
-              ...styles.modalButtonRow,
-              gap: 8,
+              display: "flex",
+              flexDirection: "row",
               justifyContent: "flex-end",
+              gap: MODAL_BUTTON_ROW_GAP,
+              marginTop: 10,
               width: "100%",
-              marginTop: 0,
             }}
           >
             <button
@@ -199,11 +259,13 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deleting }) {
               style={{
                 ...styles.actionBtn,
                 width: "50%",
-                borderRadius: 5,
+                borderRadius: 6,
+                height: MODAL_BUTTON_HEIGHT,
                 background: hovered.delete ? "#e53935" : "#fff",
                 color: hovered.delete ? "#fff" : "#e53935",
-                fontWeight: 700,
+                fontWeight: 400,
                 border: "1.5px solid #e53935",
+                fontSize: MODAL_BUTTON_FONT_SIZE,
                 transition: "background 0.2s, color 0.2s, opacity 0.2s",
                 opacity: deleting ? 0.7 : 1,
                 boxShadow: hovered.delete
@@ -221,12 +283,15 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deleting }) {
               style={{
                 ...styles.actionBtn,
                 width: "50%",
-                borderRadius: 5,
+                borderRadius: 6,
+                height: MODAL_BUTTON_HEIGHT,
                 background: hovered.cancel ? "#1F2637" : "#fff",
                 color: hovered.cancel
                   ? "#fff"
                   : styles.modalButton.color || "#000",
                 border: "1.5px solid #e0e7ef",
+                fontSize: MODAL_BUTTON_FONT_SIZE,
+                fontWeight: 400,
                 transition: "background 0.2s, color 0.2s",
                 boxShadow: hovered.cancel
                   ? "0 2px 8px rgba(31,38,55,0.10)"
@@ -262,14 +327,17 @@ function Clients() {
   const [sortEmpCount, setSortEmpCount] = useState(null); // null (default), true (asc), false (desc)
   const [addBtnHover, setAddBtnHover] = useState(false);
   const [sortBtnHover, setSortBtnHover] = useState(false);
-  const [checkedRows, setCheckedRows] = useState([]); // for checkboxes
+  const [checkedRows, setCheckedRows] = useState([]);
   const [editBtnHoverIdx, setEditBtnHoverIdx] = useState(null);
   const [deleteBtnHoverIdx, setDeleteBtnHoverIdx] = useState(null);
   const [hoveredRowIdx, setHoveredRowIdx] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   // Store the original order for # column sorting
   const [originalClients, setOriginalClients] = useState([]);
+  const tbodyRef = React.useRef(); // Ref for scrollable tbody
+  const tableBodyRef = React.useRef(null); // Ref for tbody scrollable area
+  const [pendingScrollTop, setPendingScrollTop] = useState(null); // For restoring scroll
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -323,11 +391,59 @@ function Clients() {
     setShowForm(false);
   };
 
+  // Memoize filteredClients so it doesn't change on every render
+  const filteredClients = useMemo(() => {
+    let result = clients.filter(
+      (client) =>
+        client.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        String(client.id).toLowerCase().includes(search.toLowerCase())
+    );
+    if (sortNumber !== null) {
+      if (sortNumber === false) {
+        result = [...result].reverse();
+      } else {
+        result = [...result];
+      }
+    } else if (sortEmpCount !== null) {
+      result = [...result].sort((a, b) =>
+        sortEmpCount === true
+          ? (a.employeeCount ?? 0) - (b.employeeCount ?? 0)
+          : (b.employeeCount ?? 0) - (a.employeeCount ?? 0)
+      );
+    } else if (sortId !== null) {
+      const getIdNum = (id) => {
+        const match = String(id).match(/(\d{4})$/);
+        return match ? Number(match[1]) : 0;
+      };
+      result = [...result].sort((a, b) =>
+        sortId === true
+          ? getIdNum(a.id) - getIdNum(b.id)
+          : getIdNum(b.id) - getIdNum(a.id)
+      );
+    } else if (sortName !== null) {
+      result = [...result].sort((a, b) =>
+        sortName === true
+          ? a.clientName.localeCompare(b.clientName)
+          : b.clientName.localeCompare(a.clientName)
+      );
+    }
+    return result;
+  }, [clients, search, sortNumber, sortEmpCount, sortId, sortName]);
+
+  // --- Selection logic ---
+  // Ensure checkedRows only contains IDs present in filteredClients
+  useEffect(() => {
+    const validIds = new Set(filteredClients.map((client) => client.id));
+    setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
+  }, [filteredClients]);
+
   const handleCheckboxChange = (id) => {
     setCheckedRows((prev) =>
       prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
     );
   };
+
+  // Check All: select all filtered clients (across all pages)
   const handleCheckAll = (e) => {
     if (e.target.checked) {
       setCheckedRows(filteredClients.map((client) => client.id));
@@ -336,51 +452,40 @@ function Clients() {
     }
   };
 
-  let filteredClients = clients.filter(
-    (client) =>
-      client.clientName.toLowerCase().includes(search.toLowerCase()) ||
-      String(client.id).toLowerCase().includes(search.toLowerCase())
-  );
-
-  // Apply sorting
-  if (sortNumber !== null) {
-    // # column: reverse the filtered rows, not just the numbers
-    if (sortNumber === false) {
-      filteredClients = [...filteredClients].reverse(); // descending (reversed order)
-    } else {
-      filteredClients = [...filteredClients]; // ascending (original order)
+  // Reset to first page when changing items per page, and scroll table body to top
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setCurrentPage(1);
+    setItemsPerPage(newItemsPerPage);
+    // Always scroll to top when changing items per page
+    if (tableBodyRef.current) {
+      tableBodyRef.current.scrollTop = 0;
     }
-  } else if (sortEmpCount !== null) {
-    filteredClients = [...filteredClients].sort((a, b) =>
-      sortEmpCount === true
-        ? (a.employeeCount ?? 0) - (b.employeeCount ?? 0)
-        : (b.employeeCount ?? 0) - (a.employeeCount ?? 0)
-    );
-  } else if (sortId !== null) {
-    // Extract last 4 digits as number for sorting
-    const getIdNum = (id) => {
-      const match = String(id).match(/(\d{4})$/); // WRONG: double backslash
-      return match ? Number(match[1]) : 0;
-    };
-    filteredClients = [...filteredClients].sort((a, b) =>
-      sortId === true
-        ? getIdNum(a.id) - getIdNum(b.id)
-        : getIdNum(b.id) - getIdNum(a.id)
-    );
-  } else if (sortName !== null) {
-    filteredClients = [...filteredClients].sort((a, b) =>
-      sortName === true
-        ? a.clientName.localeCompare(b.clientName)
-        : b.clientName.localeCompare(a.clientName)
-    );
-  }
+  };
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredClients.length / itemsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredClients.length / itemsPerPage)
+  );
+  // Ensure currentPage is not out of range after itemsPerPage change
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+    // eslint-disable-next-line
+  }, [itemsPerPage, filteredClients.length]);
+
   const paginatedClients = filteredClients.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // Always scroll table body to top when currentPage or search changes (not on every selection/itemsPerPage change)
+  useEffect(() => {
+    if (tableBodyRef.current) {
+      tableBodyRef.current.scrollTop = 0;
+    }
+  }, [currentPage, search]);
 
   return (
     <main style={{ flex: "1 1 0%", padding: 16, background: "#F9F9F9" }}>
@@ -419,71 +524,12 @@ function Clients() {
               style={styles.searchInput}
             />
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              ...styles.actionBtn,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: addBtnHover ? "#1F2637" : styles.actionBtn.background,
-              color: addBtnHover ? "#fff" : styles.actionBtn.color,
-              transition: "background 0.2s, color 0.2s",
-            }}
-            onMouseEnter={() => setAddBtnHover(true)}
-            onMouseLeave={() => setAddBtnHover(false)}
-          >
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: addBtnHover ? "#fff" : styles.actionBtn.color,
-                transition: "color 0.2s",
-              }}
-            >
-              ADD NEW CLIENT
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 20 20"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{
-                  marginLeft: 8,
-                  verticalAlign: "middle",
-                  display: "inline-block",
-                }}
-                aria-hidden="true"
-              >
-                <circle
-                  cx="10"
-                  cy="10"
-                  r="9"
-                  stroke={addBtnHover ? "#fff" : "#1D2536"}
-                  strokeWidth="2"
-                />
-                <line
-                  x1="10"
-                  y1="6"
-                  x2="10"
-                  y2="14"
-                  stroke={addBtnHover ? "#fff" : "#1D2536"}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1="6"
-                  y1="10"
-                  x2="14"
-                  y2="10"
-                  stroke={addBtnHover ? "#fff" : "#1D2536"}
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-          </button>
+          {/* Circular Add New Client Button */}
+          <AddNewClientButton onClick={() => setShowForm(true)} />
+          {/* Bulk Delete Button (only show if any row is checked) */}
+          {checkedRows.length > 0 && (
+            <BulkDeleteButton onClick={() => setShowConfirm("bulk")} />
+          )}
         </div>
 
         {showForm && (
@@ -498,8 +544,20 @@ function Clients() {
 
         {showConfirm && (
           <DeleteConfirmationModal
-            onConfirm={confirmDelete}
-            onCancel={cancelDelete}
+            onConfirm={
+              showConfirm === "bulk"
+                ? async () => {
+                    // Bulk delete
+                    for (const id of checkedRows) {
+                      await deleteClient(id);
+                    }
+                    setCheckedRows([]);
+                    setShowConfirm(false);
+                    loadClientsAndEmployees();
+                  }
+                : confirmDelete
+            }
+            onCancel={() => setShowConfirm(false)}
           />
         )}
 
@@ -507,10 +565,25 @@ function Clients() {
           <p>Loading...</p>
         ) : (
           <>
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
+            <div
+              style={{
+                ...styles.tableContainer,
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 2px 12px rgba(68,95,109,0.07)",
+              }}
+            >
+              <table
+                style={{ ...styles.table, minWidth: 700, tableLayout: "fixed" }}
+              >
+                <thead
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    background: "#fff",
+                  }}
+                >
+                  <tr style={{ display: "table", width: "100%" }}>
                     <th
                       style={{
                         ...styles.th,
@@ -531,8 +604,13 @@ function Clients() {
                       >
                         <CustomCheckbox
                           checked={
+                            checkedRows.length > 0 &&
                             checkedRows.length === filteredClients.length &&
                             filteredClients.length > 0
+                          }
+                          indeterminate={
+                            checkedRows.length > 0 &&
+                            checkedRows.length < filteredClients.length
                           }
                           onChange={handleCheckAll}
                         />
@@ -924,7 +1002,15 @@ function Clients() {
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody
+                  ref={tableBodyRef}
+                  style={{
+                    display: "block",
+                    maxHeight: "45vh",
+                    overflowY: "auto",
+                    width: "100%",
+                  }}
+                >
                   {paginatedClients.map((client, idx) => {
                     const isChecked = checkedRows.includes(client.id);
                     // Highlighted row: dark bg, white text
@@ -936,10 +1022,14 @@ function Clients() {
                       : {};
                     return (
                       <tr
-                        key={client.id}
+                        key={client.id || idx}
                         onMouseEnter={() => setHoveredRowIdx(idx)}
                         onMouseLeave={() => setHoveredRowIdx(null)}
-                        style={{ cursor: "pointer" }}
+                        style={{
+                          cursor: "pointer",
+                          display: "table",
+                          width: "100%",
+                        }}
                       >
                         <td
                           style={{
@@ -1056,156 +1146,179 @@ function Clients() {
                 </tbody>
               </table>
             </div>
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 24,
-                }}
-              >
+            {/* Modern Pagination Controls */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginTop: 18,
+                gap: 16,
+                width: "100%",
+                fontFamily: "'Inter', Arial, sans-serif",
+              }}
+            >
+              {/* Left: Pagination Controls */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   style={{
                     ...styles.actionBtn,
-                    padding: "8px 18px",
                     minWidth: 0,
-                    fontSize: "1rem",
-                    background: "#E8E8E8",
+                    width: 36,
+                    height: 36,
+                    padding: 0,
+                    borderRadius: 18,
+                    background: currentPage === 1 ? "#E8E8E8" : "#FFD87D",
                     color: "#1D2636",
-                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
                   }}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  aria-label="Previous Page"
                 >
-                  Prev
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    style={{ display: "block" }}
+                  >
+                    <polyline
+                      points="11 5 7 9 11 13"
+                      stroke="#1D2636"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
                 </button>
-                {/* Windowed Pagination Logic */}
-                {(() => {
-                  const pageButtons = [];
-                  const windowSize = 2; // pages to show left/right of current
-                  const showFirst = 1;
-                  const showLast = totalPages;
-                  let start = Math.max(currentPage - windowSize, 2);
-                  let end = Math.min(currentPage + windowSize, totalPages - 1);
-                  if (currentPage <= windowSize + 2) {
-                    start = 2;
-                    end = Math.min(2 + windowSize * 2, totalPages - 1);
-                  }
-                  if (currentPage >= totalPages - windowSize - 1) {
-                    start = Math.max(totalPages - windowSize * 2, 2);
-                    end = totalPages - 1;
-                  }
-                  // Always show first page
-                  pageButtons.push(
-                    <button
-                      key={1}
-                      style={{
-                        ...styles.actionBtn,
-                        padding: "8px 14px",
-                        minWidth: 0,
-                        fontSize: "1rem",
-                        background: currentPage === 1 ? "#1F2637" : "#E8E8E8",
-                        color: currentPage === 1 ? "#fff" : "#1D2636",
-                        border:
-                          currentPage === 1 ? "1.5px solid #1F2637" : "none",
-                      }}
-                      onClick={() => setCurrentPage(1)}
-                    >
-                      1
-                    </button>
-                  );
-                  // Ellipsis if needed
-                  if (start > 2) {
-                    pageButtons.push(
-                      <span
-                        key="start-ellipsis"
-                        style={{ padding: "0 4px", color: "#888" }}
-                      >
-                        ...
-                      </span>
-                    );
-                  }
-                  // Middle page buttons
-                  for (let i = start; i <= end; i++) {
-                    pageButtons.push(
-                      <button
-                        key={i}
-                        style={{
-                          ...styles.actionBtn,
-                          padding: "8px 14px",
-                          minWidth: 0,
-                          fontSize: "1rem",
-                          background: currentPage === i ? "#1F2637" : "#E8E8E8",
-                          color: currentPage === i ? "#fff" : "#1D2636",
-                          border:
-                            currentPage === i ? "1.5px solid #1F2637" : "none",
-                        }}
-                        onClick={() => setCurrentPage(i)}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-                  // Ellipsis if needed
-                  if (end < totalPages - 1) {
-                    pageButtons.push(
-                      <span
-                        key="end-ellipsis"
-                        style={{ padding: "0 4px", color: "#888" }}
-                      >
-                        ...
-                      </span>
-                    );
-                  }
-                  // Always show last page if more than 1
-                  if (totalPages > 1) {
-                    pageButtons.push(
-                      <button
-                        key={totalPages}
-                        style={{
-                          ...styles.actionBtn,
-                          padding: "8px 14px",
-                          minWidth: 0,
-                          fontSize: "1rem",
-                          background:
-                            currentPage === totalPages ? "#1F2637" : "#E8E8E8",
-                          color:
-                            currentPage === totalPages ? "#fff" : "#1D2636",
-                          border:
-                            currentPage === totalPages
-                              ? "1.5px solid #1F2637"
-                              : "none",
-                        }}
-                        onClick={() => setCurrentPage(totalPages)}
-                      >
-                        {totalPages}
-                      </button>
-                    );
-                  }
-                  return pageButtons;
-                })()}
+                <select
+                  value={currentPage}
+                  onChange={(e) => setCurrentPage(Number(e.target.value))}
+                  style={{
+                    fontFamily: "'Inter', Arial, sans-serif",
+                    fontSize: "1rem",
+                    border: "1.5px solid #e0e7ef",
+                    borderRadius: 8,
+                    padding: "6px 18px 6px 10px",
+                    background: "#fff",
+                    color: "#1D2636",
+                    outline: "none",
+                    minWidth: 60,
+                    margin: "0 4px",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  }}
+                >
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      Page {i + 1}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  style={{ color: "#888", fontSize: "1rem", marginLeft: 2 }}
+                >
+                  of {totalPages}
+                </span>
                 <button
                   style={{
                     ...styles.actionBtn,
-                    padding: "8px 18px",
                     minWidth: 0,
-                    fontSize: "1rem",
-                    background: "#E8E8E8",
+                    width: 36,
+                    height: 36,
+                    padding: 0,
+                    borderRadius: 18,
+                    background:
+                      currentPage === totalPages ? "#E8E8E8" : "#FFD87D",
                     color: "#1D2636",
-                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 20,
                   }}
                   onClick={() =>
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                   disabled={currentPage === totalPages}
+                  aria-label="Next Page"
                 >
-                  Next
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 18 18"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    style={{ display: "block" }}
+                  >
+                    <polyline
+                      points="7 5 11 9 7 13"
+                      stroke="#1D2636"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
                 </button>
+                <span
+                  style={{ marginLeft: 18, color: "#888", fontSize: "1rem" }}
+                >
+                  Items per page
+                </span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) =>
+                    handleItemsPerPageChange(Number(e.target.value))
+                  }
+                  style={{
+                    fontFamily: "'Inter', Arial, sans-serif",
+                    fontSize: "1rem",
+                    border: "1.5px solid #e0e7ef",
+                    borderRadius: 8,
+                    padding: "6px 18px 6px 10px",
+                    background: "#fff",
+                    color: "#1D2636",
+                    outline: "none",
+                    minWidth: 60,
+                    margin: "0 4px",
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  }}
+                >
+                  {[10, 20, 50, 100].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
+              {/* Right: Items range */}
+              <div
+                style={{
+                  color: "#888",
+                  fontSize: "1rem",
+                  fontFamily: "'Inter', Arial, sans-serif",
+                }}
+              >
+                {(() => {
+                  const start =
+                    filteredClients.length === 0
+                      ? 0
+                      : (currentPage - 1) * itemsPerPage + 1;
+                  const end = Math.min(
+                    currentPage * itemsPerPage,
+                    filteredClients.length
+                  );
+                  return `${start} - ${end} of ${filteredClients.length} items`;
+                })()}
+              </div>
+            </div>
           </>
         )}
       </div>
@@ -1279,7 +1392,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     fontFamily: "'Inter', Arial, sans-serif",
-    fontSize: "inherit",
+    fontSize: "1rem", // ensure 16px
   },
   secondaryBtn: {
     background: "#92D6E3",
@@ -1292,7 +1405,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     fontFamily: "'Inter', Arial, sans-serif",
-    fontSize: "inherit",
+    fontSize: "1rem", // ensure 16px
   },
   tableContainer: {
     marginTop: 0,
@@ -1303,9 +1416,7 @@ const styles = {
     width: "100%",
     maxWidth: "100vw",
     overflow: "auto",
-    maxHeight: "calc(100vh - 170px)",
-    fontFamily: "'Inter', Arial, sans-serif",
-    color: "rgb(29, 37, 54)",
+    // height: 420, // <-- removed fixed height
   },
   table: {
     width: "100%",
@@ -1432,7 +1543,7 @@ const styles = {
     padding: "8px 18px",
     cursor: "pointer",
     transition: "background 0.2s, box-shadow 0.2s",
-    fontSize: "inherit",
+    fontSize: "1rem", // force 16px
     fontFamily: "inherit",
     fontWeight: "inherit",
   },
@@ -1443,10 +1554,34 @@ const styles = {
     gap: 8,
     marginTop: 10,
   },
+  animatedAddBtn: {
+    background: "#FFD87D",
+    color: "#1D2636",
+    border: "none",
+    borderRadius: 21,
+    padding: 0,
+    cursor: "pointer",
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 42,
+    width: 42,
+    minWidth: 42,
+    minHeight: 42,
+    transition: "background 0.2s, transform 0.2s",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+  },
 };
 
 // Custom Checkbox component
-function CustomCheckbox({ checked, onChange }) {
+function CustomCheckbox({ checked, indeterminate, onChange }) {
+  const ref = React.useRef();
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = !!indeterminate;
+    }
+  }, [indeterminate]);
   return (
     <label
       style={{
@@ -1459,6 +1594,7 @@ function CustomCheckbox({ checked, onChange }) {
       }}
     >
       <input
+        ref={ref}
         type="checkbox"
         checked={checked}
         onChange={onChange}
@@ -1503,6 +1639,30 @@ function CustomCheckbox({ checked, onChange }) {
               strokeWidth="1.7"
               strokeLinecap="round"
               strokeLinejoin="round"
+            />
+          </svg>
+        )}
+        {/* Indeterminate bar */}
+        {indeterminate && !checked && (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              display: "block",
+            }}
+          >
+            <rect
+              x="2"
+              y="5.2"
+              width="8"
+              height="1.6"
+              rx="0.8"
+              fill="#1D2636"
             />
           </svg>
         )}
@@ -1599,7 +1759,146 @@ function ActionIconButton({ type, onClick, title }) {
   );
 }
 
-// Set the background color for the outermost <main> if this file is the entry point for a page
-// If this <main> is nested, ensure the outer <main> in App.js or the layout file has backgroundColor: '#F9F9F9'
-// Example for App.js or layout file:
-// <main style={{ backgroundColor: '#F9F9F9', minHeight: '100vh', width: '100vw' }}> ... </main>
+function AddNewClientButton({ onClick }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: hover ? "#1F2637" : "#FFD87D",
+        color: hover ? "#fff" : "#1D2636",
+        border: "none",
+        borderRadius: "5px",
+        width: 36,
+        height: 36,
+        minWidth: 36,
+        minHeight: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        fontSize: "1rem",
+        padding: 0,
+        position: "relative",
+        transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
+        marginLeft: 8,
+        marginRight: 0,
+      }}
+      aria-label="Add New Client"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: "block" }}
+        aria-hidden="true"
+      >
+        <circle
+          cx="10"
+          cy="10"
+          r="9"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="2"
+          fill={hover ? "#1F2637" : "#FFD87D"}
+        />
+        <line
+          x1="10"
+          y1="6"
+          x2="10"
+          y2="14"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <line
+          x1="6"
+          y1="10"
+          x2="14"
+          y2="10"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+function BulkDeleteButton({ onClick }) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: hover ? "#1F2637" : "#FFD87D",
+        color: hover ? "#fff" : "#1D2636",
+        border: "none",
+        borderRadius: "5px",
+        width: 36,
+        height: 36,
+        minWidth: 36,
+        minHeight: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        fontSize: "1rem",
+        padding: 0,
+        position: "relative",
+        transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
+        marginLeft: 8,
+        marginRight: 0,
+      }}
+      aria-label="Delete Selected"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      title="Delete Selected"
+    >
+      {/* Trash bin icon, now 20x20 to match add icon */}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 20 20"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ display: "block" }}
+      >
+        <rect
+          x="5.5"
+          y="7"
+          width="9"
+          height="8"
+          rx="2"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="1.6"
+          fill={hover ? "#1F2637" : "#FFD87D"}
+        />
+        <rect
+          x="7.5"
+          y="3.5"
+          width="5"
+          height="2.2"
+          rx="1"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="1.6"
+          fill={hover ? "#fff" : "#FFD87D"}
+        />
+        <line
+          x1="5"
+          y1="7"
+          x2="15"
+          y2="7"
+          stroke={hover ? "#fff" : "#1D2636"}
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    </button>
+  );
+}
