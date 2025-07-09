@@ -52,7 +52,7 @@ const deviceTypes = [
 ];
 
 const statuses = ["Available", "In Use", "Stock Room", "Retired"];
-const conditions = ["New", "Working", "Needs Repair", "Retired"];
+const conditions = ["New", "Working", "Defective"];
 
 // Utility function to format dates as "January 23, 2025"
 const formatDateToFullWord = (dateString) => {
@@ -697,6 +697,11 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   const handleEdit = (device) => {
     const { id, ...deviceData } = device;
     
+    // Debug log to see what we're working with
+    console.log("Editing device:", device);
+    console.log("Device type:", deviceData.deviceType);
+    console.log("Device tag:", deviceData.deviceTag);
+    
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
       deviceType: deviceData.deviceType || "",
@@ -715,9 +720,23 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
     setForm(formData);
     
     // Check if this device uses a serial number format (no JOII prefix)
-    const typeObj = deviceTypes.find((t) => t.label === deviceData.deviceType);
-    const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
-    const isSerialFormat = deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
+    // First check if deviceType exists in our deviceTypes array (case-insensitive)
+    const typeObj = deviceTypes.find((t) => t.label.toLowerCase() === deviceData.deviceType.toLowerCase());
+    let isSerialFormat = false;
+    
+    console.log("Type object found:", typeObj);
+    
+    if (typeObj && deviceData.deviceTag) {
+      // If device type exists, check if tag starts with expected JOII prefix
+      const expectedPrefix = `JOII${typeObj.code}`;
+      isSerialFormat = !deviceData.deviceTag.startsWith(expectedPrefix);
+      console.log("Expected prefix:", expectedPrefix, "Is serial format:", isSerialFormat);
+    } else if (deviceData.deviceTag) {
+      // If device type doesn't exist in our array, or if tag doesn't start with JOII, treat as serial
+      isSerialFormat = !deviceData.deviceTag.startsWith("JOII");
+      console.log("No type object, checking JOII prefix. Is serial format:", isSerialFormat);
+    }
+    
     setUseSerial(isSerialFormat);
     
     setShowForm(true);
@@ -787,6 +806,7 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
       );
       setImportProgress({ current: 0, total: filteredRows.length });
       let importedCount = 0;
+      let overwrittenCount = 0;
       // Fetch all devices for duplicate check
       const allDevices = await getAllDevices();
       for (let i = 0; i < filteredRows.length; i++) {
@@ -801,17 +821,32 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
           // Convert Excel serial date to mm/dd/yyyy if needed
           let acquisitionDate = formatDateToMMDDYYYY(row["Acquisition Date"]);
           
+          // Clean and validate device type with case-insensitive matching
+          const rawDeviceType = row["Device Type"].toString().trim();
+          const deviceTag = row["Device Tag"].toString().trim();
+          const brand = row["Brand"].toString().trim();
+          const condition = row["Condition"].toString().trim();
+          
+          // Find matching device type (case-insensitive)
+          const matchingDeviceType = deviceTypes.find(type => 
+            type.label.toLowerCase() === rawDeviceType.toLowerCase()
+          );
+          
+          // Use the proper case from our deviceTypes array, or keep original if no match
+          const deviceType = matchingDeviceType ? matchingDeviceType.label : rawDeviceType;
+          
           // Check for duplicate deviceTag
           const existing = allDevices.find(
-            (d) => d.deviceTag && d.deviceTag.toLowerCase() === row["Device Tag"].toLowerCase()
+            (d) => d.deviceTag && d.deviceTag.toLowerCase() === deviceTag.toLowerCase()
           );
+          
           const devicePayload = {
-            deviceType: row["Device Type"],
-            deviceTag: row["Device Tag"],
-            brand: row["Brand"],
-            model: row["Model"] || "",
-            condition: row["Condition"],
-            remarks: row["Remarks"] || "",
+            deviceType: deviceType,
+            deviceTag: deviceTag,
+            brand: brand,
+            model: row["Model"] ? row["Model"].toString().trim() : "",
+            condition: condition,
+            remarks: row["Remarks"] ? row["Remarks"].toString().trim() : "",
             status: "Stock Room",
             assignedTo: "",
             assignmentDate: "",
@@ -819,7 +854,9 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
           };
           try {
             if (existing) {
-              await updateDevice(existing.id, devicePayload); // Overwrite
+              // Overwrite existing device with same tag
+              await updateDevice(existing.id, devicePayload);
+              overwrittenCount++;
             } else {
               await addDevice(devicePayload);
             }
@@ -828,9 +865,10 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
         }
       }
       await loadDevicesAndEmployees();
-      alert(
-        `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`
-      );
+      const message = overwrittenCount > 0 
+        ? `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s). Overwritten ${overwrittenCount} existing device(s) with same tag(s).`
+        : `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`;
+      alert(message);
     } catch (err) {
       alert("Failed to import. Please check your Excel file format.");
     }
@@ -1348,17 +1386,8 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         return;
       }
 
-      // Check against existing devices
+      // Get all existing devices for overwrite check
       const allDevices = await getAllDevices();
-      const existingSerials = serialValues.filter(serial => 
-        allDevices.some(device => device.deviceTag && device.deviceTag.toLowerCase() === serial.toLowerCase())
-      );
-      
-      if (existingSerials.length > 0) {
-        setNewAcqError(`Serial numbers already exist: ${existingSerials.join(", ")}`);
-        setNewAcqLoading(false);
-        return;
-      }
 
       // Add devices with manual serials for each tab
       let allDeviceList = [];
@@ -1389,7 +1418,16 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
           tabDeviceList.push(payload);
           
           try {
-            await addDevice(payload);
+            // Check if device with same tag exists and overwrite if it does
+            const existing = allDevices.find(
+              (d) => d.deviceTag && d.deviceTag.toLowerCase() === serialItem.serial.trim().toLowerCase()
+            );
+            
+            if (existing) {
+              await updateDevice(existing.id, payload);
+            } else {
+              await addDevice(payload);
+            }
             added++;
           } catch (error) {
             console.error(`Failed to add device ${serialItem.serial}:`, error);
