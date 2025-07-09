@@ -32,6 +32,25 @@ function EmployeeFormModal({
         <h2 style={styles.modalTitle}>
           {data.id ? "Edit Employee" : "Add Employee"}
         </h2>
+        {/* Hidden fields for First Name, Last Name, Middle Name */}
+        <input
+          name="firstName"
+          value={data.firstName || ""}
+          onChange={onChange}
+          style={{ display: "none" }}
+        />
+        <input
+          name="lastName"
+          value={data.lastName || ""}
+          onChange={onChange}
+          style={{ display: "none" }}
+        />
+        <input
+          name="middleName"
+          value={data.middleName || ""}
+          onChange={onChange}
+          style={{ display: "none" }}
+        />
         <div style={styles.inputGroup}>
           <label style={styles.label}>Full Name:</label>
           <input
@@ -225,6 +244,9 @@ function Employees() {
   const [form, setForm] = useState({
     id: null,
     fullName: "",
+    firstName: "",
+    lastName: "",
+    middleName: "",
     position: "",
     clientId: "",
     department: "",
@@ -304,8 +326,18 @@ function Employees() {
         .toISOString()
         .slice(0, 10);
     }
+
+    // Generate fullName from firstName and lastName if they exist
+    let fullName = form.fullName;
+    if (form.firstName && form.lastName) {
+      fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
+    }
+
     const payload = {
-      fullName: form.fullName.trim(),
+      fullName: fullName.trim(),
+      firstName: form.firstName || "",
+      lastName: form.lastName || "",
+      middleName: form.middleName || "",
       position: form.position || "",
       clientId: form.clientId || "",
       department: form.department || "",
@@ -327,6 +359,9 @@ function Employees() {
     setForm({
       id: emp.id,
       fullName: emp.fullName,
+      firstName: emp.firstName || "",
+      lastName: emp.lastName || "",
+      middleName: emp.middleName || "",
       position: emp.position,
       clientId: emp.clientId || "",
       department: emp.department || "",
@@ -359,6 +394,9 @@ function Employees() {
     setForm({
       id: null,
       fullName: "",
+      firstName: "",
+      lastName: "",
+      middleName: "",
       position: "",
       clientId: "",
       department: "",
@@ -498,7 +536,7 @@ function Employees() {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-      // Expect columns: Date Hired, Client, Full Name, Position, Corporate Email, Personal Email, Department
+      // Expected columns: Full Name, Position, Department, Client, Corporate Email, Personal Email, Date Hired, First Name, Last Name, Middle Name
       // Map client name to clientId
       const clientNameToId = Object.fromEntries(
         clients.map((c) => [c.clientName.trim().toLowerCase(), c.id])
@@ -512,57 +550,72 @@ function Employees() {
         const row = rows[i];
         const clientId =
           clientNameToId[(row["Client"] || "").trim().toLowerCase()] || "";
-        if (row["Full Name"]) {
-          // --- Date Hired Fix ---
-          let dateHired = row["Date Hired"] || "";
-          if (dateHired) {
-            // Try to parse Excel date formats (MM/DD/YYYY or DD/MM/YYYY or Date object)
-            // If it's a Date object (from Excel), convert to yyyy-mm-dd
-            if (typeof dateHired === "number") {
-              // Excel serial date
-              // Excel's epoch starts at 1899-12-30
-              const excelEpoch = new Date(1899, 11, 30);
-              const d = new Date(excelEpoch.getTime() + dateHired * 86400000);
-              dateHired = d.toISOString().slice(0, 10);
-            } else if (
-              typeof dateHired === "string" &&
-              dateHired.includes("/")
-            ) {
-              // Parse MM/DD/YYYY or M/D/YYYY
-              const [m, d, y] = dateHired.split("/");
-              if (m && d && y) {
-                const jsDate = new Date(
-                  `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
-                );
-                if (!isNaN(jsDate)) {
-                  dateHired = jsDate.toISOString().slice(0, 10);
-                } else {
-                  dateHired = "";
-                }
+        
+        const firstName = (row["First Name"] || "").trim();
+        const lastName = (row["Last Name"] || "").trim();
+        const middleName = (row["Middle Name"] || "").trim();
+        
+        // Skip if no first name or last name
+        if (!firstName || !lastName) continue;
+        
+        // Use existing Full Name from Excel if available, otherwise generate it
+        let fullName = (row["Full Name"] || "").trim();
+        if (!fullName) {
+          fullName = `${firstName} ${lastName}`;
+        }
+        
+        // --- Date Hired Fix ---
+        let dateHired = row["Date Hired"] || "";
+        if (dateHired) {
+          // Try to parse Excel date formats (MM/DD/YYYY or DD/MM/YYYY or Date object)
+          // If it's a Date object (from Excel), convert to yyyy-mm-dd
+          if (typeof dateHired === "number") {
+            // Excel serial date
+            // Excel's epoch starts at 1899-12-30
+            const excelEpoch = new Date(1899, 11, 30);
+            const d = new Date(excelEpoch.getTime() + dateHired * 86400000);
+            dateHired = d.toISOString().slice(0, 10);
+          } else if (
+            typeof dateHired === "string" &&
+            dateHired.includes("/")
+          ) {
+            // Parse MM/DD/YYYY or M/D/YYYY
+            const [m, d, y] = dateHired.split("/");
+            if (m && d && y) {
+              const jsDate = new Date(
+                `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
+              );
+              if (!isNaN(jsDate)) {
+                dateHired = jsDate.toISOString().slice(0, 10);
+              } else {
+                dateHired = "";
               }
             }
           }
-          // fallback to today if still invalid
-          if (!dateHired) {
-            const now = new Date();
-            const offset = now.getTimezoneOffset();
-            dateHired = new Date(now.getTime() - offset * 60 * 1000)
-              .toISOString()
-              .slice(0, 10);
-          }
-          const dateAdded = dateHired;
-          await addEmployee({
-            fullName: row["Full Name"],
-            position: row["Position"] || "",
-            department: row["Department"] || "",
-            clientId,
-            dateHired,
-            corporateEmail: row["Corporate Email"] || "",
-            personalEmail: row["Personal Email"] || "",
-            dateAdded,
-          });
-          importedCount++;
         }
+        // fallback to today if still invalid
+        if (!dateHired) {
+          const now = new Date();
+          const offset = now.getTimezoneOffset();
+          dateHired = new Date(now.getTime() - offset * 60 * 1000)
+            .toISOString()
+            .slice(0, 10);
+        }
+        const dateAdded = dateHired;
+        await addEmployee({
+          fullName,
+          firstName,
+          lastName,
+          middleName,
+          position: row["Position"] || "",
+          department: row["Department"] || "",
+          clientId,
+          dateHired,
+          corporateEmail: row["Corporate Email"] || "",
+          personalEmail: row["Personal Email"] || "",
+          dateAdded,
+        });
+        importedCount++;
       }
       loadClientsAndEmployees();
       alert(
@@ -609,6 +662,56 @@ function Employees() {
     loadClientsAndEmployees();
   };
 
+  // Export to Excel handler
+  const handleExportToExcel = () => {
+    try {
+      // Prepare data for export in the same format as import expects
+      const exportData = filteredEmployees.map((emp) => ({
+        "First Name": emp.firstName || "",
+        "Last Name": emp.lastName || "",
+        "Middle Name": emp.middleName || "",
+        "Position": emp.position || "",
+        "Department": emp.department || "",
+        "Client": emp.client && emp.client !== "-" ? emp.client : "",
+        "Corporate Email": emp.corporateEmail || "",
+        "Personal Email": emp.personalEmail || "",
+        "Date Hired": emp.dateHired ? formatDisplayDate(emp.dateHired) : "",
+      }));
+
+      // Create a new workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Auto-size columns
+      const colWidths = [
+        { wch: 15 }, // First Name
+        { wch: 15 }, // Last Name
+        { wch: 15 }, // Middle Name
+        { wch: 20 }, // Position
+        { wch: 15 }, // Department
+        { wch: 20 }, // Client
+        { wch: 25 }, // Corporate Email
+        { wch: 25 }, // Personal Email
+        { wch: 12 }, // Date Hired
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add the worksheet to the workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Employees");
+
+      // Generate filename with current date
+      const today = new Date();
+      const dateStr = today.toISOString().slice(0, 10); // YYYY-MM-DD
+      const filename = `employees_export_${dateStr}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error("Export error:", error);
+      alert("Failed to export data. Please try again.");
+    }
+  };
+
   return (
     <div style={styles.pageContainer}>
       <div style={styles.headerRow}>
@@ -616,6 +719,19 @@ function Employees() {
         <div>
           <button onClick={() => setShowForm(true)} style={styles.actionBtn}>
             + Add Employee
+          </button>
+          <button
+            onClick={handleExportToExcel}
+            style={{
+              ...styles.secondaryBtn,
+              marginLeft: 8,
+              background: "#10b981",
+              color: "#fff",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "#059669"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "#10b981"}
+          >
+            📊 Export Excel
           </button>
           <label style={{ marginLeft: 8 }}>
             <input
@@ -637,9 +753,9 @@ function Employees() {
             >
               {importing
                 ? importProgress.total > 0
-                  ? `Importing ${importProgress.current}/${importProgress.total}...`
-                  : "Importing..."
-                : "Import Excel"}
+                  ? `📥 Importing ${importProgress.current}/${importProgress.total}...`
+                  : "📥 Importing..."
+                : "📥 Import Excel"}
             </button>
           </label>
         </div>
