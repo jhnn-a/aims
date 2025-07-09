@@ -538,7 +538,8 @@ function Employees() {
 
       // Expected columns: Full Name, Position, Department, Client, Corporate Email, Personal Email, Date Hired, First Name, Last Name, Middle Name
       // Map client name to clientId
-      const clientNameToId = Object.fromEntries(
+      const clientNameToId = Object.fromEntries(+
+        
         clients.map((c) => [c.clientName.trim().toLowerCase(), c.id])
       );
 

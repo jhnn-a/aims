@@ -54,6 +54,30 @@ const deviceTypes = [
 const statuses = ["Available", "In Use", "Stock Room", "Retired"];
 const conditions = ["New", "Working", "Needs Repair", "Retired"];
 
+// Utility function to format dates as "January 23, 2025"
+const formatDateToFullWord = (dateString) => {
+  if (!dateString) return "";
+  
+  let date;
+  if (typeof dateString === "number") {
+    // Excel serial date
+    date = new Date(Math.round((dateString - 25569) * 86400 * 1000));
+  } else if (typeof dateString === "string") {
+    date = new Date(dateString);
+  } else {
+    return "";
+  }
+  
+  if (isNaN(date)) return "";
+  
+  // Format as "January 23, 2025"
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "2-digit",
+  });
+};
+
 // Utility function to format dates consistently as MM/DD/YYYY
 const formatDateToMMDDYYYY = (dateString) => {
   if (!dateString) return "";
@@ -332,7 +356,7 @@ const handleTempDeployDone = async () => {
       String(phTime.getDate()).padStart(2, '0');
     doc.setData({
       name: emp?.fullName || "",
-      dateHired: emp?.dateHired || "",
+      dateHired: formatDateToFullWord(emp?.dateHired) || "",
       department: emp?.department || emp?.client || "",
       position: emp?.position || "",
       devices: [{
@@ -945,7 +969,7 @@ const filteredDevices = getUnassignedDevices(devices, deviceSearch);
 
       doc.setData({
         name: emp?.fullName || "",
-        dateHired: emp?.dateHired || "",
+        dateHired: formatDateToFullWord(emp?.dateHired) || "",
         department: emp?.department || emp?.client || "",
         position: emp?.position || "",
         devices: selectedDeviceObjects.map(dev => {
