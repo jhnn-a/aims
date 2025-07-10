@@ -157,6 +157,42 @@ function formatDisplayDate(dateStr) {
   return `${mm}-${dd}-${yyyy}`;
 }
 
+// Helper to format assignment date (handles Firestore timestamps)
+function formatAssignmentDate(dateValue) {
+  if (!dateValue) return "";
+  
+  // Handle Firestore timestamp object
+  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+    const date = new Date(dateValue.seconds * 1000);
+    return formatDisplayDate(date.toISOString().slice(0, 10));
+  }
+  
+  // Handle regular date string or Date object
+  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+    return formatDisplayDate(dateValue);
+  }
+  
+  return "";
+}
+
+// Helper to format history date (handles Firestore timestamps)
+function formatHistoryDate(dateValue) {
+  if (!dateValue) return "";
+  
+  // Handle Firestore timestamp object
+  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+    const date = new Date(dateValue.seconds * 1000);
+    return date.toLocaleString();
+  }
+  
+  // Handle regular date string or Date object
+  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+    return new Date(dateValue).toLocaleString();
+  }
+  
+  return "";
+}
+
 function DeleteConfirmationModal({ onConfirm, onCancel }) {
   return (
     <div style={styles.modalOverlay}>
@@ -1127,7 +1163,7 @@ function Employees() {
                             padding: "10px 8px",
                           }}
                         >
-                          {dev.assignmentDate || ""}
+                          {formatAssignmentDate(dev.assignmentDate)}
                         </td>
                       </tr>
                     ))}
@@ -1496,7 +1532,7 @@ function Employees() {
                             padding: "10px 8px",
                           }}
                         >
-                          {new Date(h.date).toLocaleString()}
+                          {formatHistoryDate(h.date)}
                         </td>
                         <td
                           style={{
