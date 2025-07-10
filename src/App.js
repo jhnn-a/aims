@@ -276,8 +276,6 @@ function App() {
             flex: 1,
             padding: 16,
             backgroundColor: "#F9F9F9",
-            minHeight: "100vh",
-            width: "100vw",
             boxSizing: "border-box",
           }}
         >
