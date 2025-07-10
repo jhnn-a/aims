@@ -87,8 +87,7 @@ function Sidebar({ user }) {
   const location = useLocation();
   const links = [
     { to: "/", label: "Dashboard" },
-    { to: "/assets", label: "Assets" },
-    { to: "/inventory", label: "Inventory" },
+    { to: "/company-assets", label: "Company Assets" },
     { to: "/employees", label: "Employees" },
     { to: "/clients", label: "Clients" },
     { to: "/unit-specs", label: "Unit Specs" },

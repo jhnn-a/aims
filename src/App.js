@@ -3,8 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
-import Inventory from "./pages/Inventory";
-import Assets from "./pages/Assets";
+import CompanyAssets from "./pages/CompanyAssets";
 import Employees from "./pages/Employees";
 import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
@@ -285,8 +284,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard user={user} />} />
-            <Route path="/inventory" element={<Inventory user={user} />} />
-            <Route path="/assets" element={<Assets user={user} />} />
+            <Route path="/company-assets" element={<CompanyAssets user={user} />} />
             <Route path="/employees" element={<Employees user={user} />} />
             <Route path="/clients" element={<Clients user={user} />} />
             <Route path="/unit-specs" element={<UnitSpecs user={user} />} />
