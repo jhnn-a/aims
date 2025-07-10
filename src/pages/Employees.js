@@ -536,10 +536,15 @@ function Employees() {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
+      console.log("Excel file loaded. Rows found:", rows.length);
+      if (rows.length > 0) {
+        console.log("First row columns:", Object.keys(rows[0]));
+        console.log("Sample first row:", rows[0]);
+      }
+
       // Expected columns: Full Name, Position, Department, Client, Corporate Email, Personal Email, Date Hired, First Name, Last Name, Middle Name
       // Map client name to clientId
-      const clientNameToId = Object.fromEntries(+
-        
+      const clientNameToId = Object.fromEntries(
         clients.map((c) => [c.clientName.trim().toLowerCase(), c.id])
       );
 
@@ -556,19 +561,22 @@ function Employees() {
         const lastName = (row["Last Name"] || "").trim();
         const middleName = (row["Middle Name"] || "").trim();
         
-        // Skip if no first name or last name
-        if (!firstName || !lastName) continue;
-        
         // Use existing Full Name from Excel if available, otherwise generate it
         let fullName = (row["Full Name"] || "").trim();
-        if (!fullName) {
+        if (!fullName && firstName && lastName) {
           fullName = `${firstName} ${lastName}`;
+        }
+        
+        // Skip if no full name can be determined
+        if (!fullName) {
+          console.log(`Skipping row ${i + 1}: No full name found`);
+          continue;
         }
         
         // --- Date Hired Fix ---
         let dateHired = row["Date Hired"] || "";
         if (dateHired) {
-          // Try to parse Excel date formats (MM/DD/YYYY or DD/MM/YYYY or Date object)
+          // Try to parse Excel date formats (MM/DD/YYYY or MM-DD-YYYY or Date object)
           // If it's a Date object (from Excel), convert to yyyy-mm-dd
           if (typeof dateHired === "number") {
             // Excel serial date
@@ -578,10 +586,11 @@ function Employees() {
             dateHired = d.toISOString().slice(0, 10);
           } else if (
             typeof dateHired === "string" &&
-            dateHired.includes("/")
+            (dateHired.includes("/") || dateHired.includes("-"))
           ) {
-            // Parse MM/DD/YYYY or M/D/YYYY
-            const [m, d, y] = dateHired.split("/");
+            // Parse MM/DD/YYYY or MM-DD-YYYY or M/D/YYYY
+            const separator = dateHired.includes("/") ? "/" : "-";
+            const [m, d, y] = dateHired.split(separator);
             if (m && d && y) {
               const jsDate = new Date(
                 `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`
@@ -602,28 +611,35 @@ function Employees() {
             .toISOString()
             .slice(0, 10);
         }
-        const dateAdded = dateHired;
-        await addEmployee({
-          fullName,
-          firstName,
-          lastName,
-          middleName,
-          position: row["Position"] || "",
-          department: row["Department"] || "",
-          clientId,
-          dateHired,
-          corporateEmail: row["Corporate Email"] || "",
-          personalEmail: row["Personal Email"] || "",
-          dateAdded,
-        });
-        importedCount++;
+        
+        try {
+          const employeeData = {
+            fullName,
+            firstName,
+            lastName,
+            middleName,
+            position: row["Position"] || "",
+            department: row["Department"] || "",
+            clientId,
+            dateHired,
+            corporateEmail: row["Corporate Email"] || "",
+            personalEmail: row["Personal Email"] || "",
+          };
+          
+          await addEmployee(employeeData);
+          importedCount++;
+        } catch (empError) {
+          console.error(`Error adding employee ${fullName}:`, empError);
+          continue; // Skip this employee and continue with the next
+        }
       }
       loadClientsAndEmployees();
       alert(
         `Import finished! Imported ${importedCount} of ${rows.length} row(s).`
       );
     } catch (err) {
-      alert("Failed to import. Please check your Excel file format.");
+      console.error("Import error details:", err);
+      alert(`Failed to import. Error: ${err.message}\nPlease check the console for more details.`);
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -666,8 +682,20 @@ function Employees() {
   // Export to Excel handler
   const handleExportToExcel = () => {
     try {
+      // Helper function to format date for export (MM/DD/YYYY format)
+      const formatDateForExport = (dateStr) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        if (isNaN(d)) return "";
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        return `${mm}/${dd}/${yyyy}`; // Use slashes instead of dashes
+      };
+
       // Prepare data for export in the same format as import expects
       const exportData = filteredEmployees.map((emp) => ({
+        "Full Name": emp.fullName || "", // Add Full Name column that import expects
         "First Name": emp.firstName || "",
         "Last Name": emp.lastName || "",
         "Middle Name": emp.middleName || "",
@@ -676,15 +704,16 @@ function Employees() {
         "Client": emp.client && emp.client !== "-" ? emp.client : "",
         "Corporate Email": emp.corporateEmail || "",
         "Personal Email": emp.personalEmail || "",
-        "Date Hired": emp.dateHired ? formatDisplayDate(emp.dateHired) : "",
+        "Date Hired": emp.dateHired ? formatDateForExport(emp.dateHired) : "",
       }));
 
       // Create a new workbook and worksheet
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(exportData);
 
-      // Auto-size columns
+      // Auto-size columns (updated for new column)
       const colWidths = [
+        { wch: 25 }, // Full Name
         { wch: 15 }, // First Name
         { wch: 15 }, // Last Name
         { wch: 15 }, // Middle Name
