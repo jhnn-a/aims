@@ -551,6 +551,8 @@ function Employees() {
       setImportProgress({ current: 0, total: rows.length });
 
       let importedCount = 0;
+      let updatedCount = 0;
+      
       for (let i = 0; i < rows.length; i++) {
         setImportProgress({ current: i + 1, total: rows.length });
         const row = rows[i];
@@ -572,6 +574,19 @@ function Employees() {
           console.log(`Skipping row ${i + 1}: No full name found`);
           continue;
         }
+        
+        // Check for existing employee with same first name, last name, and middle name
+        const existingEmployee = employees.find(emp => {
+          const empFirstName = (emp.firstName || "").trim().toLowerCase();
+          const empLastName = (emp.lastName || "").trim().toLowerCase();
+          const empMiddleName = (emp.middleName || "").trim().toLowerCase();
+          
+          return empFirstName === firstName.toLowerCase() &&
+                 empLastName === lastName.toLowerCase() &&
+                 empMiddleName === middleName.toLowerCase();
+        });
+        
+        console.log(`Processing row ${i + 1}: ${firstName} ${middleName} ${lastName} - ${existingEmployee ? 'EXISTS (will update)' : 'NEW (will add)'}`);
         
         // --- Date Hired Fix ---
         let dateHired = row["Date Hired"] || "";
@@ -626,17 +641,36 @@ function Employees() {
             personalEmail: row["Personal Email"] || "",
           };
           
-          await addEmployee(employeeData);
-          importedCount++;
+          if (existingEmployee) {
+            // Update existing employee
+            console.log(`Updating existing employee: ${fullName} (ID: ${existingEmployee.id})`);
+            await updateEmployee(existingEmployee.id, employeeData);
+            updatedCount++;
+          } else {
+            // Add new employee
+            console.log(`Adding new employee: ${fullName}`);
+            await addEmployee(employeeData);
+            importedCount++;
+          }
         } catch (empError) {
-          console.error(`Error adding employee ${fullName}:`, empError);
+          console.error(`Error processing employee ${fullName}:`, empError);
           continue; // Skip this employee and continue with the next
         }
       }
       loadClientsAndEmployees();
-      alert(
-        `Import finished! Imported ${importedCount} of ${rows.length} row(s).`
-      );
+      
+      // Show summary of import results
+      let message = `Import finished!`;
+      if (importedCount > 0) {
+        message += ` Added ${importedCount} new employee(s).`;
+      }
+      if (updatedCount > 0) {
+        message += ` Updated ${updatedCount} existing employee(s).`;
+      }
+      if (importedCount === 0 && updatedCount === 0) {
+        message += ` No employees were processed.`;
+      }
+      alert(message);
     } catch (err) {
       console.error("Import error details:", err);
       alert(`Failed to import. Error: ${err.message}\nPlease check the console for more details.`);
