@@ -683,6 +683,7 @@ const Clients = () => {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
+                  borderTop: "none", // Remove double border with sticky footer
                   fontFamily: "IBM Plex Sans, sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
@@ -703,7 +704,7 @@ const Clients = () => {
                     }
                     const isFirstRow = idx === 0;
                     const isLastRow = idx === filteredClients.length - 1;
-                    // Remove top and bottom borders for all table body cells
+                    // Remove top and bottom borders for all table body cells, and remove bottom border for last row
                     const getCellBorderStyle = (cellIdx) => ({
                       width:
                         cellIdx === 0
@@ -725,7 +726,7 @@ const Clients = () => {
                       borderLeft: "1px solid #d7d7e0",
                       borderRight: "1px solid #d7d7e0",
                       borderTop: "none",
-                      borderBottom: "none",
+                      borderBottom: isLastRow ? "none" : "none", // Remove bottom border for last row
                       padding: cellIdx === 0 ? 0 : "8px 12px",
                       color: "rgb(59, 59, 74)",
                     });
@@ -918,7 +919,7 @@ const Clients = () => {
                 width: "100%",
                 background: "#fff",
                 zIndex: 2,
-                borderTop: "1px solid #d7d7e0",
+                borderTop: "none", // Ensure only 1px border
                 flexShrink: 0,
               }}
             >

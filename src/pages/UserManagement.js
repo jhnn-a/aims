@@ -1,5 +1,5 @@
 // UserManagement.js
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getAuth } from "firebase/auth";
 
 function UserManagement({ currentUser }) {
@@ -14,6 +14,63 @@ function UserManagement({ currentUser }) {
   const [editingUser, setEditingUser] = useState(null);
   const [editRole, setEditRole] = useState("");
   const [editStatus, setEditStatus] = useState("");
+
+  // Search and selection state for table
+  const [search, setSearch] = useState("");
+  const [checkedRows, setCheckedRows] = useState([]);
+  const [actionMenu, setActionMenu] = useState({
+    open: false,
+    idx: null,
+    anchor: null,
+  });
+  const actionMenuRef = useRef();
+
+  // Filtered users (no pagination)
+  const filteredUsers = useMemo(
+    () =>
+      users.filter(
+        (u) =>
+          u.email.toLowerCase().includes(search.toLowerCase()) ||
+          (u.uid && String(u.uid).toLowerCase().includes(search.toLowerCase()))
+      ),
+    [users, search]
+  );
+
+  useEffect(() => {
+    const validIds = new Set(filteredUsers.map((u) => u.uid));
+    setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
+  }, [filteredUsers]);
+
+  const handleCheckboxChange = useCallback((uid) => {
+    setCheckedRows((prev) =>
+      prev.includes(uid)
+        ? prev.filter((rowId) => rowId !== uid)
+        : [...prev, uid]
+    );
+  }, []);
+
+  const handleCheckAll = useCallback(
+    (e) => {
+      if (e.target.checked) {
+        setCheckedRows(filteredUsers.map((u) => u.uid));
+      } else {
+        setCheckedRows([]);
+      }
+    },
+    [filteredUsers]
+  );
+
+  // Close menu on click outside
+  useEffect(() => {
+    if (!actionMenu.open) return;
+    function handleClick(e) {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) {
+        setActionMenu({ open: false, idx: null, anchor: null });
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [actionMenu.open]);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== "admin") return;
@@ -163,264 +220,774 @@ function UserManagement({ currentUser }) {
   };
 
   return (
-    <div
-      style={{
-        width: "100%",
-        minHeight: "calc(100vh - 64px)", // assuming header is ~64px
-        background: "#f7fafc",
-        padding: 0,
-        margin: 0,
-      }}
-    >
+    <main style={{ background: "#FAFAFC", minHeight: "100vh" }}>
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          maxWidth: 1200,
-          margin: "0 auto",
-          padding: "32px 24px 0 24px",
+          justifyContent: "center",
+          alignItems: "flex-start",
+          minHeight: "100vh",
+          background: "#FAFAFC",
+          width: "100%",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
-        >
-          <h2
+        <div>
+          <div
             style={{
-              color: "#233037",
-              fontWeight: 800,
-              fontSize: 28,
-              margin: 0,
-              textAlign: "left",
-              letterSpacing: 0.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 16,
             }}
           >
-            User Management
-          </h2>
-          <button
-            onClick={() => setShowModal(true)}
-            style={{
-              background: "#70C1B3",
-              color: "#233037",
-              border: "none",
-              borderRadius: 8,
-              padding: "12px 28px",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: "pointer",
-              marginLeft: 12,
-              boxShadow: "0 2px 8px rgba(37,99,235,0.08)",
-            }}
-          >
-            + Create New User
-          </button>
-        </div>
-        <h3
-          style={{
-            marginTop: 18,
-            fontWeight: 700,
-            color: "#233037",
-            fontSize: 20,
-            marginBottom: 8,
-          }}
-        >
-          All Users
-        </h3>
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            boxShadow: "0 2px 16px rgba(37,99,235,0.06)",
-            padding: 0,
-            overflow: "auto",
-          }}
-        >
-          {usersLoading ? (
-            <div style={{ padding: 32, textAlign: "center" }}>
-              Loading users...
-            </div>
-          ) : (
-            <table
+            <div
               style={{
-                width: "100%",
-                margin: 0,
-                fontSize: 15,
-                borderCollapse: "collapse",
-                background: "#fff",
+                fontFamily: "IBM Plex Sans",
+                fontSize: 28,
+                lineHeight: "37.24px",
+                fontWeight: 400,
+                letterSpacing: "normal",
+                color: "#2B2C3B",
               }}
             >
-              <thead>
-                <tr
+              User Management
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {checkedRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => alert("Bulk actions coming soon")}
                   style={{
-                    color: "#888",
-                    fontWeight: 600,
-                    borderBottom: "2px solid #e5e7eb",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    fontWeight: 500,
+                    letterSpacing: "normal",
+                    color: "#D32F2F",
+                    background: "#f2f2f2",
+                    minWidth: 87.625,
+                    height: 30.6667,
+                    borderRadius: 6,
+                    border: "none",
+                    outline: "none",
+                    cursor: "pointer",
+                    transition: "background 0.2s, color 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    userSelect: "none",
+                    boxShadow: "none",
+                    padding: "0 16px",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = "#F1C9BF";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = "#f2f2f2";
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.background = "#F1C9BF";
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.background = "#f2f2f2";
                   }}
                 >
-                  <th
+                  Delete Selected
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                style={{
+                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontSize: 14,
+                  lineHeight: "20.0004px",
+                  fontWeight: 500,
+                  letterSpacing: "normal",
+                  color: "#3B3B4A",
+                  background: "#f2f2f2",
+                  minWidth: 87.625,
+                  height: 30.6667,
+                  borderRadius: 6,
+                  border: "none",
+                  outline: "none",
+                  cursor: "pointer",
+                  transition: "background 0.2s, color 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  userSelect: "none",
+                  boxShadow: "none",
+                  padding: "0 16px",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#E5E5E5";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "#f2f2f2";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.background = "#E5E5E5";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.background = "#f2f2f2";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+              >
+                + Create New User
+              </button>
+            </div>
+          </div>
+          {/* Table Toolbar with search bar and action buttons */}
+          <div
+            style={{
+              width: 1614,
+              height: 40,
+              background: "#fff",
+              border: "1px solid #d7d7e0",
+              borderBottom: "none",
+              borderRadius: 0,
+              margin: 0,
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              padding: 8,
+              gap: 12,
+              justifyContent: "space-between",
+            }}
+          >
+            {/* Left: Search bar */}
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: 4,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  pointerEvents: "none",
+                  color: "#1D2536",
+                  fontSize: 16,
+                  paddingLeft: 0,
+                  paddingRight: 4,
+                  height: 20,
+                }}
+              >
+                {/* Simple magnifier glass SVG icon */}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                  />
+                  <line
+                    x1="11.3536"
+                    y1="11.6464"
+                    x2="15"
+                    y2="15.2929"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder="Search by Email or UID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontSize: 14,
+                  lineHeight: "20.0004px",
+                  fontWeight: 400,
+                  letterSpacing: "normal",
+                  color: "#2B2C3B",
+                  background: "#F8F8F8",
+                  width: 270,
+                  height: 28,
+                  borderRadius: 6,
+                  border: "1px solid #d7d7e0",
+                  outline: "none",
+                  marginRight: 16,
+                  padding: "4px 8px 4px 28px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+          {/* Secondary toolbar for row selection actions */}
+          {checkedRows.length > 0 && (
+            <div
+              style={{
+                width: 1614,
+                height: 32,
+                background: "#fff",
+                border: "1px solid #d7d7e0",
+                borderTop: "none",
+                borderBottom: "none",
+                borderRadius: 0,
+                margin: 0,
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                padding: "0 8px",
+                gap: 12,
+                justifyContent: "flex-start",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "IBM Plex Sans",
+                  fontSize: 12,
+                  lineHeight: "17.04px",
+                  fontWeight: 400,
+                  letterSpacing: "normal",
+                  color: "#3B3B4A",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 0",
+                }}
+              >
+                <span style={{ fontWeight: 700, marginRight: 2 }}>
+                  {checkedRows.length}
+                </span>
+                {checkedRows.length === 1 ? "user" : "users"} selected.
+              </span>
+            </div>
+          )}
+          {/* Table Header */}
+          <table
+            border="1"
+            style={{
+              borderCollapse: "collapse",
+              width: 1614,
+              tableLayout: "fixed",
+              boxShadow: "none",
+              border: "1px solid #d7d7e0",
+              background: "#FFFFFF",
+              fontFamily: "IBM Plex Sans, sans-serif",
+              fontSize: 14,
+              lineHeight: "20.0004px",
+              color: "rgb(59, 59, 74)",
+              letterSpacing: "normal",
+              fontWeight: 400,
+            }}
+          >
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    textAlign: "center",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: 40,
+                    minWidth: 40,
+                    maxWidth: 40,
+                    whiteSpace: "nowrap",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: 0,
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      checkedRows.length > 0 &&
+                      checkedRows.length === filteredUsers.length &&
+                      filteredUsers.length > 0
+                    }
+                    onChange={handleCheckAll}
                     style={{
-                      textAlign: "left",
-                      width: 40,
-                      padding: "12px 8px",
+                      border: "1px solid #d7d7e0",
+                      boxSizing: "border-box",
+                      width: 16,
+                      height: 16,
+                      margin: 0,
+                      display: "block",
+                      position: "relative",
+                      left: "50%",
+                      transform: "translateX(-50%)",
                     }}
-                  >
-                    #
-                  </th>
-                  <th style={{ textAlign: "left", padding: "12px 8px" }}>
-                    Email
-                  </th>
-                  <th style={{ textAlign: "left", padding: "12px 8px" }}>
-                    Role
-                  </th>
-                  <th style={{ textAlign: "left", padding: "12px 8px" }}>
-                    User UID
-                  </th>
-                  <th style={{ textAlign: "left", padding: "12px 8px" }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        textAlign: "center",
-                        color: "#888",
-                        padding: 18,
-                      }}
-                    >
-                      No users found.
-                    </td>
-                  </tr>
-                ) : (
-                  users.map((u, idx) => (
-                    <tr
-                      key={u.uid}
-                      style={{ borderBottom: "1px solid #f1f1f1" }}
-                    >
-                      <td style={{ padding: "10px 8px" }}>{idx + 1}</td>
-                      <td style={{ padding: "10px 8px" }}>{u.email}</td>
-                      <td style={{ padding: "10px 8px" }}>
-                        {u.role || "unknown"}
-                      </td>
-                      <td
+                  />
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: "1%",
+                    whiteSpace: "nowrap",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: "8px 12px",
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  #
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: "32%",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: "8px 12px",
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  Email
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: "18%",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: "8px 12px",
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  Role
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: "32%",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: "8px 12px",
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  User UID
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    verticalAlign: "middle",
+                    fontWeight: 400,
+                    width: "17%",
+                    background: "#FFFFFF",
+                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontSize: 14,
+                    lineHeight: "20.0004px",
+                    color: "rgb(59, 59, 74)",
+                    letterSpacing: "normal",
+                    padding: "8px 12px",
+                    border: "1px solid #d7d7e0",
+                  }}
+                >
+                  Actions
+                </th>
+              </tr>
+            </thead>
+          </table>
+          {/* Table Body */}
+          <div
+            style={{
+              width: "100%",
+              height: 706,
+              maxHeight: 706,
+              overflowY: "scroll",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div style={{ flex: 1, overflow: "auto", width: "100%" }}>
+              <table
+                border="1"
+                style={{
+                  borderCollapse: "collapse",
+                  width: 1614,
+                  tableLayout: "fixed",
+                  boxShadow: "none",
+                  border: "1px solid #d7d7e0",
+                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontSize: 14,
+                  lineHeight: "20.0004px",
+                  color: "rgb(59, 59, 74)",
+                  letterSpacing: "normal",
+                  fontWeight: 400,
+                }}
+              >
+                <tbody>
+                  {filteredUsers.map((u, idx) => {
+                    const isChecked = checkedRows.includes(u.uid);
+                    let rowBg;
+                    if (isChecked) {
+                      rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
+                    } else {
+                      rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
+                    }
+                    const isLastRow = idx === filteredUsers.length - 1;
+                    const getCellBorderStyle = (cellIdx) => ({
+                      width:
+                        cellIdx === 0
+                          ? 40
+                          : cellIdx === 1
+                          ? "1%"
+                          : cellIdx === 2
+                          ? "32%"
+                          : cellIdx === 3
+                          ? "18%"
+                          : cellIdx === 4
+                          ? "32%"
+                          : "17%",
+                      minWidth: cellIdx === 0 ? 40 : undefined,
+                      maxWidth: cellIdx === 0 ? 40 : undefined,
+                      textAlign: cellIdx === 0 ? "center" : "left",
+                      verticalAlign: "middle",
+                      whiteSpace: cellIdx <= 1 ? "nowrap" : undefined,
+                      borderLeft: "1px solid #d7d7e0",
+                      borderRight: "1px solid #d7d7e0",
+                      borderTop: "none",
+                      borderBottom: isLastRow ? "none" : "none",
+                      padding: cellIdx === 0 ? 0 : "8px 12px",
+                      color: "rgb(59, 59, 74)",
+                    });
+                    return (
+                      <tr
+                        key={u.uid}
                         style={{
-                          fontSize: 13,
-                          color: "#888",
-                          padding: "10px 8px",
+                          background: rowBg,
+                          cursor: "pointer",
+                          transition: "background 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isChecked)
+                            e.currentTarget.style.background = "#E5E5E8";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isChecked)
+                            e.currentTarget.style.background = rowBg;
                         }}
                       >
-                        {u.uid}
-                      </td>
-                      <td style={{ padding: "10px 8px" }}>
-                        {editingUser && editingUser.uid === u.uid ? (
-                          <>
-                            <select
-                              value={editRole}
-                              onChange={(e) => setEditRole(e.target.value)}
+                        <td style={getCellBorderStyle(0)}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleCheckboxChange(u.uid)}
+                            style={{
+                              border: "1px solid #d7d7e0",
+                              boxSizing: "border-box",
+                              width: 16,
+                              height: 16,
+                              margin: 0,
+                              display: "block",
+                              position: "relative",
+                              left: "50%",
+                              transform: "translateX(-50%)",
+                            }}
+                          />
+                        </td>
+                        <td style={getCellBorderStyle(1)}>{idx + 1}</td>
+                        <td style={getCellBorderStyle(2)}>{u.email}</td>
+                        <td style={getCellBorderStyle(3)}>
+                          {u.role || "unknown"}
+                        </td>
+                        <td style={getCellBorderStyle(4)}>{u.uid}</td>
+                        <td style={getCellBorderStyle(5)}>
+                          {/* Actions: Edit/Delete buttons, similar to Clients */}
+                          <button
+                            type="button"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 28,
+                              height: 28,
+                              borderRadius: 4,
+                              transition: "background 0.2s, box-shadow 0.2s",
+                            }}
+                            title="Actions"
+                            onClick={(e) => {
+                              setActionMenu({
+                                open: true,
+                                idx,
+                                anchor: e.currentTarget,
+                              });
+                            }}
+                          >
+                            {/* Triple dot icon */}
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 18 18"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
+                            </svg>
+                          </button>
+                          {actionMenu.open && actionMenu.idx === idx && (
+                            <div
+                              ref={actionMenuRef}
                               style={{
-                                fontSize: 15,
-                                padding: "2px 8px",
-                                borderRadius: 6,
+                                position: "absolute",
+                                top: 36,
+                                left: "50%",
+                                transform: "translateX(-50%)",
+                                background: "#fff",
+                                border: "1px solid #d7d7e0",
+                                borderRadius: 0,
+                                boxShadow: "0 4px 16px 0 #00000014",
+                                zIndex: 10,
+                                minWidth: 120,
+                                padding: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
                               }}
                             >
-                              <option value="viewer">viewer</option>
-                              <option value="admin">admin</option>
-                            </select>
-                            <button
-                              onClick={handleSaveRole}
-                              style={{
-                                marginLeft: 8,
-                                background: "#70C1B3",
-                                color: "#233037",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "2px 10px",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setEditingUser(null)}
-                              style={{
-                                marginLeft: 4,
-                                background: "#eee",
-                                color: "#233037",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "2px 10px",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            {editStatus && (
-                              <span
-                                style={{
-                                  marginLeft: 8,
-                                  color: editStatus.includes("success")
-                                    ? "#38a169"
-                                    : "#e11d48",
-                                }}
-                              >
-                                {editStatus}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEditRole(u)}
-                              style={{
-                                marginLeft: 0,
-                                background: "#eee",
-                                color: "#233037",
-                                border: "none",
-                                borderRadius: 6,
-                                padding: "2px 10px",
-                                fontWeight: 700,
-                                cursor: "pointer",
-                              }}
-                            >
-                              Edit
-                            </button>
-                            {currentUser.uid !== u.uid && (
                               <button
-                                onClick={() => handleDeleteUser(u.uid)}
-                                style={{
-                                  marginLeft: 8,
-                                  background: "#e11d48",
-                                  color: "#fff",
-                                  border: "none",
-                                  borderRadius: 6,
-                                  padding: "2px 10px",
-                                  fontWeight: 700,
-                                  cursor: "pointer",
+                                type="button"
+                                onClick={() => {
+                                  setActionMenu({
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
+                                  });
+                                  handleEditRole(u);
                                 }}
+                                style={{
+                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontSize: 14,
+                                  color: "#3B3B4A",
+                                  background: "none",
+                                  border: "none",
+                                  borderBottom: "1px solid #eee",
+                                  padding: "12px 20px",
+                                  cursor: "pointer",
+                                  textAlign: "center",
+                                  width: "100%",
+                                  transition: "background 0.2s",
+                                }}
+                                onMouseOver={(e) =>
+                                  (e.currentTarget.style.background = "#F0F0F3")
+                                }
+                                onMouseOut={(e) =>
+                                  (e.currentTarget.style.background = "none")
+                                }
                               >
-                                Delete
+                                Edit
                               </button>
-                            )}
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+                              {currentUser.uid !== u.uid && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenu({
+                                      open: false,
+                                      idx: null,
+                                      anchor: null,
+                                    });
+                                    handleDeleteUser(u.uid);
+                                  }}
+                                  style={{
+                                    fontFamily: "IBM Plex Sans, sans-serif",
+                                    fontSize: 14,
+                                    color: "#D32F2F",
+                                    background: "none",
+                                    border: "none",
+                                    padding: "12px 20px",
+                                    cursor: "pointer",
+                                    textAlign: "center",
+                                    width: "100%",
+                                    transition: "background 0.2s",
+                                  }}
+                                  onMouseOver={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "#F1C9BF")
+                                  }
+                                  onMouseOut={(e) =>
+                                    (e.currentTarget.style.background = "none")
+                                  }
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Sticky Footer Table */}
+            <div
+              style={{
+                position: "sticky",
+                bottom: 0,
+                left: 0,
+                width: "100%",
+                background: "#fff",
+                zIndex: 2,
+                borderTop: "1px solid #d7d7e0",
+                flexShrink: 0,
+              }}
+            >
+              <table
+                border="1"
+                style={{
+                  borderCollapse: "collapse",
+                  width: 1614,
+                  tableLayout: "fixed",
+                  boxShadow: "none",
+                  border: "1px solid #d7d7e0",
+                  borderTop: "none",
+                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontSize: 14,
+                  lineHeight: "20.0004px",
+                  color: "rgb(59, 59, 74)",
+                  letterSpacing: "normal",
+                  fontWeight: 400,
+                }}
+              >
+                <tfoot>
+                  <tr style={{ height: 40 }}>
+                    <td
+                      style={{
+                        width: "1%",
+                        whiteSpace: "nowrap",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "1px solid #d7d7e0",
+                        borderRight: "none",
+                        height: 40,
+                      }}
+                    ></td>
+                    <td
+                      style={{
+                        width: "1%",
+                        whiteSpace: "nowrap",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "none",
+                        borderRight: "none",
+                        height: 40,
+                      }}
+                    ></td>
+                    <td
+                      style={{
+                        width: "32%",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "none",
+                        borderRight: "none",
+                        height: 40,
+                      }}
+                    ></td>
+                    <td
+                      style={{
+                        width: "18%",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "none",
+                        borderRight: "none",
+                        height: 40,
+                      }}
+                    ></td>
+                    <td
+                      style={{
+                        width: "32%",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "none",
+                        borderRight: "none",
+                        height: 40,
+                      }}
+                    ></td>
+                    <td
+                      style={{
+                        width: "17%",
+                        padding: "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                        background: "#FFFFFF",
+                        borderColor: "#d7d7e0",
+                        borderLeft: "none",
+                        borderRight: "1px solid #d7d7e0",
+                        height: 40,
+                      }}
+                    ></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <style>{`
+                div[style*='overflowY: scroll']::-webkit-scrollbar { display: none; }
+              `}</style>
+          </div>
         </div>
       </div>
+      {/* Modals */}
       {showModal && (
         <div
           style={{
@@ -439,8 +1006,8 @@ function UserManagement({ currentUser }) {
           <div
             style={{
               background: "#fff",
-              borderRadius: 18,
-              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              borderRadius: 0,
+              boxShadow: "none",
               padding: 32,
               minWidth: 340,
               maxWidth: 420,
@@ -486,7 +1053,7 @@ function UserManagement({ currentUser }) {
                 required
                 style={{
                   padding: "10px 14px",
-                  borderRadius: 8,
+                  borderRadius: 6,
                   border: "1px solid #cbd5e1",
                   fontSize: 16,
                 }}
@@ -499,7 +1066,7 @@ function UserManagement({ currentUser }) {
                 required
                 style={{
                   padding: "10px 14px",
-                  borderRadius: 8,
+                  borderRadius: 6,
                   border: "1px solid #cbd5e1",
                   fontSize: 16,
                 }}
@@ -532,15 +1099,33 @@ function UserManagement({ currentUser }) {
                 type="submit"
                 disabled={loading}
                 style={{
-                  background: "#70C1B3",
-                  color: "#233037",
+                  background: "#f2f2f2",
+                  color: "#3B3B4A",
                   border: "none",
-                  borderRadius: 8,
+                  borderRadius: 6,
                   padding: "10px 22px",
                   fontWeight: 700,
                   fontSize: 15,
                   cursor: loading ? "not-allowed" : "pointer",
                   marginTop: 2,
+                  fontFamily: "IBM Plex Sans, sans-serif",
+                  transition: "background 0.2s, color 0.2s",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = "#E5E5E5";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = "#f2f2f2";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.background = "#E5E5E5";
+                  e.currentTarget.style.color = "#3B3B4A";
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.background = "#f2f2f2";
+                  e.currentTarget.style.color = "#3B3B4A";
                 }}
               >
                 {loading ? "Creating..." : "Create User"}
@@ -560,7 +1145,7 @@ function UserManagement({ currentUser }) {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
