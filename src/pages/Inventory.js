@@ -1676,7 +1676,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       const formattedDevices = devices.map(device => ({
         acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
         supplier: acquisitionData.supplier || "Not specified",
-        client: acquisitionData.client || device.client || "Not specified",
+        client: device.client || acquisitionData.client || "Not specified",
         quantity: "1", // Each device is quantity 1
         deviceType: device.deviceType || acquisitionData.deviceType,
         brand: device.brand || acquisitionData.brand,
@@ -1685,6 +1685,18 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       }));
 
       console.log("Formatted devices:", formattedDevices.length);
+      console.log("Device clients:", formattedDevices.map(d => ({ tag: d.deviceTag, client: d.client })));
+
+      // Determine the global client for the document
+      const uniqueClients = [...new Set(formattedDevices.map(device => device.client))];
+      const globalClient = uniqueClients.length === 1 
+        ? uniqueClients[0] 
+        : uniqueClients.length > 1 
+          ? "Multiple Clients" 
+          : acquisitionData.client || "Not specified";
+
+      console.log("Unique clients found:", uniqueClients);
+      console.log("Global client for document:", globalClient);
 
       // Split devices across multiple tables (28 rows per page)
       const devicesPage1 = formattedDevices.slice(0, ROWS_PER_TABLE);
@@ -1707,7 +1719,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         totalDevices: formattedDevices.length,
         acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
         supplier: acquisitionData.supplier || "Not specified",
-        client: acquisitionData.client || "Not specified",
+        client: globalClient,
         
         // Page indicators (for conditional display)
         hasPage2: devicesPage2.length > 0,
@@ -1751,8 +1763,13 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
 
-      const currentDate = new Date().toISOString().split('T')[0];
-      const fileName = `NEW_ASSET_ACQUISITION_RECORD_FORM-${currentDate}.docx`;
+      const currentDate = new Date();
+      const formattedDate = (currentDate.getMonth() + 1).toString().padStart(2, "0") + 
+                           "." + 
+                           currentDate.getDate().toString().padStart(2, "0") + 
+                           "." + 
+                           currentDate.getFullYear();
+      const fileName = `${formattedDate} - NEW ASSET ACQUISITION FORM.docx`;
       
       console.log("Downloading document:", fileName);
       saveAs(output, fileName);
@@ -1917,6 +1934,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                     style={{ width: 16, height: 16, margin: 0 }}
                   />
                   </th>
+                  <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
                   <th style={styles.th}>{fieldLabels.deviceType}</th>
                   <th style={styles.th}>{fieldLabels.deviceTag}</th>
                   <th style={styles.th}>{fieldLabels.brand}</th>
@@ -1924,7 +1942,6 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                   <th style={styles.th}>{fieldLabels.client}</th>
                   <th style={styles.th}>{fieldLabels.condition}</th>
                   <th style={styles.th}>{fieldLabels.remarks}</th>
-                  <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
                   <th style={{
                     ...styles.th,
                     textAlign: "center",
@@ -1960,6 +1977,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                         style={{ width: 16, height: 16, margin: 0 }}
                       />
                     </td>
+                    <td style={styles.td}>{device.acquisitionDate ? formatDateToMMDDYYYY(device.acquisitionDate) : ""}</td>
                     <td style={styles.td}>{device.deviceType}</td>
                     <td style={styles.td}>
                       <span 
@@ -1982,7 +2000,6 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                     <td style={styles.td}>{device.client || "-"}</td>
                     <td style={styles.td}>{device.condition}</td>
                     <td style={styles.td}>{device.remarks}</td>
-                    <td style={styles.td}>{device.acquisitionDate ? formatDateToMMDDYYYY(device.acquisitionDate) : ""}</td>
                     <td style={{
                       ...styles.td,
                       textAlign: "center",
