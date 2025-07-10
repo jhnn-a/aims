@@ -71,15 +71,9 @@ function CompanyAssets() {
       </div>
       <div style={tabStyles.tabContent}>
         {activeTab === "assets" ? (
-          <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#2563eb", margin: "24px 0 18px 0", paddingLeft: 24 }}>Assets</h2>
-            <Assets />
-          </div>
+          <Assets />
         ) : (
-          <div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#2563eb", margin: "24px 0 18px 0", paddingLeft: 24 }}>Inventory</h2>
-            <Inventory />
-          </div>
+          <Inventory />
         )}
       </div>
     </div>
