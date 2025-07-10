@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
+import { getAllClients } from "../services/clientService";
 import {
   addDevice,
   updateDevice,
@@ -10,6 +11,7 @@ import {
   getNextDevId,
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
+import { exportInventoryToExcel } from "../utils/exportInventoryToExcel";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
@@ -20,7 +22,7 @@ const initialForm = {
   deviceTag: "",
   brand: "",
   model: "",
-  status: "",
+  client: "",
   condition: "",
   remarks: "",
   acquisitionDate: "", // Added acquisitionDate
@@ -31,7 +33,7 @@ const fieldLabels = {
   deviceTag: "Device Tag",
   brand: "Brand",
   model: "Model",
-  status: "Status",
+  client: "Client",
   condition: "Condition",
   remarks: "Remarks",
   acquisitionDate: "Acquisition Date", // Added label
@@ -51,8 +53,7 @@ const deviceTypes = [
   { label: "Webcam", code: "W" },
 ];
 
-const statuses = ["Available", "In Use", "Stock Room", "Retired"];
-const conditions = ["New", "Working", "Defective"];
+const conditions = ["New", "Working", "Needs Repair", "Retired"];
 
 // Utility function to format dates as "January 23, 2025"
 const formatDateToFullWord = (dateString) => {
@@ -131,6 +132,7 @@ function DeviceFormModal({
   onCancel,
   onGenerateTag,
   employees,
+  clients,
   tagError,
   saveError,
   isValid,
@@ -288,7 +290,19 @@ function DeviceFormModal({
           </div>
         </div>
 
-        {/* Row 4: Remarks only (removed Assigned To and Assignment Date) */}
+        {/* Row 4: Client */}
+        <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+          <label style={styles.inventoryLabel}>Client:</label>
+          <input
+            name="client"
+            value={data.client}
+            onChange={onChange}
+            style={styles.inventoryInput}
+            placeholder="Enter client name"
+          />
+        </div>
+
+        {/* Row 5: Remarks only (removed Assigned To and Assignment Date) */}
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Remarks:</label>
           <input
@@ -399,7 +413,6 @@ const handleTempDeployDone = async () => {
       ...assigningDevice,
       assignedTo: selectedAssignEmployee.id,
       assignmentDate: new Date(), // Store full timestamp for precise ordering
-      status: "In Use",
     });
     await logDeviceHistory({
       employeeId: selectedAssignEmployee.id,
@@ -422,6 +435,7 @@ const handleTempDeployDone = async () => {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...initialForm });
   const [employees, setEmployees] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tagError, setTagError] = useState("");
   const [saveError, setSaveError] = useState("");
@@ -474,6 +488,7 @@ const [newAcqTabs, setNewAcqTabs] = useState([
       startTag: "",
       endTag: "",
       supplier: "",
+      client: "",
     }
   }
 ]);
@@ -489,7 +504,6 @@ const [activeManualTabId, setActiveManualTabId] = useState(1);
 const [importTexts, setImportTexts] = useState({}); // Track import text per tab
 
   // --- HANDLERS ---
-  const getStatus = (assignedTo) => (assignedTo ? "In Use" : "Stock Room");
 
   // Helper function to get unassigned devices (for inventory display)
   const getUnassignedDevices = (devicesArray, searchQuery = "") => {
@@ -600,12 +614,14 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
 
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
-    const [deviceData, employeeData] = await Promise.all([
+    const [deviceData, employeeData, clientData] = await Promise.all([
       getAllDevices(),
       getAllEmployees(),
+      getAllClients(),
     ]);
     setDevices(deviceData);
     setEmployees(employeeData);
+    setClients(clientData);
     setLoading(false);
   };
 
@@ -655,7 +671,6 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
     const tagPrefix = `JOII${typeObj.code}`;
     const payload = {
       ...form,
-      status: "Stock Room",
       condition: form.condition || "New",
       acquisitionDate: form.acquisitionDate || "",
     };
@@ -697,18 +712,13 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
   const handleEdit = (device) => {
     const { id, ...deviceData } = device;
     
-    // Debug log to see what we're working with
-    console.log("Editing device:", device);
-    console.log("Device type:", deviceData.deviceType);
-    console.log("Device tag:", deviceData.deviceTag);
-    
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
       deviceType: deviceData.deviceType || "",
       deviceTag: deviceData.deviceTag || "",
       brand: deviceData.brand || "",
       model: deviceData.model || "",
-      status: deviceData.status || "",
+      client: deviceData.client || "",
       condition: deviceData.condition || "",
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
@@ -720,23 +730,9 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
     setForm(formData);
     
     // Check if this device uses a serial number format (no JOII prefix)
-    // First check if deviceType exists in our deviceTypes array (case-insensitive)
-    const typeObj = deviceTypes.find((t) => t.label.toLowerCase() === deviceData.deviceType.toLowerCase());
-    let isSerialFormat = false;
-    
-    console.log("Type object found:", typeObj);
-    
-    if (typeObj && deviceData.deviceTag) {
-      // If device type exists, check if tag starts with expected JOII prefix
-      const expectedPrefix = `JOII${typeObj.code}`;
-      isSerialFormat = !deviceData.deviceTag.startsWith(expectedPrefix);
-      console.log("Expected prefix:", expectedPrefix, "Is serial format:", isSerialFormat);
-    } else if (deviceData.deviceTag) {
-      // If device type doesn't exist in our array, or if tag doesn't start with JOII, treat as serial
-      isSerialFormat = !deviceData.deviceTag.startsWith("JOII");
-      console.log("No type object, checking JOII prefix. Is serial format:", isSerialFormat);
-    }
-    
+    const typeObj = deviceTypes.find((t) => t.label === deviceData.deviceType);
+    const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
+    const isSerialFormat = deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
     setUseSerial(isSerialFormat);
     
     setShowForm(true);
@@ -806,7 +802,6 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
       );
       setImportProgress({ current: 0, total: filteredRows.length });
       let importedCount = 0;
-      let overwrittenCount = 0;
       // Fetch all devices for duplicate check
       const allDevices = await getAllDevices();
       for (let i = 0; i < filteredRows.length; i++) {
@@ -821,42 +816,25 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
           // Convert Excel serial date to mm/dd/yyyy if needed
           let acquisitionDate = formatDateToMMDDYYYY(row["Acquisition Date"]);
           
-          // Clean and validate device type with case-insensitive matching
-          const rawDeviceType = row["Device Type"].toString().trim();
-          const deviceTag = row["Device Tag"].toString().trim();
-          const brand = row["Brand"].toString().trim();
-          const condition = row["Condition"].toString().trim();
-          
-          // Find matching device type (case-insensitive)
-          const matchingDeviceType = deviceTypes.find(type => 
-            type.label.toLowerCase() === rawDeviceType.toLowerCase()
-          );
-          
-          // Use the proper case from our deviceTypes array, or keep original if no match
-          const deviceType = matchingDeviceType ? matchingDeviceType.label : rawDeviceType;
-          
           // Check for duplicate deviceTag
           const existing = allDevices.find(
-            (d) => d.deviceTag && d.deviceTag.toLowerCase() === deviceTag.toLowerCase()
+            (d) => d.deviceTag && d.deviceTag.toLowerCase() === row["Device Tag"].toLowerCase()
           );
-          
           const devicePayload = {
-            deviceType: deviceType,
-            deviceTag: deviceTag,
-            brand: brand,
-            model: row["Model"] ? row["Model"].toString().trim() : "",
-            condition: condition,
-            remarks: row["Remarks"] ? row["Remarks"].toString().trim() : "",
-            status: "Stock Room",
+            deviceType: row["Device Type"],
+            deviceTag: row["Device Tag"],
+            brand: row["Brand"],
+            model: row["Model"] || "",
+            condition: row["Condition"],
+            remarks: row["Remarks"] || "",
+            client: row["Client"] || "",
             assignedTo: "",
             assignmentDate: "",
             acquisitionDate,
           };
           try {
             if (existing) {
-              // Overwrite existing device with same tag
-              await updateDevice(existing.id, devicePayload);
-              overwrittenCount++;
+              await updateDevice(existing.id, devicePayload); // Overwrite
             } else {
               await addDevice(devicePayload);
             }
@@ -865,10 +843,9 @@ const [importTexts, setImportTexts] = useState({}); // Track import text per tab
         }
       }
       await loadDevicesAndEmployees();
-      const message = overwrittenCount > 0 
-        ? `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s). Overwritten ${overwrittenCount} existing device(s) with same tag(s).`
-        : `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`;
-      alert(message);
+      alert(
+        `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`
+      );
     } catch (err) {
       alert("Failed to import. Please check your Excel file format.");
     }
@@ -1064,7 +1041,7 @@ const handleDownloadAndAssign = async () => {
   const employeeName = emp?.fullName ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_") : "Employee";
   const fileName = `${employeeName} - NEW ISSUE.docx`;
   saveAs(assignModalDocxBlob, fileName);
-  // Move assigned devices to assets (update their assignedTo, assignmentDate, status, remarks)
+  // Move assigned devices to assets (update their assignedTo, assignmentDate, remarks)
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset() * 60000;
   const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
@@ -1076,7 +1053,6 @@ const handleDownloadAndAssign = async () => {
       ...dev,
       assignedTo: selectedAssignEmployee.id,
       assignmentDate: new Date(), // Store full timestamp for precise ordering
-      status: "In Use",
       remarks: assignModalChecks.temporaryDeploy ? "temporary deployed" : dev.remarks,
     });
     await logDeviceHistory({
@@ -1105,6 +1081,18 @@ const handleBulkAssign = () => {
   // If you want to support multi-assign, you can extend this logic
 };
 
+  // Handler for export to Excel
+  const handleExportToExcel = async () => {
+    try {
+      await exportInventoryToExcel({ 
+        devices: filteredDevices, // Export only the filtered/displayed devices
+        employees 
+      });
+    } catch (error) {
+      alert("Failed to export inventory data. Please try again.");
+    }
+  };
+
   // --- New Acquisitions Functionality ---
 const handleNewAcquisitions = async () => {
   // Prompt for device type, brand, model, condition, remarks, acquisition date, start tag, end tag
@@ -1122,7 +1110,7 @@ const handleNewAcquisitions = async () => {
 // In your modal, call handleNewAcquisitions with the correct data
 
 // The actual logic for adding devices in bulk:
-const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, acquisitionDate, startTag, endTag }) => {
+const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, acquisitionDate, startTag, endTag, client }) => {
   console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
   
   if (!deviceType || !brand || !condition || !startTag || !endTag) {
@@ -1151,7 +1139,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       model: model || "",
       condition,
       remarks: remarks || "",
-      status: "Stock Room",
+      client: client || "",
       assignedTo: "",
       assignmentDate: "",
       acquisitionDate: acquisitionDate || "",
@@ -1205,6 +1193,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         startTag: "",
         endTag: "",
         supplier: "",
+        client: "",
         useManualSerial: false,
         manualQuantity: 1,
         manualSerials: [],
@@ -1386,8 +1375,17 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         return;
       }
 
-      // Get all existing devices for overwrite check
+      // Check against existing devices
       const allDevices = await getAllDevices();
+      const existingSerials = serialValues.filter(serial => 
+        allDevices.some(device => device.deviceTag && device.deviceTag.toLowerCase() === serial.toLowerCase())
+      );
+      
+      if (existingSerials.length > 0) {
+        setNewAcqError(`Serial numbers already exist: ${existingSerials.join(", ")}`);
+        setNewAcqLoading(false);
+        return;
+      }
 
       // Add devices with manual serials for each tab
       let allDeviceList = [];
@@ -1409,7 +1407,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
             model: tabData.model || "",
             condition: tabData.condition,
             remarks: tabData.remarks || "",
-            status: "Stock Room",
+            client: tabData.client || "",
             assignedTo: "",
             assignmentDate: "",
             acquisitionDate: tabData.acquisitionDate || "",
@@ -1418,16 +1416,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
           tabDeviceList.push(payload);
           
           try {
-            // Check if device with same tag exists and overwrite if it does
-            const existing = allDevices.find(
-              (d) => d.deviceTag && d.deviceTag.toLowerCase() === serialItem.serial.trim().toLowerCase()
-            );
-            
-            if (existing) {
-              await updateDevice(existing.id, payload);
-            } else {
-              await addDevice(payload);
-            }
+            await addDevice(payload);
             added++;
           } catch (error) {
             console.error(`Failed to add device ${serialItem.serial}:`, error);
@@ -1494,6 +1483,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
             startTag: "",
             endTag: "",
             supplier: "",
+            client: "",
             useManualSerial: false,
             manualQuantity: 1,
             manualSerials: [],
@@ -1626,6 +1616,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
             startTag: "",
             endTag: "",
             supplier: "",
+            client: "",
           }
         }
       ]);
@@ -1685,6 +1676,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
       const formattedDevices = devices.map(device => ({
         acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
         supplier: acquisitionData.supplier || "Not specified",
+        client: acquisitionData.client || device.client || "Not specified",
         quantity: "1", // Each device is quantity 1
         deviceType: device.deviceType || acquisitionData.deviceType,
         brand: device.brand || acquisitionData.brand,
@@ -1715,6 +1707,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
         totalDevices: formattedDevices.length,
         acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split('T')[0],
         supplier: acquisitionData.supplier || "Not specified",
+        client: acquisitionData.client || "Not specified",
         
         // Page indicators (for conditional display)
         hasPage2: devicesPage2.length > 0,
@@ -1837,6 +1830,13 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
           </button>
         </label>
         <button
+          style={styles.button}
+          onClick={handleExportToExcel}
+          title="Export all inventory data to Excel"
+        >
+          Export Excel
+        </button>
+        <button
           style={{ ...styles.button, background: selectedIds.length ? styles.button.background : styles.buttonDisabled.background, color: selectedIds.length ? styles.button.color : styles.buttonDisabled.color }}
           disabled={selectedIds.length === 0}
           onClick={() => handleBulkAssign()}
@@ -1871,6 +1871,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
           onCancel={resetForm}
           onGenerateTag={handleGenerateTag}
           employees={employees}
+          clients={clients}
           tagError={tagError}
           setTagError={setTagError}
           saveError={saveError}
@@ -1920,7 +1921,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                   <th style={styles.th}>{fieldLabels.deviceTag}</th>
                   <th style={styles.th}>{fieldLabels.brand}</th>
                   <th style={styles.th}>{fieldLabels.model}</th>
-                  <th style={styles.th}>Status</th>
+                  <th style={styles.th}>{fieldLabels.client}</th>
                   <th style={styles.th}>{fieldLabels.condition}</th>
                   <th style={styles.th}>{fieldLabels.remarks}</th>
                   <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
@@ -1978,7 +1979,7 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                     </td>
                     <td style={styles.td}>{device.brand}</td>
                     <td style={styles.td}>{device.model}</td>
-                    <td style={styles.td}>{device.status || "Stock Room"}</td>
+                    <td style={styles.td}>{device.client || "-"}</td>
                     <td style={styles.td}>{device.condition}</td>
                     <td style={styles.td}>{device.remarks}</td>
                     <td style={styles.td}>{device.acquisitionDate ? formatDateToMMDDYYYY(device.acquisitionDate) : ""}</td>
@@ -2751,6 +2752,16 @@ const addDevicesInBulk = async ({ deviceType, brand, model, condition, remarks, 
                           onChange={handleNewAcqInput}
                           style={styles.inventoryInput}
                           placeholder="Enter supplier name"
+                        />
+                      </div>
+                      <div style={{ ...styles.inventoryInputGroup, marginBottom: 10 }}>
+                        <label style={styles.inventoryLabel}>Client:</label>
+                        <input
+                          name="client"
+                          value={currentData.client}
+                          onChange={handleNewAcqInput}
+                          style={styles.inventoryInput}
+                          placeholder="Enter client name"
                         />
                       </div>
                       
