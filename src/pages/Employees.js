@@ -2464,7 +2464,7 @@ const styles = {
     maxWidth: "100%",
     background: "#f7f9fb",
     minHeight: "100vh",
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   headerRow: {
     display: "flex",

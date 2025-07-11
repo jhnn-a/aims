@@ -227,7 +227,7 @@ function Dashboard() {
   ];
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto", fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto", fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif" }}>
       <h2
         style={sectionTitleStyle}
       >
@@ -819,7 +819,7 @@ const sectionTitleStyle = {
   fontWeight: 800,
   fontSize: 26,
   marginBottom: 16,
-  fontFamily: 'Segoe UI, Arial, sans-serif',
+  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
 };
 
 const cardTitleStyle = {

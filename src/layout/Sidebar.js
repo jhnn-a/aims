@@ -80,7 +80,7 @@ const bottomBoxStyle = {
   fontSize: 13,
   color: "#FFE066", // Naples yellow for accent
   letterSpacing: 0.2,
-  fontFamily: "Segoe UI, Arial, sans-serif",
+  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 };
 
 function Sidebar({ user }) {

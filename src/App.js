@@ -52,7 +52,7 @@ function Login({ onLogin, error }) {
       letterSpacing: 0.5,
       fontSize: 20,
       textAlign: "center",
-      fontFamily: "Segoe UI, Arial, sans-serif",
+      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       lineHeight: 1.3,
     },
     input: {

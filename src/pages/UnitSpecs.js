@@ -768,7 +768,7 @@ const UnitSpecs = () => {
             minWidth: 340,
             boxShadow: "0 8px 32px rgba(37,99,235,0.18)",
             position: "relative",
-            fontFamily: "Segoe UI, Arial, sans-serif",
+            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
             maxWidth: 420,
           }}
         >
@@ -1171,7 +1171,7 @@ const UnitSpecs = () => {
           minWidth: 400,
           boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
           position: "relative",
-          fontFamily: "Segoe UI, Arial, sans-serif",
+          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
           maxWidth: 420,
         }}
       >
@@ -1411,7 +1411,7 @@ const UnitSpecs = () => {
 
   // --- Modernized Page Container ---
   return (
-    <div style={{ padding: 20, fontFamily: "Segoe UI, Arial, sans-serif" }}>
+    <div style={{ padding: 20, fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif" }}>
       <Toaster position="top-center" reverseOrder={false} />
       <div
         style={{
@@ -1473,7 +1473,7 @@ const UnitSpecs = () => {
               minWidth: 400,
               boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
               position: "relative",
-              fontFamily: "Segoe UI, Arial, sans-serif",
+              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
               maxWidth: 420,
             }}
           >

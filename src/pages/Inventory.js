@@ -2616,7 +2616,7 @@ function Inventory() {
                     boxSizing: "border-box",
                     outline: "none",
                     transition: "border-color 0.2s, background 0.2s",
-                    fontFamily: "Segoe UI, Arial, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#2563eb";
@@ -2661,7 +2661,7 @@ function Inventory() {
                             cursor: "pointer",
                             textAlign: "left",
                             transition: "all 0.2s",
-                            fontFamily: "Segoe UI, Arial, sans-serif",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           }}
                           onMouseEnter={(e) => {
                             e.target.style.background = "#f3f4f6";
@@ -3932,7 +3932,7 @@ const styles = {
     maxWidth: "100%",
     background: "#f7f9fb",
     minHeight: "100vh",
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
   },
   headerBar: {
     display: "flex",
@@ -3961,7 +3961,7 @@ const styles = {
     fontSize: 28,
     marginBottom: 18,
     letterSpacing: 0,
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
   },
   googleSearchBar: {
     display: "flex",

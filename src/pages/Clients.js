@@ -260,7 +260,7 @@ const Clients = () => {
                   type="button"
                   onClick={() => setShowConfirm("bulk")}
                   style={{
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     fontWeight: 500,
@@ -302,7 +302,7 @@ const Clients = () => {
                 type="button"
                 onClick={() => setShowForm(true)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 500,
@@ -419,7 +419,7 @@ const Clients = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 400,
@@ -516,7 +516,7 @@ const Clients = () => {
               boxShadow: "none",
               border: "1px solid #d7d7e0",
               background: "#FFFFFF",
-              fontFamily: "IBM Plex Sans, sans-serif",
+              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
               fontSize: 14,
               lineHeight: "20.0004px",
               color: "rgb(59, 59, 74)",
@@ -536,7 +536,7 @@ const Clients = () => {
                     maxWidth: 40,
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -574,7 +574,7 @@ const Clients = () => {
                     width: "1%",
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -592,7 +592,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -610,7 +610,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -628,7 +628,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -646,7 +646,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -684,7 +684,7 @@ const Clients = () => {
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
                   borderTop: "none", // Remove double border with sticky footer
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",
@@ -849,7 +849,7 @@ const Clients = () => {
                                   handleEdit(client);
                                 }}
                                 style={{
-                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                   fontSize: 14,
                                   color: "#3B3B4A",
                                   background: "none",
@@ -881,7 +881,7 @@ const Clients = () => {
                                   handleDelete(client.id);
                                 }}
                                 style={{
-                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                   fontSize: 14,
                                   color: "#D32F2F",
                                   background: "none",
@@ -931,7 +931,7 @@ const Clients = () => {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",

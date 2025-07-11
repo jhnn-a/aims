@@ -9,7 +9,7 @@ const tabStyles = {
     width: "100%",
     minHeight: "100vh",
     background: "#f7f9fb",
-    fontFamily: 'Segoe UI, Arial, sans-serif',
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
   },
   header: {
     fontSize: 28,
