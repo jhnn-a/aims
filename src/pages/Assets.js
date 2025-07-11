@@ -765,6 +765,7 @@ function Assets() {
     });
     setBulkReassignModalOpen(false);
     setSelectedDeviceIds([]);
+    showSuccess(`Successfully reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`);
     loadDevicesAndEmployees();
   };
 
@@ -823,6 +824,7 @@ function Assets() {
     });
     setBulkUnassignModalOpen(false);
     setSelectedDeviceIds([]);
+    showSuccess(`Successfully unassigned ${selected.length} device(s) from ${emp.fullName || 'employee'}`);
     loadDevicesAndEmployees();
   };
 
@@ -2206,6 +2208,7 @@ function Assets() {
 
                             setSelectedTransferEmployee(emp);
                             setShowTransferPrompt(true);
+                            showSuccess(`Device ${assigningDevice.deviceTag} successfully assigned to ${emp.fullName}`);
                             loadDevicesAndEmployees();
                           }}
                         >
