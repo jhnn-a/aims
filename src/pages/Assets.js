@@ -8,6 +8,7 @@ import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { useSnackbar } from "../components/Snackbar";
 
 function DeviceFormModal({
   data,
@@ -411,6 +412,7 @@ function DeviceFormModal({
 }
 
 function Assets() {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [devices, setDevices] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -458,17 +460,22 @@ function Assets() {
 
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
-    const [allDevices, allEmployees] = await Promise.all([
-      getAllDevices(),
-      getAllEmployees(),
-    ]);
-    // Filter to only show assigned devices (devices with assignedTo value)
-    const assignedDevices = allDevices.filter(
-      (device) => device.assignedTo && device.assignedTo.trim() !== ""
-    );
-    setDevices(assignedDevices);
-    setEmployees(allEmployees);
-    setLoading(false);
+    try {
+      const [allDevices, allEmployees] = await Promise.all([
+        getAllDevices(),
+        getAllEmployees(),
+      ]);
+      // Filter to only show assigned devices (devices with assignedTo value)
+      const assignedDevices = allDevices.filter(
+        (device) => device.assignedTo && device.assignedTo.trim() !== ""
+      );
+      setDevices(assignedDevices);
+      setEmployees(allEmployees);
+    } catch (error) {
+      showError("Failed to load devices and employees. Please refresh the page.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getEmployeeName = (id) => {
@@ -490,19 +497,30 @@ function Assets() {
     setSaveError("");
     if (!form.deviceType || !form.deviceTag || !form.brand || !form.condition) {
       setSaveError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
-    const { id, ...payloadWithoutId } = form;
-    await updateDevice(form._editDeviceId, payloadWithoutId);
-    setShowForm(false);
-    setForm({});
-    loadDevicesAndEmployees();
+    try {
+      const { id, ...payloadWithoutId } = form;
+      await updateDevice(form._editDeviceId, payloadWithoutId);
+      setShowForm(false);
+      setForm({});
+      loadDevicesAndEmployees();
+      showSuccess("Device updated successfully!");
+    } catch (error) {
+      showError("Failed to update device. Please try again.");
+    }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this device?")) {
-      await deleteDevice(id);
-      loadDevicesAndEmployees();
+      try {
+        await deleteDevice(id);
+        loadDevicesAndEmployees();
+        showSuccess("Device deleted successfully!");
+      } catch (error) {
+        showError("Failed to delete device. Please try again.");
+      }
     }
   };
 
@@ -520,31 +538,36 @@ function Assets() {
       condition = "Defective";
       reason = "Defective";
     }
-    const { id, ...deviceWithoutId } = unassignDevice;
-    await updateDevice(unassignDevice.id, {
-      ...deviceWithoutId,
-      assignedTo: "",
-      assignmentDate: "",
-      status: "Stock Room",
-      condition,
-      // Remove 'Temporary Deployed' remark if present (case-insensitive)
-      remarks:
-        (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
-          ? ""
-          : deviceWithoutId.remarks,
-    });
-    await logDeviceHistory({
-      employeeId: unassignDevice.assignedTo,
-      deviceId: unassignDevice.id,
-      deviceTag: unassignDevice.deviceTag,
-      action: "unassigned",
-      reason,
-      condition,
-      date: new Date().toISOString(),
-    });
-    setShowUnassignModal(false);
-    setUnassignDevice(null);
-    loadDevicesAndEmployees();
+    try {
+      const { id, ...deviceWithoutId } = unassignDevice;
+      await updateDevice(unassignDevice.id, {
+        ...deviceWithoutId,
+        assignedTo: "",
+        assignmentDate: "",
+        status: "Stock Room",
+        condition,
+        // Remove 'Temporary Deployed' remark if present (case-insensitive)
+        remarks:
+          (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
+            ? ""
+            : deviceWithoutId.remarks,
+      });
+      await logDeviceHistory({
+        employeeId: unassignDevice.assignedTo,
+        deviceId: unassignDevice.id,
+        deviceTag: unassignDevice.deviceTag,
+        action: "unassigned",
+        reason,
+        condition,
+        date: new Date().toISOString(),
+      });
+      setShowUnassignModal(false);
+      setUnassignDevice(null);
+      loadDevicesAndEmployees();
+      showSuccess(`Device ${unassignDevice.deviceTag} unassigned successfully!`);
+    } catch (error) {
+      showError("Failed to unassign device. Please try again.");
+    }
   };
 
   const cancelUnassign = () => {

@@ -16,6 +16,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
 import DeviceHistory from "../components/DeviceHistory";
+import { useSnackbar } from "../components/Snackbar";
 
 const initialForm = {
   deviceType: "",
@@ -530,8 +531,9 @@ function Inventory() {
       });
       closeAssignModal();
       loadDevicesAndEmployees();
+      showSuccess(`Device ${assigningDevice.deviceTag} temporarily deployed to ${selectedAssignEmployee.fullName}!`);
     } catch (err) {
-      alert("Failed to assign device or generate document. Please try again.");
+      showError("Failed to assign device or generate document. Please try again.");
     }
   };
 
@@ -542,6 +544,9 @@ function Inventory() {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Snackbar notifications
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [tagError, setTagError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [useSerial, setUseSerial] = useState(false);
@@ -748,77 +753,90 @@ function Inventory() {
     setSaveError("");
     if (!isFormValid()) {
       setSaveError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
-    const allDevices = await getAllDevices();
-    if (useSerial) {
-      const serialExists = allDevices.some(
-        (d) =>
-          d.deviceTag &&
-          d.deviceTag.toLowerCase() === form.deviceTag.toLowerCase() &&
-          (!form._editDeviceId || d.id !== form._editDeviceId)
-      );
-      if (serialExists) {
-        setSaveError(
-          "Serial number already exists. Please use a unique serial number."
+    
+    try {
+      const allDevices = await getAllDevices();
+      if (useSerial) {
+        const serialExists = allDevices.some(
+          (d) =>
+            d.deviceTag &&
+            d.deviceTag.toLowerCase() === form.deviceTag.toLowerCase() &&
+            (!form._editDeviceId || d.id !== form._editDeviceId)
         );
+        if (serialExists) {
+          setSaveError(
+            "Serial number already exists. Please use a unique serial number."
+          );
+          showError("Serial number already exists. Please use a unique serial number.");
+          return;
+        }
+      } else {
+        const isDuplicate = allDevices.some(
+          (d) =>
+            d.deviceTag === form.deviceTag &&
+            (!form._editDeviceId || d.id !== form._editDeviceId)
+        );
+        if (isDuplicate) {
+          setSaveError("Device tag already exists. Please use a unique tag.");
+          showError("Device tag already exists. Please use a unique tag.");
+          return;
+        }
+      }
+      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
+      if (!typeObj) {
+        setSaveError("Invalid device type.");
+        showError("Invalid device type.");
         return;
       }
-    } else {
-      const isDuplicate = allDevices.some(
-        (d) =>
-          d.deviceTag === form.deviceTag &&
-          (!form._editDeviceId || d.id !== form._editDeviceId)
-      );
-      if (isDuplicate) {
-        setSaveError("Device tag already exists. Please use a unique tag.");
-        return;
-      }
-    }
-    const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
-    if (!typeObj) {
-      setSaveError("Invalid device type.");
-      return;
-    }
-    const tagPrefix = `JOII${typeObj.code}`;
-    const payload = {
-      ...form,
-      condition: form.condition || "New",
-      acquisitionDate: form.acquisitionDate || "",
-    };
-    if (useSerial) {
-      if (!form._editDeviceId) {
-        const newDevice = await addDevice(payload);
-        // Log device creation
-        await logDeviceHistory({
-          employeeId: null,
-          employeeName: null,
-          deviceId: newDevice.id,
-          deviceTag: payload.deviceTag,
-          action: "added",
-          date: new Date(), // Store full timestamp for precise ordering
-        });
+      const tagPrefix = `JOII${typeObj.code}`;
+      const payload = {
+        ...form,
+        condition: form.condition || "New",
+        acquisitionDate: form.acquisitionDate || "",
+      };
+      if (useSerial) {
+        if (!form._editDeviceId) {
+          const newDevice = await addDevice(payload);
+          // Log device creation
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: newDevice.id,
+            deviceTag: payload.deviceTag,
+            action: "added",
+            date: new Date(), // Store full timestamp for precise ordering
+          });
+          showSuccess(`Device ${payload.deviceTag} added successfully!`);
+        } else {
+          await updateDevice(form._editDeviceId, payload);
+          showSuccess(`Device ${payload.deviceTag} updated successfully!`);
+        }
       } else {
-        await updateDevice(form._editDeviceId, payload);
+        if (!form._editDeviceId) {
+          const newDevice = await addDevice(payload, tagPrefix);
+          // Log device creation
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: newDevice.id,
+            deviceTag: payload.deviceTag,
+            action: "added",
+            date: new Date(), // Store full timestamp for precise ordering
+          });
+          showSuccess(`Device ${payload.deviceTag} added successfully!`);
+        } else {
+          await updateDevice(form._editDeviceId, payload);
+          showSuccess(`Device ${payload.deviceTag} updated successfully!`);
+        }
       }
-    } else {
-      if (!form._editDeviceId) {
-        const newDevice = await addDevice(payload, tagPrefix);
-        // Log device creation
-        await logDeviceHistory({
-          employeeId: null,
-          employeeName: null,
-          deviceId: newDevice.id,
-          deviceTag: payload.deviceTag,
-          action: "added",
-          date: new Date(), // Store full timestamp for precise ordering
-        });
-      } else {
-        await updateDevice(form._editDeviceId, payload);
-      }
+      resetForm();
+      loadDevicesAndEmployees();
+    } catch (error) {
+      showError("Failed to save device. Please try again.");
     }
-    resetForm();
-    loadDevicesAndEmployees();
   };
 
   const handleEdit = (device) => {
@@ -865,8 +883,14 @@ function Inventory() {
   };
 
   const handleDelete = async (id) => {
-    await deleteDevice(id);
-    loadDevicesAndEmployees();
+    try {
+      const device = devices.find(d => d.id === id);
+      await deleteDevice(id);
+      loadDevicesAndEmployees();
+      showSuccess(`Device ${device?.deviceTag || id} deleted successfully!`);
+    } catch (error) {
+      showError("Failed to delete device. Please try again.");
+    }
   };
 
   const resetForm = () => {
