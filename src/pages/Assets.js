@@ -441,10 +441,6 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
   const [currentPage, setCurrentPage] = useState(1);
   const [devicesPerPage, setDevicesPerPage] = useState(50);
-  // Device history state
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
-    useState(null);
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -1082,42 +1078,37 @@ function Assets() {
         overflowX: "auto",
       }}
     >
-      <div
-        style={{
+      {/* Container for search bar, buttons, and table */}
+      <div style={{ 
+        background: "#fff",
+        borderRadius: 12,
+        boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+        overflow: "hidden",
+        width: "100%"
+      }}>
+        {/* Search bar and buttons section */}
+        <div style={{
           display: "flex",
-          alignItems: "flex-end",
-          marginBottom: 24,
-          marginTop: 8,
-          width: "100%",
-          maxWidth: "1200px",
-        }}
-      >
-        {/* Search bar (outside outline, left-aligned) */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "flex-end",
-            minHeight: 60,
-          }}
-        >
+          alignItems: "center",
+          padding: "16px 20px",
+          borderBottom: "1px solid #e0e7ef",
+          gap: 12
+        }}>
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#fff",
+              background: "#f8f9fa",
               borderRadius: 0,
-              boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
-              border: "1.5px solid #e0e7ef",
-              padding: "2px 16px 2px 12px",
-              width: 400,
-              minWidth: 0,
-              transition: "box-shadow 0.2s, border 0.2s",
+              border: "1px solid #e0e7ef",
+              padding: "8px 12px",
+              flex: 1,
+              maxWidth: 400,
             }}
           >
             <svg
-              width="22"
-              height="22"
+              width="18"
+              height="18"
               style={{ color: "#445F6D", opacity: 0.7 }}
               fill="none"
               stroke="currentColor"
@@ -1138,100 +1129,54 @@ function Assets() {
                 border: "none",
                 outline: "none",
                 background: "transparent",
-                fontSize: "18px",
+                fontSize: "15px",
                 color: "#233037",
-                padding: "10px 0 10px 8px",
+                padding: "0 0 0 8px",
                 width: "100%",
                 fontWeight: 500,
-                minWidth: 0,
               }}
             />
           </div>
-        </div>
-        {/* Outlined button group, right-aligned */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            marginLeft: 18,
-            minWidth: 180,
-            justifyContent: "flex-end",
-          }}
-        >
-          <span
+          <button
+            disabled={!selectedDeviceIds.length}
+            onClick={handleBulkReassign}
             style={{
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#1b7f6b",
-              marginBottom: 4,
-              letterSpacing: 0.5,
-              textAlign: "right",
-              opacity: 0.85,
-            }}
-          ></span>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              border: "2.5px solid #70C1B3",
-              borderRadius: 18,
-              background: "#f8fffc",
-              padding: "10px 18px",
-              boxShadow: "0 2px 8px rgba(112,193,179,0.08)",
-              justifyContent: "flex-end",
-              minWidth: 160,
+              padding: "8px 16px",
+              border: "1px solid #70C1B3",
+              borderRadius: 0,
+              background: selectedDeviceIds.length ? "#70C1B3" : "#f8f9fa",
+              color: selectedDeviceIds.length ? "#fff" : "#888",
+              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+              fontSize: "14px",
+              fontWeight: 600,
             }}
           >
-            <button
-              style={{
-                background: selectedDeviceIds.length ? "#70C1B3" : "#e0e7ef",
-                color: selectedDeviceIds.length ? "#233037" : "#888",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkReassign}
-            >
-              Reassign
-            </button>
-            <button
-              style={{
-                background: selectedDeviceIds.length ? "#445F6D" : "#e0e7ef",
-                color: selectedDeviceIds.length ? "#fff" : "#888",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkUnassign}
-            >
-              Unassign
-            </button>
-          </div>
+            Reassign
+          </button>
+          <button
+            disabled={!selectedDeviceIds.length}
+            onClick={handleBulkUnassign}
+            style={{
+              padding: "8px 16px",
+              border: "1px solid #445F6D",
+              borderRadius: 0,
+              background: selectedDeviceIds.length ? "#445F6D" : "#f8f9fa",
+              color: selectedDeviceIds.length ? "#fff" : "#888",
+              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+              fontSize: "14px",
+              fontWeight: 600,
+            }}
+          >
+            Unassign
+          </button>
         </div>
-      </div>
-      <div style={{ width: "100%" }}>
+        
         <table
           style={{
             width: "100%",
             borderCollapse: "separate",
             borderSpacing: 0,
             background: "#fff",
-            borderRadius: 0,
-            boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
-            overflow: "hidden",
             tableLayout: "fixed",
           }}
         >
@@ -1425,24 +1370,7 @@ function Assets() {
                         fontSize: "1em",
                       }}
                     >
-                      <span
-                        onClick={() => handleShowDeviceHistory(device)}
-                        style={{
-                          cursor: "pointer",
-                          color: "#2563eb",
-                          textDecoration: "underline",
-                          transition: "color 0.2s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.color = "#1d4ed8")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.color = "#2563eb")
-                        }
-                        title="Click to view device history"
-                      >
-                        {device.deviceTag}
-                      </span>
+                      {device.deviceTag}
                     </td>
                     <td
                       style={{
@@ -2551,15 +2479,6 @@ function Assets() {
             )}
           </div>
         </div>
-      )}
-
-      {/* Device History Modal */}
-      {showDeviceHistory && selectedDeviceForHistory && (
-        <DeviceHistory
-          deviceTag={selectedDeviceForHistory.deviceTag}
-          deviceId={selectedDeviceForHistory.id}
-          onClose={handleCloseDeviceHistory}
-        />
       )}
     </div>
   );
