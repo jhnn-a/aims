@@ -2066,7 +2066,7 @@ function Inventory() {
   return (
     <div style={styles.pageContainer}>
       <div style={styles.headerBarGoogle}>
-        <h2 style={styles.googleTitle}>Device Inventory</h2>
+        <h2 style={styles.googleTitle}>Device Invery</h2>
         <div style={styles.googleSearchBar}>
           <svg
             width="22"
