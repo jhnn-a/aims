@@ -310,6 +310,18 @@ function Employees() {
   });
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [resignEmployee, setResignEmployee] = useState(null);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showRestoreConfirmModal, setShowRestoreConfirmModal] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [employeeToRestore, setEmployeeToRestore] = useState(null);
+  const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarType, setSnackbarType] = useState('success'); // 'success', 'warning', 'info'
+  const [lastRestoredEmployee, setLastRestoredEmployee] = useState(null);
+  const [lastResignedEmployee, setLastResignedEmployee] = useState(null);
+  const [resignedDevicesCache, setResignedDevicesCache] = useState([]);
+  const [lastDeletedEmployee, setLastDeletedEmployee] = useState(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
 
   useEffect(() => {
@@ -346,42 +358,60 @@ function Employees() {
 
   const handleSave = async () => {
     if (!isFormValid()) return;
-    // Always set dateHired to today if not specified
-    let dateHired = form.dateHired;
-    if (!dateHired || dateHired.trim() === "") {
-      const now = new Date();
-      const offset = now.getTimezoneOffset();
-      dateHired = new Date(now.getTime() - offset * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
-    }
+    
+    try {
+      // Always set dateHired to today if not specified
+      let dateHired = form.dateHired;
+      if (!dateHired || dateHired.trim() === "") {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        dateHired = new Date(now.getTime() - offset * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+      }
 
-    // Generate fullName from firstName and lastName if they exist
-    let fullName = form.fullName;
-    if (form.firstName && form.lastName) {
-      fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
-    }
+      // Generate fullName from firstName and lastName if they exist
+      let fullName = form.fullName;
+      if (form.firstName && form.lastName) {
+        fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
+      }
 
-    const payload = {
-      fullName: fullName.trim(),
-      firstName: form.firstName || "",
-      lastName: form.lastName || "",
-      middleName: form.middleName || "",
-      position: form.position || "",
-      clientId: form.clientId || "",
-      department: form.department || "",
-      dateHired,
-      corporateEmail: form.corporateEmail || "",
-      personalEmail: form.personalEmail || "",
-      // dateAdded removed
-    };
-    if (form.id) {
-      await updateEmployee(form.id, payload);
-    } else {
-      await addEmployee(payload);
+      const payload = {
+        fullName: fullName.trim(),
+        firstName: form.firstName || "",
+        lastName: form.lastName || "",
+        middleName: form.middleName || "",
+        position: form.position || "",
+        clientId: form.clientId || "",
+        department: form.department || "",
+        dateHired,
+        corporateEmail: form.corporateEmail || "",
+        personalEmail: form.personalEmail || "",
+      };
+      
+      const isEditing = !!form.id;
+      
+      if (isEditing) {
+        await updateEmployee(form.id, payload);
+        setSnackbarMessage(`Employee details updated successfully.`);
+      } else {
+        await addEmployee(payload);
+        setSnackbarMessage(`New employee successfully added.`);
+      }
+      
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+      
+      resetForm();
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error saving employee:', error);
+      setSnackbarMessage(`Failed to ${form.id ? 'update' : 'add'} employee. Please try again.`);
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
     }
-    resetForm();
-    loadClientsAndEmployees();
   };
 
   const handleEdit = (emp) => {
@@ -407,10 +437,36 @@ function Employees() {
   };
 
   const confirmDelete = async () => {
-    await deleteEmployee(selectedId);
-    setSelectedId(null);
-    setShowConfirm(false);
-    loadClientsAndEmployees();
+    try {
+      const employeeToDelete = employees.find(emp => emp.id === selectedId);
+      
+      // This appears to be a soft delete (moving to resigned status)
+      await updateEmployee(selectedId, {
+        ...employeeToDelete,
+        status: "resigned",
+      });
+      
+      setLastDeletedEmployee(employeeToDelete);
+      setSnackbarMessage(`Employee record moved to Resigned Employees.`);
+      setSnackbarType('warning');
+      setShowSnackbar(true);
+      
+      setSelectedId(null);
+      setShowConfirm(false);
+      loadClientsAndEmployees();
+      
+      // Auto-hide snackbar after 6 seconds
+      setTimeout(() => {
+        setShowSnackbar(false);
+        setLastDeletedEmployee(null);
+      }, 6000);
+    } catch (error) {
+      console.error('Error moving employee to resigned:', error);
+      setSnackbarMessage('Failed to move employee. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
   };
 
   const cancelDelete = () => {
@@ -591,10 +647,16 @@ function Employees() {
         setImportProgress({ current: i + 1, total: rows.length });
       }
       loadClientsAndEmployees();
-      alert("Import successful!");
+      setSnackbarMessage(`Successfully imported ${rows.length} employees from Excel.`);
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 5000);
     } catch (err) {
       console.error("Import error:", err);
-      alert("Failed to import data. Please check your file format.");
+      setSnackbarMessage('Import failed. Please check the file format and try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 5000);
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -619,20 +681,35 @@ function Employees() {
   };
 
   // Bulk delete handler with progress
-  const handleBulkDelete = async () => {
-    if (
-      selectedIds.length === 0 ||
-      !window.confirm(`Delete ${selectedIds.length} selected employee(s)?`)
-    )
-      return;
-    setDeleteProgress({ current: 0, total: selectedIds.length });
-    for (let i = 0; i < selectedIds.length; i++) {
-      await deleteEmployee(selectedIds[i]);
-      setDeleteProgress({ current: i + 1, total: selectedIds.length });
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      setDeleteProgress({ current: 0, total: selectedIds.length });
+      for (let i = 0; i < selectedIds.length; i++) {
+        await deleteEmployee(selectedIds[i]);
+        setDeleteProgress({ current: i + 1, total: selectedIds.length });
+      }
+      
+      setSnackbarMessage(`Successfully deleted ${selectedIds.length} employee(s).`);
+      setSnackbarType('warning');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 5000);
+      
+      setSelectedIds([]);
+      setDeleteProgress({ current: 0, total: 0 });
+      setShowBulkDeleteConfirm(false);
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      setSnackbarMessage('Failed to delete some employees. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
     }
-    setSelectedIds([]);
-    setDeleteProgress({ current: 0, total: 0 });
-    loadClientsAndEmployees();
   };
 
   // Export to Excel handler
@@ -692,9 +769,17 @@ function Employees() {
 
       // Save the file
       XLSX.writeFile(wb, filename);
+      
+      setSnackbarMessage(`Employee data exported to Excel successfully.`);
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
     } catch (error) {
       console.error("Export error:", error);
-      alert("Failed to export data. Please try again.");
+      setSnackbarMessage('Failed to export data. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
     }
   };
 
@@ -706,35 +791,266 @@ function Employees() {
 
   const confirmResign = async () => {
     if (!resignEmployee) return;
-    // 1. Mark employee as resigned
-    await updateEmployee(resignEmployee.id, {
-      ...resignEmployee,
-      status: "resigned",
-    });
-    // 2. Unassign all devices
-    const allDevices = await getAllDevices();
-    const assignedDevices = allDevices.filter(
-      (d) => d.assignedTo === resignEmployee.id
-    );
-    for (const device of assignedDevices) {
-      const { id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
-        ...deviceWithoutId,
-        assignedTo: "",
-        assignmentDate: "",
-        status: "Stock Room",
-        condition: device.condition || "Working",
+    
+    try {
+      // 1. Get all assigned devices before unassigning (for undo functionality)
+      const allDevices = await getAllDevices();
+      const assignedDevices = allDevices.filter(
+        (d) => d.assignedTo === resignEmployee.id
+      );
+      
+      // 2. Mark employee as resigned
+      await updateEmployee(resignEmployee.id, {
+        ...resignEmployee,
+        status: "resigned",
       });
+      
+      // 3. Unassign all devices
+      for (const device of assignedDevices) {
+        const { id, ...deviceWithoutId } = device;
+        await updateDevice(device.id, {
+          ...deviceWithoutId,
+          assignedTo: "",
+          assignmentDate: "",
+          status: "Stock Room",
+          condition: device.condition || "Working",
+        });
+        await logDeviceHistory({
+          employeeId: resignEmployee.id,
+          deviceId: device.id,
+          deviceTag: device.deviceTag,
+          action: "unassigned",
+          reason: "Employee Resigned",
+          condition: device.condition || "Working",
+          date: new Date(),
+        });
+      }
+      
+      // 4. Cache resigned employee and devices for undo functionality
+      setLastResignedEmployee(resignEmployee);
+      setResignedDevicesCache(assignedDevices);
+      
+      // 5. Show snackbar notification with undo option
+      setSnackbarMessage(`Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`);
+      setSnackbarType('warning');
+      setShowSnackbar(true);
+      
+      setShowResignConfirm(false);
+      setResignEmployee(null);
+      loadClientsAndEmployees();
+      
+      // Auto-hide snackbar after 8 seconds (longer to allow undo action)
+      setTimeout(() => {
+        setShowSnackbar(false);
+        setLastResignedEmployee(null);
+        setResignedDevicesCache([]);
+      }, 8000);
+    } catch (error) {
+      console.error('Error resigning employee:', error);
+      setSnackbarMessage('Failed to resign employee. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
     }
-    setShowResignConfirm(false);
-    setResignEmployee(null);
-    loadClientsAndEmployees();
-    alert("Employee resigned and all assets unassigned.");
   };
 
   const cancelResign = () => {
     setShowResignConfirm(false);
     setResignEmployee(null);
+  };
+
+  // Add handlers for resigned employee actions
+  const handleDeleteResigned = (employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const handleRestoreEmployee = (employee) => {
+    setEmployeeToRestore(employee);
+    setShowRestoreConfirmModal(true);
+  };
+
+  const confirmDeleteResigned = async () => {
+    if (!employeeToDelete) return;
+    
+    try {
+      await deleteEmployee(employeeToDelete.id);
+      setEmployees(prev => prev.filter(emp => emp.id !== employeeToDelete.id));
+      setShowDeleteConfirmModal(false);
+      setEmployeeToDelete(null);
+      
+      // Show success snackbar
+      setSnackbarMessage(`Employee ${employeeToDelete.name} has been permanently deleted.`);
+      setSnackbarType('warning');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      setSnackbarMessage('Failed to delete employee. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
+  };
+
+  const confirmRestoreEmployee = async () => {
+    if (!employeeToRestore) return;
+    
+    try {
+      await updateEmployee(employeeToRestore.id, {
+        ...employeeToRestore,
+        status: "active",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === employeeToRestore.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      setLastRestoredEmployee(employeeToRestore);
+      setSnackbarMessage(`Employee ${employeeToRestore.fullName} restored to Active Employees.`);
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      setShowRestoreConfirmModal(false);
+      setEmployeeToRestore(null);
+      
+      // Auto-hide snackbar after 5 seconds
+      setTimeout(() => {
+        setShowSnackbar(false);
+        setLastRestoredEmployee(null);
+      }, 5000);
+    } catch (error) {
+      console.error('Error restoring employee:', error);
+      setSnackbarMessage('Failed to restore employee. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
+  };
+
+  const handleUndoRestore = async () => {
+    if (!lastRestoredEmployee) return;
+    
+    try {
+      await updateEmployee(lastRestoredEmployee.id, {
+        ...lastRestoredEmployee,
+        status: "resigned",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastRestoredEmployee.id 
+            ? { ...emp, status: "resigned" }
+            : emp
+        )
+      );
+      
+      setShowSnackbar(false);
+      setLastRestoredEmployee(null);
+    } catch (error) {
+      console.error('Error undoing restore:', error);
+      setSnackbarMessage('Failed to undo restore. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
+  };
+
+  const handleUndoResign = async () => {
+    if (!lastResignedEmployee) return;
+    
+    try {
+      // 1. Restore employee status to active
+      await updateEmployee(lastResignedEmployee.id, {
+        ...lastResignedEmployee,
+        status: "active",
+      });
+      
+      // 2. Reassign all previously assigned devices
+      for (const device of resignedDevicesCache) {
+        const { id, ...deviceWithoutId } = device;
+        await updateDevice(device.id, {
+          ...deviceWithoutId,
+          assignedTo: lastResignedEmployee.id,
+          assignmentDate: device.assignmentDate,
+          status: "Assigned",
+          condition: device.condition || "Working",
+        });
+        await logDeviceHistory({
+          employeeId: lastResignedEmployee.id,
+          deviceId: device.id,
+          deviceTag: device.deviceTag,
+          action: "assigned",
+          reason: "Resignation Undone",
+          condition: device.condition || "Working",
+          date: new Date(),
+        });
+      }
+      
+      // 3. Update UI state
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastResignedEmployee.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      // 4. Show success message
+      setSnackbarMessage(`Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`);
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      
+      // 5. Clear undo state
+      setLastResignedEmployee(null);
+      setResignedDevicesCache([]);
+      
+      // 6. Refresh data and auto-hide snackbar
+      loadClientsAndEmployees();
+      setTimeout(() => setShowSnackbar(false), 5000);
+    } catch (error) {
+      console.error('Error undoing resignation:', error);
+      setSnackbarMessage('Failed to undo resignation. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    if (!lastDeletedEmployee) return;
+    
+    try {
+      await updateEmployee(lastDeletedEmployee.id, {
+        ...lastDeletedEmployee,
+        status: "active",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastDeletedEmployee.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      setSnackbarMessage(`Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`);
+      setSnackbarType('success');
+      setShowSnackbar(true);
+      
+      setLastDeletedEmployee(null);
+      loadClientsAndEmployees();
+      setTimeout(() => setShowSnackbar(false), 5000);
+    } catch (error) {
+      console.error('Error undoing delete:', error);
+      setSnackbarMessage('Failed to undo delete. Please try again.');
+      setSnackbarType('error');
+      setShowSnackbar(true);
+      setTimeout(() => setShowSnackbar(false), 4000);
+    }
   };
 
   // Resign confirmation modal
@@ -1198,6 +1514,7 @@ function Employees() {
                     <th style={styles.th}>Corporate Email</th>
                     <th style={styles.th}>Personal Email</th>
                     <th style={styles.th}>Date Hired</th>
+                    <th style={styles.th}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1215,6 +1532,109 @@ function Employees() {
                       <td style={styles.td}>{emp.personalEmail || "-"}</td>
                       <td style={styles.td}>
                         {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                      </td>
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", gap: 12 }}>
+                          {/* Restore Button */}
+                          <button
+                            style={{
+                              width: 40,
+                              height: 40,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 8,
+                              background: "#dcfce7",
+                              cursor: "pointer",
+                              transition: "background 0.18s",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#bbf7d0")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#dcfce7")
+                            }
+                            onClick={() => handleRestoreEmployee(emp)}
+                            title="Restore this employee to Active Employees"
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              fill="none"
+                              stroke="#16a34a"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                              <path d="M3 3v5h5" />
+                            </svg>
+                          </button>
+                          
+                          {/* Delete Button */}
+                          <button
+                            style={{
+                              width: 40,
+                              height: 40,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 8,
+                              background: "#fee2e2",
+                              cursor: "pointer",
+                              transition: "background 0.18s",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.background = "#fecaca")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.background = "#fee2e2")
+                            }
+                            onClick={() => handleDeleteResigned(emp)}
+                            title="Permanently delete this record"
+                          >
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 20 20"
+                              fill="none"
+                            >
+                              <rect
+                                x="5.5"
+                                y="7.5"
+                                width="9"
+                                height="8"
+                                rx="2"
+                                stroke="#dc2626"
+                                strokeWidth="1.5"
+                                fill="none"
+                              />
+                              <path
+                                d="M8 10v4M12 10v4"
+                                stroke="#dc2626"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M3 7.5h14"
+                                stroke="#dc2626"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d="M8.5 4.5h3a1 1 0 0 1 1 1V7.5h-5V5.5a1 1 0 0 1 1-1z"
+                                stroke="#dc2626"
+                                strokeWidth="1.5"
+                                fill="none"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1572,10 +1992,17 @@ function Employees() {
                                 setAssignModalOpen(false);
                                 setAssigningDevice(null);
                                 setAssignSearch("");
+                                
+                                setSnackbarMessage(`Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`);
+                                setSnackbarType('success');
+                                setShowSnackbar(true);
+                                setTimeout(() => setShowSnackbar(false), 4000);
                               } catch (err) {
-                                alert(
-                                  "Failed to assign device. Please try again."
-                                );
+                                console.error('Error assigning device:', err);
+                                setSnackbarMessage('Failed to assign device. Please try again.');
+                                setSnackbarType('error');
+                                setShowSnackbar(true);
+                                setTimeout(() => setShowSnackbar(false), 4000);
                               }
                             }}
                           >
@@ -1808,6 +2235,223 @@ function Employees() {
           employee={resignEmployee}
         />
       )}
+
+      {showDeleteConfirmModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#dc2626", marginBottom: 16, fontSize: 20 }}>
+              Confirm Deletion
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Are you sure you want to permanently delete this employee record? This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setEmployeeToDelete(null);
+                }}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteResigned}
+                style={{
+                  ...styles.deleteBtn,
+                  minWidth: 100,
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestoreConfirmModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#16a34a", marginBottom: 16, fontSize: 20 }}>
+              Restore Employee
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Do you want to restore this employee to the Active Employees list?
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowRestoreConfirmModal(false);
+                  setEmployeeToRestore(null);
+                }}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRestoreEmployee}
+                style={{
+                  background: "#16a34a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.18s",
+                  minWidth: 100,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#15803d")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#16a34a")}
+              >
+                Yes, Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteConfirm && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#dc2626", marginBottom: 16, fontSize: 20 }}>
+              Confirm Bulk Delete
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Are you sure you want to delete {selectedIds.length} selected employee(s)? This will move them to Resigned Employees.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                style={{
+                  ...styles.deleteBtn,
+                  minWidth: 100,
+                }}
+              >
+                Yes, Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Snackbar Notification */}
+      {showSnackbar && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: snackbarType === 'warning' ? "#eab308" : 
+                       snackbarType === 'error' ? "#dc2626" : "#059669",
+            color: "#fff",
+            padding: "12px 16px",
+            borderRadius: 8,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            zIndex: 1000,
+            maxWidth: 400,
+          }}
+        >
+          <span>{snackbarMessage}</span>
+          {/* Show Undo button for restore actions */}
+          {lastRestoredEmployee && snackbarType === 'success' && (
+            <button
+              onClick={handleUndoRestore}
+              style={{
+                background: "transparent",
+                border: "1px solid #fff",
+                color: "#fff",
+                padding: "4px 8px",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+                transition: "background 0.18s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              Undo
+            </button>
+          )}
+          {/* Show Undo button for resign actions */}
+          {lastResignedEmployee && snackbarType === 'warning' && (
+            <button
+              onClick={handleUndoResign}
+              style={{
+                background: "transparent",
+                border: "1px solid #fff",
+                color: "#fff",
+                padding: "4px 8px",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+                transition: "background 0.18s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              Undo
+            </button>
+          )}
+          {/* Show Undo button for delete actions */}
+          {lastDeletedEmployee && snackbarType === 'warning' && (
+            <button
+              onClick={handleUndoDelete}
+              style={{
+                background: "transparent",
+                border: "1px solid #fff",
+                color: "#fff",
+                padding: "4px 8px",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+                transition: "background 0.18s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              Undo
+            </button>
+          )}
+          <button
+            onClick={() => setShowSnackbar(false)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#fff",
+              cursor: "pointer",
+              padding: 4,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1988,6 +2632,7 @@ const styles = {
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.18)",
+   
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
