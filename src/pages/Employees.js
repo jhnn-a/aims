@@ -147,9 +147,6 @@ function formatDisplayDate(dateStr) {
   return `${mm}-${dd}-${yyyy}`;
 }
 
-<<<<<<< HEAD
-function DeleteConfirmationModal({ onConfirm, onCancel, children }) {
-=======
 // Helper to format assignment date (handles Firestore timestamps)
 function formatAssignmentDate(dateValue) {
   if (!dateValue) return "";
@@ -186,8 +183,7 @@ function formatHistoryDate(dateValue) {
   return "";
 }
 
-function DeleteConfirmationModal({ onConfirm, onCancel }) {
->>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
+function DeleteConfirmationModal({ onConfirm, onCancel, children }) {
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -1247,9 +1243,6 @@ function Employees() {
         />
       )}
       {showDevicesModal && (
-<<<<<<< HEAD
-        <>{/* ...existing code for showDevicesModal... */}</>
-=======
         <div style={styles.modalOverlay}>
           <div
             style={{
@@ -1606,15 +1599,11 @@ function Employees() {
             )}
           </div>
         </div>
->>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
       )}
       {showUnassignModal && unassignDevice && (
         <>{/* ...existing code for showUnassignModal... */}</>
       )}
       {showHistoryModal && (
-<<<<<<< HEAD
-        <>{/* ...existing code for showHistoryModal... */}</>
-=======
         <div style={styles.modalOverlay}>
           <div
             style={{
@@ -1811,7 +1800,6 @@ function Employees() {
             </button>
           </div>
         </div>
->>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
       )}
       {showResignConfirm && (
         <ResignConfirmationModal
