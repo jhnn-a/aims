@@ -33,7 +33,7 @@ const tabStyles = {
     fontWeight: active ? 700 : 500,
     fontSize: 16,
     padding: "10px 32px",
-    borderRadius: "12px 12px 0 0",
+    borderRadius: 0,
     cursor: "pointer",
     boxShadow: active ? "0 -2px 8px rgba(68,95,109,0.08)" : "none",
     outline: "none",
@@ -41,7 +41,7 @@ const tabStyles = {
   }),
   tabContent: {
     background: "#fff",
-    borderRadius: "0 0 16px 16px",
+    borderRadius: 0,
     boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
     margin: "0 24px 24px 24px",
     padding: 0,
@@ -54,7 +54,7 @@ function CompanyAssets() {
 
   return (
     <div style={tabStyles.container}>
-      <div style={tabStyles.header}>Company Assets</div>
+      <div style={tabStyles.header}>COMPANY ASSETS</div>
       <div style={tabStyles.tabsBar}>
         <button
           style={tabStyles.tab(activeTab === "assets")}
