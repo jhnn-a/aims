@@ -1096,245 +1096,170 @@ function Employees() {
 }
   return (
     <div style={styles.pageContainer}>
-      <div style={styles.headerRow}>
-        <h2 style={styles.pageTitle}>Employee Database</h2>
-        <div>
-          <button onClick={() => setShowForm(true)} style={styles.actionBtn}>
-            + Add Employee
-          </button>
-          <button
-            onClick={handleExportToExcel}
-            style={{
-              ...styles.secondaryBtn,
-              marginLeft: 8,
-              background: "#10b981",
-              color: "#fff",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#059669")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#10b981")}
-          >
-            📊 Export Excel
-          </button>
-          <label style={{ marginLeft: 8 }}>
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={handleImportExcel}
-              disabled={importing}
-            />
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              disabled={importing}
-              onClick={() =>
-                document
-                  .querySelector('input[type="file"][accept=".xlsx,.xls"]')
-                  .click()
-              }
-            >
-              {importing
-                ? importProgress.total > 0
-                  ? `📥 Importing ${importProgress.current}/${importProgress.total}...`
-                  : "📥 Importing..."
-                : "📥 Import Excel"}
+      <div style={styles.headerSection}>
+        <div style={styles.headerRow}>
+          <h2 style={styles.pageTitle}>Employee Database</h2>
+          <div style={styles.headerActions}>
+            <button onClick={() => setShowForm(true)} style={styles.addBtn}>
+              + Add Employee
             </button>
-          </label>
-        </div>
-      </div>
-
-
-      {/* Enhanced unified toolbar for section toggles, search, and sort */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 18,
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 1px 4px rgba(68,95,109,0.06)",
-          padding: "12px 18px 12px 18px",
-          minHeight: 64,
-        }}
-      >
-        {/* Left: Section toggle buttons */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            style={{
-              ...styles.secondaryBtn,
-              background: employeeSection === "active" ? "#2563eb" : "#FFE066",
-              color: employeeSection === "active" ? "#fff" : "#233037",
-              fontWeight: employeeSection === "active" ? 800 : 700,
-              border: employeeSection === "active" ? "2px solid #2563eb" : "none",
-              boxShadow: employeeSection === "active" ? "0 2px 8px rgba(37,99,235,0.10)" : styles.secondaryBtn.boxShadow,
-              minWidth: 120,
-              fontSize: 16,
-              letterSpacing: 0.2,
-              transition: "background 0.18s, color 0.18s, border 0.18s",
-            }}
-            onClick={() => setEmployeeSection("active")}
-            tabIndex={0}
-          >
-            Active Employees
-          </button>
-          <button
-            type="button"
-            style={{
-              ...styles.secondaryBtn,
-              background: employeeSection === "resigned" ? "#eab308" : "#FFE066",
-              color: employeeSection === "resigned" ? "#fff" : "#233037",
-              fontWeight: employeeSection === "resigned" ? 800 : 700,
-              border: employeeSection === "resigned" ? "2px solid #eab308" : "none",
-              boxShadow: employeeSection === "resigned" ? "0 2px 8px rgba(234,179,8,0.10)" : styles.secondaryBtn.boxShadow,
-              minWidth: 160,
-              fontSize: 16,
-              letterSpacing: 0.2,
-              transition: "background 0.18s, color 0.18s, border 0.18s",
-            }}
-            onClick={() => setEmployeeSection("resigned")}
-            tabIndex={0}
-          >
-            Resigned Employees
-          </button>
-        </div>
-        {/* Right: Search and sort controls (contextual) */}
-        <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 260 }}>
-          {employeeSection === "active" ? (
-            <>
+            <label style={{ marginLeft: 8 }}>
               <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchActive}
-                onChange={(e) => setSearchActive(e.target.value)}
-                style={{ ...styles.input, marginRight: 0, minWidth: 180, flex: 1 }}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: "none" }}
+                onChange={handleImportExcel}
+                disabled={importing}
               />
-              <button onClick={toggleSortByLastName} style={{ ...styles.secondaryBtn, minWidth: 120 }}>
-                {sortByLastName ? "Clear Sort" : "Sort by Last Name (A-Z)"}
+              <button
+                type="button"
+                style={{
+                  ...styles.addBtn,
+                  background: importing ? "#f3f4f6" : "#eab308",
+                  color: importing ? "#6b7280" : "#fff",
+                  minWidth: "100px",
+                }}
+                disabled={importing}
+                onClick={() =>
+                  document
+                    .querySelector('input[type="file"][accept=".xlsx,.xls"]')
+                    .click()
+                }
+                onMouseEnter={(e) => {
+                  if (!importing) {
+                    e.currentTarget.style.background = "#d97706";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!importing) {
+                    e.currentTarget.style.background = "#eab308";
+                  }
+                }}
+              >
+                {importing
+                  ? importProgress.total > 0
+                    ? `Importing ${importProgress.current}/${importProgress.total}...`
+                    : "Importing..."
+                  : "Import"}
               </button>
-            </>
-          ) : (
-            <>
-              <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchResigned}
-                onChange={(e) => setSearchResigned(e.target.value)}
-                style={{ ...styles.input, marginRight: 0, minWidth: 180, flex: 1 }}
-              />
-              <button onClick={toggleSortByLastName} style={{ ...styles.secondaryBtn, minWidth: 120 }}>
-                {sortByLastName ? "Clear Sort" : "Sort by Last Name (A-Z)"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Section content: Active or Resigned */}
-      {employeeSection === "active" && (
-        <>
-          {/* Removed redundant toolbar: search and sort are now in the unified top toolbar */}
-          <div style={{ marginBottom: 12 }}>
-            {selectedIds.length > 0 && (
-              <>
-                <button
-                  style={{
-                    ...(deleteProgress.total > 0
-                      ? { ...styles.deleteBtn, ...styles.washedOutBtn }
-                      : styles.deleteBtn),
-                    minWidth: 44,
-                    minHeight: 32,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    borderRadius: 7,
-                    marginRight: 8,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    outline: "none",
-                    transition:
-                      "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
-                  }}
-                  disabled={deleteProgress.total > 0}
-                  onClick={handleBulkDelete}
-                  onMouseEnter={(e) => {
-                    if (!(deleteProgress.total > 0)) {
-                      e.currentTarget.style.background = "#c81e3a";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!(deleteProgress.total > 0)) {
-                      e.currentTarget.style.background = "#e11d48";
-                    }
-                  }}
-                >
-                  {/* Trash SVG icon */}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    style={{ marginRight: 2 }}
-                  >
-                    <rect
-                      x="5.5"
-                      y="7.5"
-                      width="9"
-                      height="8"
-                      rx="2"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                    <path
-                      d="M8 10v4M12 10v4"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M3 7.5h14"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M8.5 4.5h3a1 1 0 0 1 1 1V7.5h-5V5.5a1 1 0 0 1 1-1z"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                  </svg>
-                  Delete Selected
-                </button>
-                {deleteProgress.total > 0 && (
-                  <span style={{ color: "#e11d48", fontWeight: 600 }}>
-                    Deleting {deleteProgress.current}/{deleteProgress.total}...
-                  </span>
-                )}
-              </>
-            )}
+            </label>
+            <button
+              onClick={handleExportToExcel}
+              style={{
+                ...styles.addBtn,
+                marginLeft: 8,
+                background: "#10b981",
+                color: "#fff",
+                minWidth: "100px",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#059669")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#10b981")}
+            >
+              Export
+            </button>
           </div>
+        </div>
+        
+        {/* Top Controls Section */}
+        <div style={styles.topControlsSection}>
+          <div style={styles.leftControls}>
+            <div style={styles.searchInputWrapper}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={styles.searchIcon}>
+                <circle cx="7" cy="7" r="5.5" stroke="#1D2536" strokeWidth="1.5"></circle>
+                <line x1="11.3536" y1="11.6464" x2="15" y2="15.2929" stroke="#1D2536" strokeWidth="1.5" strokeLinecap="round"></line>
+              </svg>
+              <input
+                type="text"
+                placeholder={`Search by ${employeeSection === "active" ? "Active" : "Resigned"} Employee Name...`}
+                value={employeeSection === "active" ? searchActive : searchResigned}
+                onChange={(e) => employeeSection === "active" ? setSearchActive(e.target.value) : setSearchResigned(e.target.value)}
+                style={styles.searchInput}
+              />
+            </div>
+            <select
+              value={sortByLastName ? "lastName" : "default"}
+              onChange={(e) => setSortByLastName(e.target.value === "lastName")}
+              style={styles.sortSelect}
+            >
+              <option value="default">Sort: Default</option>
+              <option value="lastName">Sort: Last A–Z</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Section Toggle Buttons */}
+      <div style={styles.sectionToggle}>
+        <button
+          type="button"
+          style={{
+            ...styles.toggleBtn,
+            background: employeeSection === "active" ? "#2563eb" : "#f2f2f2",
+            color: employeeSection === "active" ? "#fff" : "#3b3b4a",
+          }}
+          onClick={() => setEmployeeSection("active")}
+        >
+          Active Employees
+        </button>
+        <button
+          type="button"
+          style={{
+            ...styles.toggleBtn,
+            background: employeeSection === "resigned" ? "#eab308" : "#f2f2f2",
+            color: employeeSection === "resigned" ? "#fff" : "#3b3b4a",
+          }}
+          onClick={() => setEmployeeSection("resigned")}
+        >
+          Resigned Employees
+        </button>
+      </div>
+
+      {/* Table Section */}
+      {employeeSection === "active" && (
+        <div style={styles.tableWrapper}>
+          {/* Bulk Actions */}
+          {selectedIds.length > 0 && (
+            <div style={styles.bulkActionsContainer}>
+              <button
+                style={{
+                  ...(deleteProgress.total > 0
+                    ? { ...styles.deleteBtn, ...styles.washedOutBtn }
+                    : {
+                        ...styles.deleteBtn,
+                        minWidth: "120px",
+                        minHeight: "36px",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        borderRadius: 6,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6,
+                        outline: "none",
+                        transition: "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
+                      }),
+                }}
+                disabled={deleteProgress.total > 0}
+                onClick={handleBulkDelete}
+              >
+                🗑️ Delete Selected
+              </button>
+              {deleteProgress.total > 0 && (
+                <span style={{ color: "#e11d48", fontWeight: 600, fontSize: 14, marginLeft: 12 }}>
+                  Deleting {deleteProgress.current}/{deleteProgress.total}...
+                </span>
+              )}
+            </div>
+          )}
           {loading ? (
-            <p style={{ textAlign: "center", marginTop: 40 }}>Loading...</p>
+            <div style={{ textAlign: "center", padding: "80px 0" }}>Loading...</div>
           ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
+            <>
+              {/* Fixed Header */}
+              <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th
-                      style={{
-                        ...styles.th,
-                        width: 32,
-                        minWidth: 32,
-                        maxWidth: 32,
-                        textAlign: "center",
-                      }}
-                    >
+                    <th style={{ ...styles.clientTh, width: "40px", minWidth: "40px", maxWidth: "40px" }}>
                       <input
                         type="checkbox"
                         checked={
@@ -1342,307 +1267,197 @@ function Employees() {
                           selectedIds.length === filteredActiveEmployees.length
                         }
                         onChange={handleSelectAll}
-                        style={{ width: 16, height: 16, margin: 0 }}
+                        style={styles.checkbox}
                       />
                     </th>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Full Name</th>
-                    <th style={styles.th}>Position</th>
-                    <th style={styles.th}>Department</th>
-                    <th style={styles.th}>Client</th>
-                    <th style={styles.th}>Corporate Email</th>
-                    <th style={styles.th}>Personal Email</th>
-                    <th style={styles.th}>Date Hired</th>
-                    <th style={styles.th}>Actions</th>
+                    <th style={{ ...styles.clientTh, width: "1%" }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "20%" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "12%" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "12%" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "10%" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredActiveEmployees.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      style={
-                        emp.client === "Joii Workstream"
-                          ? { backgroundColor: "#f8fafc" }
-                          : {}
-                      }
-                    >
-                      <td
-                        style={{
-                          ...styles.td,
-                          width: 32,
-                          minWidth: 32,
-                          maxWidth: 32,
-                          textAlign: "center",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(emp.id)}
-                          onChange={() => handleSelectOne(emp.id)}
-                          style={{ width: 16, height: 16, margin: 0 }}
-                        />
-                      </td>
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}>
-                        <span
-                          style={{
-                            cursor: "pointer",
-                            color: "#2563eb",
-                            fontWeight: 500,
-                            textDecoration: "underline",
-                            textUnderlineOffset: 2,
-                          }}
-                          onClick={() => handleShowDevices(emp)}
-                        >
-                          {formatName(emp.fullName)}
-                        </span>
-                      </td>
-                      <td style={styles.td}>{emp.position}</td>
-                      <td style={styles.td}>{emp.department || "-"}</td>
-                      <td style={styles.td}>{emp.client}</td>
-                      <td style={styles.td}>{emp.corporateEmail || "-"}</td>
-                      <td style={styles.td}>{emp.personalEmail || "-"}</td>
-                      <td style={styles.td}>
-                        {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 24 }}>
-                          <button
-                            style={{
-                              width: 48,
-                              height: 48,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 12,
-                              background: "#eaf7fa",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#d0f0f7")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#eaf7fa")
-                            }
-                            onClick={() => handleEdit(emp)}
-                            title="Edit"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              fill="none"
-                              stroke="#2563eb"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                            </svg>
-                          </button>
-                          {/* Delete button removed as per request; use Resign instead */}
-                          <button
-                            style={{
-                              width: 48,
-                              height: 48,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 12,
-                              background: "#fef9c3",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#fde68a")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#fef9c3")
-                            }
-                            onClick={() => handleResign(emp)}
-                            title="Resign"
-                          >
-                            {/* Resign SVG icon */}
-                            <svg
-                              width="18"
-                              height="18"
-                              fill="none"
-                              stroke="#eab308"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M6 19V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" />
-                              <path d="M9 9h6" />
-                              <path d="M9 13h6" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
-            </div>
+              
+              {/* Scrollable Body */}
+              <div style={styles.tableBody}>
+                <table style={styles.bodyTable}>
+                  <tbody>
+                    {filteredActiveEmployees.map((emp, index) => (
+                      <tr
+                        key={emp.id}
+                        style={{
+                          ...styles.clientTr,
+                          background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#e0f7f4")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                      >
+                        <td style={{ ...styles.clientTd, width: "40px", minWidth: "40px", maxWidth: "40px" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(emp.id)}
+                            onChange={() => handleSelectOne(emp.id)}
+                            style={styles.checkbox}
+                          />
+                        </td>
+                        <td style={{ ...styles.clientTd, width: "1%" }}>{index + 1}</td>
+                        <td style={{ ...styles.clientTd, width: "20%" }}>
+                          <span
+                            style={{
+                              cursor: "pointer",
+                              color: "#2563eb",
+                              fontWeight: 500,
+                              textDecoration: "underline",
+                              textUnderlineOffset: 2,
+                            }}
+                            onClick={() => handleShowDevices(emp)}
+                          >
+                            {formatName(emp.fullName)}
+                          </span>
+                        </td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>{emp.position}</td>
+                        <td style={{ ...styles.clientTd, width: "12%" }}>{emp.department || "-"}</td>
+                        <td style={{ ...styles.clientTd, width: "12%" }}>{emp.client}</td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>{emp.corporateEmail || "-"}</td>
+                        <td style={{ ...styles.clientTd, width: "10%" }}>
+                          {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                        </td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>
+                          <div style={styles.actionButtonsContainer}>
+                            <button
+                              style={{
+                                ...styles.actionButton,
+                                background: "rgba(37, 99, 235, 0.1)",
+                              }}
+                              onClick={() => handleEdit(emp)}
+                              title="Edit"
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(37, 99, 235, 0.2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(37, 99, 235, 0.1)")}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="#2563eb" strokeWidth="2">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              style={{
+                                ...styles.actionButton,
+                                background: "rgba(234, 179, 8, 0.1)",
+                              }}
+                              onClick={() => handleResign(emp)}
+                              title="Resign"
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(234, 179, 8, 0.2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(234, 179, 8, 0.1)")}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="#eab308" strokeWidth="2">
+                                <path d="M6 19V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" />
+                                <path d="M9 9h6" />
+                                <path d="M9 13h6" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-        </>
+        </div>
       )}
 
       {employeeSection === "resigned" && (
-        <>
-          {/* Removed redundant toolbar: search and sort are now in the unified top toolbar */}
-          {/* Table for Resigned Employees (read-only) */}
+        <div style={styles.tableWrapper}>
           {loading ? (
-            <p style={{ textAlign: "center", marginTop: 40 }}>Loading...</p>
+            <div style={{ textAlign: "center", padding: "80px 0" }}>Loading...</div>
           ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
+            <>
+              {/* Fixed Header */}
+              <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Full Name</th>
-                    <th style={styles.th}>Position</th>
-                    <th style={styles.th}>Department</th>
-                    <th style={styles.th}>Client</th>
-                    <th style={styles.th}>Corporate Email</th>
-                    <th style={styles.th}>Personal Email</th>
-                    <th style={styles.th}>Date Hired</th>
-                    <th style={styles.th}>Actions</th>
+                    <th style={{ ...styles.clientTh, width: "1%" }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "20%" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "12%" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "12%" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "10%" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "15%" }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredResignedEmployees.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      style={{ background: "#fef9c3" }}
-                    >
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}>{formatName(emp.fullName)}</td>
-                      <td style={styles.td}>{emp.position}</td>
-                      <td style={styles.td}>{emp.department || "-"}</td>
-                      <td style={styles.td}>{emp.client}</td>
-                      <td style={styles.td}>{emp.corporateEmail || "-"}</td>
-                      <td style={styles.td}>{emp.personalEmail || "-"}</td>
-                      <td style={styles.td}>
-                        {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 12 }}>
-                          {/* Restore Button */}
-                          <button
-                            style={{
-                              width: 40,
-                              height: 40,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 8,
-                              background: "#dcfce7",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#bbf7d0")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#dcfce7")
-                            }
-                            onClick={() => handleRestoreEmployee(emp)}
-                            title="Restore this employee to Active Employees"
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              fill="none"
-                              stroke="#16a34a"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                              <path d="M3 3v5h5" />
-                            </svg>
-                          </button>
-                          
-                          {/* Delete Button */}
-                          <button
-                            style={{
-                              width: 40,
-                              height: 40,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 8,
-                              background: "#fee2e2",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#fecaca")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#fee2e2")
-                            }
-                            onClick={() => handleDeleteResigned(emp)}
-                            title="Permanently delete this record"
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 20 20"
-                              fill="none"
-                            >
-                              <rect
-                                x="5.5"
-                                y="7.5"
-                                width="9"
-                                height="8"
-                                rx="2"
-                                stroke="#dc2626"
-                                strokeWidth="1.5"
-                                fill="none"
-                              />
-                              <path
-                                d="M8 10v4M12 10v4"
-                                stroke="#dc2626"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d="M3 7.5h14"
-                                stroke="#dc2626"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                              />
-                              <path
-                                d="M8.5 4.5h3a1 1 0 0 1 1 1V7.5h-5V5.5a1 1 0 0 1 1-1z"
-                                stroke="#dc2626"
-                                strokeWidth="1.5"
-                                fill="none"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
-            </div>
+              
+              {/* Scrollable Body */}
+              <div style={styles.tableBody}>
+                <table style={styles.bodyTable}>
+                  <tbody>
+                    {filteredResignedEmployees.map((emp, index) => (
+                      <tr
+                        key={emp.id}
+                        style={{
+                          ...styles.clientTr,
+                          background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fef9c3")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                      >
+                        <td style={{ ...styles.clientTd, width: "1%" }}>{index + 1}</td>
+                        <td style={{ ...styles.clientTd, width: "20%" }}>{formatName(emp.fullName)}</td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>{emp.position}</td>
+                        <td style={{ ...styles.clientTd, width: "12%" }}>{emp.department || "-"}</td>
+                        <td style={{ ...styles.clientTd, width: "12%" }}>{emp.client}</td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>{emp.corporateEmail || "-"}</td>
+                        <td style={{ ...styles.clientTd, width: "10%" }}>
+                          {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                        </td>
+                        <td style={{ ...styles.clientTd, width: "15%" }}>
+                          <div style={styles.actionButtonsContainer}>
+                            <button
+                              style={{
+                                ...styles.actionButton,
+                                background: "rgba(22, 163, 74, 0.1)",
+                              }}
+                              onClick={() => handleRestoreEmployee(emp)}
+                              title="Restore"
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(22, 163, 74, 0.2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(22, 163, 74, 0.1)")}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                <path d="M3 3v5h5" />
+                              </svg>
+                            </button>
+                            <button
+                              style={{
+                                ...styles.actionButton,
+                                background: "rgba(220, 38, 38, 0.1)",
+                              }}
+                              onClick={() => handleDeleteResigned(emp)}
+                              title="Delete"
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.2)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)")}
+                            >
+                              <svg width="16" height="16" fill="none" stroke="#dc2626" strokeWidth="2">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-        </>
+        </div>
       )}
 
       {/* Modals and overlays */}
@@ -2460,32 +2275,284 @@ export default Employees;
 
 const styles = {
   pageContainer: {
-    padding: "32px 0 32px 0",
-    maxWidth: "100%",
-    background: "#f7f9fb",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
     minHeight: "100vh",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    background: "rgb(250, 250, 252)",
+    width: "100%",
+    fontFamily: "'IBM Plex Sans', sans-serif",
+  },
+  headerSection: {
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 20px",
   },
   headerRow: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 18,
-    paddingLeft: 0,
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
   pageTitle: {
-    color: "#233037",
-    fontWeight: 800,
-    fontSize: 28,
+    fontFamily: "'IBM Plex Sans'",
+    fontSize: "28px",
+    lineHeight: "37.24px",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    color: "rgb(43, 44, 59)",
     margin: 0,
   },
-  toolbar: {
+  headerActions: {
     display: "flex",
     alignItems: "center",
+    flexDirection: "column",
     gap: 8,
-    marginBottom: 18,
-    paddingLeft: 0,
   },
+  topControlsSection: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  leftControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  sortSelect: {
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    fontWeight: 500,
+    padding: "8px 16px",
+    background: "rgb(242, 242, 242)",
+    color: "rgb(59, 59, 74)",
+    border: "1px solid rgb(215, 215, 224)",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    minHeight: "36px",
+    minWidth: "140px",
+    outline: "none",
+  },
+  addBtn: {
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    fontWeight: 500,
+    letterSpacing: "normal",
+    color: "rgb(59, 59, 74)",
+    background: "rgb(242, 242, 242)",
+    minWidth: "120px",
+    height: "36px",
+    borderRadius: "6px",
+    border: "none",
+    outline: "none",
+    cursor: "pointer",
+    transition: "background 0.2s, color 0.2s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    userSelect: "none",
+    boxShadow: "none",
+    padding: "0px 16px",
+    whiteSpace: "nowrap",
+  },
+  sectionToggle: {
+    display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto 16px auto",
+    padding: "0 20px",
+  },
+  toggleBtn: {
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    fontWeight: 500,
+    padding: "10px 20px",
+    borderRadius: "6px",
+    border: "none",
+    cursor: "pointer",
+    transition: "background 0.2s, color 0.2s",
+    minHeight: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchContainer: {
+    display: "none", // Remove old search container
+  },
+  searchInputWrapper: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "8px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    display: "flex",
+    alignItems: "center",
+    pointerEvents: "none",
+    color: "rgb(29, 37, 54)",
+    fontSize: "16px",
+    paddingLeft: "0px",
+    paddingRight: "4px",
+    height: "20px",
+  },
+  searchInput: {
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    color: "rgb(43, 44, 59)",
+    background: "rgb(248, 248, 248)",
+    width: "320px",
+    height: "36px",
+    borderRadius: "6px",
+    border: "1px solid rgb(215, 215, 224)",
+    outline: "none",
+    padding: "8px 12px 8px 32px",
+    boxSizing: "border-box",
+  },
+  sortBtn: {
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "12px",
+    fontWeight: 500,
+    padding: "8px 16px",
+    background: "rgb(242, 242, 242)",
+    color: "rgb(59, 59, 74)",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    minHeight: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tableWrapper: {
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    padding: "0 20px",
+  },
+  bulkActionsContainer: {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 12,
+  },
+  headerTable: {
+    borderCollapse: "collapse",
+    width: "100%",
+    tableLayout: "fixed",
+    boxShadow: "none",
+    border: "1px solid rgb(215, 215, 224)",
+    background: "rgb(255, 255, 255)",
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    fontWeight: 400,
+  },
+  clientTh: {
+    textAlign: "left",
+    verticalAlign: "middle",
+    fontWeight: 400,
+    background: "rgb(255, 255, 255)",
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    padding: "8px 12px",
+    border: "1px solid rgb(215, 215, 224)",
+    whiteSpace: "nowrap",
+  },
+  tableBody: {
+    width: "100%",
+    height: "706px",
+    maxHeight: "706px",
+    overflowY: "scroll",
+    scrollbarWidth: "none",
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+  },
+  bodyTable: {
+    borderCollapse: "collapse",
+    width: "100%",
+    tableLayout: "fixed",
+    boxShadow: "none",
+    borderTop: "none",
+    borderRight: "1px solid rgb(215, 215, 224)",
+    borderBottom: "1px solid rgb(215, 215, 224)",
+    borderLeft: "1px solid rgb(215, 215, 224)",
+    fontFamily: "'IBM Plex Sans', sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    fontWeight: 400,
+  },
+  clientTr: {
+    cursor: "pointer",
+    transition: "background 0.2s",
+  },
+  clientTd: {
+    textAlign: "left",
+    verticalAlign: "middle",
+    borderLeft: "1px solid rgb(215, 215, 224)",
+    borderRight: "1px solid rgb(215, 215, 224)",
+    borderTop: "none",
+    borderBottom: "none",
+    padding: "8px 12px",
+    color: "rgb(59, 59, 74)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+  checkbox: {
+    border: "1px solid rgb(215, 215, 224)",
+    boxSizing: "border-box",
+    width: "16px",
+    height: "16px",
+    margin: "0px",
+    display: "block",
+    position: "relative",
+    left: "50%",
+    transform: "translateX(-50%)",
+  },
+  actionButton: {
+    background: "none",
+    border: "none",
+    padding: "0px",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "32px",
+    height: "32px",
+    borderRadius: "6px",
+    transition: "background 0.2s, box-shadow 0.2s",
+    flexShrink: 0,
+  },
+  actionButtonsContainer: {
+    display: "flex",
+    gap: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "80px",
+  },
+  // Legacy styles for modals and other components
   input: {
     padding: "10px 14px",
     borderRadius: 8,
@@ -2505,54 +2572,6 @@ const styles = {
     fontWeight: 500,
     color: "#334155",
     marginBottom: 2,
-  },
-  tableContainer: {
-    marginTop: 16,
-    background: "#fff",
-    borderRadius: 16,
-    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
-    padding: 0,
-    width: "100%",
-    maxWidth: "100vw",
-    overflowX: "unset", // Remove horizontal scroll
-  },
-  table: {
-    width: "100%",
-    minWidth: 0, // Allow table to shrink
-    borderCollapse: "separate",
-    borderSpacing: 0,
-    background: "#fff",
-    borderRadius: 16,
-    overflow: "hidden",
-    tableLayout: "fixed", // Make columns auto-fit
-    maxWidth: "100%",
-    margin: "0 auto",
-  },
-  th: {
-    padding: "16px 12px",
-    background: "#445F6D",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 16,
-    borderBottom: "2px solid #e0e7ef",
-    textAlign: "left",
-    letterSpacing: 0.2,
-    whiteSpace: "normal",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  td: {
-    padding: "14px 12px",
-    color: "#233037",
-    fontSize: 15,
-    borderBottom: "1px solid #e0e7ef",
-    background: "#f7f9fb",
-    verticalAlign: "middle",
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: "none",
   },
   actionBtn: {
     background: "#70C1B3",
@@ -2596,8 +2615,7 @@ const styles = {
     fontSize: 13,
     cursor: "pointer",
     marginLeft: 0,
-    transition:
-      "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
+    transition: "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
     minWidth: 36,
     minHeight: 28,
     display: "inline-block",
@@ -2605,7 +2623,6 @@ const styles = {
     outline: "none",
     opacity: 1,
   },
-  // Add a washed out style for disabled state
   washedOutBtn: {
     background: "#f3f4f6",
     color: "#b91c1c",
@@ -2632,7 +2649,6 @@ const styles = {
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0,0,0,0.18)",
-   
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -2654,26 +2670,5 @@ const styles = {
     letterSpacing: 1,
     fontSize: 22,
     textAlign: "center",
-  },
-  iconBtn: {
-    background: "none",
-    border: "none",
-    padding: 6,
-    borderRadius: 6,
-    cursor: "pointer",
-    marginRight: 4,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "background 0.18s, box-shadow 0.18s",
-    boxShadow: "none",
-  },
-  iconBtnHover: {
-    background: "#e0f7f4",
-    boxShadow: "0 2px 8px rgba(112,193,179,0.10)",
-  },
-  iconBtnDeleteHover: {
-    background: "#ffe4ec",
-    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
   },
 };
