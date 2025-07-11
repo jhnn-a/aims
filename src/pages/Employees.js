@@ -147,7 +147,47 @@ function formatDisplayDate(dateStr) {
   return `${mm}-${dd}-${yyyy}`;
 }
 
+<<<<<<< HEAD
 function DeleteConfirmationModal({ onConfirm, onCancel, children }) {
+=======
+// Helper to format assignment date (handles Firestore timestamps)
+function formatAssignmentDate(dateValue) {
+  if (!dateValue) return "";
+  
+  // Handle Firestore timestamp object
+  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+    const date = new Date(dateValue.seconds * 1000);
+    return formatDisplayDate(date.toISOString().slice(0, 10));
+  }
+  
+  // Handle regular date string or Date object
+  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+    return formatDisplayDate(dateValue);
+  }
+  
+  return "";
+}
+
+// Helper to format history date (handles Firestore timestamps)
+function formatHistoryDate(dateValue) {
+  if (!dateValue) return "";
+  
+  // Handle Firestore timestamp object
+  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+    const date = new Date(dateValue.seconds * 1000);
+    return date.toLocaleString();
+  }
+  
+  // Handle regular date string or Date object
+  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+    return new Date(dateValue).toLocaleString();
+  }
+  
+  return "";
+}
+
+function DeleteConfirmationModal({ onConfirm, onCancel }) {
+>>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modalContent}>
@@ -1207,13 +1247,571 @@ function Employees() {
         />
       )}
       {showDevicesModal && (
+<<<<<<< HEAD
         <>{/* ...existing code for showDevicesModal... */}</>
+=======
+        <div style={styles.modalOverlay}>
+          <div
+            style={{
+              ...styles.modalContent,
+              maxWidth: 900, // expanded for Actions column
+              minWidth: 540, // slightly wider for comfort
+              width: "97vw", // responsive, but not full width
+              maxHeight: "80vh",
+              padding: "28px 24px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              boxSizing: "border-box",
+            }}
+          >
+            <h3
+              style={{
+                color: "#2563eb",
+                margin: "0 0 14px 0",
+                fontWeight: 700,
+                fontSize: 20,
+                textAlign: "center",
+                letterSpacing: 1,
+              }}
+            >
+              Devices Assigned to {selectedEmployee?.fullName}
+            </h3>
+            <button
+              onClick={handleShowHistory}
+              style={{
+                ...styles.secondaryBtn,
+                alignSelf: "flex-end",
+                marginBottom: 8,
+                fontSize: 14,
+                padding: "7px 16px",
+                borderRadius: 7,
+              }}
+            >
+              View History
+            </button>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                marginBottom: 10,
+                borderRadius: 12,
+                background: "#f7f9fb",
+                boxShadow: "0 1px 4px rgba(68,95,109,0.06)",
+                padding: 0,
+                minHeight: 80,
+                maxHeight: "48vh",
+                overflowX: "auto", // allow horizontal scroll if needed
+              }}
+            >
+              {devicesForEmployee.length === 0 ? (
+                <p style={{ textAlign: "center", margin: 24 }}>
+                  No devices assigned.
+                </p>
+              ) : (
+                <table
+                  style={{
+                    width: "100%",
+                    minWidth: 600, // reduce minWidth since fewer columns
+                    borderCollapse: "separate",
+                    borderSpacing: 0,
+                    background: "#fff",
+                    borderRadius: 12,
+                    tableLayout: "fixed",
+                    fontSize: 14,
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "16%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "18%" }} />
+                    <col style={{ width: "15%" }} />
+                    <col style={{ width: "15%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Tag
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Type
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Brand
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Model
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Condition
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 14,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Assignment Date
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {devicesForEmployee.map((dev) => (
+                      <tr key={dev.id}>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontWeight: 600,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {dev.deviceTag}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {dev.deviceType}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {dev.brand}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {dev.model}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {dev.condition}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 14,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {formatAssignmentDate(dev.assignmentDate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button
+              onClick={handleCloseDevicesModal}
+              style={{
+                ...styles.cancelBtn,
+                marginTop: 8,
+                alignSelf: "flex-end",
+                fontSize: 14,
+                padding: "8px 18px",
+                borderRadius: 7,
+              }}
+            >
+              Close
+            </button>
+            {/* Assign Modal */}
+            {assignModalOpen && assigningDevice && (
+              <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
+                <div style={{ ...styles.modalContent, minWidth: 350 }}>
+                  <h4 style={{ color: "#2563eb" }}>
+                    Assign Device: {assigningDevice.deviceTag}
+                  </h4>
+                  <input
+                    type="text"
+                    placeholder="Search employee..."
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                  />
+                  <ul
+                    style={{
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      padding: 0,
+                      margin: 0,
+                    }}
+                  >
+                    {employees
+                      .filter((emp) => emp.id !== selectedEmployee.id)
+                      .filter((emp) =>
+                        emp.fullName
+                          .toLowerCase()
+                          .includes(assignSearch.toLowerCase())
+                      )
+                      .map((emp) => (
+                        <li
+                          key={emp.id}
+                          style={{ listStyle: "none", marginBottom: 8 }}
+                        >
+                          <button
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              padding: 8,
+                              borderRadius: 6,
+                              border: "1px solid #e5e7eb",
+                              background: "#f8fafc",
+                              cursor: "pointer",
+                            }}
+                            onClick={async () => {
+                              try {
+                                // If reassigning, log unassign for previous employee
+                                if (
+                                  assigningDevice.assignedTo &&
+                                  assigningDevice.assignedTo !== emp.id
+                                ) {
+                                  const prevEmp = employees.find(
+                                    (e) => e.id === assigningDevice.assignedTo
+                                  );
+                                  const prevEmpName = prevEmp
+                                    ? prevEmp.fullName
+                                    : assigningDevice.assignedTo;
+                                  await logDeviceHistory({
+                                    employeeId: assigningDevice.assignedTo,
+                                    deviceId: assigningDevice.id,
+                                    deviceTag: assigningDevice.deviceTag,
+                                    action: "unassigned",
+                                    reason: `Reassigned to ${emp.fullName}`,
+                                    condition: assigningDevice.condition,
+                                    date: new Date(), // Store full timestamp for precise ordering
+                                  });
+                                  // Assign to new employee
+                                  // Remove id from payload
+                                  const { id, ...deviceWithoutId } =
+                                    assigningDevice;
+                                  await updateDevice(assigningDevice.id, {
+                                    ...deviceWithoutId,
+                                    assignedTo: emp.id,
+                                    assignmentDate: new Date()
+                                      .toISOString()
+                                      .slice(0, 10),
+                                  });
+                                  // Log assign history with previous employee name
+                                  await logDeviceHistory({
+                                    employeeId: emp.id,
+                                    deviceId: assigningDevice.id,
+                                    deviceTag: assigningDevice.deviceTag,
+                                    action: "assigned",
+                                    reason: `Received from reassignment (${prevEmpName})`,
+                                    date: new Date(), // Store full timestamp for precise ordering
+                                  });
+                                } else {
+                                  // Normal assign
+                                  const { id, ...deviceWithoutId } =
+                                    assigningDevice;
+                                  await updateDevice(assigningDevice.id, {
+                                    ...deviceWithoutId,
+                                    assignedTo: emp.id,
+                                    assignmentDate: new Date()
+                                      .toISOString()
+                                      .slice(0, 10),
+                                  });
+                                  await logDeviceHistory({
+                                    employeeId: emp.id,
+                                    deviceId: assigningDevice.id,
+                                    deviceTag: assigningDevice.deviceTag,
+                                    action: "assigned",
+                                    reason: "assigned",
+                                    date: new Date(), // Store full timestamp for precise ordering
+                                  });
+                                }
+                                const allDevices = await getAllDevices();
+                                setDevicesForEmployee(
+                                  allDevices.filter(
+                                    (d) => d.assignedTo === selectedEmployee.id
+                                  )
+                                );
+                                setAssignModalOpen(false);
+                                setAssigningDevice(null);
+                                setAssignSearch("");
+                              } catch (err) {
+                                alert(
+                                  "Failed to assign device. Please try again."
+                                );
+                              }
+                            }}
+                          >
+                            {emp.fullName}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <button
+                    onClick={() => {
+                      setAssignModalOpen(false);
+                      setAssigningDevice(null);
+                      setAssignSearch("");
+                    }}
+                    style={{ marginTop: 12, ...styles.cancelBtn }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+>>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
       )}
       {showUnassignModal && unassignDevice && (
         <>{/* ...existing code for showUnassignModal... */}</>
       )}
       {showHistoryModal && (
+<<<<<<< HEAD
         <>{/* ...existing code for showHistoryModal... */}</>
+=======
+        <div style={styles.modalOverlay}>
+          <div
+            style={{
+              ...styles.modalContent,
+              maxWidth: 820, // expanded for Delete column
+              minWidth: 520, // slightly wider for comfort
+              width: "96vw", // responsive, but not full width
+              maxHeight: "80vh",
+              padding: "32px 32px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              boxSizing: "border-box",
+            }}
+          >
+            <h3
+              style={{
+                color: "#2563eb",
+                margin: "0 0 18px 0",
+                fontWeight: 700,
+                fontSize: 22,
+                textAlign: "center",
+                letterSpacing: 1,
+              }}
+            >
+              Device Assignment History
+            </h3>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                marginBottom: 12,
+                borderRadius: 12,
+                background: "#f7f9fb",
+                boxShadow: "0 1px 4px rgba(68,95,109,0.06)",
+                padding: 0,
+                minHeight: 120,
+                maxHeight: "48vh",
+                overflowX: "auto", // allow horizontal scroll if needed
+              }}
+            >
+              {loadingHistory ? (
+                <p style={{ textAlign: "center", margin: 32 }}>Loading...</p>
+              ) : history.length === 0 ? (
+                <p style={{ textAlign: "center", margin: 32 }}>
+                  No history found.
+                </p>
+              ) : (
+                <table
+                  style={{
+                    width: "100%",
+                    minWidth: 700, // ensure table doesn't shrink too much
+                    borderCollapse: "separate",
+                    borderSpacing: 0,
+                    background: "#fff",
+                    borderRadius: 12,
+                    tableLayout: "fixed",
+                    fontSize: 15,
+                  }}
+                >
+                  <colgroup>
+                    <col style={{ width: "20%" }} />
+                    <col style={{ width: "13%" }} />
+                    <col style={{ width: "22%" }} />
+                    <col style={{ width: "33%" }} />
+                    <col style={{ width: "12%" }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 15,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Device Tag
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 15,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Action
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 15,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Date
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 15,
+                          padding: "10px 8px",
+                        }}
+                      >
+                        Reason
+                      </th>
+                      <th
+                        style={{
+                          ...styles.th,
+                          fontSize: 15,
+                          padding: "10px 8px",
+                          textAlign: "center",
+                        }}
+                      >
+                        Delete
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h) => (
+                      <tr key={h.id}>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontWeight: 600,
+                            fontSize: 15,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {h.deviceTag}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 15,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {h.action}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 15,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {formatHistoryDate(h.date)}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            fontSize: 15,
+                            padding: "10px 8px",
+                          }}
+                        >
+                          {h.reason || "-"}
+                        </td>
+                        <td
+                          style={{
+                            ...styles.td,
+                            textAlign: "center",
+                            padding: "10px 8px",
+                          }}
+                        >
+                          <button
+                            onClick={() => handleDeleteHistory(h.id)}
+                            style={{
+                              ...styles.deleteBtn,
+                              minWidth: 48,
+                              minHeight: 28,
+                              padding: "6px 0",
+                              fontSize: 13,
+                              borderRadius: 7,
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <button
+              onClick={() => setShowHistoryModal(false)}
+              style={{
+                ...styles.cancelBtn,
+                marginTop: 8,
+                alignSelf: "flex-end",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+>>>>>>> a6482e3a2b2a487911c7bf003cabfe7fac08520a
       )}
       {showResignConfirm && (
         <ResignConfirmationModal

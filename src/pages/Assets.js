@@ -8,7 +8,6 @@ import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import DeviceHistory from "../components/DeviceHistory";
 
 function DeviceFormModal({
   data,
@@ -501,13 +500,13 @@ function Assets() {
     await updateDevice(form._editDeviceId, payloadWithoutId);
     setShowForm(false);
     setForm({});
-    await loadDevicesAndEmployees();
+    loadDevicesAndEmployees();
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this device?")) {
       await deleteDevice(id);
-      await loadDevicesAndEmployees();
+      loadDevicesAndEmployees();
     }
   };
 
@@ -515,16 +514,6 @@ function Assets() {
     setUnassignDevice(device);
     setUnassignReason("working");
     setShowUnassignModal(true);
-  };
-
-  const handleShowDeviceHistory = (device) => {
-    setSelectedDeviceForHistory(device);
-    setShowDeviceHistory(true);
-  };
-
-  const handleCloseDeviceHistory = () => {
-    setShowDeviceHistory(false);
-    setSelectedDeviceForHistory(null);
   };
 
   const confirmUnassign = async () => {
@@ -555,11 +544,11 @@ function Assets() {
       action: "unassigned",
       reason,
       condition,
-      date: new Date(), // Store full timestamp for precise ordering
+      date: new Date().toISOString(),
     });
     setShowUnassignModal(false);
     setUnassignDevice(null);
-    await loadDevicesAndEmployees();
+    loadDevicesAndEmployees();
   };
 
   const cancelUnassign = () => {
@@ -711,14 +700,14 @@ function Assets() {
           action: "unassigned",
           reason: "Reassigned to another employee (bulk)",
           condition: device.condition,
-          date: new Date(), // Store full timestamp for precise ordering
+          date: new Date().toISOString(),
         });
       }
       const { id: _id, ...deviceWithoutId } = device;
       await updateDevice(device.id, {
         ...deviceWithoutId,
         assignedTo: emp.id,
-        assignmentDate: new Date(), // Store full timestamp instead of just date
+        assignmentDate: new Date().toISOString().slice(0, 10),
       });
       await logDeviceHistory({
         employeeId: emp.id,
@@ -726,7 +715,7 @@ function Assets() {
         deviceTag: device.deviceTag,
         action: "assigned",
         reason: "assigned (bulk)",
-        date: new Date(), // Store full timestamp for precise ordering
+        date: new Date().toISOString(),
       });
     }
     // Generate transfer form for all selected devices
@@ -757,7 +746,7 @@ function Assets() {
     });
     setBulkReassignModalOpen(false);
     setSelectedDeviceIds([]);
-    await loadDevicesAndEmployees();
+    loadDevicesAndEmployees();
   };
 
   const confirmBulkUnassign = async () => {
@@ -804,7 +793,7 @@ function Assets() {
         action: "unassigned",
         reason,
         condition,
-        date: new Date(), // Store full timestamp for precise ordering
+        date: new Date().toISOString(),
       });
     }
     // Generate docx for all selected devices
@@ -815,7 +804,7 @@ function Assets() {
     });
     setBulkUnassignModalOpen(false);
     setSelectedDeviceIds([]);
-    await loadDevicesAndEmployees();
+    loadDevicesAndEmployees();
   };
 
   // Helper to format date as "June 23, 2025"
@@ -2248,7 +2237,7 @@ function Assets() {
                                 action: "unassigned",
                                 reason: "Reassigned to another employee",
                                 condition: assigningDevice.condition,
-                                date: new Date(), // Store full timestamp for precise ordering
+                                date: new Date().toISOString(),
                               });
                             }
                             const { id: _id, ...deviceWithoutId } =
@@ -2256,7 +2245,6 @@ function Assets() {
                             await updateDevice(assigningDevice.id, {
                               ...deviceWithoutId,
                               assignedTo: emp.id,
-                              assignmentDate: new Date(), // Store full timestamp instead of just date
                               reason: "assigned",
                               date: new Date().toISOString(),
                             });
@@ -2279,8 +2267,7 @@ function Assets() {
 
                             setSelectedTransferEmployee(emp);
                             setShowTransferPrompt(true);
-                            // Refresh the data after all database operations are complete
-                            await loadDevicesAndEmployees();
+                            loadDevicesAndEmployees();
                           }}
                         >
                           {emp.fullName}
