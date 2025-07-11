@@ -444,7 +444,8 @@ function Assets() {
   const [devicesPerPage, setDevicesPerPage] = useState(50);
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null);
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -467,7 +468,9 @@ function Assets() {
       getAllEmployees(),
     ]);
     // Filter to only show assigned devices (devices with assignedTo value)
-    const assignedDevices = allDevices.filter(device => device.assignedTo && device.assignedTo.trim() !== "");
+    const assignedDevices = allDevices.filter(
+      (device) => device.assignedTo && device.assignedTo.trim() !== ""
+    );
     setDevices(assignedDevices);
     setEmployees(allEmployees);
     setLoading(false);
@@ -569,7 +572,7 @@ function Assets() {
     .filter((device) => {
       // Only show assigned devices
       if (!device.assignedTo) return false;
-      
+
       const q = search.trim().toLowerCase();
       if (!q) return true;
       return (
@@ -577,62 +580,69 @@ function Assets() {
         (device.deviceType || "").toLowerCase().includes(q) ||
         (device.brand || "").toLowerCase().includes(q) ||
         (device.model || "").toLowerCase().includes(q) ||
-        (getEmployeeName(device.assignedTo) || "")
-          .toLowerCase()
-          .includes(q) ||
+        (getEmployeeName(device.assignedTo) || "").toLowerCase().includes(q) ||
         (device.condition || "").toLowerCase().includes(q) ||
         (device.remarks || "").toLowerCase().includes(q)
       );
     })
     .sort((a, b) => {
       // Sort by assignment date (newest first), then by device ID (newest first)
-      
+
       // First, try to sort by assignment date
-      const dateA = a.assignmentDate ? new Date(
-        a.assignmentDate.seconds 
-          ? a.assignmentDate.seconds * 1000 
-          : a.assignmentDate
-      ) : new Date(0);
-      
-      const dateB = b.assignmentDate ? new Date(
-        b.assignmentDate.seconds 
-          ? b.assignmentDate.seconds * 1000 
-          : b.assignmentDate
-      ) : new Date(0);
-      
+      const dateA = a.assignmentDate
+        ? new Date(
+            a.assignmentDate.seconds
+              ? a.assignmentDate.seconds * 1000
+              : a.assignmentDate
+          )
+        : new Date(0);
+
+      const dateB = b.assignmentDate
+        ? new Date(
+            b.assignmentDate.seconds
+              ? b.assignmentDate.seconds * 1000
+              : b.assignmentDate
+          )
+        : new Date(0);
+
       // If assignment dates are different, sort by date (newest first)
       if (dateB.getTime() !== dateA.getTime()) {
         return dateB.getTime() - dateA.getTime();
       }
-      
+
       // If assignment dates are the same or missing, sort by device ID (newest first)
-      const aNum = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
-      const bNum = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+      const aNum = parseInt(a.id.replace(/\D/g, ""), 10) || 0;
+      const bNum = parseInt(b.id.replace(/\D/g, ""), 10) || 0;
       return bNum - aNum;
     });
-  
+
   const currentPageDevices = filteredDevices.slice(
     (currentPage - 1) * devicesPerPage,
     currentPage * devicesPerPage
   );
-  
+
   const isAllSelected =
-    currentPageDevices.length > 0 && 
-    currentPageDevices.every(device => selectedDeviceIds.includes(device.id));
+    currentPageDevices.length > 0 &&
+    currentPageDevices.every((device) => selectedDeviceIds.includes(device.id));
   const isIndeterminate =
-    currentPageDevices.some(device => selectedDeviceIds.includes(device.id)) && 
-    !isAllSelected;
+    currentPageDevices.some((device) =>
+      selectedDeviceIds.includes(device.id)
+    ) && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       // Unselect all devices on current page
-      setSelectedDeviceIds(prev => 
-        prev.filter(id => !currentPageDevices.some(device => device.id === id))
+      setSelectedDeviceIds((prev) =>
+        prev.filter(
+          (id) => !currentPageDevices.some((device) => device.id === id)
+        )
       );
     } else {
       // Select all devices on current page
-      const currentPageIds = currentPageDevices.map(d => d.id);
-      setSelectedDeviceIds(prev => [...new Set([...prev, ...currentPageIds])]);
+      const currentPageIds = currentPageDevices.map((d) => d.id);
+      setSelectedDeviceIds((prev) => [
+        ...new Set([...prev, ...currentPageIds]),
+      ]);
     }
   };
   const toggleSelectDevice = (id) => {
@@ -1376,8 +1386,8 @@ function Assets() {
           <tbody>
             {currentPageDevices.length === 0 ? (
               <tr>
-                <td 
-                  colSpan="10" 
+                <td
+                  colSpan="10"
                   style={{
                     padding: "40px 20px",
                     textAlign: "center",
@@ -1386,7 +1396,9 @@ function Assets() {
                     fontWeight: "500",
                   }}
                 >
-                  {search ? "No assigned devices found matching your search." : "No assigned devices to display."}
+                  {search
+                    ? "No assigned devices found matching your search."
+                    : "No assigned devices to display."}
                 </td>
               </tr>
             ) : (
@@ -1396,12 +1408,12 @@ function Assets() {
                   <tr
                     key={device.id}
                     style={{
-                      background: isSelected ? '#e6f7f3' : 'transparent',
-                      cursor: 'pointer',
-                      transition: 'background 0.15s',
+                      background: isSelected ? "#e6f7f3" : "transparent",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
                     }}
-                    onClick={e => {
-                      if (e.target.type !== 'checkbox') {
+                    onClick={(e) => {
+                      if (e.target.type !== "checkbox") {
                         toggleSelectDevice(device.id);
                       }
                     }}
@@ -1416,7 +1428,7 @@ function Assets() {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectDevice(device.id)}
-                        onClick={e => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
                         style={{
                           width: 18,
                           height: 18,
@@ -1436,16 +1448,20 @@ function Assets() {
                         fontSize: "1em",
                       }}
                     >
-                      <span 
+                      <span
                         onClick={() => handleShowDeviceHistory(device)}
                         style={{
                           cursor: "pointer",
                           color: "#2563eb",
                           textDecoration: "underline",
-                          transition: "color 0.2s"
+                          transition: "color 0.2s",
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = "#1d4ed8"}
-                        onMouseLeave={(e) => e.currentTarget.style.color = "#2563eb"}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.color = "#1d4ed8")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.color = "#2563eb")
+                        }
                         title="Click to view device history"
                       >
                         {device.deviceTag}
@@ -1650,10 +1666,13 @@ function Assets() {
       {(() => {
         const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
         const startIndex = (currentPage - 1) * devicesPerPage + 1;
-        const endIndex = Math.min(currentPage * devicesPerPage, filteredDevices.length);
-        
+        const endIndex = Math.min(
+          currentPage * devicesPerPage,
+          filteredDevices.length
+        );
+
         if (totalPages <= 1) return null;
-        
+
         return (
           <div
             style={{
@@ -1677,8 +1696,13 @@ function Assets() {
                 gap: "12px",
               }}
             >
-              <span>Showing {startIndex} - {endIndex} of {filteredDevices.length} devices</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>
+                Showing {startIndex} - {endIndex} of {filteredDevices.length}{" "}
+                devices
+              </span>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
                 <span style={{ fontSize: "13px" }}>Show:</span>
                 <select
                   value={devicesPerPage}
@@ -1702,7 +1726,7 @@ function Assets() {
                 </select>
               </div>
             </div>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <button
                 onClick={() => setCurrentPage(1)}
@@ -1720,7 +1744,7 @@ function Assets() {
               >
                 First
               </button>
-              
+
               <button
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
@@ -1737,18 +1761,24 @@ function Assets() {
               >
                 Previous
               </button>
-              
+
               {/* Page Numbers */}
               {(() => {
                 const pageNumbers = [];
                 const maxVisiblePages = 5;
-                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-                
+                let startPage = Math.max(
+                  1,
+                  currentPage - Math.floor(maxVisiblePages / 2)
+                );
+                let endPage = Math.min(
+                  totalPages,
+                  startPage + maxVisiblePages - 1
+                );
+
                 if (endPage - startPage + 1 < maxVisiblePages) {
                   startPage = Math.max(1, endPage - maxVisiblePages + 1);
                 }
-                
+
                 for (let i = startPage; i <= endPage; i++) {
                   pageNumbers.push(
                     <button
@@ -1770,10 +1800,10 @@ function Assets() {
                     </button>
                   );
                 }
-                
+
                 return pageNumbers;
               })()}
-              
+
               <button
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
@@ -1783,14 +1813,15 @@ function Assets() {
                   border: "1px solid #e0e7ef",
                   background: currentPage === totalPages ? "#f5f7fa" : "#fff",
                   color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                 }}
               >
                 Next
               </button>
-              
+
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
@@ -1800,7 +1831,8 @@ function Assets() {
                   border: "1px solid #e0e7ef",
                   background: currentPage === totalPages ? "#f5f7fa" : "#fff",
                   color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                 }}
@@ -2228,7 +2260,7 @@ function Assets() {
                               reason: "assigned",
                               date: new Date().toISOString(),
                             });
-                            
+
                             // Log the assignment action
                             await logDeviceHistory({
                               employeeId: emp.id,
@@ -2239,10 +2271,12 @@ function Assets() {
                               condition: assigningDevice.condition,
                               date: new Date(), // Store full timestamp for precise ordering
                             });
-                            
+
                             // Add a small delay to ensure database changes are reflected
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                            
+                            await new Promise((resolve) =>
+                              setTimeout(resolve, 100)
+                            );
+
                             setSelectedTransferEmployee(emp);
                             setShowTransferPrompt(true);
                             // Refresh the data after all database operations are complete
@@ -2543,7 +2577,7 @@ function Assets() {
           </div>
         </div>
       )}
-      
+
       {/* Device History Modal */}
       {showDeviceHistory && selectedDeviceForHistory && (
         <DeviceHistory
