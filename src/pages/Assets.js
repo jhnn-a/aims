@@ -1039,18 +1039,6 @@ function Assets() {
         overflowX: "auto",
       }}
     >
-      <h2
-        style={{
-          color: "#233037",
-          fontWeight: 800,
-          fontSize: "32px",
-          marginBottom: 18,
-          wordBreak: "break-word",
-        }}
-      >
-        Assigned Assets
-      </h2>
-      {/* Outlined Multiple Devices section with search and buttons */}
       <div
         style={{
           display: "flex",
@@ -1075,7 +1063,7 @@ function Assets() {
               display: "flex",
               alignItems: "center",
               background: "#fff",
-              borderRadius: 24,
+              borderRadius: 0,
               boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
               border: "1.5px solid #e0e7ef",
               padding: "2px 16px 2px 12px",
@@ -1198,7 +1186,7 @@ function Assets() {
             borderCollapse: "separate",
             borderSpacing: 0,
             background: "#fff",
-            borderRadius: 12,
+            borderRadius: 0,
             boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
             overflow: "hidden",
             tableLayout: "fixed",
