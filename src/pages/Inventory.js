@@ -982,11 +982,11 @@ function Inventory() {
         }
       }
       await loadDevicesAndEmployees();
-      alert(
+      showSuccess(
         `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`
       );
     } catch (err) {
-      alert("Failed to import. Please check your Excel file format.");
+      showError("Failed to import. Please check your Excel file format.");
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -1044,6 +1044,7 @@ function Inventory() {
     setSelectedIds([]);
     setSelectAll(false);
     setDeleteProgress({ current: 0, total: 0 });
+    showSuccess(`Successfully deleted ${selectedIds.length} device(s) from inventory`);
     loadDevicesAndEmployees();
   };
 
@@ -1228,6 +1229,7 @@ function Inventory() {
       });
     }
     closeAssignModal();
+    showSuccess(`Successfully assigned ${selectedIds.length} device(s) to ${selectedAssignEmployee.fullName}`);
     loadDevicesAndEmployees();
   };
 
@@ -1251,8 +1253,9 @@ function Inventory() {
         devices: filteredDevices, // Export only the filtered/displayed devices
         employees,
       });
+      showSuccess("Inventory data exported successfully!");
     } catch (error) {
-      alert("Failed to export inventory data. Please try again.");
+      showError("Failed to export inventory data. Please try again.");
     }
   };
 
@@ -1829,12 +1832,12 @@ function Inventory() {
         const firstTabData = newAcqTabs[0].data;
         await generateAcquisitionDocument(allDeviceList, firstTabData);
         setProgress(100);
-        alert(
+        showSuccess(
           `Successfully added ${totalAdded} device(s) across ${rangeTabs.length} device type(s) and generated acquisition document!`
         );
       } catch (docError) {
         console.error("Document generation failed:", docError);
-        alert(
+        showWarning(
           `Successfully added ${totalAdded} device(s), but document generation failed: ${docError.message}`
         );
       }
