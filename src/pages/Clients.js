@@ -5,6 +5,7 @@ import {
   updateClient,
   deleteClient,
 } from "../services/clientService";
+import { useSnackbar } from "../components/Snackbar";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -97,6 +98,8 @@ const DeleteConfirmationModal = ({ onConfirm, onCancel, isDeleting }) => (
 );
 
 const Clients = () => {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

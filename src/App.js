@@ -8,6 +8,7 @@ import Employees from "./pages/Employees";
 import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
 import UserManagement from "./pages/UserManagement";
+import { SnackbarProvider, SnackbarContainer } from "./components/Snackbar";
 import { db, auth } from "./utils/firebase";
 import {
   signInWithEmailAndPassword,
@@ -267,7 +268,7 @@ function App() {
   }
 
   return (
-    <>
+    <SnackbarProvider>
       <Header user={user} />
       <div style={{ display: "flex" }}>
         <Sidebar user={user} />
@@ -294,7 +295,8 @@ function App() {
         </main>
       </div>
       <DebugClaims />
-    </>
+      <SnackbarContainer />
+    </SnackbarProvider>
   );
 }
 

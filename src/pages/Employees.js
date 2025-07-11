@@ -4,6 +4,7 @@ import { addEmployee, getAllEmployees, updateEmployee, deleteEmployee } from "..
 import { getAllClients } from "../services/clientService";
 import { getAllDevices, updateDevice } from "../services/deviceService";
 import { getDeviceHistoryForEmployee, logDeviceHistory, deleteDeviceHistory } from "../services/deviceHistoryService";
+import { useSnackbar } from "../components/Snackbar";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
@@ -261,6 +262,8 @@ const DeleteIcon = ({ color = "#e11d48" }) => (
 );
 
 function Employees() {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -320,9 +323,6 @@ function Employees() {
   const [showRestoreConfirmModal, setShowRestoreConfirmModal] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [employeeToRestore, setEmployeeToRestore] = useState(null);
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarType, setSnackbarType] = useState('success'); // 'success', 'warning', 'info'
   const [lastRestoredEmployee, setLastRestoredEmployee] = useState(null);
   const [lastResignedEmployee, setLastResignedEmployee] = useState(null);
   const [resignedDevicesCache, setResignedDevicesCache] = useState([]);
@@ -410,24 +410,17 @@ function Employees() {
       
       if (isEditing) {
         await updateEmployee(form.id, payload);
-        setSnackbarMessage(`Employee details updated successfully.`);
+        showSuccess(`Employee details updated successfully.`);
       } else {
         await addEmployee(payload);
-        setSnackbarMessage(`New employee successfully added.`);
+        showSuccess(`New employee successfully added.`);
       }
-      
-      setSnackbarType('success');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
       
       resetForm();
       loadClientsAndEmployees();
     } catch (error) {
       console.error('Error saving employee:', error);
-      setSnackbarMessage(`Failed to ${form.id ? 'update' : 'add'} employee. Please try again.`);
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError(`Failed to ${form.id ? 'update' : 'add'} employee. Please try again.`);
     }
   };
 
@@ -464,25 +457,19 @@ function Employees() {
       });
       
       setLastDeletedEmployee(employeeToDelete);
-      setSnackbarMessage(`Employee record moved to Resigned Employees.`);
-      setSnackbarType('warning');
-      setShowSnackbar(true);
+      showWarning(`Employee record moved to Resigned Employees.`);
       
       setSelectedId(null);
       setShowConfirm(false);
       loadClientsAndEmployees();
       
-      // Auto-hide snackbar after 6 seconds
+      // Auto-hide and clear last deleted employee after 6 seconds
       setTimeout(() => {
-        setShowSnackbar(false);
         setLastDeletedEmployee(null);
       }, 6000);
     } catch (error) {
       console.error('Error moving employee to resigned:', error);
-      setSnackbarMessage('Failed to move employee. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to move employee. Please try again.');
     }
   };
 
@@ -918,16 +905,10 @@ function Employees() {
         setImportProgress({ current: i + 1, total: rows.length });
       }
       loadClientsAndEmployees();
-      setSnackbarMessage(`Successfully imported ${rows.length} employees from Excel.`);
-      setSnackbarType('success');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 5000);
+      showSuccess(`Successfully imported ${rows.length} employees from Excel.`);
     } catch (err) {
       console.error("Import error:", err);
-      setSnackbarMessage('Import failed. Please check the file format and try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 5000);
+      showError('Import failed. Please check the file format and try again.');
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -965,10 +946,7 @@ function Employees() {
         setDeleteProgress({ current: i + 1, total: selectedIds.length });
       }
       
-      setSnackbarMessage(`Successfully deleted ${selectedIds.length} employee(s).`);
-      setSnackbarType('warning');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 5000);
+      showWarning(`Successfully deleted ${selectedIds.length} employee(s).`);
       
       setSelectedIds([]);
       setDeleteProgress({ current: 0, total: 0 });
@@ -976,10 +954,7 @@ function Employees() {
       loadClientsAndEmployees();
     } catch (error) {
       console.error('Error during bulk delete:', error);
-      setSnackbarMessage('Failed to delete some employees. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to delete some employees. Please try again.');
     }
   };
 
@@ -1041,16 +1016,10 @@ function Employees() {
       // Save the file
       XLSX.writeFile(wb, filename);
       
-      setSnackbarMessage(`Employee data exported to Excel successfully.`);
-      setSnackbarType('success');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showSuccess(`Employee data exported to Excel successfully.`);
     } catch (error) {
       console.error("Export error:", error);
-      setSnackbarMessage('Failed to export data. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to export data. Please try again.');
     }
   };
 
@@ -1101,27 +1070,21 @@ function Employees() {
       setLastResignedEmployee(resignEmployee);
       setResignedDevicesCache(assignedDevices);
       
-      // 5. Show snackbar notification with undo option
-      setSnackbarMessage(`Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`);
-      setSnackbarType('warning');
-      setShowSnackbar(true);
+      // 5. Show snackbar notification
+      showWarning(`Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`);
       
       setShowResignConfirm(false);
       setResignEmployee(null);
       loadClientsAndEmployees();
       
-      // Auto-hide snackbar after 8 seconds (longer to allow undo action)
+      // Auto-hide and clear last resigned employee after 8 seconds (longer to allow undo action)
       setTimeout(() => {
-        setShowSnackbar(false);
         setLastResignedEmployee(null);
         setResignedDevicesCache([]);
       }, 8000);
     } catch (error) {
       console.error('Error resigning employee:', error);
-      setSnackbarMessage('Failed to resign employee. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to resign employee. Please try again.');
     }
   };
 
@@ -1151,16 +1114,10 @@ function Employees() {
       setEmployeeToDelete(null);
       
       // Show success snackbar
-      setSnackbarMessage(`Employee ${employeeToDelete.name} has been permanently deleted.`);
-      setSnackbarType('warning');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showWarning(`Employee ${employeeToDelete.name} has been permanently deleted.`);
     } catch (error) {
       console.error('Error deleting employee:', error);
-      setSnackbarMessage('Failed to delete employee. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to delete employee. Please try again.');
     }
   };
 
@@ -1182,23 +1139,17 @@ function Employees() {
       );
       
       setLastRestoredEmployee(employeeToRestore);
-      setSnackbarMessage(`Employee ${employeeToRestore.fullName} restored to Active Employees.`);
-      setSnackbarType('success');
-      setShowSnackbar(true);
+      showSuccess(`Employee ${employeeToRestore.fullName} restored to Active Employees.`);
       setShowRestoreConfirmModal(false);
       setEmployeeToRestore(null);
       
-      // Auto-hide snackbar after 5 seconds
+      // Auto-hide and clear last restored employee after 5 seconds
       setTimeout(() => {
-        setShowSnackbar(false);
         setLastRestoredEmployee(null);
       }, 5000);
     } catch (error) {
       console.error('Error restoring employee:', error);
-      setSnackbarMessage('Failed to restore employee. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to restore employee. Please try again.');
     }
   };
 
@@ -1219,14 +1170,10 @@ function Employees() {
         )
       );
       
-      setShowSnackbar(false);
       setLastRestoredEmployee(null);
     } catch (error) {
       console.error('Error undoing restore:', error);
-      setSnackbarMessage('Failed to undo restore. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to undo restore. Please try again.');
     }
   };
 
@@ -1271,23 +1218,17 @@ function Employees() {
       );
       
       // 4. Show success message
-      setSnackbarMessage(`Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`);
-      setSnackbarType('success');
-      setShowSnackbar(true);
+      showSuccess(`Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`);
       
       // 5. Clear undo state
       setLastResignedEmployee(null);
       setResignedDevicesCache([]);
       
-      // 6. Refresh data and auto-hide snackbar
+      // 6. Refresh data
       loadClientsAndEmployees();
-      setTimeout(() => setShowSnackbar(false), 5000);
     } catch (error) {
       console.error('Error undoing resignation:', error);
-      setSnackbarMessage('Failed to undo resignation. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to undo resignation. Please try again.');
     }
   };
 
@@ -1308,19 +1249,13 @@ function Employees() {
         )
       );
       
-      setSnackbarMessage(`Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`);
-      setSnackbarType('success');
-      setShowSnackbar(true);
+      showSuccess(`Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`);
       
       setLastDeletedEmployee(null);
       loadClientsAndEmployees();
-      setTimeout(() => setShowSnackbar(false), 5000);
     } catch (error) {
       console.error('Error undoing delete:', error);
-      setSnackbarMessage('Failed to undo delete. Please try again.');
-      setSnackbarType('error');
-      setShowSnackbar(true);
-      setTimeout(() => setShowSnackbar(false), 4000);
+      showError('Failed to undo delete. Please try again.');
     }
   };
 
@@ -2403,16 +2338,10 @@ function Employees() {
                                 setAssigningDevice(null);
                                 setAssignSearch("");
                                 
-                                setSnackbarMessage(`Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`);
-                                setSnackbarType('success');
-                                setShowSnackbar(true);
-                                setTimeout(() => setShowSnackbar(false), 4000);
+                                showSuccess(`Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`);
                               } catch (err) {
                                 console.error('Error assigning device:', err);
-                                setSnackbarMessage('Failed to assign device. Please try again.');
-                                setSnackbarType('error');
-                                setShowSnackbar(true);
-                                setTimeout(() => setShowSnackbar(false), 4000);
+                                showError('Failed to assign device. Please try again.');
                               }
                             }}
                           >
@@ -2758,108 +2687,6 @@ function Employees() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Snackbar Notification */}
-      {showSnackbar && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            background: snackbarType === 'warning' ? "#eab308" : 
-                       snackbarType === 'error' ? "#dc2626" : "#059669",
-            color: "#fff",
-            padding: "12px 16px",
-            borderRadius: 8,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            zIndex: 1000,
-            maxWidth: 400,
-          }}
-        >
-          <span>{snackbarMessage}</span>
-          {/* Show Undo button for restore actions */}
-          {lastRestoredEmployee && snackbarType === 'success' && (
-            <button
-              onClick={handleUndoRestore}
-              style={{
-                background: "transparent",
-                border: "1px solid #fff",
-                color: "#fff",
-                padding: "4px 8px",
-                borderRadius: 4,
-                fontSize: 12,
-                cursor: "pointer",
-                transition: "background 0.18s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              Undo
-            </button>
-          )}
-          {/* Show Undo button for resign actions */}
-          {lastResignedEmployee && snackbarType === 'warning' && (
-            <button
-              onClick={handleUndoResign}
-              style={{
-                background: "transparent",
-                border: "1px solid #fff",
-                color: "#fff",
-                padding: "4px 8px",
-                borderRadius: 4,
-                fontSize: 12,
-                cursor: "pointer",
-                transition: "background 0.18s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              Undo
-            </button>
-          )}
-          {/* Show Undo button for delete actions */}
-          {lastDeletedEmployee && snackbarType === 'warning' && (
-            <button
-              onClick={handleUndoDelete}
-              style={{
-                background: "transparent",
-                border: "1px solid #fff",
-                color: "#fff",
-                padding: "4px 8px",
-                borderRadius: 4,
-                fontSize: 12,
-                cursor: "pointer",
-                transition: "background 0.18s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              Undo
-            </button>
-          )}
-          <button
-            onClick={() => setShowSnackbar(false)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#fff",
-              cursor: "pointer",
-              padding: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
         </div>
       )}
     </div>
