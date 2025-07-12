@@ -328,7 +328,9 @@ function Employees() {
   const [resignedDevicesCache, setResignedDevicesCache] = useState([]);
   const [lastDeletedEmployee, setLastDeletedEmployee] = useState(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-
+  
+  // Responsive screen size state
+  const [screenSize, setScreenSize] = useState('large');
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -344,6 +346,25 @@ function Employees() {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, [showImportExportDropdown]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 1400) {
+        setScreenSize('large');
+      } else if (width >= 1200) {
+        setScreenSize('medium');
+      } else if (width >= 1024) {
+        setScreenSize('small');
+      } else {
+        setScreenSize('compact');
+      }
+    };
+
+    handleResize(); // Set initial size
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadClientsAndEmployees = async () => {
     setLoading(true);
@@ -578,11 +599,14 @@ function Employees() {
         minHeight: "60px",
         marginTop: "0",
         boxSizing: "border-box",
+        flexWrap: "wrap",
+        gap: "12px",
       }}>
         <div style={{
           display: "flex",
           alignItems: "center",
           gap: "8px",
+          flexWrap: "wrap",
         }}>
           {/* First Page Button */}
           <button
@@ -1392,67 +1416,116 @@ function Employees() {
         </div>
       </div>
 
-      {/* Section Toggle Buttons */}
-      <div style={styles.sectionToggle}>
+      {/* Section Toggle Buttons - Browser Tab Style */}
+      <div style={{
+        width: "100%",
+        maxWidth: "none",
+        margin: "0",
+        padding: "0 24px",
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 0,
+        marginBottom: "-1px", // Connect to table
+        zIndex: 10,
+        position: "relative",
+      }}>
         <button
           type="button"
           style={{
-            ...styles.toggleBtn,
-            background: employeeSection === "active" ? "#2563eb" : "#f2f2f2",
-            color: employeeSection === "active" ? "#fff" : "#3b3b4a",
+            fontFamily: "Maax, sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            padding: "12px 24px",
+            borderRadius: "12px 12px 0 0", // Rounded top corners only
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: employeeSection === "active" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            minHeight: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: employeeSection === "active" ? "0 -2px 8px rgba(37, 99, 235, 0.1)" : "none",
+            transform: employeeSection === "active" ? "translateY(0)" : "translateY(2px)",
+            background: employeeSection === "active" ? "#fff" : "rgb(248, 250, 252)",
+            color: employeeSection === "active" ? "#2563eb" : "#6b7280",
+            position: "relative",
+            zIndex: employeeSection === "active" ? 15 : 10,
+            whiteSpace: "nowrap",
+            marginRight: "4px",
           }}
           onClick={() => setEmployeeSection("active")}
           onMouseEnter={(e) => {
             if (employeeSection !== "active") {
-              e.currentTarget.style.background = "#2563eb";
-              e.currentTarget.style.color = "#fff";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+              e.currentTarget.style.background = "rgb(245, 247, 250)";
+              e.currentTarget.style.color = "#2563eb";
+              e.currentTarget.style.transform = "translateY(0)";
             }
           }}
           onMouseLeave={(e) => {
             if (employeeSection !== "active") {
-              e.currentTarget.style.background = "#f2f2f2";
-              e.currentTarget.style.color = "#3b3b4a";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              e.currentTarget.style.background = "rgb(248, 250, 252)";
+              e.currentTarget.style.color = "#6b7280";
+              e.currentTarget.style.transform = "translateY(2px)";
             }
           }}
         >
-          Active Employees
+          👥 Active Employees
         </button>
         <button
           type="button"
           style={{
-            ...styles.toggleBtn,
-            background: employeeSection === "resigned" ? "#eab308" : "#f2f2f2",
-            color: employeeSection === "resigned" ? "#fff" : "#3b3b4a",
+            fontFamily: "Maax, sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            padding: "12px 24px",
+            borderRadius: "12px 12px 0 0", // Rounded top corners only
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: employeeSection === "resigned" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            minHeight: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: employeeSection === "resigned" ? "0 -2px 8px rgba(234, 179, 8, 0.1)" : "none",
+            transform: employeeSection === "resigned" ? "translateY(0)" : "translateY(2px)",
+            background: employeeSection === "resigned" ? "#fff" : "rgb(248, 250, 252)",
+            color: employeeSection === "resigned" ? "#eab308" : "#6b7280",
+            position: "relative",
+            zIndex: employeeSection === "resigned" ? 15 : 10,
+            whiteSpace: "nowrap",
           }}
           onClick={() => setEmployeeSection("resigned")}
           onMouseEnter={(e) => {
             if (employeeSection !== "resigned") {
-              e.currentTarget.style.background = "#eab308";
-              e.currentTarget.style.color = "#fff";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 4px 12px rgba(234, 179, 8, 0.3)";
+              e.currentTarget.style.background = "rgb(245, 247, 250)";
+              e.currentTarget.style.color = "#eab308";
+              e.currentTarget.style.transform = "translateY(0)";
             }
           }}
           onMouseLeave={(e) => {
             if (employeeSection !== "resigned") {
-              e.currentTarget.style.background = "#f2f2f2";
-              e.currentTarget.style.color = "#3b3b4a";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              e.currentTarget.style.background = "rgb(248, 250, 252)";
+              e.currentTarget.style.color = "#6b7280";
+              e.currentTarget.style.transform = "translateY(2px)";
             }
           }}
         >
-          Resigned Employees
+          📋 Resigned Employees
         </button>
       </div>
 
       {/* Table Section */}
       {employeeSection === "active" && (
-        <div style={styles.tableWrapper}>
+        <div style={{
+          ...styles.tableWrapper,
+          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+          borderTopRightRadius: "12px",
+          marginTop: "0",
+          position: "relative",
+          zIndex: 5,
+        }}>
           {/* Bulk Actions */}
           {selectedIds.length > 0 && (
             <div style={styles.bulkActionsContainer}>
@@ -1509,7 +1582,7 @@ function Employees() {
             background: "#fff",
             border: "1px solid rgb(215, 215, 224)",
             borderBottom: "none",
-            borderTopLeftRadius: "12px",
+            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
             borderTopRightRadius: "12px",
             margin: 0,
             boxSizing: "border-box",
@@ -1518,6 +1591,8 @@ function Employees() {
             padding: "8px 16px",
             gap: 12,
             justifyContent: "space-between",
+            position: "relative",
+            zIndex: 10,
           }}>
             <div style={{
               position: "relative",
@@ -1601,7 +1676,7 @@ function Employees() {
               <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", maxWidth: "50px" }}>
+                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
                       <input
                         type="checkbox"
                         checked={
@@ -1612,14 +1687,14 @@ function Employees() {
                         style={styles.checkbox}
                       />
                     </th>
-                    <th style={{ ...styles.clientTh, width: "60px" }}>#</th>
-                    <th style={{ ...styles.clientTh, width: "22%" }}>Full Name</th>
-                    <th style={{ ...styles.clientTh, width: "16%" }}>Position</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Department</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Client</th>
-                    <th style={{ ...styles.clientTh, width: "16%" }}>Corporate Email</th>
-                    <th style={{ ...styles.clientTh, width: "10%" }}>Date Hired</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Actions</th>
+                    <th style={{ ...styles.clientTh, width: "60px", minWidth: "60px", flexShrink: 0 }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "22%", minWidth: "180px" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "110px" }}>Actions</th>
                   </tr>
                 </thead>
               </table>
@@ -1639,7 +1714,7 @@ function Employees() {
                           onMouseEnter={(e) => (e.currentTarget.style.background = "#e0f7f4")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
                         >
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px" }}>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(emp.id)}
@@ -1647,8 +1722,8 @@ function Employees() {
                               style={styles.checkbox}
                             />
                           </td>
-                          <td style={{ ...styles.clientTd, width: "60px" }}>{indexOfFirstItem + index + 1}</td>
-                          <td style={{ ...styles.clientTd, width: "22%" }}>
+                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
+                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>
                             <span
                               style={{
                                 cursor: "pointer",
@@ -1656,20 +1731,22 @@ function Employees() {
                                 fontWeight: 500,
                                 textDecoration: "underline",
                                 textUnderlineOffset: 2,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis"
                               }}
                               onClick={() => handleShowDevices(emp)}
                             >
                               {formatName(emp.fullName)}
                             </span>
                           </td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>{emp.position}</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>{emp.department || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>{emp.client}</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>{emp.corporateEmail || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "10%" }}>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.position}</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.department || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.client}</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{emp.corporateEmail || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>
                             {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
                           </td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>
                             <div style={styles.actionButtonsContainer}>
                               <button
                                 style={{
@@ -1740,15 +1817,15 @@ function Employees() {
                     {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
                       Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
                         <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "60px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "22%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>&nbsp;</td>
                         </tr>
                       ))
                     }
@@ -1763,7 +1840,14 @@ function Employees() {
       )}
 
       {employeeSection === "resigned" && (
-        <div style={styles.tableWrapper}>
+        <div style={{
+          ...styles.tableWrapper,
+          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+          borderTopRightRadius: "12px",
+          marginTop: "0",
+          position: "relative",
+          zIndex: 5,
+        }}>
           {/* Table Toolbar */}
           <div style={{
             width: "100%",
@@ -1771,7 +1855,7 @@ function Employees() {
             background: "#fff",
             border: "1px solid rgb(215, 215, 224)",
             borderBottom: "none",
-            borderTopLeftRadius: "12px",
+            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
             borderTopRightRadius: "12px",
             margin: 0,
             boxSizing: "border-box",
@@ -1780,6 +1864,8 @@ function Employees() {
             padding: "8px 16px",
             gap: 12,
             justifyContent: "space-between",
+            position: "relative",
+            zIndex: 10,
           }}>
             <div style={{
               position: "relative",
@@ -1863,14 +1949,15 @@ function Employees() {
               <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.clientTh, width: "60px" }}>#</th>
-                    <th style={{ ...styles.clientTh, width: "22%" }}>Full Name</th>
-                    <th style={{ ...styles.clientTh, width: "16%" }}>Position</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Department</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Client</th>
-                    <th style={{ ...styles.clientTh, width: "16%" }}>Corporate Email</th>
-                    <th style={{ ...styles.clientTh, width: "10%" }}>Date Hired</th>
-                    <th style={{ ...styles.clientTh, width: "12%" }}>Actions</th>
+                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", flexShrink: 0 }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "16%", minWidth: "120px" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Resigned Date</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "100px" }}>Actions</th>
                   </tr>
                 </thead>
               </table>
@@ -1890,16 +1977,19 @@ function Employees() {
                           onMouseEnter={(e) => (e.currentTarget.style.background = "#fef9c3")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
                         >
-                          <td style={{ ...styles.clientTd, width: "60px" }}>{indexOfFirstItem + index + 1}</td>
-                          <td style={{ ...styles.clientTd, width: "22%" }}>{formatName(emp.fullName)}</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>{emp.position}</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>{emp.department || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>{emp.client}</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>{emp.corporateEmail || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "10%" }}>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{formatName(emp.fullName)}</td>
+                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>{emp.position}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.department || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.client}</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.corporateEmail || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
                             {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
                           </td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
+                            {emp.resignedDate ? formatDisplayDate(emp.resignedDate) : "-"}
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>
                             <div style={styles.actionButtonsContainer}>
                               <button
                                 style={{
@@ -1953,7 +2043,7 @@ function Employees() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="8" style={{ 
+                        <td colSpan="9" style={{ 
                           ...styles.clientTd, 
                           textAlign: 'center', 
                           padding: '40px 20px',
@@ -1969,14 +2059,15 @@ function Employees() {
                     {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
                       Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
                         <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
-                          <td style={{ ...styles.clientTd, width: "60px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "22%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "16%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>&nbsp;</td>
                         </tr>
                       ))
                     }
@@ -2699,23 +2790,27 @@ const styles = {
   pageContainer: {
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
+    alignItems: "stretch",
     minHeight: "100vh",
     background: "rgb(250, 250, 252)",
     width: "100%",
     fontFamily: "Maax, sans-serif",
+    padding: "0",
+    boxSizing: "border-box",
   },
   headerSection: {
     width: "100%",
-    maxWidth: "100%",
-    margin: "0 auto",
-    padding: "0",
+    maxWidth: "none",
+    margin: "0",
+    padding: "20px 24px",
   },
   headerRow: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 16,
+    flexWrap: "wrap",
+    gap: "16px",
   },
   pageTitle: {
     fontFamily: "Maax, sans-serif",
@@ -2730,6 +2825,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: 8,
+    flexWrap: "wrap",
   },
   topControlsSection: {
     display: "flex",
@@ -2737,11 +2833,14 @@ const styles = {
     justifyContent: "space-between",
     marginTop: 16,
     marginBottom: 16,
+    flexWrap: "wrap",
+    gap: "12px",
   },
   leftControls: {
     display: "flex",
     alignItems: "center",
     gap: 12,
+    flexWrap: "wrap",
   },
   sortSelect: {
     fontFamily: "Maax, sans-serif",
@@ -2847,9 +2946,11 @@ const styles = {
     gap: 8,
     marginBottom: 16,
     width: "100%",
-    maxWidth: "100%",
+    maxWidth: "none",
     margin: "0 auto 16px auto",
-    padding: "0 40px",
+    padding: "0 24px",
+    justifyContent: "center",
+    flexWrap: "wrap",
   },
   toggleBtn: {
     fontFamily: "Maax, sans-serif",
@@ -2861,11 +2962,13 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.3s ease",
     minHeight: "36px",
+    minWidth: "120px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
     transform: "translateY(0)",
+    whiteSpace: "nowrap",
   },
   searchContainer: {
     display: "none", // Remove old search container
@@ -2897,7 +3000,9 @@ const styles = {
     letterSpacing: "normal",
     color: "rgb(43, 44, 59)",
     background: "rgb(248, 248, 248)",
-    width: "320px",
+    width: "100%",
+    maxWidth: "min(320px, calc(100vw - 200px))",
+    minWidth: "200px",
     height: "36px",
     borderRadius: "6px",
     border: "1px solid rgb(215, 215, 224)",
@@ -2920,22 +3025,27 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    whiteSpace: "nowrap",
   },
   tableWrapper: {
     width: "100%",
-    maxWidth: "100%",
-    margin: "0 auto",
-    padding: "0",
+    maxWidth: "none",
+    margin: "0",
+    padding: "0 24px",
+    overflowX: "auto",
+    boxSizing: "border-box",
   },
   bulkActionsContainer: {
     display: "flex",
     alignItems: "center",
     marginBottom: 16,
     gap: 12,
+    flexWrap: "wrap",
   },
   headerTable: {
     borderCollapse: "collapse",
     width: "100%",
+    minWidth: "1000px",
     tableLayout: "fixed",
     boxShadow: "none",
     border: "1px solid rgb(215, 215, 224)",
@@ -2948,6 +3058,7 @@ const styles = {
     color: "rgb(59, 59, 74)",
     letterSpacing: "normal",
     fontWeight: 400,
+    transition: "all 0.3s ease",
   },
   clientTh: {
     textAlign: "left",
@@ -2959,9 +3070,10 @@ const styles = {
     lineHeight: "20.0004px",
     color: "rgb(59, 59, 74)",
     letterSpacing: "normal",
-    padding: "16px 20px",
+    padding: "16px 8px",
     border: "1px solid rgb(215, 215, 224)",
     whiteSpace: "nowrap",
+    boxSizing: "border-box",
   },
   tableBody: {
     width: "100%",
@@ -2972,10 +3084,12 @@ const styles = {
     position: "relative",
     display: "flex",
     flexDirection: "column",
+    WebkitOverflowScrolling: "touch",
   },
   bodyTable: {
     borderCollapse: "collapse",
     width: "100%",
+    minWidth: "1000px",
     tableLayout: "fixed",
     boxShadow: "none",
     borderTop: "none",
@@ -3000,12 +3114,13 @@ const styles = {
     borderRight: "1px solid rgb(215, 215, 224)",
     borderTop: "none",
     borderBottom: "none",
-    padding: "16px 20px",
+    padding: "16px 8px",
     color: "rgb(59, 59, 74)",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
     minHeight: "60px",
+    boxSizing: "border-box",
   },
   checkbox: {
     border: "1px solid rgb(215, 215, 224)",
@@ -3039,6 +3154,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     minWidth: "80px",
+    flexWrap: "wrap",
   },
   // Legacy styles for modals and other components
   input: {
@@ -3147,10 +3263,13 @@ const styles = {
     background: "#fff",
     padding: "36px 40px",
     borderRadius: 18,
-    minWidth: 340,
+    minWidth: "min(400px, 90vw)",
+    maxWidth: "min(500px, 95vw)",
+    width: "auto",
     boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
     position: "relative",
-    maxWidth: 420,
+    margin: "20px",
+    boxSizing: "border-box",
   },
   modalTitle: {
     margin: "0 0 18px 0",
