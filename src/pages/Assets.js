@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
   deleteDevice,
@@ -1092,49 +1092,86 @@ function Assets() {
   }
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        background: "#f7f9fb",
-        minHeight: "100vh",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        width: "100%",
-        boxSizing: "border-box",
-        overflowX: "auto",
-      }}
-    >
+    <React.Fragment>
+      <style>
+        {`
+          @media (min-width: 1366px) {
+            .assets-container {
+              padding: 24px !important;
+            }
+            .assets-search-container {
+              flex-wrap: nowrap !important;
+              gap: 16px !important;
+            }
+            .assets-table {
+              min-width: 100% !important;
+            }
+          }
+          @media (min-width: 1920px) {
+            .assets-container {
+              padding: 32px !important;
+              max-width: 1800px !important;
+              margin: 0 auto !important;
+            }
+          }
+          @media (min-width: 1600px) {
+            .assets-table-container {
+              overflow-x: visible !important;
+            }
+          }
+          .assets-table {
+            min-width: 1200px;
+          }
+        `}
+      </style>
+      <div
+        className="assets-container"
+        style={{
+          padding: "20px",
+          background: "rgb(255, 255, 255)",
+          minHeight: "100vh",
+          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          width: "100%",
+          boxSizing: "border-box",
+          maxWidth: "100vw",
+        }}
+      >
       {/* Container for search bar, buttons, and table */}
       <div style={{ 
         background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+        borderRadius: "8px",
+        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
         overflow: "hidden",
-        width: "100%"
+        width: "100%",
+        maxWidth: "100%",
+        border: "1px solid #e5e7eb",
       }}>
         {/* Search bar and buttons section */}
         <div style={{
           display: "flex",
           alignItems: "center",
           padding: "16px 20px",
-          borderBottom: "1px solid #e0e7ef",
-          gap: 12
-        }}>
+          borderBottom: "1px solid #e5e7eb",
+          gap: "12px",
+          flexWrap: "wrap",
+        }} className="assets-search-container">
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#f8f9fa",
-              borderRadius: 0,
-              border: "1px solid #e0e7ef",
-              padding: "8px 12px",
+              background: "#f9fafb",
+              borderRadius: "6px",
+              border: "1px solid #d1d5db",
+              padding: "10px 14px",
               flex: 1,
-              maxWidth: 400,
+              maxWidth: "400px",
+              minWidth: "280px",
             }}
           >
             <svg
               width="18"
               height="18"
-              style={{ color: "#445F6D", opacity: 0.7 }}
+              style={{ color: "#6b7280", opacity: 0.8 }}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -1154,11 +1191,11 @@ function Assets() {
                 border: "none",
                 outline: "none",
                 background: "transparent",
-                fontSize: "15px",
-                color: "#233037",
-                padding: "0 0 0 8px",
+                fontSize: "14px",
+                color: "#374151",
+                padding: "0 0 0 10px",
                 width: "100%",
-                fontWeight: 500,
+                fontWeight: 400,
               }}
             />
           </div>
@@ -1166,14 +1203,17 @@ function Assets() {
             disabled={!selectedDeviceIds.length}
             onClick={handleBulkReassign}
             style={{
-              padding: "8px 16px",
-              border: "1px solid #70C1B3",
-              borderRadius: 0,
-              background: selectedDeviceIds.length ? "#70C1B3" : "#f8f9fa",
-              color: selectedDeviceIds.length ? "#fff" : "#888",
+              padding: "10px 16px",
+              border: "1px solid #3b82f6",
+              borderRadius: "6px",
+              background: selectedDeviceIds.length ? "#3b82f6" : "#f9fafb",
+              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
               cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
               fontSize: "14px",
-              fontWeight: 600,
+              fontWeight: 500,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              minWidth: "90px",
             }}
           >
             Reassign
@@ -1182,32 +1222,46 @@ function Assets() {
             disabled={!selectedDeviceIds.length}
             onClick={handleBulkUnassign}
             style={{
-              padding: "8px 16px",
-              border: "1px solid #445F6D",
-              borderRadius: 0,
-              background: selectedDeviceIds.length ? "#445F6D" : "#f8f9fa",
-              color: selectedDeviceIds.length ? "#fff" : "#888",
+              padding: "10px 16px",
+              border: "1px solid #ef4444",
+              borderRadius: "6px",
+              background: selectedDeviceIds.length ? "#ef4444" : "#f9fafb",
+              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
               cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
               fontSize: "14px",
-              fontWeight: 600,
+              fontWeight: 500,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              minWidth: "90px",
             }}
           >
             Unassign
           </button>
         </div>
         
+        <div style={{ overflowX: "auto", width: "100%" }} className="assets-table-container">
         <table
+          className="assets-table"
           style={{
             width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 0,
+            borderCollapse: "collapse",
             background: "#fff",
-            tableLayout: "fixed",
+            fontSize: "14px",
           }}
         >
           <thead>
-            <tr style={{ background: "#445F6D" }}>
-              <th style={{ padding: 12, border: "none", width: "4%" }}>
+            <tr style={{ background: "rgb(255, 255, 255)", borderBottom: "1px solid #e5e7eb" }}>
+              <th style={{ 
+                padding: "12px 16px", 
+                border: "none", 
+                width: "40px", 
+                textAlign: "center",
+                fontWeight: 500,
+                color: "#374151",
+                fontSize: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}>
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -1215,115 +1269,125 @@ function Assets() {
                     if (el) el.indeterminate = isIndeterminate;
                   }}
                   onChange={toggleSelectAll}
-                  style={{ width: 18, height: 18, accentColor: "#70C1B3" }}
+                  style={{ 
+                    width: 16, 
+                    height: 16, 
+                    accentColor: "#3b82f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "3px"
+                  }}
                   title="Select all"
                 />
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "12%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                #
+              </th>
+              <th
+                style={{
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
+                  border: "none",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Device Tag
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "8%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Type
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "10%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Brand
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "17%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Model
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "17%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Assigned To
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "12%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
-                Condition
+                Date Assigned
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "14%",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Assignment Date
-              </th>
-              <th
-                style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
-                  border: "none",
-                  width: "22%",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Remarks
-              </th>
-              <th
-                style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
-                  border: "none",
-                  width: "6%",
                   textAlign: "center",
-                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  width: "100px",
                 }}
               >
                 Actions
@@ -1334,13 +1398,14 @@ function Assets() {
             {currentPageDevices.length === 0 ? (
               <tr>
                 <td
-                  colSpan="10"
+                  colSpan="9"
                   style={{
                     padding: "40px 20px",
                     textAlign: "center",
-                    color: "#667085",
-                    fontSize: "16px",
-                    fontWeight: "500",
+                    color: "#9ca3af",
+                    fontSize: "14px",
+                    fontWeight: "400",
+                    borderBottom: "1px solid #f3f4f6",
                   }}
                 >
                   {search
@@ -1349,26 +1414,39 @@ function Assets() {
                 </td>
               </tr>
             ) : (
-              currentPageDevices.map((device) => {
+              currentPageDevices.map((device, index) => {
                 const isSelected = selectedDeviceIds.includes(device.id);
+                const rowIndex = (currentPage - 1) * devicesPerPage + index + 1;
                 return (
                   <tr
                     key={device.id}
                     style={{
-                      background: isSelected ? "#e6f7f3" : "transparent",
+                      background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
                       cursor: "pointer",
                       transition: "background 0.15s",
+                      borderBottom: "1px solid #f3f4f6",
                     }}
                     onClick={(e) => {
                       if (e.target.type !== "checkbox") {
                         toggleSelectDevice(device.id);
                       }
                     }}
+                    onMouseEnter={(e) => {
+                      if (index % 2 === 0) {
+                        e.currentTarget.style.background = "rgb(235, 235, 240)";
+                      } else {
+                        e.currentTarget.style.background = "rgb(225, 225, 235)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)";
+                    }}
                   >
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: "none",
                       }}
                     >
                       <input
@@ -1377,100 +1455,85 @@ function Assets() {
                         onChange={() => toggleSelectDevice(device.id)}
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          width: 18,
-                          height: 18,
-                          accentColor: "#70C1B3",
+                          width: 16,
+                          height: 16,
+                          accentColor: "#3b82f6",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "3px",
                         }}
                         title="Select device"
                       />
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        borderBottom: "none",
                       }}
                     >
-                      {device.deviceTag}
+                      {rowIndex}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#1f2937",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        borderBottom: "none",
+                      }}
+                    >
+                      <span style={{ color: "#3b82f6", textDecoration: "underline", cursor: "pointer" }}>
+                        {device.deviceTag}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.deviceType}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.brand}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.model}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {getEmployeeName(device.assignedTo)}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
-                      }}
-                    >
-                      {device.condition}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.assignmentDate
@@ -1483,25 +1546,9 @@ function Assets() {
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
-                      }}
-                      title={device.remarks || ""}
-                    >
-                      {device.remarks || ""}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        width: "6%",
+                        padding: "12px 16px",
                         textAlign: "center",
-                        whiteSpace: "nowrap",
+                        borderBottom: "none",
                       }}
                     >
                       <div
@@ -1509,34 +1556,39 @@ function Assets() {
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          gap: 8,
+                          gap: "8px",
                         }}
                       >
                         <button
                           style={{
-                            background: "#e0f2f1",
+                            background: "transparent",
                             border: "none",
-                            borderRadius: 6,
-                            padding: 6,
+                            borderRadius: "4px",
+                            padding: "6px",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "center",
                             transition: "background 0.2s",
+                            color: "#3b82f6",
                           }}
                           title="Edit"
-                          onClick={() => handleEdit(device)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(device);
+                          }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#b2dfdb")
+                            (e.currentTarget.style.background = "#dbeafe")
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#e0f2f1")
+                            (e.currentTarget.style.background = "transparent")
                           }
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="16"
+                            height="16"
                             fill="none"
-                            stroke="#2563eb"
+                            stroke="currentColor"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1548,36 +1600,41 @@ function Assets() {
                         </button>
                         <button
                           style={{
-                            background: "#ffebee",
+                            background: "transparent",
                             border: "none",
-                            borderRadius: 6,
-                            padding: 6,
+                            borderRadius: "4px",
+                            padding: "6px",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "center",
                             transition: "background 0.2s",
+                            color: "#ef4444",
                           }}
                           title="Delete"
-                          onClick={() => handleDelete(device.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(device.id);
+                          }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#ffcdd2")
+                            (e.currentTarget.style.background = "#fef2f2")
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#ffebee")
+                            (e.currentTarget.style.background = "transparent")
                           }
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="16"
+                            height="16"
                             fill="none"
-                            stroke="#e57373"
+                            stroke="currentColor"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             viewBox="0 0 24 24"
                           >
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                            <polyline points="3,6 5,6 21,6" />
+                            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
                             <line x1="10" y1="11" x2="10" y2="17" />
                             <line x1="14" y1="11" x2="14" y2="17" />
                           </svg>
@@ -1612,7 +1669,7 @@ function Assets() {
               marginTop: "20px",
               padding: "16px 20px",
               background: "#fff",
-              borderRadius: "12px",
+              borderRadius: "0px",
               boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
             }}
           >
@@ -2506,7 +2563,9 @@ function Assets() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      </div>
+    </React.Fragment>
   );
 }
 
