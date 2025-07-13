@@ -1128,26 +1128,29 @@ function Assets() {
       <div
         className="assets-container"
         style={{
-          padding: "20px",
-          background: "rgb(255, 255, 255)",
-          minHeight: "100vh",
+          padding: "0", // Remove padding to maximize space
+          background: "transparent", // Let parent handle background
+          height: "100%", // Fill available height
           fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           width: "100%",
           boxSizing: "border-box",
-          maxWidth: "100vw",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden", // Prevent overflow on main container
         }}
       >
-      {/* Container for search bar, buttons, and table */}
-      <div style={{ 
+      {/* Fixed Header - Search bar and buttons section */}
+      <div style={{
         background: "#fff",
-        borderRadius: "8px",
-        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)",
-        overflow: "hidden",
-        width: "100%",
-        maxWidth: "100%",
-        border: "1px solid #e5e7eb",
+        borderRadius: "0",
+        boxShadow: "none",
+        border: "none",
+        borderBottom: "1px solid #e5e7eb",
+        position: "sticky",
+        top: "0",
+        zIndex: "10",
+        flexShrink: 0,
       }}>
-        {/* Search bar and buttons section */}
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -1239,8 +1242,17 @@ function Assets() {
             Unassign
           </button>
         </div>
-        
-        <div style={{ overflowX: "auto", width: "100%" }} className="assets-table-container">
+      </div>
+      
+      {/* Scrollable Table Container */}
+      <div style={{ 
+        background: "#fff",
+        border: "none",
+        flex: "1",
+        overflow: "auto",
+        minHeight: "0",
+      }}>
+        <div style={{ overflowX: "auto", width: "100%", height: "100%" }} className="assets-table-container">
         <table
           className="assets-table"
           style={{
@@ -1250,7 +1262,7 @@ function Assets() {
             fontSize: "14px",
           }}
         >
-          <thead>
+          <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
             <tr style={{ background: "rgb(255, 255, 255)", borderBottom: "1px solid #e5e7eb" }}>
               <th style={{ 
                 padding: "12px 16px", 
@@ -1654,9 +1666,10 @@ function Assets() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
-      {/* Pagination Controls */}
+      {/* Fixed Pagination Footer */}
       {(() => {
         const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
         const startIndex = (currentPage - 1) * devicesPerPage + 1;
@@ -1665,19 +1678,22 @@ function Assets() {
           filteredDevices.length
         );
 
-        if (totalPages <= 1) return null;
-
         return (
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginTop: "20px",
-              padding: "16px 20px",
+              padding: "12px 20px", // Reduced padding for fixed layout
               background: "#fff",
-              borderRadius: "0px",
-              boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+              borderRadius: "0",
+              boxShadow: "none",
+              border: "none",
+              borderTop: "1px solid #e5e7eb",
+              position: "sticky",
+              bottom: "0",
+              zIndex: "10",
+              flexShrink: 0,
             }}
           >
             <div
@@ -1691,7 +1707,7 @@ function Assets() {
               }}
             >
               <span>
-                Showing {startIndex} - {endIndex} of {filteredDevices.length}{" "}
+                Showing {filteredDevices.length === 0 ? 0 : startIndex} - {filteredDevices.length === 0 ? 0 : endIndex} of {filteredDevices.length}{" "}
                 devices
               </span>
               <div
@@ -1713,6 +1729,7 @@ function Assets() {
                     color: "#445F6D",
                   }}
                 >
+                  <option value={10}>10</option>
                   <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
@@ -1721,119 +1738,121 @@ function Assets() {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                First
-              </button>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  First
+                </button>
 
-              <button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Previous
-              </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Previous
+                </button>
 
-              {/* Page Numbers */}
-              {(() => {
-                const pageNumbers = [];
-                const maxVisiblePages = 5;
-                let startPage = Math.max(
-                  1,
-                  currentPage - Math.floor(maxVisiblePages / 2)
-                );
-                let endPage = Math.min(
-                  totalPages,
-                  startPage + maxVisiblePages - 1
-                );
-
-                if (endPage - startPage + 1 < maxVisiblePages) {
-                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-
-                for (let i = startPage; i <= endPage; i++) {
-                  pageNumbers.push(
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(i)}
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: i === currentPage ? "#70C1B3" : "#fff",
-                        color: i === currentPage ? "#fff" : "#445F6D",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        minWidth: "40px",
-                      }}
-                    >
-                      {i}
-                    </button>
+                {/* Page Numbers */}
+                {(() => {
+                  const pageNumbers = [];
+                  const maxVisiblePages = 5;
+                  let startPage = Math.max(
+                    1,
+                    currentPage - Math.floor(maxVisiblePages / 2)
                   );
-                }
+                  let endPage = Math.min(
+                    totalPages,
+                    startPage + maxVisiblePages - 1
+                  );
 
-                return pageNumbers;
-              })()}
+                  if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                  }
 
-              <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Next
-              </button>
+                  for (let i = startPage; i <= endPage; i++) {
+                    pageNumbers.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #e0e7ef",
+                          background: i === currentPage ? "#70C1B3" : "#fff",
+                          color: i === currentPage ? "#fff" : "#445F6D",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          minWidth: "40px",
+                        }}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
 
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Last
-              </button>
-            </div>
+                  return pageNumbers;
+                })()}
+
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Next
+                </button>
+
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Last
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -2570,7 +2589,6 @@ function Assets() {
           </div>
         </div>
       )}
-      </div>
       </div>
     </React.Fragment>
   );
