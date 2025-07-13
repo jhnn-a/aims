@@ -7,6 +7,7 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
 // Import react-hot-toast
@@ -1686,7 +1687,7 @@ const UnitSpecs = () => {
             Inventory Units
           </h2>
           {loading ? (
-            <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
+            <TableLoadingSpinner text="Loading inventory units..." />
           ) : (
             renderTable(
               inventory,
@@ -1712,7 +1713,7 @@ const UnitSpecs = () => {
             Deployed Units
           </h2>
           {loading ? (
-            <div style={{ textAlign: "center", padding: 30 }}>Loading...</div>
+            <TableLoadingSpinner text="Loading deployed units..." />
           ) : (
             renderTable(
               deployed,

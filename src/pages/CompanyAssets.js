@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Assets from "./Assets";
 import Inventory from "./Inventory";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 const tabStyles = {
   container: {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 import {
   addDevice,
   updateDevice,
@@ -2186,7 +2187,7 @@ function Inventory() {
       )}
 
       {loading ? (
-        <p>Loading...</p>
+        <TableLoadingSpinner text="Loading inventory..." />
       ) : (
         <>
           <div style={styles.tableContainer}>

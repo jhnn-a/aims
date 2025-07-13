@@ -6,6 +6,7 @@ import {
 } from "../services/deviceService";
 import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
@@ -1395,7 +1396,13 @@ function Assets() {
             </tr>
           </thead>
           <tbody>
-            {currentPageDevices.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="9" style={{ padding: "0", border: "none" }}>
+                  <TableLoadingSpinner text="Loading assigned assets..." />
+                </td>
+              </tr>
+            ) : currentPageDevices.length === 0 ? (
               <tr>
                 <td
                   colSpan="9"

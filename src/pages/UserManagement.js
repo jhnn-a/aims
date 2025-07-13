@@ -1,6 +1,7 @@
 // UserManagement.js
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getAuth } from "firebase/auth";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 function UserManagement({ currentUser }) {
   const [showModal, setShowModal] = useState(false);
@@ -662,7 +663,14 @@ function UserManagement({ currentUser }) {
                 }}
               >
                 <tbody>
-                  {filteredUsers.map((u, idx) => {
+                  {usersLoading ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: "center", padding: "40px 0" }}>
+                        <TableLoadingSpinner />
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u, idx) => {
                     const isChecked = checkedRows.includes(u.uid);
                     let rowBg;
                     if (isChecked) {
@@ -867,7 +875,8 @@ function UserManagement({ currentUser }) {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1128,7 +1137,14 @@ function UserManagement({ currentUser }) {
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
               >
-                {loading ? "Creating..." : "Create User"}
+                {loading ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <LoadingSpinner size="small" color="#3B3B4A" />
+                    Creating...
+                  </div>
+                ) : (
+                  "Create User"
+                )}
               </button>
               {status && (
                 <div

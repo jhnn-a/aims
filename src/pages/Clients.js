@@ -6,6 +6,7 @@ import {
   deleteClient,
 } from "../services/clientService";
 import { useSnackbar } from "../components/Snackbar";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -696,7 +697,13 @@ const Clients = () => {
                 }}
               >
                 <tbody>
-                  {filteredClients.map((client, idx) => {
+                  {loading ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: "0", border: "none" }}>
+                        <TableLoadingSpinner text="Loading clients..." />
+                      </td>
+                    </tr>
+                  ) : filteredClients.map((client, idx) => {
                     const isChecked = checkedRows.includes(client.id);
                     // Alternating highlight colors for selected rows
                     let rowBg;

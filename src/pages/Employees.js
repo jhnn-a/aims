@@ -5,6 +5,7 @@ import { getAllClients } from "../services/clientService";
 import { getAllDevices, updateDevice } from "../services/deviceService";
 import { getDeviceHistoryForEmployee, logDeviceHistory, deleteDeviceHistory } from "../services/deviceHistoryService";
 import { useSnackbar } from "../components/Snackbar";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
@@ -1669,7 +1670,7 @@ function Employees() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "80px 0" }}>Loading...</div>
+            <TableLoadingSpinner text="Loading active employees..." />
           ) : (
             <>
               {/* Fixed Header */}
@@ -1942,7 +1943,7 @@ function Employees() {
           </div>
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: "80px 0" }}>Loading...</div>
+            <TableLoadingSpinner text="Loading resigned employees..." />
           ) : (
             <>
               {/* Fixed Header */}
@@ -2503,7 +2504,13 @@ function Employees() {
               }}
             >
               {loadingHistory ? (
-                <p style={{ textAlign: "center", margin: 32 }}>Loading...</p>
+                <LoadingSpinner 
+                  size="medium" 
+                  color="#2563eb" 
+                  text="Loading device history..." 
+                  showText={true}
+                  backgroundColor="transparent"
+                />
               ) : history.length === 0 ? (
                 <p style={{ textAlign: "center", margin: 32 }}>
                   No history found.

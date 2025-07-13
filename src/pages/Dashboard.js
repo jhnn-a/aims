@@ -5,6 +5,7 @@ import { getAllClients } from "../services/clientService";
 import { exportDashboardToExcel } from '../utils/exportDashboardToExcel';
 import { getDeviceHistory } from "../services/deviceHistoryService";
 import { getUnitSpecsByTag } from "../services/unitSpecsService";
+import LoadingSpinner, { TableLoadingSpinner, CardLoadingSpinner } from "../components/LoadingSpinner";
 
 // Simple bar component
 function Bar({ label, value, max, color = "#2563eb" }) {
@@ -623,15 +624,7 @@ function Dashboard() {
           </div>
           
           {loadingSpecs ? (
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              padding: "20px 0",
-              color: "#64748b" 
-            }}>
-              Loading specifications...
-            </div>
+            <CardLoadingSpinner text="Loading specifications..." />
           ) : unitSpecs ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
