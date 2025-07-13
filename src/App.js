@@ -270,14 +270,24 @@ function App() {
   return (
     <SnackbarProvider>
       <Header user={user} />
-      <div style={{ display: "flex" }}>
+      <div style={{ 
+        display: "flex",
+        marginTop: "56px", // Add top margin equal to header height
+      }}>
         <Sidebar user={user} />
         <main
+          className="main-content"
           style={{
             flex: 1,
-            padding: 16,
+            padding: 0, // Remove padding to maximize space
             backgroundColor: "#F9F9F9",
             boxSizing: "border-box",
+            marginLeft: "260px", // Add left margin equal to sidebar width
+            height: "calc(100vh - 56px)", // Fixed height minus header
+            width: "calc(100vw - 260px)", // Ensure proper width calculation
+            overflow: "hidden", // Prevent scrolling on main container
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <Routes>

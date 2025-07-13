@@ -2416,7 +2416,7 @@ function Inventory() {
             </table>
           </div>
 
-          {/* Pagination Controls */}
+          {/* Fixed Pagination Footer */}
           {(() => {
             const totalPages = Math.ceil(
               filteredDevices.length / devicesPerPage
@@ -2427,19 +2427,23 @@ function Inventory() {
               filteredDevices.length
             );
 
-            if (totalPages <= 1) return null;
-
             return (
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginTop: "20px",
-                  padding: "16px 20px",
+                  padding: "12px 20px", // Reduced padding
                   background: "#fff",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+                  borderRadius: "0",
+                  boxShadow: "none",
+                  border: "none",
+                  borderTop: "1px solid #e5e7eb",
+                  position: "sticky",
+                  bottom: "0",
+                  zIndex: "10",
+                  flexShrink: 0,
+                  marginTop: "0",
                 }}
               >
                 <div
@@ -3955,18 +3959,24 @@ export default Inventory;
 
 const styles = {
   pageContainer: {
-    padding: "32px 0 32px 0",
+    padding: "0", // Remove padding for fixed layout
     maxWidth: "100%",
-    background: "#f7f9fb",
-    minHeight: "100vh",
+    background: "transparent", // Let parent handle background
+    height: "100%", // Fill available height
     fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden", // Prevent page-level scrolling
   },
   headerBar: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
-    padding: "0 24px",
+    marginBottom: 16, // Reduced margin for fixed layout
+    padding: "16px 24px", // Added consistent padding
+    flexShrink: 0, // Prevent header from shrinking
+    background: "#fff", // Add background for visual separation
+    borderBottom: "1px solid #e5e7eb",
   },
   title: {
     fontSize: 28,
@@ -4041,7 +4051,11 @@ const styles = {
   tableContainer: {
     marginTop: 0,
     overflowX: "auto",
+    overflowY: "auto", // Allow vertical scrolling
     padding: "0 24px",
+    flex: 1, // Take remaining space
+    minHeight: 0, // Allow shrinking
+    background: "#fff",
   },
   table: {
     width: "100%",
