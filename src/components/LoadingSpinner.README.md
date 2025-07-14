@@ -1,31 +1,35 @@
 # LoadingSpinner Component Usage Guide
 
 ## Overview
+
 The `LoadingSpinner` component provides a customizable animated loading indicator that can be used across different pages and components in the application.
 
 ## Import
+
 ```javascript
-import LoadingSpinner, { 
-  TableLoadingSpinner, 
-  FullPageLoadingSpinner, 
-  ButtonLoadingSpinner, 
-  CardLoadingSpinner 
+import LoadingSpinner, {
+  TableLoadingSpinner,
+  FullPageLoadingSpinner,
+  ButtonLoadingSpinner,
+  CardLoadingSpinner,
 } from "../components/LoadingSpinner";
 ```
 
 ## Basic Usage
 
 ### Default Loading Spinner
+
 ```javascript
 <LoadingSpinner />
 ```
 
 ### Custom Loading Spinner
+
 ```javascript
-<LoadingSpinner 
-  size="large" 
-  color="#2563eb" 
-  text="Loading data..." 
+<LoadingSpinner
+  size="large"
+  color="#2563eb"
+  text="Loading data..."
   showText={true}
   backgroundColor="rgba(255, 255, 255, 0.9)"
 />
@@ -34,80 +38,98 @@ import LoadingSpinner, {
 ## Pre-built Variants
 
 ### Table Loading Spinner
+
 Perfect for loading states in tables and data grids:
+
 ```javascript
 <TableLoadingSpinner text="Loading employees..." />
 ```
 
 ### Full Page Loading Spinner
+
 For full-page loading states:
+
 ```javascript
 <FullPageLoadingSpinner text="Loading application..." />
 ```
 
 ### Button Loading Spinner
+
 For loading states inside buttons:
+
 ```javascript
 <ButtonLoadingSpinner size="small" color="#ffffff" />
 ```
 
 ### Card Loading Spinner
+
 For loading states in cards and smaller components:
+
 ```javascript
 <CardLoadingSpinner text="Loading content..." />
 ```
 
 ## Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `size` | `string` | `'medium'` | Size of the spinner: `'small'`, `'medium'`, `'large'`, `'xlarge'` |
-| `color` | `string` | `'#2563eb'` | Color of the spinner (hex, rgb, or css color) |
-| `text` | `string` | `'Loading...'` | Text to display below the spinner |
-| `showText` | `boolean` | `true` | Whether to show the loading text |
-| `fullPage` | `boolean` | `false` | Whether to render as a full-page overlay |
-| `backgroundColor` | `string` | `'transparent'` | Background color of the loading container |
+| Prop              | Type      | Default         | Description                                                       |
+| ----------------- | --------- | --------------- | ----------------------------------------------------------------- |
+| `size`            | `string`  | `'medium'`      | Size of the spinner: `'small'`, `'medium'`, `'large'`, `'xlarge'` |
+| `color`           | `string`  | `'#2563eb'`     | Color of the spinner (hex, rgb, or css color)                     |
+| `text`            | `string`  | `'Loading...'`  | Text to display below the spinner                                 |
+| `showText`        | `boolean` | `true`          | Whether to show the loading text                                  |
+| `fullPage`        | `boolean` | `false`         | Whether to render as a full-page overlay                          |
+| `backgroundColor` | `string`  | `'transparent'` | Background color of the loading container                         |
 
 ## Size Configurations
 
 - **Small**: 24px spinner, 14px text, 20px padding
-- **Medium**: 48px spinner, 16px text, 40px padding  
+- **Medium**: 48px spinner, 16px text, 40px padding
 - **Large**: 64px spinner, 18px text, 60px padding
 - **XLarge**: 80px spinner, 20px text, 80px padding
 
 ## Usage Examples in Different Pages
 
 ### Assets Page
+
 ```javascript
 // In table loading state
-{loading ? (
-  <TableLoadingSpinner text="Loading assets..." />
-) : (
-  <AssetsTable data={assets} />
-)}
+{
+  loading ? (
+    <TableLoadingSpinner text="Loading assets..." />
+  ) : (
+    <AssetsTable data={assets} />
+  );
+}
 ```
 
 ### Dashboard Page
+
 ```javascript
 // In card loading state
-{loadingStats ? (
-  <CardLoadingSpinner text="Loading statistics..." />
-) : (
-  <StatisticsCard data={stats} />
-)}
+{
+  loadingStats ? (
+    <CardLoadingSpinner text="Loading statistics..." />
+  ) : (
+    <StatisticsCard data={stats} />
+  );
+}
 ```
 
 ### Inventory Page
+
 ```javascript
 // In full page loading state
-{initializing ? (
-  <FullPageLoadingSpinner text="Initializing inventory..." />
-) : (
-  <InventoryContent />
-)}
+{
+  initializing ? (
+    <FullPageLoadingSpinner text="Initializing inventory..." />
+  ) : (
+    <InventoryContent />
+  );
+}
 ```
 
 ### Button States
+
 ```javascript
 <button disabled={saving}>
   {saving ? (
@@ -116,7 +138,7 @@ For loading states in cards and smaller components:
       <span style={{ marginLeft: 8 }}>Saving...</span>
     </>
   ) : (
-    'Save Changes'
+    "Save Changes"
   )}
 </button>
 ```
@@ -145,6 +167,7 @@ For loading states in cards and smaller components:
 ## Customization
 
 You can easily extend the component by:
+
 1. Adding new size configurations
 2. Creating custom color schemes
 3. Adding new animation variants

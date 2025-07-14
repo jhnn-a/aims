@@ -7,7 +7,9 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
 // Import react-hot-toast
@@ -769,7 +771,8 @@ const UnitSpecs = () => {
             minWidth: 340,
             boxShadow: "0 8px 32px rgba(37,99,235,0.18)",
             position: "relative",
-            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            fontFamily:
+              'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
             maxWidth: 420,
           }}
         >
@@ -1172,7 +1175,8 @@ const UnitSpecs = () => {
           minWidth: 400,
           boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
           position: "relative",
-          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           maxWidth: 420,
         }}
       >
@@ -1412,7 +1416,13 @@ const UnitSpecs = () => {
 
   // --- Modernized Page Container ---
   return (
-    <div style={{ padding: 20, fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif" }}>
+    <div
+      style={{
+        padding: 20,
+        fontFamily:
+          'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}
+    >
       <Toaster position="top-center" reverseOrder={false} />
       <div
         style={{
@@ -1474,7 +1484,8 @@ const UnitSpecs = () => {
               minWidth: 400,
               boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
               position: "relative",
-              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+              fontFamily:
+                'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
               maxWidth: 420,
             }}
           >

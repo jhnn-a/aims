@@ -6,7 +6,9 @@ import {
 } from "../services/deviceService";
 import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
@@ -473,7 +475,9 @@ function Assets() {
       setDevices(assignedDevices);
       setEmployees(allEmployees);
     } catch (error) {
-      showError("Failed to load devices and employees. Please refresh the page.");
+      showError(
+        "Failed to load devices and employees. Please refresh the page."
+      );
     } finally {
       setLoading(false);
     }
@@ -565,7 +569,9 @@ function Assets() {
       setShowUnassignModal(false);
       setUnassignDevice(null);
       loadDevicesAndEmployees();
-      showSuccess(`Device ${unassignDevice.deviceTag} unassigned successfully!`);
+      showSuccess(
+        `Device ${unassignDevice.deviceTag} unassigned successfully!`
+      );
     } catch (error) {
       showError("Failed to unassign device. Please try again.");
     }
@@ -766,7 +772,9 @@ function Assets() {
     });
     setBulkReassignModalOpen(false);
     setSelectedDeviceIds([]);
-    showSuccess(`Successfully reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`);
+    showSuccess(
+      `Successfully reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`
+    );
     loadDevicesAndEmployees();
   };
 
@@ -825,7 +833,11 @@ function Assets() {
     });
     setBulkUnassignModalOpen(false);
     setSelectedDeviceIds([]);
-    showSuccess(`Successfully unassigned ${selected.length} device(s) from ${emp.fullName || 'employee'}`);
+    showSuccess(
+      `Successfully unassigned ${selected.length} device(s) from ${
+        emp.fullName || "employee"
+      }`
+    );
     loadDevicesAndEmployees();
   };
 
@@ -1131,7 +1143,8 @@ function Assets() {
           padding: "0", // Remove padding to maximize space
           background: "transparent", // Let parent handle background
           height: "100%", // Fill available height
-          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          fontFamily:
+            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           width: "100%",
           boxSizing: "border-box",
           display: "flex",
@@ -1139,1267 +1152,1051 @@ function Assets() {
           overflow: "hidden", // Prevent overflow on main container
         }}
       >
-      {/* Fixed Header - Search bar and buttons section */}
-      <div style={{
-        background: "#fff",
-        borderRadius: "0",
-        boxShadow: "none",
-        border: "none",
-        borderBottom: "1px solid #e5e7eb",
-        position: "sticky",
-        top: "0",
-        zIndex: "10",
-        flexShrink: 0,
-      }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "16px 20px",
-          borderBottom: "1px solid #e5e7eb",
-          gap: "12px",
-          flexWrap: "wrap",
-        }} className="assets-search-container">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              background: "#f9fafb",
-              borderRadius: "6px",
-              border: "1px solid #d1d5db",
-              padding: "10px 14px",
-              flex: 1,
-              maxWidth: "400px",
-              minWidth: "280px",
-            }}
-          >
-            <svg
-              width="18"
-              height="18"
-              style={{ color: "#6b7280", opacity: 0.8 }}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search assigned assets..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                border: "none",
-                outline: "none",
-                background: "transparent",
-                fontSize: "14px",
-                color: "#374151",
-                padding: "0 0 0 10px",
-                width: "100%",
-                fontWeight: 400,
-              }}
-            />
-          </div>
-          <button
-            disabled={!selectedDeviceIds.length}
-            onClick={handleBulkReassign}
-            style={{
-              padding: "10px 16px",
-              border: "1px solid #3b82f6",
-              borderRadius: "6px",
-              background: selectedDeviceIds.length ? "#3b82f6" : "#f9fafb",
-              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
-              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-              fontSize: "14px",
-              fontWeight: 500,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-              minWidth: "90px",
-            }}
-          >
-            Reassign
-          </button>
-          <button
-            disabled={!selectedDeviceIds.length}
-            onClick={handleBulkUnassign}
-            style={{
-              padding: "10px 16px",
-              border: "1px solid #ef4444",
-              borderRadius: "6px",
-              background: selectedDeviceIds.length ? "#ef4444" : "#f9fafb",
-              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
-              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-              fontSize: "14px",
-              fontWeight: 500,
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-              minWidth: "90px",
-            }}
-          >
-            Unassign
-          </button>
-        </div>
-      </div>
-      
-      {/* Scrollable Table Container */}
-      <div style={{ 
-        background: "#fff",
-        border: "none",
-        flex: "1",
-        overflow: "auto",
-        minHeight: "0",
-      }}>
-        <div style={{ overflowX: "auto", width: "100%", height: "100%" }} className="assets-table-container">
-        <table
-          className="assets-table"
+        {/* Fixed Header - Search bar and buttons section */}
+        <div
           style={{
-            width: "100%",
-            borderCollapse: "collapse",
             background: "#fff",
-            fontSize: "14px",
+            borderRadius: "0",
+            boxShadow: "none",
+            border: "none",
+            borderBottom: "1px solid #e5e7eb",
+            position: "sticky",
+            top: "0",
+            zIndex: "10",
+            flexShrink: 0,
           }}
         >
-          <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
-            <tr style={{ background: "rgb(255, 255, 255)", borderBottom: "1px solid #e5e7eb" }}>
-              <th style={{ 
-                padding: "12px 16px", 
-                border: "none", 
-                width: "40px", 
-                textAlign: "center",
-                fontWeight: 500,
-                color: "#374151",
-                fontSize: "12px",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}>
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = isIndeterminate;
-                  }}
-                  onChange={toggleSelectAll}
-                  style={{ 
-                    width: 16, 
-                    height: 16, 
-                    accentColor: "#3b82f6",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "3px"
-                  }}
-                  title="Select all"
-                />
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                #
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Device Tag
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Type
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Brand
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Model
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Assigned To
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Date Assigned
-              </th>
-              <th
-                style={{
-                  color: "#374151",
-                  fontWeight: 500,
-                  padding: "12px 16px",
-                  border: "none",
-                  textAlign: "center",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  width: "100px",
-                }}
-              >
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="9" style={{ padding: "0", border: "none" }}>
-                  <TableLoadingSpinner text="Loading assigned assets..." />
-                </td>
-              </tr>
-            ) : currentPageDevices.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="9"
-                  style={{
-                    padding: "40px 20px",
-                    textAlign: "center",
-                    color: "#9ca3af",
-                    fontSize: "14px",
-                    fontWeight: "400",
-                    borderBottom: "1px solid #f3f4f6",
-                  }}
-                >
-                  {search
-                    ? "No assigned devices found matching your search."
-                    : "No assigned devices to display."}
-                </td>
-              </tr>
-            ) : (
-              currentPageDevices.map((device, index) => {
-                const isSelected = selectedDeviceIds.includes(device.id);
-                const rowIndex = (currentPage - 1) * devicesPerPage + index + 1;
-                return (
-                  <tr
-                    key={device.id}
-                    style={{
-                      background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
-                      cursor: "pointer",
-                      transition: "background 0.15s",
-                      borderBottom: "1px solid #f3f4f6",
-                    }}
-                    onClick={(e) => {
-                      if (e.target.type !== "checkbox") {
-                        toggleSelectDevice(device.id);
-                      }
-                    }}
-                    onMouseEnter={(e) => {
-                      if (index % 2 === 0) {
-                        e.currentTarget.style.background = "rgb(235, 235, 240)";
-                      } else {
-                        e.currentTarget.style.background = "rgb(225, 225, 235)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)";
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "center",
-                        borderBottom: "none",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectDevice(device.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: 16,
-                          height: 16,
-                          accentColor: "#3b82f6",
-                          border: "1px solid #d1d5db",
-                          borderRadius: "3px",
-                        }}
-                        title="Select device"
-                      />
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {rowIndex}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#1f2937",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        borderBottom: "none",
-                      }}
-                    >
-                      <span style={{ color: "#3b82f6", textDecoration: "underline", cursor: "pointer" }}>
-                        {device.deviceTag}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {device.deviceType}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {device.brand}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {device.model}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {getEmployeeName(device.assignedTo)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        color: "#6b7280",
-                        fontSize: "14px",
-                        borderBottom: "none",
-                      }}
-                    >
-                      {device.assignmentDate
-                        ? new Date(
-                            device.assignmentDate.seconds
-                              ? device.assignmentDate.seconds * 1000
-                              : device.assignmentDate
-                          ).toLocaleDateString()
-                        : ""}
-                    </td>
-                    <td
-                      style={{
-                        padding: "12px 16px",
-                        textAlign: "center",
-                        borderBottom: "none",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <button
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "background 0.2s",
-                            color: "#3b82f6",
-                          }}
-                          title="Edit"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(device);
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#dbeafe")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "6px",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "background 0.2s",
-                            color: "#ef4444",
-                          }}
-                          title="Delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(device.id);
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#fef2f2")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            viewBox="0 0 24 24"
-                          >
-                            <polyline points="3,6 5,6 21,6" />
-                            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
-                            <line x1="10" y1="11" x2="10" y2="17" />
-                            <line x1="14" y1="11" x2="14" y2="17" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-        </div>
-      </div>
-
-      {/* Fixed Pagination Footer */}
-      {(() => {
-        const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
-        const startIndex = (currentPage - 1) * devicesPerPage + 1;
-        const endIndex = Math.min(
-          currentPage * devicesPerPage,
-          filteredDevices.length
-        );
-
-        return (
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
               alignItems: "center",
-              padding: "12px 20px", // Reduced padding for fixed layout
-              background: "#fff",
-              borderRadius: "0",
-              boxShadow: "none",
-              border: "none",
-              borderTop: "1px solid #e5e7eb",
-              position: "sticky",
-              bottom: "0",
-              zIndex: "10",
-              flexShrink: 0,
+              padding: "16px 20px",
+              borderBottom: "1px solid #e5e7eb",
+              gap: "12px",
+              flexWrap: "wrap",
+            }}
+            className="assets-search-container"
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: "#f9fafb",
+                borderRadius: "6px",
+                border: "1px solid #d1d5db",
+                padding: "10px 14px",
+                flex: 1,
+                maxWidth: "400px",
+                minWidth: "280px",
+              }}
+            >
+              <svg
+                width="18"
+                height="18"
+                style={{ color: "#6b7280", opacity: 0.8 }}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search assigned assets..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontSize: "14px",
+                  color: "#374151",
+                  padding: "0 0 0 10px",
+                  width: "100%",
+                  fontWeight: 400,
+                }}
+              />
+            </div>
+            <button
+              disabled={!selectedDeviceIds.length}
+              onClick={handleBulkReassign}
+              style={{
+                padding: "10px 16px",
+                border: "1px solid #3b82f6",
+                borderRadius: "6px",
+                background: selectedDeviceIds.length ? "#3b82f6" : "#f9fafb",
+                color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+                fontSize: "14px",
+                fontWeight: 500,
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+                minWidth: "90px",
+              }}
+            >
+              Reassign
+            </button>
+            <button
+              disabled={!selectedDeviceIds.length}
+              onClick={handleBulkUnassign}
+              style={{
+                padding: "10px 16px",
+                border: "1px solid #ef4444",
+                borderRadius: "6px",
+                background: selectedDeviceIds.length ? "#ef4444" : "#f9fafb",
+                color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+                fontSize: "14px",
+                fontWeight: 500,
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+                minWidth: "90px",
+              }}
+            >
+              Unassign
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Table Container */}
+        <div
+          style={{
+            background: "#fff",
+            border: "none",
+            flex: "1",
+            overflow: "auto",
+            minHeight: "0",
+          }}
+        >
+          <div
+            style={{ overflowX: "auto", width: "100%", height: "100%" }}
+            className="assets-table-container"
+          >
+            <table
+              className="assets-table"
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "#fff",
+                fontSize: "14px",
+              }}
+            >
+              <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+                <tr
+                  style={{
+                    background: "rgb(255, 255, 255)",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      border: "none",
+                      width: "40px",
+                      textAlign: "center",
+                      fontWeight: 500,
+                      color: "#374151",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isIndeterminate;
+                      }}
+                      onChange={toggleSelectAll}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        accentColor: "#3b82f6",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "3px",
+                      }}
+                      title="Select all"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    #
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Device Tag
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Type
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Brand
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Model
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Assigned To
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    Date Assigned
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      border: "none",
+                      textAlign: "center",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "100px",
+                    }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="9" style={{ padding: "0", border: "none" }}>
+                      <TableLoadingSpinner text="Loading assigned assets..." />
+                    </td>
+                  </tr>
+                ) : currentPageDevices.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      style={{
+                        padding: "40px 20px",
+                        textAlign: "center",
+                        color: "#9ca3af",
+                        fontSize: "14px",
+                        fontWeight: "400",
+                        borderBottom: "1px solid #f3f4f6",
+                      }}
+                    >
+                      {search
+                        ? "No assigned devices found matching your search."
+                        : "No assigned devices to display."}
+                    </td>
+                  </tr>
+                ) : (
+                  currentPageDevices.map((device, index) => {
+                    const isSelected = selectedDeviceIds.includes(device.id);
+                    const rowIndex =
+                      (currentPage - 1) * devicesPerPage + index + 1;
+                    return (
+                      <tr
+                        key={device.id}
+                        style={{
+                          background:
+                            index % 2 === 0
+                              ? "rgb(250, 250, 252)"
+                              : "rgb(240, 240, 243)",
+                          cursor: "pointer",
+                          transition: "background 0.15s",
+                          borderBottom: "1px solid #f3f4f6",
+                        }}
+                        onClick={(e) => {
+                          if (e.target.type !== "checkbox") {
+                            toggleSelectDevice(device.id);
+                          }
+                        }}
+                        onMouseEnter={(e) => {
+                          if (index % 2 === 0) {
+                            e.currentTarget.style.background =
+                              "rgb(235, 235, 240)";
+                          } else {
+                            e.currentTarget.style.background =
+                              "rgb(225, 225, 235)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background =
+                            index % 2 === 0
+                              ? "rgb(250, 250, 252)"
+                              : "rgb(240, 240, 243)";
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            textAlign: "center",
+                            borderBottom: "none",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectDevice(device.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              accentColor: "#3b82f6",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "3px",
+                            }}
+                            title="Select device"
+                          />
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {rowIndex}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#1f2937",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            borderBottom: "none",
+                          }}
+                        >
+                          <span
+                            style={{
+                              color: "#3b82f6",
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {device.deviceTag}
+                          </span>
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {device.deviceType}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {device.brand}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {device.model}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {getEmployeeName(device.assignedTo)}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            borderBottom: "none",
+                          }}
+                        >
+                          {device.assignmentDate
+                            ? new Date(
+                                device.assignmentDate.seconds
+                                  ? device.assignmentDate.seconds * 1000
+                                  : device.assignmentDate
+                              ).toLocaleDateString()
+                            : ""}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            textAlign: "center",
+                            borderBottom: "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <button
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                transition: "background 0.2s",
+                                color: "#3b82f6",
+                              }}
+                              title="Edit"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(device);
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background = "#dbeafe")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background =
+                                  "transparent")
+                              }
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                transition: "background 0.2s",
+                                color: "#ef4444",
+                              }}
+                              title="Delete"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(device.id);
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.background = "#fef2f2")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.background =
+                                  "transparent")
+                              }
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                viewBox="0 0 24 24"
+                              >
+                                <polyline points="3,6 5,6 21,6" />
+                                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Fixed Pagination Footer */}
+        {(() => {
+          const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
+          const startIndex = (currentPage - 1) * devicesPerPage + 1;
+          const endIndex = Math.min(
+            currentPage * devicesPerPage,
+            filteredDevices.length
+          );
+
+          return (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 20px", // Reduced padding for fixed layout
+                background: "#fff",
+                borderRadius: "0",
+                boxShadow: "none",
+                border: "none",
+                borderTop: "1px solid #e5e7eb",
+                position: "sticky",
+                bottom: "0",
+                zIndex: "10",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  color: "#445F6D",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                }}
+              >
+                <span>
+                  Showing {filteredDevices.length === 0 ? 0 : startIndex} -{" "}
+                  {filteredDevices.length === 0 ? 0 : endIndex} of{" "}
+                  {filteredDevices.length} devices
+                </span>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <span style={{ fontSize: "13px" }}>Show:</span>
+                  <select
+                    value={devicesPerPage}
+                    onChange={(e) => {
+                      setDevicesPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      border: "1px solid #e0e7ef",
+                      fontSize: "13px",
+                      background: "#fff",
+                      color: "#445F6D",
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={200}>200</option>
+                  </select>
+                </div>
+              </div>
+
+              {totalPages > 1 && (
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e0e7ef",
+                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    First
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e0e7ef",
+                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Previous
+                  </button>
+
+                  {/* Page Numbers */}
+                  {(() => {
+                    const pageNumbers = [];
+                    const maxVisiblePages = 5;
+                    let startPage = Math.max(
+                      1,
+                      currentPage - Math.floor(maxVisiblePages / 2)
+                    );
+                    let endPage = Math.min(
+                      totalPages,
+                      startPage + maxVisiblePages - 1
+                    );
+
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+
+                    for (let i = startPage; i <= endPage; i++) {
+                      pageNumbers.push(
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            border: "1px solid #e0e7ef",
+                            background: i === currentPage ? "#70C1B3" : "#fff",
+                            color: i === currentPage ? "#fff" : "#445F6D",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                            minWidth: "40px",
+                          }}
+                        >
+                          {i}
+                        </button>
+                      );
+                    }
+
+                    return pageNumbers;
+                  })()}
+
+                  <button
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e0e7ef",
+                      background:
+                        currentPage === totalPages ? "#f5f7fa" : "#fff",
+                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                      cursor:
+                        currentPage === totalPages ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Next
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      border: "1px solid #e0e7ef",
+                      background:
+                        currentPage === totalPages ? "#f5f7fa" : "#fff",
+                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                      cursor:
+                        currentPage === totalPages ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    Last
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Bulk Reassign/Unassign Modal */}
+        {bulkReassignModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1300,
             }}
           >
             <div
               style={{
-                color: "#445F6D",
-                fontSize: "14px",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
+                background: "#fff",
+                padding: 24,
+                borderRadius: 8,
+                minWidth: 350,
+                maxWidth: 480,
+                width: "96vw",
               }}
             >
-              <span>
-                Showing {filteredDevices.length === 0 ? 0 : startIndex} - {filteredDevices.length === 0 ? 0 : endIndex} of {filteredDevices.length}{" "}
-                devices
-              </span>
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                <span style={{ fontSize: "13px" }}>Show:</span>
-                <select
-                  value={devicesPerPage}
-                  onChange={(e) => {
-                    setDevicesPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: "4px",
-                    border: "1px solid #e0e7ef",
-                    fontSize: "13px",
-                    background: "#fff",
-                    color: "#445F6D",
-                  }}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                  <option value={200}>200</option>
-                </select>
-              </div>
-            </div>
-
-            {totalPages > 1 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #e0e7ef",
-                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                  }}
-                >
-                  First
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #e0e7ef",
-                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                  }}
-                >
-                  Previous
-                </button>
-
-                {/* Page Numbers */}
-                {(() => {
-                  const pageNumbers = [];
-                  const maxVisiblePages = 5;
-                  let startPage = Math.max(
-                    1,
-                    currentPage - Math.floor(maxVisiblePages / 2)
-                  );
-                  let endPage = Math.min(
-                    totalPages,
-                    startPage + maxVisiblePages - 1
-                  );
-
-                  if (endPage - startPage + 1 < maxVisiblePages) {
-                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                  }
-
-                  for (let i = startPage; i <= endPage; i++) {
-                    pageNumbers.push(
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(i)}
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: "6px",
-                          border: "1px solid #e0e7ef",
-                          background: i === currentPage ? "#70C1B3" : "#fff",
-                          color: i === currentPage ? "#fff" : "#445F6D",
-                          cursor: "pointer",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                          minWidth: "40px",
-                        }}
-                      >
-                        {i}
-                      </button>
-                    );
-                  }
-
-                  return pageNumbers;
-                })()}
-
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #e0e7ef",
-                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                    cursor:
-                      currentPage === totalPages ? "not-allowed" : "pointer",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                  }}
-                >
-                  Next
-                </button>
-
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    border: "1px solid #e0e7ef",
-                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                    cursor:
-                      currentPage === totalPages ? "not-allowed" : "pointer",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                  }}
-                >
-                  Last
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Bulk Reassign/Unassign Modal */}
-      {bulkReassignModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1300,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: 24,
-              borderRadius: 8,
-              minWidth: 350,
-              maxWidth: 480,
-              width: "96vw",
-            }}
-          >
-            {!selectedTransferEmployee ? (
-              <>
-                <h4>Reassign {selectedDeviceIds.length} Devices</h4>
-                <input
-                  type="text"
-                  placeholder="Search employee..."
-                  value={bulkAssignSearch}
-                  onChange={(e) => setBulkAssignSearch(e.target.value)}
-                  style={{ width: "100%", marginBottom: 8, padding: 6 }}
-                />
-                <ul
-                  style={{
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    padding: 0,
-                    margin: 0,
-                  }}
-                >
-                  {employees
-                    .filter((emp) =>
-                      emp.fullName
-                        .toLowerCase()
-                        .includes(bulkAssignSearch.toLowerCase())
-                    )
-                    .map((emp) => (
-                      <li
-                        key={emp.id}
-                        style={{ listStyle: "none", marginBottom: 8 }}
-                      >
-                        <button
-                          style={{
-                            width: "100%",
-                            textAlign: "left",
-                            padding: 8,
-                          }}
-                          onClick={() => {
-                            setSelectedTransferEmployee(emp);
-                          }}
-                        >
-                          {emp.fullName}
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-                <button
-                  onClick={() => setBulkReassignModalOpen(false)}
-                  style={{ marginTop: 12 }}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <h4 style={{ marginBottom: 12 }}>
-                  Reassign Device(s) to{" "}
-                  <span style={{ color: "#2563eb" }}>
-                    {selectedTransferEmployee.fullName}
-                  </span>
-                  :
-                </h4>
-                <div
-                  style={{
-                    maxHeight: 180,
-                    overflowY: "auto",
-                    marginBottom: 16,
-                    background: "#f7f9fb",
-                    borderRadius: 8,
-                    padding: 8,
-                    border: "1px solid #e0e7ef",
-                  }}
-                >
-                  <table style={{ width: "100%", fontSize: 14 }}>
-                    <thead>
-                      <tr style={{ color: "#445F6D", fontWeight: 700 }}>
-                        <th style={{ textAlign: "left", padding: "4px 8px" }}>
-                          Tag
-                        </th>
-                        <th style={{ textAlign: "left", padding: "4px 8px" }}>
-                          Type
-                        </th>
-                        <th style={{ textAlign: "left", padding: "4px 8px" }}>
-                          Brand
-                        </th>
-                        <th style={{ textAlign: "left", padding: "4px 8px" }}>
-                          Model
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {devices
-                        .filter((d) => selectedDeviceIds.includes(d.id))
-                        .map((device) => (
-                          <tr key={device.id}>
-                            <td style={{ padding: "4px 8px" }}>
-                              {device.deviceTag}
-                            </td>
-                            <td style={{ padding: "4px 8px" }}>
-                              {device.deviceType}
-                            </td>
-                            <td style={{ padding: "4px 8px" }}>
-                              {device.brand}
-                            </td>
-                            <td style={{ padding: "4px 8px" }}>
-                              {device.model}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: 10,
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setSelectedTransferEmployee(null);
-                    }}
+              {!selectedTransferEmployee ? (
+                <>
+                  <h4>Reassign {selectedDeviceIds.length} Devices</h4>
+                  <input
+                    type="text"
+                    placeholder="Search employee..."
+                    value={bulkAssignSearch}
+                    onChange={(e) => setBulkAssignSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                  />
+                  <ul
                     style={{
-                      background: "#e0e7ef",
-                      color: "#233037",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "10px 22px",
-                      fontWeight: 700,
-                      fontSize: 16,
-                      cursor: "pointer",
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      padding: 0,
+                      margin: 0,
                     }}
+                  >
+                    {employees
+                      .filter((emp) =>
+                        emp.fullName
+                          .toLowerCase()
+                          .includes(bulkAssignSearch.toLowerCase())
+                      )
+                      .map((emp) => (
+                        <li
+                          key={emp.id}
+                          style={{ listStyle: "none", marginBottom: 8 }}
+                        >
+                          <button
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              padding: 8,
+                            }}
+                            onClick={() => {
+                              setSelectedTransferEmployee(emp);
+                            }}
+                          >
+                            {emp.fullName}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                  <button
+                    onClick={() => setBulkReassignModalOpen(false)}
+                    style={{ marginTop: 12 }}
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={async () => {
-                      await confirmBulkReassign(selectedTransferEmployee);
-                      setSelectedTransferEmployee(null);
-                    }}
+                </>
+              ) : (
+                <>
+                  <h4 style={{ marginBottom: 12 }}>
+                    Reassign Device(s) to{" "}
+                    <span style={{ color: "#2563eb" }}>
+                      {selectedTransferEmployee.fullName}
+                    </span>
+                    :
+                  </h4>
+                  <div
                     style={{
-                      background: "#70C1B3",
-                      color: "#233037",
-                      border: "none",
+                      maxHeight: 180,
+                      overflowY: "auto",
+                      marginBottom: 16,
+                      background: "#f7f9fb",
                       borderRadius: 8,
-                      padding: "10px 22px",
-                      fontWeight: 700,
-                      fontSize: 16,
-                      cursor: "pointer",
+                      padding: 8,
+                      border: "1px solid #e0e7ef",
                     }}
                   >
-                    Confirm & Generate Transfer Form
-                  </button>
-                </div>
-              </>
-            )}
+                    <table style={{ width: "100%", fontSize: 14 }}>
+                      <thead>
+                        <tr style={{ color: "#445F6D", fontWeight: 700 }}>
+                          <th style={{ textAlign: "left", padding: "4px 8px" }}>
+                            Tag
+                          </th>
+                          <th style={{ textAlign: "left", padding: "4px 8px" }}>
+                            Type
+                          </th>
+                          <th style={{ textAlign: "left", padding: "4px 8px" }}>
+                            Brand
+                          </th>
+                          <th style={{ textAlign: "left", padding: "4px 8px" }}>
+                            Model
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {devices
+                          .filter((d) => selectedDeviceIds.includes(d.id))
+                          .map((device) => (
+                            <tr key={device.id}>
+                              <td style={{ padding: "4px 8px" }}>
+                                {device.deviceTag}
+                              </td>
+                              <td style={{ padding: "4px 8px" }}>
+                                {device.deviceType}
+                              </td>
+                              <td style={{ padding: "4px 8px" }}>
+                                {device.brand}
+                              </td>
+                              <td style={{ padding: "4px 8px" }}>
+                                {device.model}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 10,
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedTransferEmployee(null);
+                      }}
+                      style={{
+                        background: "#e0e7ef",
+                        color: "#233037",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "10px 22px",
+                        fontWeight: 700,
+                        fontSize: 16,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await confirmBulkReassign(selectedTransferEmployee);
+                        setSelectedTransferEmployee(null);
+                      }}
+                      style={{
+                        background: "#70C1B3",
+                        color: "#233037",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "10px 22px",
+                        fontWeight: 700,
+                        fontSize: 16,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Confirm & Generate Transfer Form
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      {/* Bulk Unassign Modal */}
-      {bulkUnassignModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1300,
-          }}
-        >
+        )}
+        {/* Bulk Unassign Modal */}
+        {bulkUnassignModalOpen && (
           <div
             style={{
-              background: "#fff",
-              padding: 24,
-              borderRadius: 8,
-              minWidth: 350,
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1300,
             }}
           >
-            <h4>Unassign {selectedDeviceIds.length} Devices</h4>
-            {bulkUnassignWarning && (
-              <div style={{ color: "red", marginBottom: 8, fontWeight: 600 }}>
-                {bulkUnassignWarning}
-              </div>
-            )}
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  fontWeight: 600,
-                  display: "block",
-                  marginBottom: 8,
-                  color: "#445F6D",
-                }}
-              >
-                Reason for unassigning:
-              </label>
-              <>
-                <div style={{ marginTop: 8 }}>
-                  <label>
-                    <input
-                      type="radio"
-                      name="bulkUnassignReason"
-                      value="working"
-                      checked={bulkUnassignReason === "working"}
-                      onChange={() => setBulkUnassignReason("working")}
-                      style={{ marginRight: 8, accentColor: "#70C1B3" }}
-                    />
-                    Working
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    <input
-                      type="radio"
-                      name="bulkUnassignReason"
-                      value="defective"
-                      checked={bulkUnassignReason === "defective"}
-                      onChange={() => setBulkUnassignReason("defective")}
-                      style={{ marginRight: 8, accentColor: "#70C1B3" }}
-                    />
-                    Defective
-                  </label>
-                </div>
-              </>
-            </div>
             <div
               style={{
-                marginTop: 16,
-                display: "flex",
-                justifyContent: "flex-end",
+                background: "#fff",
+                padding: 24,
+                borderRadius: 8,
+                minWidth: 350,
               }}
             >
-              <button
-                onClick={confirmBulkUnassign}
-                style={{
-                  background: "#70C1B3",
-                  color: "#233037",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor:
-                    bulkUnassignReason && !bulkUnassignWarning
-                      ? "pointer"
-                      : "not-allowed",
-                  marginRight: 8,
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                  opacity: bulkUnassignReason && !bulkUnassignWarning ? 1 : 0.7,
-                }}
-                disabled={!bulkUnassignReason || !!bulkUnassignWarning}
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setBulkUnassignModalOpen(false)}
-                style={{
-                  background: "#445F6D",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showForm && (
-        <DeviceFormModal
-          data={form}
-          onChange={handleInput}
-          onSave={handleSave}
-          onCancel={() => {
-            setShowForm(false);
-            setForm({});
-          }}
-          onGenerateTag={() => {}}
-          employees={employees}
-          tagError={tagError}
-          setTagError={setTagError}
-          saveError={saveError}
-          isValid={true}
-          useSerial={useSerial}
-          setUseSerial={setUseSerial}
-          onSerialToggle={() => setUseSerial(!useSerial)}
-          editingDevice={form._editDeviceId}
-        />
-      )}
-
-      {/* Assign/Reassign Modal */}
-      {assignModalOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1300,
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              padding: 24,
-              borderRadius: 8,
-              minWidth: 350,
-            }}
-          >
-            <h4>
-              {assigningDevice && assigningDevice.assignedTo
-                ? "Reassign Device"
-                : "Assign Device"}
-            </h4>
-            {!showTransferPrompt && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Search employee..."
-                  value={assignSearch}
-                  onChange={(e) => setAssignSearch(e.target.value)}
-                  style={{ width: "100%", marginBottom: 8, padding: 6 }}
-                />
-                <ul
+              <h4>Unassign {selectedDeviceIds.length} Devices</h4>
+              {bulkUnassignWarning && (
+                <div style={{ color: "red", marginBottom: 8, fontWeight: 600 }}>
+                  {bulkUnassignWarning}
+                </div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <label
                   style={{
-                    maxHeight: 200,
-                    overflowY: "auto",
-                    padding: 0,
-                    margin: 0,
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 8,
+                    color: "#445F6D",
                   }}
                 >
-                  {employees
-                    .filter((emp) =>
-                      emp.fullName
-                        .toLowerCase()
-                        .includes(assignSearch.toLowerCase())
-                    )
-                    .map((emp) => (
-                      <li
-                        key={emp.id}
-                        style={{ listStyle: "none", marginBottom: 8 }}
-                      >
-                        <button
-                          style={{
-                            width: "100%",
-                            textAlign: "left",
-                            padding: 8,
-                          }}
-                          onClick={async () => {
-                            // Log unassign if reassigning
-                            if (
-                              assigningDevice.assignedTo &&
-                              assigningDevice.assignedTo !== emp.id
-                            ) {
-                              await logDeviceHistory({
-                                employeeId: assigningDevice.assignedTo,
-                                deviceId: assigningDevice.id,
-                                deviceTag: assigningDevice.deviceTag,
-                                action: "unassigned",
-                                reason: "Reassigned to another employee",
-                                condition: assigningDevice.condition,
-                                date: new Date().toISOString(),
-                              });
-                            }
-                            const { id: _id, ...deviceWithoutId } =
-                              assigningDevice;
-                            await updateDevice(assigningDevice.id, {
-                              ...deviceWithoutId,
-                              assignedTo: emp.id,
-                              reason: "assigned",
-                              date: new Date().toISOString(),
-                            });
-
-                            // Log the assignment action
-                            await logDeviceHistory({
-                              employeeId: emp.id,
-                              deviceId: assigningDevice.id,
-                              deviceTag: assigningDevice.deviceTag,
-                              action: "assigned",
-                              reason: "Reassigned from another employee",
-                              condition: assigningDevice.condition,
-                              date: new Date(), // Store full timestamp for precise ordering
-                            });
-
-                            // Add a small delay to ensure database changes are reflected
-                            await new Promise((resolve) =>
-                              setTimeout(resolve, 100)
-                            );
-
-                            setSelectedTransferEmployee(emp);
-                            setShowTransferPrompt(true);
-                            showSuccess(`Device ${assigningDevice.deviceTag} successfully assigned to ${emp.fullName}`);
-                            loadDevicesAndEmployees();
-                          }}
-                        >
-                          {emp.fullName}
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              </>
-            )}
-            {showTransferPrompt && selectedTransferEmployee && (
+                  Reason for unassigning:
+                </label>
+                <>
+                  <div style={{ marginTop: 8 }}>
+                    <label>
+                      <input
+                        type="radio"
+                        name="bulkUnassignReason"
+                        value="working"
+                        checked={bulkUnassignReason === "working"}
+                        onChange={() => setBulkUnassignReason("working")}
+                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                      />
+                      Working
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      <input
+                        type="radio"
+                        name="bulkUnassignReason"
+                        value="defective"
+                        checked={bulkUnassignReason === "defective"}
+                        onChange={() => setBulkUnassignReason("defective")}
+                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                      />
+                      Defective
+                    </label>
+                  </div>
+                </>
+              </div>
               <div
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
                   marginTop: 16,
+                  display: "flex",
+                  justifyContent: "flex-end",
                 }}
               >
-                <div
-                  style={{
-                    marginBottom: 18,
-                    fontWeight: 600,
-                    color: "#233037",
-                    fontSize: 16,
-                    textAlign: "center",
-                  }}
-                >
-                  Device successfully reassigned to{" "}
-                  <span style={{ color: "#70C1B3" }}>
-                    {selectedTransferEmployee.fullName}
-                  </span>
-                  .
-                </div>
                 <button
-                  onClick={async () => {
-                    // Find transferor (previous assigned employee)
-                    const transferor = employees.find(
-                      (e) =>
-                        e.id ===
-                        (assigningDevice?.assignedTo ||
-                          assigningDevice?.prevAssignedTo)
-                    );
-                    const transferee = selectedTransferEmployee;
-                    // For single device
-                    await handleGenerateTransferForm({
-                      transferor: transferor || {
-                        fullName: "",
-                        department: "",
-                        dateHired: "",
-                        position: "",
-                      },
-                      transferee,
-                      devices: [assigningDevice],
-                      // Pass custom filename
-                      docxFileName: `${
-                        transferee.fullName || "Employee"
-                      } - Transfer.docx`,
-                    });
-                  }}
+                  onClick={confirmBulkUnassign}
                   style={{
                     background: "#70C1B3",
                     color: "#233037",
                     border: "none",
                     borderRadius: 8,
-                    padding: "12px 28px",
+                    padding: "10px 22px",
                     fontWeight: 700,
-                    fontSize: 17,
-                    cursor: generatingForm ? "not-allowed" : "pointer",
+                    fontSize: 16,
+                    cursor:
+                      bulkUnassignReason && !bulkUnassignWarning
+                        ? "pointer"
+                        : "not-allowed",
+                    marginRight: 8,
                     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                     transition: "background 0.2s, box-shadow 0.2s",
-                    opacity: generatingForm ? 0.7 : 1,
+                    opacity:
+                      bulkUnassignReason && !bulkUnassignWarning ? 1 : 0.7,
                   }}
-                  disabled={generatingForm}
+                  disabled={!bulkUnassignReason || !!bulkUnassignWarning}
                 >
-                  {generatingForm ? "Generating..." : "Generate Transfer Form"}
+                  Confirm
                 </button>
-                {generatingForm && (
-                  <div
-                    style={{
-                      width: 220,
-                      margin: "18px 0 0 0",
-                      height: 8,
-                      background: "#e0e7ef",
-                      borderRadius: 6,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${progress}%`,
-                        height: "100%",
-                        background: "#70C1B3",
-                        transition: "width 0.3s",
-                      }}
-                    />
-                  </div>
-                )}
                 <button
-                  onClick={() => {
-                    setAssignModalOpen(false);
-                    setAssigningDevice(null);
-                    setAssignSearch("");
-                    setShowTransferPrompt(false);
-                    setSelectedTransferEmployee(null);
-                  }}
+                  onClick={() => setBulkUnassignModalOpen(false)}
                   style={{
-                    marginTop: 18,
                     background: "#445F6D",
                     color: "#fff",
                     border: "none",
@@ -2408,187 +2205,449 @@ function Assets() {
                     fontWeight: 700,
                     fontSize: 16,
                     cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                    transition: "background 0.2s, box-shadow 0.2s",
                   }}
                 >
-                  Close
+                  Cancel
                 </button>
               </div>
-            )}
-            {!showTransferPrompt && (
-              <button
-                onClick={() => {
-                  setAssignModalOpen(false);
-                  setAssigningDevice(null);
-                  setAssignSearch("");
-                }}
-                style={{ marginTop: 12 }}
-              >
-                Cancel
-              </button>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showUnassignModal && unassignDevice && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1300,
-          }}
-        >
+        {showForm && (
+          <DeviceFormModal
+            data={form}
+            onChange={handleInput}
+            onSave={handleSave}
+            onCancel={() => {
+              setShowForm(false);
+              setForm({});
+            }}
+            onGenerateTag={() => {}}
+            employees={employees}
+            tagError={tagError}
+            setTagError={setTagError}
+            saveError={saveError}
+            isValid={true}
+            useSerial={useSerial}
+            setUseSerial={setUseSerial}
+            onSerialToggle={() => setUseSerial(!useSerial)}
+            editingDevice={form._editDeviceId}
+          />
+        )}
+
+        {/* Assign/Reassign Modal */}
+        {assignModalOpen && (
           <div
             style={{
-              background: "#fff",
-              padding: 24,
-              borderRadius: 8,
-              minWidth: 350,
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1300,
             }}
           >
-            <h4>Unassign Device: {unassignDevice.deviceTag}</h4>
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  fontWeight: 600,
-                  display: "block",
-                  marginBottom: 8,
-                  color: "#445F6D",
-                }}
-              >
-                Reason for unassigning:
-              </label>
-              <>
-                <div style={{ marginTop: 8 }}>
-                  <label>
-                    <input
-                      type="radio"
-                      name="bulkUnassignReason"
-                      value="working"
-                      checked={unassignReason === "working"}
-                      onChange={() => setUnassignReason("working")}
-                      style={{ marginRight: 8, accentColor: "#70C1B3" }}
-                    />
-                    Working
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    <input
-                      type="radio"
-                      name="bulkUnassignReason"
-                      value="defective"
-                      checked={unassignReason === "defective"}
-                      onChange={() => setUnassignReason("defective")}
-                      style={{ marginRight: 8, accentColor: "#70C1B3" }}
-                    />
-                    Defective
-                  </label>
-                </div>
-              </>
-            </div>
             <div
               style={{
-                marginTop: 16,
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
+                background: "#fff",
+                padding: 24,
+                borderRadius: 8,
+                minWidth: 350,
               }}
             >
-              <button
-                onClick={async () => {
-                  if (!unassignReason) return;
-                  const emp = employees.find(
-                    (e) => e.id === unassignDevice.assignedTo
-                  );
-                  await handleGenerateUnassignDocx({
-                    employee: emp || {
-                      fullName: "",
-                      department: "",
-                      position: "",
-                    },
-                    device: unassignDevice,
-                    reason: unassignReason,
-                  });
-                }}
-                style={{
-                  background: "#FFE066",
-                  color: "#233037",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor:
-                    unassignGenerating || !unassignReason
-                      ? "not-allowed"
-                      : "pointer",
-                  marginRight: 8,
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                  opacity: unassignGenerating || !unassignReason ? 0.7 : 1,
-                }}
-                disabled={unassignGenerating || !unassignReason}
-              >
-                {unassignGenerating ? "Generating..." : "Generate Return Form"}
-              </button>
-              <button
-                onClick={confirmUnassign}
-                style={{
-                  background: "#70C1B3",
-                  color: "#233037",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  marginRight: 8,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-            {unassignGenerating && (
-              <div
-                style={{
-                  width: 220,
-                  margin: "18px 0 0 0",
-                  height: 8,
-                  background: "#e0e7ef",
-                  borderRadius: 6,
-                  overflow: "hidden",
-                }}
-              >
+              <h4>
+                {assigningDevice && assigningDevice.assignedTo
+                  ? "Reassign Device"
+                  : "Assign Device"}
+              </h4>
+              {!showTransferPrompt && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Search employee..."
+                    value={assignSearch}
+                    onChange={(e) => setAssignSearch(e.target.value)}
+                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                  />
+                  <ul
+                    style={{
+                      maxHeight: 200,
+                      overflowY: "auto",
+                      padding: 0,
+                      margin: 0,
+                    }}
+                  >
+                    {employees
+                      .filter((emp) =>
+                        emp.fullName
+                          .toLowerCase()
+                          .includes(assignSearch.toLowerCase())
+                      )
+                      .map((emp) => (
+                        <li
+                          key={emp.id}
+                          style={{ listStyle: "none", marginBottom: 8 }}
+                        >
+                          <button
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              padding: 8,
+                            }}
+                            onClick={async () => {
+                              // Log unassign if reassigning
+                              if (
+                                assigningDevice.assignedTo &&
+                                assigningDevice.assignedTo !== emp.id
+                              ) {
+                                await logDeviceHistory({
+                                  employeeId: assigningDevice.assignedTo,
+                                  deviceId: assigningDevice.id,
+                                  deviceTag: assigningDevice.deviceTag,
+                                  action: "unassigned",
+                                  reason: "Reassigned to another employee",
+                                  condition: assigningDevice.condition,
+                                  date: new Date().toISOString(),
+                                });
+                              }
+                              const { id: _id, ...deviceWithoutId } =
+                                assigningDevice;
+                              await updateDevice(assigningDevice.id, {
+                                ...deviceWithoutId,
+                                assignedTo: emp.id,
+                                reason: "assigned",
+                                date: new Date().toISOString(),
+                              });
+
+                              // Log the assignment action
+                              await logDeviceHistory({
+                                employeeId: emp.id,
+                                deviceId: assigningDevice.id,
+                                deviceTag: assigningDevice.deviceTag,
+                                action: "assigned",
+                                reason: "Reassigned from another employee",
+                                condition: assigningDevice.condition,
+                                date: new Date(), // Store full timestamp for precise ordering
+                              });
+
+                              // Add a small delay to ensure database changes are reflected
+                              await new Promise((resolve) =>
+                                setTimeout(resolve, 100)
+                              );
+
+                              setSelectedTransferEmployee(emp);
+                              setShowTransferPrompt(true);
+                              showSuccess(
+                                `Device ${assigningDevice.deviceTag} successfully assigned to ${emp.fullName}`
+                              );
+                              loadDevicesAndEmployees();
+                            }}
+                          >
+                            {emp.fullName}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </>
+              )}
+              {showTransferPrompt && selectedTransferEmployee && (
                 <div
                   style={{
-                    width: `${unassignProgress}%`,
-                    height: "100%",
-                    background: "#FFE066",
-                    transition: "width 0.3s",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    marginTop: 16,
                   }}
-                />
-              </div>
-            )}
+                >
+                  <div
+                    style={{
+                      marginBottom: 18,
+                      fontWeight: 600,
+                      color: "#233037",
+                      fontSize: 16,
+                      textAlign: "center",
+                    }}
+                  >
+                    Device successfully reassigned to{" "}
+                    <span style={{ color: "#70C1B3" }}>
+                      {selectedTransferEmployee.fullName}
+                    </span>
+                    .
+                  </div>
+                  <button
+                    onClick={async () => {
+                      // Find transferor (previous assigned employee)
+                      const transferor = employees.find(
+                        (e) =>
+                          e.id ===
+                          (assigningDevice?.assignedTo ||
+                            assigningDevice?.prevAssignedTo)
+                      );
+                      const transferee = selectedTransferEmployee;
+                      // For single device
+                      await handleGenerateTransferForm({
+                        transferor: transferor || {
+                          fullName: "",
+                          department: "",
+                          dateHired: "",
+                          position: "",
+                        },
+                        transferee,
+                        devices: [assigningDevice],
+                        // Pass custom filename
+                        docxFileName: `${
+                          transferee.fullName || "Employee"
+                        } - Transfer.docx`,
+                      });
+                    }}
+                    style={{
+                      background: "#70C1B3",
+                      color: "#233037",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "12px 28px",
+                      fontWeight: 700,
+                      fontSize: 17,
+                      cursor: generatingForm ? "not-allowed" : "pointer",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                      transition: "background 0.2s, box-shadow 0.2s",
+                      opacity: generatingForm ? 0.7 : 1,
+                    }}
+                    disabled={generatingForm}
+                  >
+                    {generatingForm
+                      ? "Generating..."
+                      : "Generate Transfer Form"}
+                  </button>
+                  {generatingForm && (
+                    <div
+                      style={{
+                        width: 220,
+                        margin: "18px 0 0 0",
+                        height: 8,
+                        background: "#e0e7ef",
+                        borderRadius: 6,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${progress}%`,
+                          height: "100%",
+                          background: "#70C1B3",
+                          transition: "width 0.3s",
+                        }}
+                      />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setAssignModalOpen(false);
+                      setAssigningDevice(null);
+                      setAssignSearch("");
+                      setShowTransferPrompt(false);
+                      setSelectedTransferEmployee(null);
+                    }}
+                    style={{
+                      marginTop: 18,
+                      background: "#445F6D",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "10px 22px",
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              )}
+              {!showTransferPrompt && (
+                <button
+                  onClick={() => {
+                    setAssignModalOpen(false);
+                    setAssigningDevice(null);
+                    setAssignSearch("");
+                  }}
+                  style={{ marginTop: 12 }}
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {showUnassignModal && unassignDevice && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1300,
+            }}
+          >
+            <div
+              style={{
+                background: "#fff",
+                padding: 24,
+                borderRadius: 8,
+                minWidth: 350,
+              }}
+            >
+              <h4>Unassign Device: {unassignDevice.deviceTag}</h4>
+              <div style={{ marginBottom: 16 }}>
+                <label
+                  style={{
+                    fontWeight: 600,
+                    display: "block",
+                    marginBottom: 8,
+                    color: "#445F6D",
+                  }}
+                >
+                  Reason for unassigning:
+                </label>
+                <>
+                  <div style={{ marginTop: 8 }}>
+                    <label>
+                      <input
+                        type="radio"
+                        name="bulkUnassignReason"
+                        value="working"
+                        checked={unassignReason === "working"}
+                        onChange={() => setUnassignReason("working")}
+                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                      />
+                      Working
+                    </label>
+                  </div>
+                  <div>
+                    <label>
+                      <input
+                        type="radio"
+                        name="bulkUnassignReason"
+                        value="defective"
+                        checked={unassignReason === "defective"}
+                        onChange={() => setUnassignReason("defective")}
+                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                      />
+                      Defective
+                    </label>
+                  </div>
+                </>
+              </div>
+              <div
+                style={{
+                  marginTop: 16,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 8,
+                }}
+              >
+                <button
+                  onClick={async () => {
+                    if (!unassignReason) return;
+                    const emp = employees.find(
+                      (e) => e.id === unassignDevice.assignedTo
+                    );
+                    await handleGenerateUnassignDocx({
+                      employee: emp || {
+                        fullName: "",
+                        department: "",
+                        position: "",
+                      },
+                      device: unassignDevice,
+                      reason: unassignReason,
+                    });
+                  }}
+                  style={{
+                    background: "#FFE066",
+                    color: "#233037",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 22px",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    cursor:
+                      unassignGenerating || !unassignReason
+                        ? "not-allowed"
+                        : "pointer",
+                    marginRight: 8,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    opacity: unassignGenerating || !unassignReason ? 0.7 : 1,
+                  }}
+                  disabled={unassignGenerating || !unassignReason}
+                >
+                  {unassignGenerating
+                    ? "Generating..."
+                    : "Generate Return Form"}
+                </button>
+                <button
+                  onClick={confirmUnassign}
+                  style={{
+                    background: "#70C1B3",
+                    color: "#233037",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 22px",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    cursor: "pointer",
+                    marginRight: 8,
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 22px",
+                    fontWeight: 700,
+                    fontSize: 16,
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {unassignGenerating && (
+                <div
+                  style={{
+                    width: 220,
+                    margin: "18px 0 0 0",
+                    height: 8,
+                    background: "#e0e7ef",
+                    borderRadius: 6,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${unassignProgress}%`,
+                      height: "100%",
+                      background: "#FFE066",
+                      transition: "width 0.3s",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </React.Fragment>
   );

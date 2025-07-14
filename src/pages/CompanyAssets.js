@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import Assets from "./Assets";
 import Inventory from "./Inventory";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 
 const tabStyles = {
   container: {
@@ -10,7 +12,8 @@ const tabStyles = {
     width: "100%",
     height: "100vh", // Fixed height to viewport
     background: "#f7f9fb",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    fontFamily:
+      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     overflow: "hidden", // Prevent scrolling on the main container
     boxSizing: "border-box",
   },
@@ -79,11 +82,7 @@ function CompanyAssets() {
         </button>
       </div>
       <div style={tabStyles.tabContent}>
-        {activeTab === "assets" ? (
-          <Assets />
-        ) : (
-          <Inventory />
-        )}
+        {activeTab === "assets" ? <Assets /> : <Inventory />}
       </div>
     </div>
   );

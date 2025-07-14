@@ -6,7 +6,9 @@ import {
   deleteClient,
 } from "../services/clientService";
 import { useSnackbar } from "../components/Snackbar";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -100,7 +102,7 @@ const DeleteConfirmationModal = ({ onConfirm, onCancel, isDeleting }) => (
 
 const Clients = () => {
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
-  
+
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -264,7 +266,8 @@ const Clients = () => {
                   type="button"
                   onClick={() => setShowConfirm("bulk")}
                   style={{
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     fontWeight: 500,
@@ -306,7 +309,8 @@ const Clients = () => {
                 type="button"
                 onClick={() => setShowForm(true)}
                 style={{
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                  fontFamily:
+                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 500,
@@ -423,7 +427,8 @@ const Clients = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                  fontFamily:
+                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 400,
@@ -520,7 +525,8 @@ const Clients = () => {
               boxShadow: "none",
               border: "1px solid #d7d7e0",
               background: "#FFFFFF",
-              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+              fontFamily:
+                'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
               fontSize: 14,
               lineHeight: "20.0004px",
               color: "rgb(59, 59, 74)",
@@ -540,7 +546,8 @@ const Clients = () => {
                     maxWidth: 40,
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -578,7 +585,8 @@ const Clients = () => {
                     width: "1%",
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -596,7 +604,8 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -614,7 +623,8 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -632,7 +642,8 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -650,7 +661,8 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                    fontFamily:
+                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -688,7 +700,8 @@ const Clients = () => {
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
                   borderTop: "none", // Remove double border with sticky footer
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                  fontFamily:
+                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",
@@ -703,220 +716,236 @@ const Clients = () => {
                         <TableLoadingSpinner text="Loading clients..." />
                       </td>
                     </tr>
-                  ) : filteredClients.map((client, idx) => {
-                    const isChecked = checkedRows.includes(client.id);
-                    // Alternating highlight colors for selected rows
-                    let rowBg;
-                    if (isChecked) {
-                      rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
-                    } else {
-                      rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
-                    }
-                    const isFirstRow = idx === 0;
-                    const isLastRow = idx === filteredClients.length - 1;
-                    // Remove top and bottom borders for all table body cells, and remove bottom border for last row
-                    const getCellBorderStyle = (cellIdx) => ({
-                      width:
-                        cellIdx === 0
-                          ? 40 // Fixed width for checkbox column
-                          : cellIdx === 1
-                          ? "1%"
-                          : cellIdx === 2
-                          ? "24.66%"
-                          : cellIdx === 3
-                          ? "24.66%"
-                          : cellIdx === 4
-                          ? "24.66%"
-                          : "24.66%",
-                      minWidth: cellIdx === 0 ? 40 : undefined,
-                      maxWidth: cellIdx === 0 ? 40 : undefined,
-                      textAlign: cellIdx === 0 ? "center" : "left",
-                      verticalAlign: "middle",
-                      whiteSpace: cellIdx <= 1 ? "nowrap" : undefined,
-                      borderLeft: "1px solid #d7d7e0",
-                      borderRight: "1px solid #d7d7e0",
-                      borderTop: "none",
-                      borderBottom: isLastRow ? "none" : "none", // Remove bottom border for last row
-                      padding: cellIdx === 0 ? 0 : "8px 12px",
-                      color: "rgb(59, 59, 74)",
-                    });
-                    return (
-                      <tr
-                        key={client.id || idx}
-                        style={{
-                          background: rowBg,
-                          cursor: "pointer",
-                          transition: "background 0.2s",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isChecked)
-                            e.currentTarget.style.background = "#E5E5E8";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isChecked)
-                            e.currentTarget.style.background = rowBg;
-                        }}
-                      >
-                        <td style={getCellBorderStyle(0)}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => handleCheckboxChange(client.id)}
-                            style={{
-                              border: "1px solid #d7d7e0",
-                              boxSizing: "border-box",
-                              width: 16,
-                              height: 16,
-                              margin: 0,
-                              display: "block",
-                              position: "relative",
-                              left: "50%",
-                              transform: "translateX(-50%)",
-                            }}
-                          />
-                        </td>
-                        <td style={getCellBorderStyle(1)}>{idx + 1}</td>
-                        <td style={getCellBorderStyle(2)}>{client.id}</td>
-                        <td style={getCellBorderStyle(3)}>
-                          {client.clientName}
-                        </td>
-                        <td style={getCellBorderStyle(4)}>
-                          {client.employeeCount ?? 0}
-                        </td>
-                        <td
+                  ) : (
+                    filteredClients.map((client, idx) => {
+                      const isChecked = checkedRows.includes(client.id);
+                      // Alternating highlight colors for selected rows
+                      let rowBg;
+                      if (isChecked) {
+                        rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
+                      } else {
+                        rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
+                      }
+                      const isFirstRow = idx === 0;
+                      const isLastRow = idx === filteredClients.length - 1;
+                      // Remove top and bottom borders for all table body cells, and remove bottom border for last row
+                      const getCellBorderStyle = (cellIdx) => ({
+                        width:
+                          cellIdx === 0
+                            ? 40 // Fixed width for checkbox column
+                            : cellIdx === 1
+                            ? "1%"
+                            : cellIdx === 2
+                            ? "24.66%"
+                            : cellIdx === 3
+                            ? "24.66%"
+                            : cellIdx === 4
+                            ? "24.66%"
+                            : "24.66%",
+                        minWidth: cellIdx === 0 ? 40 : undefined,
+                        maxWidth: cellIdx === 0 ? 40 : undefined,
+                        textAlign: cellIdx === 0 ? "center" : "left",
+                        verticalAlign: "middle",
+                        whiteSpace: cellIdx <= 1 ? "nowrap" : undefined,
+                        borderLeft: "1px solid #d7d7e0",
+                        borderRight: "1px solid #d7d7e0",
+                        borderTop: "none",
+                        borderBottom: isLastRow ? "none" : "none", // Remove bottom border for last row
+                        padding: cellIdx === 0 ? 0 : "8px 12px",
+                        color: "rgb(59, 59, 74)",
+                      });
+                      return (
+                        <tr
+                          key={client.id || idx}
                           style={{
-                            ...getCellBorderStyle(5),
-                            textAlign: "center",
-                            verticalAlign: "middle",
-                            position: "relative",
+                            background: rowBg,
+                            cursor: "pointer",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isChecked)
+                              e.currentTarget.style.background = "#E5E5E8";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isChecked)
+                              e.currentTarget.style.background = rowBg;
                           }}
                         >
-                          <button
-                            type="button"
-                            style={{
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: 28,
-                              height: 28,
-                              borderRadius: 4,
-                              transition: "background 0.2s, box-shadow 0.2s",
-                            }}
-                            title="Actions"
-                            onClick={(e) => {
-                              setActionMenu({
-                                open: true,
-                                idx,
-                                anchor: e.currentTarget,
-                              });
-                            }}
-                          >
-                            {/* Triple dot icon */}
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 18 18"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
-                              <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
-                              <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
-                            </svg>
-                          </button>
-                          {actionMenu.open && actionMenu.idx === idx && (
-                            <div
-                              ref={actionMenuRef}
+                          <td style={getCellBorderStyle(0)}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleCheckboxChange(client.id)}
                               style={{
-                                position: "absolute",
-                                top: 36,
+                                border: "1px solid #d7d7e0",
+                                boxSizing: "border-box",
+                                width: 16,
+                                height: 16,
+                                margin: 0,
+                                display: "block",
+                                position: "relative",
                                 left: "50%",
                                 transform: "translateX(-50%)",
-                                background: "#fff",
-                                border: "1px solid #d7d7e0",
-                                borderRadius: 0, // No rounded corners
-                                boxShadow: "0 4px 16px 0 #00000014",
-                                zIndex: 10,
-                                minWidth: 120,
+                              }}
+                            />
+                          </td>
+                          <td style={getCellBorderStyle(1)}>{idx + 1}</td>
+                          <td style={getCellBorderStyle(2)}>{client.id}</td>
+                          <td style={getCellBorderStyle(3)}>
+                            {client.clientName}
+                          </td>
+                          <td style={getCellBorderStyle(4)}>
+                            {client.employeeCount ?? 0}
+                          </td>
+                          <td
+                            style={{
+                              ...getCellBorderStyle(5),
+                              textAlign: "center",
+                              verticalAlign: "middle",
+                              position: "relative",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              style={{
+                                background: "none",
+                                border: "none",
                                 padding: 0,
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center", // Center content horizontally
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: 28,
+                                height: 28,
+                                borderRadius: 4,
+                                transition: "background 0.2s, box-shadow 0.2s",
+                              }}
+                              title="Actions"
+                              onClick={(e) => {
+                                setActionMenu({
+                                  open: true,
+                                  idx,
+                                  anchor: e.currentTarget,
+                                });
                               }}
                             >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActionMenu({
-                                    open: false,
-                                    idx: null,
-                                    anchor: null,
-                                  });
-                                  handleEdit(client);
-                                }}
-                                style={{
-                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
-                                  fontSize: 14,
-                                  color: "#3B3B4A",
-                                  background: "none",
-                                  border: "none",
-                                  borderBottom: "1px solid #eee",
-                                  padding: "12px 20px",
-                                  cursor: "pointer",
-                                  textAlign: "center",
-                                  width: "100%",
-                                  transition: "background 0.2s",
-                                }}
-                                onMouseOver={(e) =>
-                                  (e.currentTarget.style.background = "#F0F0F3")
-                                }
-                                onMouseOut={(e) =>
-                                  (e.currentTarget.style.background = "none")
-                                }
+                              {/* Triple dot icon */}
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                xmlns="http://www.w3.org/2000/svg"
                               >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActionMenu({
-                                    open: false,
-                                    idx: null,
-                                    anchor: null,
-                                  });
-                                  handleDelete(client.id);
-                                }}
+                                <circle
+                                  cx="4.5"
+                                  cy="9"
+                                  r="1.2"
+                                  fill="#1D2536"
+                                />
+                                <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
+                                <circle
+                                  cx="13.5"
+                                  cy="9"
+                                  r="1.2"
+                                  fill="#1D2536"
+                                />
+                              </svg>
+                            </button>
+                            {actionMenu.open && actionMenu.idx === idx && (
+                              <div
+                                ref={actionMenuRef}
                                 style={{
-                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
-                                  fontSize: 14,
-                                  color: "#D32F2F",
-                                  background: "none",
-                                  border: "none",
-                                  padding: "12px 20px",
-                                  cursor: "pointer",
-                                  textAlign: "center",
-                                  width: "100%",
-                                  transition: "background 0.2s",
+                                  position: "absolute",
+                                  top: 36,
+                                  left: "50%",
+                                  transform: "translateX(-50%)",
+                                  background: "#fff",
+                                  border: "1px solid #d7d7e0",
+                                  borderRadius: 0, // No rounded corners
+                                  boxShadow: "0 4px 16px 0 #00000014",
+                                  zIndex: 10,
+                                  minWidth: 120,
+                                  padding: 0,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center", // Center content horizontally
                                 }}
-                                onMouseOver={(e) =>
-                                  (e.currentTarget.style.background = "#F1C9BF")
-                                }
-                                onMouseOut={(e) =>
-                                  (e.currentTarget.style.background = "none")
-                                }
                               >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenu({
+                                      open: false,
+                                      idx: null,
+                                      anchor: null,
+                                    });
+                                    handleEdit(client);
+                                  }}
+                                  style={{
+                                    fontFamily:
+                                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                                    fontSize: 14,
+                                    color: "#3B3B4A",
+                                    background: "none",
+                                    border: "none",
+                                    borderBottom: "1px solid #eee",
+                                    padding: "12px 20px",
+                                    cursor: "pointer",
+                                    textAlign: "center",
+                                    width: "100%",
+                                    transition: "background 0.2s",
+                                  }}
+                                  onMouseOver={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "#F0F0F3")
+                                  }
+                                  onMouseOut={(e) =>
+                                    (e.currentTarget.style.background = "none")
+                                  }
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActionMenu({
+                                      open: false,
+                                      idx: null,
+                                      anchor: null,
+                                    });
+                                    handleDelete(client.id);
+                                  }}
+                                  style={{
+                                    fontFamily:
+                                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                                    fontSize: 14,
+                                    color: "#D32F2F",
+                                    background: "none",
+                                    border: "none",
+                                    padding: "12px 20px",
+                                    cursor: "pointer",
+                                    textAlign: "center",
+                                    width: "100%",
+                                    transition: "background 0.2s",
+                                  }}
+                                  onMouseOver={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "#F1C9BF")
+                                  }
+                                  onMouseOut={(e) =>
+                                    (e.currentTarget.style.background = "none")
+                                  }
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -941,7 +970,8 @@ const Clients = () => {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+                  fontFamily:
+                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",

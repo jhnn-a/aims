@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 import {
   addDevice,
   updateDevice,
@@ -532,9 +534,13 @@ function Inventory() {
       });
       closeAssignModal();
       loadDevicesAndEmployees();
-      showSuccess(`Device ${assigningDevice.deviceTag} temporarily deployed to ${selectedAssignEmployee.fullName}!`);
+      showSuccess(
+        `Device ${assigningDevice.deviceTag} temporarily deployed to ${selectedAssignEmployee.fullName}!`
+      );
     } catch (err) {
-      showError("Failed to assign device or generate document. Please try again.");
+      showError(
+        "Failed to assign device or generate document. Please try again."
+      );
     }
   };
 
@@ -545,7 +551,7 @@ function Inventory() {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Snackbar notifications
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [tagError, setTagError] = useState("");
@@ -757,7 +763,7 @@ function Inventory() {
       showError("Please fill in all required fields.");
       return;
     }
-    
+
     try {
       const allDevices = await getAllDevices();
       if (useSerial) {
@@ -771,7 +777,9 @@ function Inventory() {
           setSaveError(
             "Serial number already exists. Please use a unique serial number."
           );
-          showError("Serial number already exists. Please use a unique serial number.");
+          showError(
+            "Serial number already exists. Please use a unique serial number."
+          );
           return;
         }
       } else {
@@ -885,7 +893,7 @@ function Inventory() {
 
   const handleDelete = async (id) => {
     try {
-      const device = devices.find(d => d.id === id);
+      const device = devices.find((d) => d.id === id);
       await deleteDevice(id);
       loadDevicesAndEmployees();
       showSuccess(`Device ${device?.deviceTag || id} deleted successfully!`);
@@ -1045,7 +1053,9 @@ function Inventory() {
     setSelectedIds([]);
     setSelectAll(false);
     setDeleteProgress({ current: 0, total: 0 });
-    showSuccess(`Successfully deleted ${selectedIds.length} device(s) from inventory`);
+    showSuccess(
+      `Successfully deleted ${selectedIds.length} device(s) from inventory`
+    );
     loadDevicesAndEmployees();
   };
 
@@ -1074,7 +1084,8 @@ function Inventory() {
     setAssignModalGenerating(false); // Reset generating state
     setAssignModalShowGenerate(false); // Reset show generate button
     setSelectedAssignEmployee(null); // Reset selected employee
-    setAssignModalChecks({ // Reset all checkboxes
+    setAssignModalChecks({
+      // Reset all checkboxes
       newIssueNew: false,
       newIssueStock: false,
       wfhNew: false,
@@ -1226,10 +1237,10 @@ function Inventory() {
       String(phTime.getMonth() + 1).padStart(2, "0") +
       "-" +
       String(phTime.getDate()).padStart(2, "0");
-    
+
     // Get the devices to be assigned
     const devicesToAssign = devices.filter((d) => selectedIds.includes(d.id));
-    
+
     for (const dev of devicesToAssign) {
       await updateDevice(dev.id, {
         ...dev,
@@ -1248,11 +1259,13 @@ function Inventory() {
         date: new Date(), // Store full timestamp for precise ordering
       });
     }
-    
+
     // Clear selected IDs after assignment
     setSelectedIds([]);
     closeAssignModal();
-    showSuccess(`Successfully assigned ${devicesToAssign.length} device(s) to ${selectedAssignEmployee.fullName}`);
+    showSuccess(
+      `Successfully assigned ${devicesToAssign.length} device(s) to ${selectedAssignEmployee.fullName}`
+    );
     loadDevicesAndEmployees();
   };
 
@@ -2670,7 +2683,8 @@ function Inventory() {
                     boxSizing: "border-box",
                     outline: "none",
                     transition: "border-color 0.2s, background 0.2s",
-                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#2563eb";
@@ -2715,7 +2729,8 @@ function Inventory() {
                             cursor: "pointer",
                             textAlign: "left",
                             transition: "all 0.2s",
-                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            fontFamily:
+                              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           }}
                           onMouseEnter={(e) => {
                             e.target.style.background = "#f3f4f6";
@@ -3986,7 +4001,8 @@ const styles = {
     maxWidth: "100%",
     background: "transparent", // Let parent handle background
     height: "100%", // Fill available height
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    fontFamily:
+      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     display: "flex",
     flexDirection: "column",
     overflow: "hidden", // Prevent page-level scrolling
@@ -4021,7 +4037,8 @@ const styles = {
     fontSize: 28,
     marginBottom: 18,
     letterSpacing: 0,
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    fontFamily:
+      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   googleSearchBar: {
     display: "flex",

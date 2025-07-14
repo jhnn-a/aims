@@ -1,14 +1,24 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { addEmployee, getAllEmployees, updateEmployee, deleteEmployee } from "../services/employeeService";
+import {
+  addEmployee,
+  getAllEmployees,
+  updateEmployee,
+  deleteEmployee,
+} from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
 import { getAllDevices, updateDevice } from "../services/deviceService";
-import { getDeviceHistoryForEmployee, logDeviceHistory, deleteDeviceHistory } from "../services/deviceHistoryService";
+import {
+  getDeviceHistoryForEmployee,
+  logDeviceHistory,
+  deleteDeviceHistory,
+} from "../services/deviceHistoryService";
 import { useSnackbar } from "../components/Snackbar";
-import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+} from "../components/LoadingSpinner";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
-
 
 function EmployeeFormModal({
   data,
@@ -152,36 +162,36 @@ function formatDisplayDate(dateStr) {
 // Helper to format assignment date (handles Firestore timestamps)
 function formatAssignmentDate(dateValue) {
   if (!dateValue) return "";
-  
+
   // Handle Firestore timestamp object
-  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+  if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
     const date = new Date(dateValue.seconds * 1000);
     return formatDisplayDate(date.toISOString().slice(0, 10));
   }
-  
+
   // Handle regular date string or Date object
-  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+  if (typeof dateValue === "string" || dateValue instanceof Date) {
     return formatDisplayDate(dateValue);
   }
-  
+
   return "";
 }
 
 // Helper to format history date (handles Firestore timestamps)
 function formatHistoryDate(dateValue) {
   if (!dateValue) return "";
-  
+
   // Handle Firestore timestamp object
-  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+  if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
     const date = new Date(dateValue.seconds * 1000);
     return date.toLocaleString();
   }
-  
+
   // Handle regular date string or Date object
-  if (typeof dateValue === 'string' || dateValue instanceof Date) {
+  if (typeof dateValue === "string" || dateValue instanceof Date) {
     return new Date(dateValue).toLocaleString();
   }
-  
+
   return "";
 }
 
@@ -264,7 +274,7 @@ const DeleteIcon = ({ color = "#e11d48" }) => (
 
 function Employees() {
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
-  
+
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -272,7 +282,8 @@ function Employees() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [sortByLastName, setSortByLastName] = useState(false);
-  const [showImportExportDropdown, setShowImportExportDropdown] = useState(false);
+  const [showImportExportDropdown, setShowImportExportDropdown] =
+    useState(false);
   const [form, setForm] = useState({
     id: null,
     fullName: "",
@@ -291,11 +302,11 @@ function Employees() {
   // Search state for each section
   const [searchActive, setSearchActive] = useState("");
   const [searchResigned, setSearchResigned] = useState("");
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
-  
+
   const [showDevicesModal, setShowDevicesModal] = useState(false);
   const [devicesForEmployee, setDevicesForEmployee] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -329,9 +340,9 @@ function Employees() {
   const [resignedDevicesCache, setResignedDevicesCache] = useState([]);
   const [lastDeletedEmployee, setLastDeletedEmployee] = useState(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  
+
   // Responsive screen size state
-  const [screenSize, setScreenSize] = useState('large');
+  const [screenSize, setScreenSize] = useState("large");
 
   useEffect(() => {
     loadClientsAndEmployees();
@@ -339,32 +350,35 @@ function Employees() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showImportExportDropdown && !event.target.closest('.dropdown-container')) {
+      if (
+        showImportExportDropdown &&
+        !event.target.closest(".dropdown-container")
+      ) {
         setShowImportExportDropdown(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, [showImportExportDropdown]);
 
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width >= 1400) {
-        setScreenSize('large');
+        setScreenSize("large");
       } else if (width >= 1200) {
-        setScreenSize('medium');
+        setScreenSize("medium");
       } else if (width >= 1024) {
-        setScreenSize('small');
+        setScreenSize("small");
       } else {
-        setScreenSize('compact');
+        setScreenSize("compact");
       }
     };
 
     handleResize(); // Set initial size
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const loadClientsAndEmployees = async () => {
@@ -397,7 +411,7 @@ function Employees() {
 
   const handleSave = async () => {
     if (!isFormValid()) return;
-    
+
     try {
       // Always set dateHired to today if not specified
       let dateHired = form.dateHired;
@@ -427,9 +441,9 @@ function Employees() {
         corporateEmail: form.corporateEmail || "",
         personalEmail: form.personalEmail || "",
       };
-      
+
       const isEditing = !!form.id;
-      
+
       if (isEditing) {
         await updateEmployee(form.id, payload);
         showSuccess(`Employee details updated successfully.`);
@@ -437,12 +451,14 @@ function Employees() {
         await addEmployee(payload);
         showSuccess(`New employee successfully added.`);
       }
-      
+
       resetForm();
       loadClientsAndEmployees();
     } catch (error) {
-      console.error('Error saving employee:', error);
-      showError(`Failed to ${form.id ? 'update' : 'add'} employee. Please try again.`);
+      console.error("Error saving employee:", error);
+      showError(
+        `Failed to ${form.id ? "update" : "add"} employee. Please try again.`
+      );
     }
   };
 
@@ -470,28 +486,28 @@ function Employees() {
 
   const confirmDelete = async () => {
     try {
-      const employeeToDelete = employees.find(emp => emp.id === selectedId);
-      
+      const employeeToDelete = employees.find((emp) => emp.id === selectedId);
+
       // This appears to be a soft delete (moving to resigned status)
       await updateEmployee(selectedId, {
         ...employeeToDelete,
         status: "resigned",
       });
-      
+
       setLastDeletedEmployee(employeeToDelete);
       showWarning(`Employee record moved to Resigned Employees.`);
-      
+
       setSelectedId(null);
       setShowConfirm(false);
       loadClientsAndEmployees();
-      
+
       // Auto-hide and clear last deleted employee after 6 seconds
       setTimeout(() => {
         setLastDeletedEmployee(null);
       }, 6000);
     } catch (error) {
-      console.error('Error moving employee to resigned:', error);
-      showError('Failed to move employee. Please try again.');
+      console.error("Error moving employee to resigned:", error);
+      showError("Failed to move employee. Please try again.");
     }
   };
 
@@ -553,14 +569,19 @@ function Employees() {
 
   // Pagination logic
   const getCurrentEmployees = () => {
-    return employeeSection === "active" ? filteredActiveEmployees : filteredResignedEmployees;
+    return employeeSection === "active"
+      ? filteredActiveEmployees
+      : filteredResignedEmployees;
   };
 
   const totalItems = getCurrentEmployees().length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentEmployees = getCurrentEmployees().slice(indexOfFirstItem, indexOfLastItem);
+  const currentEmployees = getCurrentEmployees().slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
 
   // Reset to first page when switching sections or searching
   useEffect(() => {
@@ -587,28 +608,32 @@ function Employees() {
     if (totalPages <= 1) return null;
 
     return (
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "16px 20px",
-        border: "1px solid rgb(215, 215, 224)",
-        borderTop: "none",
-        background: "#fff",
-        borderBottomLeftRadius: "12px",
-        borderBottomRightRadius: "12px",
-        minHeight: "60px",
-        marginTop: "0",
-        boxSizing: "border-box",
-        flexWrap: "wrap",
-        gap: "12px",
-      }}>
-        <div style={{
+      <div
+        style={{
           display: "flex",
+          justifyContent: "space-between",
           alignItems: "center",
-          gap: "8px",
+          padding: "16px 20px",
+          border: "1px solid rgb(215, 215, 224)",
+          borderTop: "none",
+          background: "#fff",
+          borderBottomLeftRadius: "12px",
+          borderBottomRightRadius: "12px",
+          minHeight: "60px",
+          marginTop: "0",
+          boxSizing: "border-box",
           flexWrap: "wrap",
-        }}>
+          gap: "12px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
           {/* First Page Button */}
           <button
             onClick={() => handlePageChange(1)}
@@ -646,7 +671,7 @@ function Employees() {
           >
             &lt;&lt;
           </button>
-          
+
           {/* Previous Page Button */}
           <button
             onClick={() => handlePageChange(currentPage - 1)}
@@ -684,7 +709,7 @@ function Employees() {
           >
             &lt;
           </button>
-          
+
           {/* Next Page Button */}
           <button
             onClick={() => handlePageChange(currentPage + 1)}
@@ -722,7 +747,7 @@ function Employees() {
           >
             &gt;
           </button>
-          
+
           {/* Last Page Button */}
           <button
             onClick={() => handlePageChange(totalPages)}
@@ -760,7 +785,7 @@ function Employees() {
           >
             &gt;&gt;
           </button>
-          
+
           {/* Items per page dropdown */}
           <select
             value={itemsPerPage}
@@ -795,14 +820,17 @@ function Employees() {
             <option value={100}>100 items per page</option>
           </select>
         </div>
-        
-        <div style={{
-          fontFamily: "Maax, sans-serif",
-          fontSize: "14px",
-          color: "#6b7280",
-          fontWeight: "500",
-        }}>
-          {indexOfFirstItem + 1}–{Math.min(indexOfLastItem, totalItems)} of {totalItems} items
+
+        <div
+          style={{
+            fontFamily: "Maax, sans-serif",
+            fontSize: "14px",
+            color: "#6b7280",
+            fontWeight: "500",
+          }}
+        >
+          {indexOfFirstItem + 1}–{Math.min(indexOfLastItem, totalItems)} of{" "}
+          {totalItems} items
         </div>
       </div>
     );
@@ -899,7 +927,6 @@ function Employees() {
     }
   };
 
-
   // Import from Excel handler (restored for ESLint and feature completeness)
   const handleImportExcel = async (e) => {
     const file = e.target.files[0];
@@ -920,9 +947,12 @@ function Employees() {
           lastName: row["Last Name"] || "",
           middleName: row["Middle Name"] || "",
           position: row["Position"] || "",
-          clientId: clients.find((c) => c.clientName === row["Client"])?.id || "",
+          clientId:
+            clients.find((c) => c.clientName === row["Client"])?.id || "",
           department: row["Department"] || "",
-          dateHired: row["Date Hired"] ? new Date(row["Date Hired"]).toISOString().slice(0, 10) : "",
+          dateHired: row["Date Hired"]
+            ? new Date(row["Date Hired"]).toISOString().slice(0, 10)
+            : "",
           corporateEmail: row["Corporate Email"] || "",
           personalEmail: row["Personal Email"] || "",
         };
@@ -933,7 +963,7 @@ function Employees() {
       showSuccess(`Successfully imported ${rows.length} employees from Excel.`);
     } catch (err) {
       console.error("Import error:", err);
-      showError('Import failed. Please check the file format and try again.');
+      showError("Import failed. Please check the file format and try again.");
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -970,16 +1000,16 @@ function Employees() {
         await deleteEmployee(selectedIds[i]);
         setDeleteProgress({ current: i + 1, total: selectedIds.length });
       }
-      
+
       showWarning(`Successfully deleted ${selectedIds.length} employee(s).`);
-      
+
       setSelectedIds([]);
       setDeleteProgress({ current: 0, total: 0 });
       setShowBulkDeleteConfirm(false);
       loadClientsAndEmployees();
     } catch (error) {
-      console.error('Error during bulk delete:', error);
-      showError('Failed to delete some employees. Please try again.');
+      console.error("Error during bulk delete:", error);
+      showError("Failed to delete some employees. Please try again.");
     }
   };
 
@@ -998,7 +1028,11 @@ function Employees() {
       };
 
       // Use the correct filtered list based on the current section
-      const exportData = (employeeSection === "active" ? filteredActiveEmployees : filteredResignedEmployees).map((emp) => ({
+      const exportData = (
+        employeeSection === "active"
+          ? filteredActiveEmployees
+          : filteredResignedEmployees
+      ).map((emp) => ({
         "Full Name": emp.fullName || "", // Add Full Name column that import expects
         "First Name": emp.firstName || "",
         "Last Name": emp.lastName || "",
@@ -1040,11 +1074,11 @@ function Employees() {
 
       // Save the file
       XLSX.writeFile(wb, filename);
-      
+
       showSuccess(`Employee data exported to Excel successfully.`);
     } catch (error) {
       console.error("Export error:", error);
-      showError('Failed to export data. Please try again.');
+      showError("Failed to export data. Please try again.");
     }
   };
 
@@ -1056,20 +1090,20 @@ function Employees() {
 
   const confirmResign = async () => {
     if (!resignEmployee) return;
-    
+
     try {
       // 1. Get all assigned devices before unassigning (for undo functionality)
       const allDevices = await getAllDevices();
       const assignedDevices = allDevices.filter(
         (d) => d.assignedTo === resignEmployee.id
       );
-      
+
       // 2. Mark employee as resigned
       await updateEmployee(resignEmployee.id, {
         ...resignEmployee,
         status: "resigned",
       });
-      
+
       // 3. Unassign all devices
       for (const device of assignedDevices) {
         const { id, ...deviceWithoutId } = device;
@@ -1090,26 +1124,28 @@ function Employees() {
           date: new Date(),
         });
       }
-      
+
       // 4. Cache resigned employee and devices for undo functionality
       setLastResignedEmployee(resignEmployee);
       setResignedDevicesCache(assignedDevices);
-      
+
       // 5. Show snackbar notification
-      showWarning(`Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`);
-      
+      showWarning(
+        `Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`
+      );
+
       setShowResignConfirm(false);
       setResignEmployee(null);
       loadClientsAndEmployees();
-      
+
       // Auto-hide and clear last resigned employee after 8 seconds (longer to allow undo action)
       setTimeout(() => {
         setLastResignedEmployee(null);
         setResignedDevicesCache([]);
       }, 8000);
     } catch (error) {
-      console.error('Error resigning employee:', error);
-      showError('Failed to resign employee. Please try again.');
+      console.error("Error resigning employee:", error);
+      showError("Failed to resign employee. Please try again.");
     }
   };
 
@@ -1131,87 +1167,91 @@ function Employees() {
 
   const confirmDeleteResigned = async () => {
     if (!employeeToDelete) return;
-    
+
     try {
       await deleteEmployee(employeeToDelete.id);
-      setEmployees(prev => prev.filter(emp => emp.id !== employeeToDelete.id));
+      setEmployees((prev) =>
+        prev.filter((emp) => emp.id !== employeeToDelete.id)
+      );
       setShowDeleteConfirmModal(false);
       setEmployeeToDelete(null);
-      
+
       // Show success snackbar
-      showWarning(`Employee ${employeeToDelete.name} has been permanently deleted.`);
+      showWarning(
+        `Employee ${employeeToDelete.name} has been permanently deleted.`
+      );
     } catch (error) {
-      console.error('Error deleting employee:', error);
-      showError('Failed to delete employee. Please try again.');
+      console.error("Error deleting employee:", error);
+      showError("Failed to delete employee. Please try again.");
     }
   };
 
   const confirmRestoreEmployee = async () => {
     if (!employeeToRestore) return;
-    
+
     try {
       await updateEmployee(employeeToRestore.id, {
         ...employeeToRestore,
         status: "active",
       });
-      
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === employeeToRestore.id 
-            ? { ...emp, status: "active" }
-            : emp
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === employeeToRestore.id ? { ...emp, status: "active" } : emp
         )
       );
-      
+
       setLastRestoredEmployee(employeeToRestore);
-      showSuccess(`Employee ${employeeToRestore.fullName} restored to Active Employees.`);
+      showSuccess(
+        `Employee ${employeeToRestore.fullName} restored to Active Employees.`
+      );
       setShowRestoreConfirmModal(false);
       setEmployeeToRestore(null);
-      
+
       // Auto-hide and clear last restored employee after 5 seconds
       setTimeout(() => {
         setLastRestoredEmployee(null);
       }, 5000);
     } catch (error) {
-      console.error('Error restoring employee:', error);
-      showError('Failed to restore employee. Please try again.');
+      console.error("Error restoring employee:", error);
+      showError("Failed to restore employee. Please try again.");
     }
   };
 
   const handleUndoRestore = async () => {
     if (!lastRestoredEmployee) return;
-    
+
     try {
       await updateEmployee(lastRestoredEmployee.id, {
         ...lastRestoredEmployee,
         status: "resigned",
       });
-      
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === lastRestoredEmployee.id 
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === lastRestoredEmployee.id
             ? { ...emp, status: "resigned" }
             : emp
         )
       );
-      
+
       setLastRestoredEmployee(null);
     } catch (error) {
-      console.error('Error undoing restore:', error);
-      showError('Failed to undo restore. Please try again.');
+      console.error("Error undoing restore:", error);
+      showError("Failed to undo restore. Please try again.");
     }
   };
 
   const handleUndoResign = async () => {
     if (!lastResignedEmployee) return;
-    
+
     try {
       // 1. Restore employee status to active
       await updateEmployee(lastResignedEmployee.id, {
         ...lastResignedEmployee,
         status: "active",
       });
-      
+
       // 2. Reassign all previously assigned devices
       for (const device of resignedDevicesCache) {
         const { id, ...deviceWithoutId } = device;
@@ -1232,55 +1272,57 @@ function Employees() {
           date: new Date(),
         });
       }
-      
+
       // 3. Update UI state
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === lastResignedEmployee.id 
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === lastResignedEmployee.id
             ? { ...emp, status: "active" }
             : emp
         )
       );
-      
+
       // 4. Show success message
-      showSuccess(`Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`);
-      
+      showSuccess(
+        `Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`
+      );
+
       // 5. Clear undo state
       setLastResignedEmployee(null);
       setResignedDevicesCache([]);
-      
+
       // 6. Refresh data
       loadClientsAndEmployees();
     } catch (error) {
-      console.error('Error undoing resignation:', error);
-      showError('Failed to undo resignation. Please try again.');
+      console.error("Error undoing resignation:", error);
+      showError("Failed to undo resignation. Please try again.");
     }
   };
 
   const handleUndoDelete = async () => {
     if (!lastDeletedEmployee) return;
-    
+
     try {
       await updateEmployee(lastDeletedEmployee.id, {
         ...lastDeletedEmployee,
         status: "active",
       });
-      
-      setEmployees(prev => 
-        prev.map(emp => 
-          emp.id === lastDeletedEmployee.id 
-            ? { ...emp, status: "active" }
-            : emp
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp.id === lastDeletedEmployee.id ? { ...emp, status: "active" } : emp
         )
       );
-      
-      showSuccess(`Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`);
-      
+
+      showSuccess(
+        `Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`
+      );
+
       setLastDeletedEmployee(null);
       loadClientsAndEmployees();
     } catch (error) {
-      console.error('Error undoing delete:', error);
-      showError('Failed to undo delete. Please try again.');
+      console.error("Error undoing delete:", error);
+      showError("Failed to undo delete. Please try again.");
     }
   };
 
@@ -1314,31 +1356,29 @@ function Employees() {
             >
               Confirm
             </button>
-            <button
-              onClick={onCancel}
-              style={styles.cancelBtn}
-            >
+            <button onClick={onCancel} style={styles.cancelBtn}>
               Cancel
             </button>
           </div>
         </div>
       </div>
     );
-}
+  }
   return (
     <div style={styles.pageContainer}>
       <div style={styles.headerSection}>
         <div style={styles.headerRow}>
           <h2 style={styles.pageTitle}>Employee Database</h2>
           <div style={styles.headerActions}>
-            <button 
-              onClick={() => setShowForm(true)} 
+            <button
+              onClick={() => setShowForm(true)}
               style={styles.addBtn}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "rgb(37, 99, 235)";
                 e.currentTarget.style.color = "#fff";
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(37, 99, 235, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "rgb(242, 242, 242)";
@@ -1349,9 +1389,14 @@ function Employees() {
             >
               + Add Employee
             </button>
-            <div style={styles.dropdownContainer} className="dropdown-container">
+            <div
+              style={styles.dropdownContainer}
+              className="dropdown-container"
+            >
               <button
-                onClick={() => setShowImportExportDropdown(!showImportExportDropdown)}
+                onClick={() =>
+                  setShowImportExportDropdown(!showImportExportDropdown)
+                }
                 style={styles.dropdownBtn}
                 disabled={importing}
                 onMouseEnter={(e) => {
@@ -1359,7 +1404,8 @@ function Employees() {
                     e.currentTarget.style.background = "rgb(37, 99, 235)";
                     e.currentTarget.style.color = "#fff";
                     e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 12px rgba(37, 99, 235, 0.3)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -1367,7 +1413,8 @@ function Employees() {
                     e.currentTarget.style.background = "rgb(242, 242, 242)";
                     e.currentTarget.style.color = "rgb(59, 59, 74)";
                     e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 4px rgba(0,0,0,0.1)";
                   }
                 }}
               >
@@ -1387,14 +1434,29 @@ function Employees() {
                       onChange={handleImportExcel}
                       disabled={importing}
                     />
-                    <span 
+                    <span
                       onClick={() => {
-                        document.querySelector('input[type="file"][accept=".xlsx,.xls"]').click();
+                        document
+                          .querySelector(
+                            'input[type="file"][accept=".xlsx,.xls"]'
+                          )
+                          .click();
                         setShowImportExportDropdown(false);
                       }}
-                      style={{ cursor: "pointer", display: "block", width: "100%", height: "100%" }}
-                      onMouseEnter={(e) => (e.currentTarget.parentElement.style.background = "rgb(248, 248, 248)")}
-                      onMouseLeave={(e) => (e.currentTarget.parentElement.style.background = "transparent")}
+                      style={{
+                        cursor: "pointer",
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.parentElement.style.background =
+                          "rgb(248, 248, 248)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.parentElement.style.background =
+                          "transparent")
+                      }
                     >
                       Import
                     </span>
@@ -1405,8 +1467,12 @@ function Employees() {
                       setShowImportExportDropdown(false);
                     }}
                     style={styles.dropdownItem}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgb(248, 248, 248)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "rgb(248, 248, 248)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
                     Export
                   </button>
@@ -1418,18 +1484,20 @@ function Employees() {
       </div>
 
       {/* Section Toggle Buttons - Browser Tab Style */}
-      <div style={{
-        width: "100%",
-        maxWidth: "none",
-        margin: "0",
-        padding: "0 24px",
-        display: "flex",
-        alignItems: "flex-end",
-        gap: 0,
-        marginBottom: "-1px", // Connect to table
-        zIndex: 10,
-        position: "relative",
-      }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "none",
+          margin: "0",
+          padding: "0 24px",
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 0,
+          marginBottom: "-1px", // Connect to table
+          zIndex: 10,
+          position: "relative",
+        }}
+      >
         <button
           type="button"
           style={{
@@ -1439,16 +1507,26 @@ function Employees() {
             padding: "12px 24px",
             borderRadius: "12px 12px 0 0", // Rounded top corners only
             border: "1px solid rgb(215, 215, 224)",
-            borderBottom: employeeSection === "active" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            borderBottom:
+              employeeSection === "active"
+                ? "1px solid #fff"
+                : "1px solid rgb(215, 215, 224)",
             cursor: "pointer",
             transition: "all 0.3s ease",
             minHeight: "48px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: employeeSection === "active" ? "0 -2px 8px rgba(37, 99, 235, 0.1)" : "none",
-            transform: employeeSection === "active" ? "translateY(0)" : "translateY(2px)",
-            background: employeeSection === "active" ? "#fff" : "rgb(248, 250, 252)",
+            boxShadow:
+              employeeSection === "active"
+                ? "0 -2px 8px rgba(37, 99, 235, 0.1)"
+                : "none",
+            transform:
+              employeeSection === "active"
+                ? "translateY(0)"
+                : "translateY(2px)",
+            background:
+              employeeSection === "active" ? "#fff" : "rgb(248, 250, 252)",
             color: employeeSection === "active" ? "#2563eb" : "#6b7280",
             position: "relative",
             zIndex: employeeSection === "active" ? 15 : 10,
@@ -1482,16 +1560,26 @@ function Employees() {
             padding: "12px 24px",
             borderRadius: "12px 12px 0 0", // Rounded top corners only
             border: "1px solid rgb(215, 215, 224)",
-            borderBottom: employeeSection === "resigned" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            borderBottom:
+              employeeSection === "resigned"
+                ? "1px solid #fff"
+                : "1px solid rgb(215, 215, 224)",
             cursor: "pointer",
             transition: "all 0.3s ease",
             minHeight: "48px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: employeeSection === "resigned" ? "0 -2px 8px rgba(234, 179, 8, 0.1)" : "none",
-            transform: employeeSection === "resigned" ? "translateY(0)" : "translateY(2px)",
-            background: employeeSection === "resigned" ? "#fff" : "rgb(248, 250, 252)",
+            boxShadow:
+              employeeSection === "resigned"
+                ? "0 -2px 8px rgba(234, 179, 8, 0.1)"
+                : "none",
+            transform:
+              employeeSection === "resigned"
+                ? "translateY(0)"
+                : "translateY(2px)",
+            background:
+              employeeSection === "resigned" ? "#fff" : "rgb(248, 250, 252)",
             color: employeeSection === "resigned" ? "#eab308" : "#6b7280",
             position: "relative",
             zIndex: employeeSection === "resigned" ? 15 : 10,
@@ -1519,14 +1607,16 @@ function Employees() {
 
       {/* Table Section */}
       {employeeSection === "active" && (
-        <div style={{
-          ...styles.tableWrapper,
-          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
-          borderTopRightRadius: "12px",
-          marginTop: "0",
-          position: "relative",
-          zIndex: 5,
-        }}>
+        <div
+          style={{
+            ...styles.tableWrapper,
+            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+            borderTopRightRadius: "12px",
+            marginTop: "0",
+            position: "relative",
+            zIndex: 5,
+          }}
+        >
           {/* Bulk Actions */}
           {selectedIds.length > 0 && (
             <div style={styles.bulkActionsContainer}>
@@ -1554,73 +1644,117 @@ function Employees() {
                 onMouseEnter={(e) => {
                   if (deleteProgress.total === 0) {
                     e.currentTarget.style.background = "#dc2626";
-                    e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
-                    e.currentTarget.style.boxShadow = "0 4px 16px rgba(220, 38, 38, 0.4)";
+                    e.currentTarget.style.transform =
+                      "translateY(-2px) scale(1.05)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 16px rgba(220, 38, 38, 0.4)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (deleteProgress.total === 0) {
                     e.currentTarget.style.background = "#e11d48";
                     e.currentTarget.style.transform = "translateY(0) scale(1)";
-                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(225,29,72,0.10)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 8px rgba(225,29,72,0.10)";
                   }
                 }}
               >
                 🗑️ Delete Selected
               </button>
               {deleteProgress.total > 0 && (
-                <span style={{ color: "#e11d48", fontWeight: 600, fontSize: 14, marginLeft: 12 }}>
+                <span
+                  style={{
+                    color: "#e11d48",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    marginLeft: 12,
+                  }}
+                >
                   Deleting {deleteProgress.current}/{deleteProgress.total}...
                 </span>
               )}
             </div>
           )}
-          
+
           {/* Table Toolbar */}
-          <div style={{
-            width: "100%",
-            height: "40px",
-            background: "#fff",
-            border: "1px solid rgb(215, 215, 224)",
-            borderBottom: "none",
-            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
-            borderTopRightRadius: "12px",
-            margin: 0,
-            boxSizing: "border-box",
-            display: "flex",
-            alignItems: "center",
-            padding: "8px 16px",
-            gap: 12,
-            justifyContent: "space-between",
-            position: "relative",
-            zIndex: 10,
-          }}>
-            <div style={{
-              position: "relative",
+          <div
+            style={{
+              width: "100%",
+              height: "40px",
+              background: "#fff",
+              border: "1px solid rgb(215, 215, 224)",
+              borderBottom: "none",
+              borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+              borderTopRightRadius: "12px",
+              margin: 0,
+              boxSizing: "border-box",
               display: "flex",
               alignItems: "center",
-            }}>
-              <span style={{
-                position: "absolute",
-                left: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
+              padding: "8px 16px",
+              gap: 12,
+              justifyContent: "space-between",
+              position: "relative",
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
                 display: "flex",
                 alignItems: "center",
-                pointerEvents: "none",
-                color: "#1D2536",
-                fontSize: 16,
-              }}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={styles.searchIcon}>
-                  <circle cx="7" cy="7" r="5.5" stroke="#1D2536" strokeWidth="1.5"></circle>
-                  <line x1="11.3536" y1="11.6464" x2="15" y2="15.2929" stroke="#1D2536" strokeWidth="1.5" strokeLinecap="round"></line>
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  pointerEvents: "none",
+                  color: "#1D2536",
+                  fontSize: 16,
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={styles.searchIcon}
+                >
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                  ></circle>
+                  <line
+                    x1="11.3536"
+                    y1="11.6464"
+                    x2="15"
+                    y2="15.2929"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  ></line>
                 </svg>
               </span>
               <input
                 type="text"
-                placeholder={`Search by ${employeeSection === "active" ? "Active" : "Resigned"} Employee Name...`}
-                value={employeeSection === "active" ? searchActive : searchResigned}
-                onChange={(e) => employeeSection === "active" ? setSearchActive(e.target.value) : setSearchResigned(e.target.value)}
+                placeholder={`Search by ${
+                  employeeSection === "active" ? "Active" : "Resigned"
+                } Employee Name...`}
+                value={
+                  employeeSection === "active" ? searchActive : searchResigned
+                }
+                onChange={(e) =>
+                  employeeSection === "active"
+                    ? setSearchActive(e.target.value)
+                    : setSearchResigned(e.target.value)
+                }
                 style={{
                   fontFamily: "Maax, sans-serif",
                   fontSize: 14,
@@ -1655,7 +1789,8 @@ function Employees() {
                 e.currentTarget.style.background = "rgb(37, 99, 235)";
                 e.currentTarget.style.color = "#fff";
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(37, 99, 235, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "rgb(242, 242, 242)";
@@ -1677,7 +1812,15 @@ function Employees() {
               <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "50px",
+                        minWidth: "50px",
+                        maxWidth: "50px",
+                        flexShrink: 0,
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={
@@ -1688,18 +1831,83 @@ function Employees() {
                         style={styles.checkbox}
                       />
                     </th>
-                    <th style={{ ...styles.clientTh, width: "60px", minWidth: "60px", flexShrink: 0 }}>#</th>
-                    <th style={{ ...styles.clientTh, width: "22%", minWidth: "180px" }}>Full Name</th>
-                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Position</th>
-                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Department</th>
-                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Client</th>
-                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Corporate Email</th>
-                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Date Hired</th>
-                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "110px" }}>Actions</th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "60px",
+                        minWidth: "60px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      #
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "22%",
+                        minWidth: "180px",
+                      }}
+                    >
+                      Full Name
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "18%",
+                        minWidth: "140px",
+                      }}
+                    >
+                      Position
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "14%",
+                        minWidth: "120px",
+                      }}
+                    >
+                      Department
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "14%",
+                        minWidth: "120px",
+                      }}
+                    >
+                      Client
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "20%",
+                        minWidth: "160px",
+                      }}
+                    >
+                      Corporate Email
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "12%",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Date Hired
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "10%",
+                        minWidth: "110px",
+                      }}
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
               </table>
-              
+
               {/* Scrollable Body */}
               <div style={styles.tableBody}>
                 <table style={styles.bodyTable}>
@@ -1710,12 +1918,30 @@ function Employees() {
                           key={emp.id}
                           style={{
                             ...styles.clientTr,
-                            background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                            background:
+                              index % 2 === 0
+                                ? "rgb(250, 250, 252)"
+                                : "rgb(240, 240, 243)",
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "#e0f7f4")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "#e0f7f4")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background =
+                              index % 2 === 0
+                                ? "rgb(250, 250, 252)"
+                                : "rgb(240, 240, 243)")
+                          }
                         >
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "50px",
+                              minWidth: "50px",
+                              maxWidth: "50px",
+                              flexShrink: 0,
+                            }}
+                          >
                             <input
                               type="checkbox"
                               checked={selectedIds.includes(emp.id)}
@@ -1723,8 +1949,23 @@ function Employees() {
                               style={styles.checkbox}
                             />
                           </td>
-                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
-                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "60px",
+                              minWidth: "60px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {indexOfFirstItem + index + 1}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "22%",
+                              minWidth: "180px",
+                            }}
+                          >
                             <span
                               style={{
                                 cursor: "pointer",
@@ -1733,21 +1974,67 @@ function Employees() {
                                 textDecoration: "underline",
                                 textUnderlineOffset: 2,
                                 overflow: "hidden",
-                                textOverflow: "ellipsis"
+                                textOverflow: "ellipsis",
                               }}
                               onClick={() => handleShowDevices(emp)}
                             >
                               {formatName(emp.fullName)}
                             </span>
                           </td>
-                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.position}</td>
-                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.department || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.client}</td>
-                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{emp.corporateEmail || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>
-                            {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "18%",
+                              minWidth: "140px",
+                            }}
+                          >
+                            {emp.position}
                           </td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "14%",
+                              minWidth: "120px",
+                            }}
+                          >
+                            {emp.department || "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "14%",
+                              minWidth: "120px",
+                            }}
+                          >
+                            {emp.client}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "20%",
+                              minWidth: "160px",
+                            }}
+                          >
+                            {emp.corporateEmail || "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "12%",
+                              minWidth: "100px",
+                            }}
+                          >
+                            {emp.dateHired
+                              ? formatDisplayDate(emp.dateHired)
+                              : "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "10%",
+                              minWidth: "110px",
+                            }}
+                          >
                             <div style={styles.actionButtonsContainer}>
                               <button
                                 style={{
@@ -1757,17 +2044,27 @@ function Employees() {
                                 onClick={() => handleEdit(emp)}
                                 title="Edit"
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "rgba(37, 99, 235, 0.35)";
-                                  e.currentTarget.style.transform = "scale(1.1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.4)";
+                                  e.currentTarget.style.background =
+                                    "rgba(37, 99, 235, 0.35)";
+                                  e.currentTarget.style.transform =
+                                    "scale(1.1)";
+                                  e.currentTarget.style.boxShadow =
+                                    "0 2px 8px rgba(37, 99, 235, 0.4)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "rgba(37, 99, 235, 0.2)";
+                                  e.currentTarget.style.background =
+                                    "rgba(37, 99, 235, 0.2)";
                                   e.currentTarget.style.transform = "scale(1)";
                                   e.currentTarget.style.boxShadow = "none";
                                 }}
                               >
-                                <svg width="16" height="16" fill="none" stroke="#2563eb" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  fill="none"
+                                  stroke="#2563eb"
+                                  strokeWidth="2"
+                                >
                                   <path d="M12 20h9" />
                                   <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                                 </svg>
@@ -1780,17 +2077,27 @@ function Employees() {
                                 onClick={() => handleResign(emp)}
                                 title="Resign"
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "rgba(234, 179, 8, 0.35)";
-                                  e.currentTarget.style.transform = "scale(1.1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(234, 179, 8, 0.4)";
+                                  e.currentTarget.style.background =
+                                    "rgba(234, 179, 8, 0.35)";
+                                  e.currentTarget.style.transform =
+                                    "scale(1.1)";
+                                  e.currentTarget.style.boxShadow =
+                                    "0 2px 8px rgba(234, 179, 8, 0.4)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "rgba(234, 179, 8, 0.2)";
+                                  e.currentTarget.style.background =
+                                    "rgba(234, 179, 8, 0.2)";
                                   e.currentTarget.style.transform = "scale(1)";
                                   e.currentTarget.style.boxShadow = "none";
                                 }}
                               >
-                                <svg width="16" height="16" fill="none" stroke="#eab308" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  fill="none"
+                                  stroke="#eab308"
+                                  strokeWidth="2"
+                                >
                                   <path d="M6 19V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" />
                                   <path d="M9 9h6" />
                                   <path d="M9 13h6" />
@@ -1802,34 +2109,124 @@ function Employees() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="9" style={{ 
-                          ...styles.clientTd, 
-                          textAlign: 'center', 
-                          padding: '40px 20px',
-                          fontSize: '16px',
-                          color: '#6b7280',
-                          fontStyle: 'italic'
-                        }}>
+                        <td
+                          colSpan="9"
+                          style={{
+                            ...styles.clientTd,
+                            textAlign: "center",
+                            padding: "40px 20px",
+                            fontSize: "16px",
+                            color: "#6b7280",
+                            fontStyle: "italic",
+                          }}
+                        >
                           No active employees found
                         </td>
                       </tr>
                     )}
                     {/* Add empty rows to maintain consistent table height */}
-                    {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
-                      Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
-                        <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>&nbsp;</td>
-                        </tr>
-                      ))
-                    }
+                    {currentEmployees.length > 0 &&
+                      currentEmployees.length < itemsPerPage &&
+                      Array.from(
+                        { length: itemsPerPage - currentEmployees.length },
+                        (_, i) => (
+                          <tr
+                            key={`empty-${i}`}
+                            style={{
+                              ...styles.clientTr,
+                              background:
+                                (currentEmployees.length + i) % 2 === 0
+                                  ? "rgb(250, 250, 252)"
+                                  : "rgb(240, 240, 243)",
+                            }}
+                          >
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "50px",
+                                minWidth: "50px",
+                                maxWidth: "50px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "60px",
+                                minWidth: "60px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "22%",
+                                minWidth: "180px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "18%",
+                                minWidth: "140px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "14%",
+                                minWidth: "120px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "14%",
+                                minWidth: "120px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "20%",
+                                minWidth: "160px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "12%",
+                                minWidth: "100px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "10%",
+                                minWidth: "110px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                          </tr>
+                        )
+                      )}
                   </tbody>
                 </table>
               </div>
@@ -1841,59 +2238,95 @@ function Employees() {
       )}
 
       {employeeSection === "resigned" && (
-        <div style={{
-          ...styles.tableWrapper,
-          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
-          borderTopRightRadius: "12px",
-          marginTop: "0",
-          position: "relative",
-          zIndex: 5,
-        }}>
-          {/* Table Toolbar */}
-          <div style={{
-            width: "100%",
-            height: "40px",
-            background: "#fff",
-            border: "1px solid rgb(215, 215, 224)",
-            borderBottom: "none",
+        <div
+          style={{
+            ...styles.tableWrapper,
             borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
             borderTopRightRadius: "12px",
-            margin: 0,
-            boxSizing: "border-box",
-            display: "flex",
-            alignItems: "center",
-            padding: "8px 16px",
-            gap: 12,
-            justifyContent: "space-between",
+            marginTop: "0",
             position: "relative",
-            zIndex: 10,
-          }}>
-            <div style={{
-              position: "relative",
+            zIndex: 5,
+          }}
+        >
+          {/* Table Toolbar */}
+          <div
+            style={{
+              width: "100%",
+              height: "40px",
+              background: "#fff",
+              border: "1px solid rgb(215, 215, 224)",
+              borderBottom: "none",
+              borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+              borderTopRightRadius: "12px",
+              margin: 0,
+              boxSizing: "border-box",
               display: "flex",
               alignItems: "center",
-            }}>
-              <span style={{
-                position: "absolute",
-                left: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
+              padding: "8px 16px",
+              gap: 12,
+              justifyContent: "space-between",
+              position: "relative",
+              zIndex: 10,
+            }}
+          >
+            <div
+              style={{
+                position: "relative",
                 display: "flex",
                 alignItems: "center",
-                pointerEvents: "none",
-                color: "#1D2536",
-                fontSize: 16,
-              }}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={styles.searchIcon}>
-                  <circle cx="7" cy="7" r="5.5" stroke="#1D2536" strokeWidth="1.5"></circle>
-                  <line x1="11.3536" y1="11.6464" x2="15" y2="15.2929" stroke="#1D2536" strokeWidth="1.5" strokeLinecap="round"></line>
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  alignItems: "center",
+                  pointerEvents: "none",
+                  color: "#1D2536",
+                  fontSize: 16,
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={styles.searchIcon}
+                >
+                  <circle
+                    cx="7"
+                    cy="7"
+                    r="5.5"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                  ></circle>
+                  <line
+                    x1="11.3536"
+                    y1="11.6464"
+                    x2="15"
+                    y2="15.2929"
+                    stroke="#1D2536"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  ></line>
                 </svg>
               </span>
               <input
                 type="text"
-                placeholder={`Search by ${employeeSection === "active" ? "Active" : "Resigned"} Employee Name...`}
-                value={employeeSection === "active" ? searchActive : searchResigned}
-                onChange={(e) => employeeSection === "active" ? setSearchActive(e.target.value) : setSearchResigned(e.target.value)}
+                placeholder={`Search by ${
+                  employeeSection === "active" ? "Active" : "Resigned"
+                } Employee Name...`}
+                value={
+                  employeeSection === "active" ? searchActive : searchResigned
+                }
+                onChange={(e) =>
+                  employeeSection === "active"
+                    ? setSearchActive(e.target.value)
+                    : setSearchResigned(e.target.value)
+                }
                 style={{
                   fontFamily: "Maax, sans-serif",
                   fontSize: 14,
@@ -1928,7 +2361,8 @@ function Employees() {
                 e.currentTarget.style.background = "rgb(37, 99, 235)";
                 e.currentTarget.style.color = "#fff";
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(37, 99, 235, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "rgb(242, 242, 242)";
@@ -1950,19 +2384,92 @@ function Employees() {
               <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", flexShrink: 0 }}>#</th>
-                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Full Name</th>
-                    <th style={{ ...styles.clientTh, width: "16%", minWidth: "120px" }}>Position</th>
-                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Department</th>
-                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Client</th>
-                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Corporate Email</th>
-                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Date Hired</th>
-                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Resigned Date</th>
-                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "100px" }}>Actions</th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "50px",
+                        minWidth: "50px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      #
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "20%",
+                        minWidth: "160px",
+                      }}
+                    >
+                      Full Name
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "16%",
+                        minWidth: "120px",
+                      }}
+                    >
+                      Position
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "12%",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Department
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "12%",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Client
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "18%",
+                        minWidth: "140px",
+                      }}
+                    >
+                      Corporate Email
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "10%",
+                        minWidth: "90px",
+                      }}
+                    >
+                      Date Hired
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "10%",
+                        minWidth: "90px",
+                      }}
+                    >
+                      Resigned Date
+                    </th>
+                    <th
+                      style={{
+                        ...styles.clientTh,
+                        width: "10%",
+                        minWidth: "100px",
+                      }}
+                    >
+                      Actions
+                    </th>
                   </tr>
                 </thead>
               </table>
-              
+
               {/* Scrollable Body */}
               <div style={styles.tableBody}>
                 <table style={styles.bodyTable}>
@@ -1973,24 +2480,105 @@ function Employees() {
                           key={emp.id}
                           style={{
                             ...styles.clientTr,
-                            background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                            background:
+                              index % 2 === 0
+                                ? "rgb(250, 250, 252)"
+                                : "rgb(240, 240, 243)",
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "#fef9c3")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "#fef9c3")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background =
+                              index % 2 === 0
+                                ? "rgb(250, 250, 252)"
+                                : "rgb(240, 240, 243)")
+                          }
                         >
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
-                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{formatName(emp.fullName)}</td>
-                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>{emp.position}</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.department || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.client}</td>
-                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.corporateEmail || "-"}</td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
-                            {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "50px",
+                              minWidth: "50px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {indexOfFirstItem + index + 1}
                           </td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
-                            {emp.resignedDate ? formatDisplayDate(emp.resignedDate) : "-"}
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "20%",
+                              minWidth: "160px",
+                            }}
+                          >
+                            {formatName(emp.fullName)}
                           </td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "16%",
+                              minWidth: "120px",
+                            }}
+                          >
+                            {emp.position}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "12%",
+                              minWidth: "100px",
+                            }}
+                          >
+                            {emp.department || "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "12%",
+                              minWidth: "100px",
+                            }}
+                          >
+                            {emp.client}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "18%",
+                              minWidth: "140px",
+                            }}
+                          >
+                            {emp.corporateEmail || "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "10%",
+                              minWidth: "90px",
+                            }}
+                          >
+                            {emp.dateHired
+                              ? formatDisplayDate(emp.dateHired)
+                              : "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "10%",
+                              minWidth: "90px",
+                            }}
+                          >
+                            {emp.resignedDate
+                              ? formatDisplayDate(emp.resignedDate)
+                              : "-"}
+                          </td>
+                          <td
+                            style={{
+                              ...styles.clientTd,
+                              width: "10%",
+                              minWidth: "100px",
+                            }}
+                          >
                             <div style={styles.actionButtonsContainer}>
                               <button
                                 style={{
@@ -2000,17 +2588,27 @@ function Employees() {
                                 onClick={() => handleRestoreEmployee(emp)}
                                 title="Restore"
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "rgba(22, 163, 74, 0.35)";
-                                  e.currentTarget.style.transform = "scale(1.1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(22, 163, 74, 0.4)";
+                                  e.currentTarget.style.background =
+                                    "rgba(22, 163, 74, 0.35)";
+                                  e.currentTarget.style.transform =
+                                    "scale(1.1)";
+                                  e.currentTarget.style.boxShadow =
+                                    "0 2px 8px rgba(22, 163, 74, 0.4)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "rgba(22, 163, 74, 0.2)";
+                                  e.currentTarget.style.background =
+                                    "rgba(22, 163, 74, 0.2)";
                                   e.currentTarget.style.transform = "scale(1)";
                                   e.currentTarget.style.boxShadow = "none";
                                 }}
                               >
-                                <svg width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  fill="none"
+                                  stroke="#16a34a"
+                                  strokeWidth="2"
+                                >
                                   <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                                   <path d="M3 3v5h5" />
                                 </svg>
@@ -2023,17 +2621,27 @@ function Employees() {
                                 onClick={() => handleDeleteResigned(emp)}
                                 title="Delete"
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = "rgba(220, 38, 38, 0.35)";
-                                  e.currentTarget.style.transform = "scale(1.1)";
-                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(220, 38, 38, 0.4)";
+                                  e.currentTarget.style.background =
+                                    "rgba(220, 38, 38, 0.35)";
+                                  e.currentTarget.style.transform =
+                                    "scale(1.1)";
+                                  e.currentTarget.style.boxShadow =
+                                    "0 2px 8px rgba(220, 38, 38, 0.4)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = "rgba(220, 38, 38, 0.2)";
+                                  e.currentTarget.style.background =
+                                    "rgba(220, 38, 38, 0.2)";
                                   e.currentTarget.style.transform = "scale(1)";
                                   e.currentTarget.style.boxShadow = "none";
                                 }}
                               >
-                                <svg width="16" height="16" fill="none" stroke="#dc2626" strokeWidth="2">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  fill="none"
+                                  stroke="#dc2626"
+                                  strokeWidth="2"
+                                >
                                   <path d="M3 6h18" />
                                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                                 </svg>
@@ -2044,34 +2652,122 @@ function Employees() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="9" style={{ 
-                          ...styles.clientTd, 
-                          textAlign: 'center', 
-                          padding: '40px 20px',
-                          fontSize: '16px',
-                          color: '#6b7280',
-                          fontStyle: 'italic'
-                        }}>
+                        <td
+                          colSpan="9"
+                          style={{
+                            ...styles.clientTd,
+                            textAlign: "center",
+                            padding: "40px 20px",
+                            fontSize: "16px",
+                            color: "#6b7280",
+                            fontStyle: "italic",
+                          }}
+                        >
                           No resigned employees found
                         </td>
                       </tr>
                     )}
                     {/* Add empty rows to maintain consistent table height */}
-                    {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
-                      Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
-                        <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
-                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
-                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>&nbsp;</td>
-                        </tr>
-                      ))
-                    }
+                    {currentEmployees.length > 0 &&
+                      currentEmployees.length < itemsPerPage &&
+                      Array.from(
+                        { length: itemsPerPage - currentEmployees.length },
+                        (_, i) => (
+                          <tr
+                            key={`empty-${i}`}
+                            style={{
+                              ...styles.clientTr,
+                              background:
+                                (currentEmployees.length + i) % 2 === 0
+                                  ? "rgb(250, 250, 252)"
+                                  : "rgb(240, 240, 243)",
+                            }}
+                          >
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "50px",
+                                minWidth: "50px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "20%",
+                                minWidth: "160px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "16%",
+                                minWidth: "120px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "12%",
+                                minWidth: "100px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "12%",
+                                minWidth: "100px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "18%",
+                                minWidth: "140px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "10%",
+                                minWidth: "90px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "10%",
+                                minWidth: "90px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                            <td
+                              style={{
+                                ...styles.clientTd,
+                                width: "10%",
+                                minWidth: "100px",
+                              }}
+                            >
+                              &nbsp;
+                            </td>
+                          </tr>
+                        )
+                      )}
                   </tbody>
                 </table>
               </div>
@@ -2429,11 +3125,15 @@ function Employees() {
                                 setAssignModalOpen(false);
                                 setAssigningDevice(null);
                                 setAssignSearch("");
-                                
-                                showSuccess(`Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`);
+
+                                showSuccess(
+                                  `Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`
+                                );
                               } catch (err) {
-                                console.error('Error assigning device:', err);
-                                showError('Failed to assign device. Please try again.');
+                                console.error("Error assigning device:", err);
+                                showError(
+                                  "Failed to assign device. Please try again."
+                                );
                               }
                             }}
                           >
@@ -2504,10 +3204,10 @@ function Employees() {
               }}
             >
               {loadingHistory ? (
-                <LoadingSpinner 
-                  size="medium" 
-                  color="#2563eb" 
-                  text="Loading device history..." 
+                <LoadingSpinner
+                  size="medium"
+                  color="#2563eb"
+                  text="Loading device history..."
                   showText={true}
                   backgroundColor="transparent"
                 />
@@ -2680,9 +3380,12 @@ function Employees() {
               Confirm Deletion
             </h3>
             <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
-              Are you sure you want to permanently delete this employee record? This action cannot be undone.
+              Are you sure you want to permanently delete this employee record?
+              This action cannot be undone.
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div
+              style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}
+            >
               <button
                 onClick={() => {
                   setShowDeleteConfirmModal(false);
@@ -2718,7 +3421,9 @@ function Employees() {
             <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
               Do you want to restore this employee to the Active Employees list?
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div
+              style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}
+            >
               <button
                 onClick={() => {
                   setShowRestoreConfirmModal(false);
@@ -2745,8 +3450,12 @@ function Employees() {
                   transition: "background 0.18s",
                   minWidth: 100,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#15803d")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#16a34a")}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#15803d")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#16a34a")
+                }
               >
                 Yes, Restore
               </button>
@@ -2762,9 +3471,12 @@ function Employees() {
               Confirm Bulk Delete
             </h3>
             <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
-              Are you sure you want to delete {selectedIds.length} selected employee(s)? This will move them to Resigned Employees.
+              Are you sure you want to delete {selectedIds.length} selected
+              employee(s)? This will move them to Resigned Employees.
             </p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div
+              style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}
+            >
               <button
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 style={{
@@ -3286,7 +3998,7 @@ const styles = {
     fontSize: 22,
     textAlign: "center",
   },
-  
+
   // Pagination styles
   paginationContainer: {
     display: "flex",
