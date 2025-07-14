@@ -1069,6 +1069,18 @@ function Inventory() {
     setAssignModalOpen(true);
     setAssignModalStep(1);
     setDocxBlob(null);
+    setAssignModalDocxBlob(null); // Reset any previous document
+    setAssignModalProgress(0); // Reset progress
+    setAssignModalGenerating(false); // Reset generating state
+    setAssignModalShowGenerate(false); // Reset show generate button
+    setSelectedAssignEmployee(null); // Reset selected employee
+    setAssignModalChecks({ // Reset all checkboxes
+      newIssueNew: false,
+      newIssueStock: false,
+      wfhNew: false,
+      wfhStock: false,
+      temporaryDeploy: false,
+    });
     setAssignSearch("");
   };
 
@@ -1088,6 +1100,9 @@ function Inventory() {
     setProgress(0);
     setGenerating(false);
     setDocxBlob(null);
+    setAssignModalDocxBlob(null); // Reset the assign modal blob
+    setAssignModalProgress(0); // Reset progress
+    setAssignModalGenerating(false); // Reset generating state
     setAssignSearch("");
   };
 
@@ -1211,7 +1226,11 @@ function Inventory() {
       String(phTime.getMonth() + 1).padStart(2, "0") +
       "-" +
       String(phTime.getDate()).padStart(2, "0");
-    for (const dev of devices.filter((d) => selectedIds.includes(d.id))) {
+    
+    // Get the devices to be assigned
+    const devicesToAssign = devices.filter((d) => selectedIds.includes(d.id));
+    
+    for (const dev of devicesToAssign) {
       await updateDevice(dev.id, {
         ...dev,
         assignedTo: selectedAssignEmployee.id,
@@ -1229,8 +1248,11 @@ function Inventory() {
         date: new Date(), // Store full timestamp for precise ordering
       });
     }
+    
+    // Clear selected IDs after assignment
+    setSelectedIds([]);
     closeAssignModal();
-    showSuccess(`Successfully assigned ${selectedIds.length} device(s) to ${selectedAssignEmployee.fullName}`);
+    showSuccess(`Successfully assigned ${devicesToAssign.length} device(s) to ${selectedAssignEmployee.fullName}`);
     loadDevicesAndEmployees();
   };
 
