@@ -1,6 +1,7 @@
 // UserManagement.js
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getAuth } from "firebase/auth";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 function UserManagement({ currentUser }) {
   const [showModal, setShowModal] = useState(false);
@@ -258,7 +259,7 @@ function UserManagement({ currentUser }) {
                   type="button"
                   onClick={() => alert("Bulk actions coming soon")}
                   style={{
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     fontWeight: 500,
@@ -300,7 +301,7 @@ function UserManagement({ currentUser }) {
                 type="button"
                 onClick={() => setShowModal(true)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 500,
@@ -417,7 +418,7 @@ function UserManagement({ currentUser }) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 400,
@@ -486,7 +487,7 @@ function UserManagement({ currentUser }) {
               boxShadow: "none",
               border: "1px solid #d7d7e0",
               background: "#FFFFFF",
-              fontFamily: "IBM Plex Sans, sans-serif",
+              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
               fontSize: 14,
               lineHeight: "20.0004px",
               color: "rgb(59, 59, 74)",
@@ -506,7 +507,7 @@ function UserManagement({ currentUser }) {
                     maxWidth: 40,
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -544,7 +545,7 @@ function UserManagement({ currentUser }) {
                     width: "1%",
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -562,7 +563,7 @@ function UserManagement({ currentUser }) {
                     fontWeight: 400,
                     width: "32%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -580,7 +581,7 @@ function UserManagement({ currentUser }) {
                     fontWeight: 400,
                     width: "18%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -598,7 +599,7 @@ function UserManagement({ currentUser }) {
                     fontWeight: 400,
                     width: "32%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -616,7 +617,7 @@ function UserManagement({ currentUser }) {
                     fontWeight: 400,
                     width: "17%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -653,7 +654,7 @@ function UserManagement({ currentUser }) {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",
@@ -662,7 +663,14 @@ function UserManagement({ currentUser }) {
                 }}
               >
                 <tbody>
-                  {filteredUsers.map((u, idx) => {
+                  {usersLoading ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: "center", padding: "40px 0" }}>
+                        <TableLoadingSpinner />
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u, idx) => {
                     const isChecked = checkedRows.includes(u.uid);
                     let rowBg;
                     if (isChecked) {
@@ -807,7 +815,7 @@ function UserManagement({ currentUser }) {
                                   handleEditRole(u);
                                 }}
                                 style={{
-                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                   fontSize: 14,
                                   color: "#3B3B4A",
                                   background: "none",
@@ -840,7 +848,7 @@ function UserManagement({ currentUser }) {
                                     handleDeleteUser(u.uid);
                                   }}
                                   style={{
-                                    fontFamily: "IBM Plex Sans, sans-serif",
+                                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                     fontSize: 14,
                                     color: "#D32F2F",
                                     background: "none",
@@ -867,7 +875,8 @@ function UserManagement({ currentUser }) {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -893,7 +902,7 @@ function UserManagement({ currentUser }) {
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
                   borderTop: "none",
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",
@@ -1108,7 +1117,7 @@ function UserManagement({ currentUser }) {
                   fontSize: 15,
                   cursor: loading ? "not-allowed" : "pointer",
                   marginTop: 2,
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   transition: "background 0.2s, color 0.2s",
                 }}
                 onMouseOver={(e) => {
@@ -1128,7 +1137,14 @@ function UserManagement({ currentUser }) {
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
               >
-                {loading ? "Creating..." : "Create User"}
+                {loading ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <LoadingSpinner size="small" color="#3B3B4A" />
+                    Creating...
+                  </div>
+                ) : (
+                  "Create User"
+                )}
               </button>
               {status && (
                 <div

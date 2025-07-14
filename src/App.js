@@ -8,6 +8,7 @@ import Employees from "./pages/Employees";
 import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
 import UserManagement from "./pages/UserManagement";
+import { SnackbarProvider, SnackbarContainer } from "./components/Snackbar";
 import { db, auth } from "./utils/firebase";
 import {
   signInWithEmailAndPassword,
@@ -20,6 +21,7 @@ import { doc, getDoc } from "firebase/firestore";
 function Login({ onLogin, error }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+<<<<<<< HEAD
   const [localError, setLocalError] = useState(error);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -49,6 +51,81 @@ function Login({ onLogin, error }) {
     paddingRight: 32,
     width: "100%",
     marginBottom: 24,
+=======
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "#233037f2",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    modalContent: {
+      background: "#fff",
+      padding: "36px 40px",
+      borderRadius: 18,
+      minWidth: 340,
+      maxWidth: 420,
+      boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 18,
+    },
+    title: {
+      margin: "0 0 18px 0",
+      fontWeight: 800,
+      color: "#233037",
+      letterSpacing: 0.5,
+      fontSize: 20,
+      textAlign: "center",
+      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      lineHeight: 1.3,
+    },
+    input: {
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      fontSize: 16,
+      background: "#fff",
+      minWidth: 220,
+      marginRight: 0,
+      width: "100%",
+      color: "#233037",
+      outline: "none",
+      marginBottom: 2,
+      transition: "border 0.2s",
+    },
+    actionBtn: {
+      background: "#70C1B3",
+      color: "#233037",
+      border: "none",
+      borderRadius: 8,
+      padding: "10px 22px",
+      fontWeight: 700,
+      fontSize: 15,
+      cursor: "pointer",
+      marginLeft: 0,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      width: "100%",
+      marginTop: 2,
+    },
+    error: {
+      color: "#F25F5C",
+      textAlign: "center",
+      fontWeight: 600,
+      fontSize: 14,
+      marginTop: -8,
+      marginBottom: -8,
+    },
+>>>>>>> 9645cecb32ccbd4e900be5b770a629466a23d530
   };
   const leftStyles = {
     display: "flex",
@@ -374,16 +451,26 @@ function App() {
 
   // Main app layout
   return (
-    <>
+    <SnackbarProvider>
       <Header user={user} />
-      <div style={{ display: "flex" }}>
+      <div style={{ 
+        display: "flex",
+        marginTop: "56px", // Add top margin equal to header height
+      }}>
         <Sidebar user={user} />
         <main
+          className="main-content"
           style={{
             flex: 1,
-            padding: 16,
+            padding: 0, // Remove padding to maximize space
             backgroundColor: "#F9F9F9",
             boxSizing: "border-box",
+            marginLeft: "260px", // Add left margin equal to sidebar width
+            height: "calc(100vh - 56px)", // Fixed height minus header
+            width: "calc(100vw - 260px)", // Ensure proper width calculation
+            overflow: "hidden", // Prevent scrolling on main container
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <Routes>
@@ -404,7 +491,8 @@ function App() {
         </main>
       </div>
       <DebugClaims />
-    </>
+      <SnackbarContainer />
+    </SnackbarProvider>
   );
 }
 

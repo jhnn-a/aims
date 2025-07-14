@@ -11,6 +11,12 @@ const styles = {
     background: "#1D2536",
     color: "#fff",
     padding: "0 32px",
+    position: "fixed", // Make header fixed
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20, // Higher than sidebar to stay on top
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)", // Add shadow for depth
   },
   left: {
     display: "flex",
@@ -20,6 +26,17 @@ const styles = {
     height: 20,
     width: "auto",
     marginRight: 12,
+  },
+  logoutButton: {
+    background: "transparent",
+    border: "1px solid #fff",
+    color: "#fff",
+    padding: "8px 16px",
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "all 0.2s ease",
   },
 };
 
@@ -41,7 +58,20 @@ const Header = () => {
         <img src={require("./joii.png")} alt="JOII Logo" style={styles.logo} />
         <span>Assets & Inventory Management System</span>
       </div>
-      <button onClick={handleLogout}>Logout</button>
+      <button 
+        onClick={handleLogout}
+        style={styles.logoutButton}
+        onMouseEnter={(e) => {
+          e.target.style.background = "#fff";
+          e.target.style.color = "#1D2536";
+        }}
+        onMouseLeave={(e) => {
+          e.target.style.background = "transparent";
+          e.target.style.color = "#fff";
+        }}
+      >
+        Logout
+      </button>
     </header>
   );
 };

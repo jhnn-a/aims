@@ -5,6 +5,8 @@ import {
   updateClient,
   deleteClient,
 } from "../services/clientService";
+import { useSnackbar } from "../components/Snackbar";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -97,6 +99,8 @@ const DeleteConfirmationModal = ({ onConfirm, onCancel, isDeleting }) => (
 );
 
 const Clients = () => {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -260,7 +264,7 @@ const Clients = () => {
                   type="button"
                   onClick={() => setShowConfirm("bulk")}
                   style={{
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     fontWeight: 500,
@@ -302,7 +306,7 @@ const Clients = () => {
                 type="button"
                 onClick={() => setShowForm(true)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 500,
@@ -419,7 +423,7 @@ const Clients = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 400,
@@ -516,7 +520,7 @@ const Clients = () => {
               boxShadow: "none",
               border: "1px solid #d7d7e0",
               background: "#FFFFFF",
-              fontFamily: "IBM Plex Sans, sans-serif",
+              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
               fontSize: 14,
               lineHeight: "20.0004px",
               color: "rgb(59, 59, 74)",
@@ -536,7 +540,7 @@ const Clients = () => {
                     maxWidth: 40,
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -574,7 +578,7 @@ const Clients = () => {
                     width: "1%",
                     whiteSpace: "nowrap",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -592,7 +596,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -610,7 +614,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -628,7 +632,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -646,7 +650,7 @@ const Clients = () => {
                     fontWeight: 400,
                     width: "24.66%",
                     background: "#FFFFFF",
-                    fontFamily: "IBM Plex Sans, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                     fontSize: 14,
                     lineHeight: "20.0004px",
                     color: "rgb(59, 59, 74)",
@@ -684,7 +688,7 @@ const Clients = () => {
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
                   borderTop: "none", // Remove double border with sticky footer
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",
@@ -693,7 +697,13 @@ const Clients = () => {
                 }}
               >
                 <tbody>
-                  {filteredClients.map((client, idx) => {
+                  {loading ? (
+                    <tr>
+                      <td colSpan="6" style={{ padding: "0", border: "none" }}>
+                        <TableLoadingSpinner text="Loading clients..." />
+                      </td>
+                    </tr>
+                  ) : filteredClients.map((client, idx) => {
                     const isChecked = checkedRows.includes(client.id);
                     // Alternating highlight colors for selected rows
                     let rowBg;
@@ -849,7 +859,7 @@ const Clients = () => {
                                   handleEdit(client);
                                 }}
                                 style={{
-                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                   fontSize: 14,
                                   color: "#3B3B4A",
                                   background: "none",
@@ -881,7 +891,7 @@ const Clients = () => {
                                   handleDelete(client.id);
                                 }}
                                 style={{
-                                  fontFamily: "IBM Plex Sans, sans-serif",
+                                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                                   fontSize: 14,
                                   color: "#D32F2F",
                                   background: "none",
@@ -931,7 +941,7 @@ const Clients = () => {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
-                  fontFamily: "IBM Plex Sans, sans-serif",
+                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   color: "rgb(59, 59, 74)",

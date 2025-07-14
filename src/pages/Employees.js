@@ -4,6 +4,8 @@ import { addEmployee, getAllEmployees, updateEmployee, deleteEmployee } from "..
 import { getAllClients } from "../services/clientService";
 import { getAllDevices, updateDevice } from "../services/deviceService";
 import { getDeviceHistoryForEmployee, logDeviceHistory, deleteDeviceHistory } from "../services/deviceHistoryService";
+import { useSnackbar } from "../components/Snackbar";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
@@ -261,6 +263,8 @@ const DeleteIcon = ({ color = "#e11d48" }) => (
 );
 
 function Employees() {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -268,6 +272,7 @@ function Employees() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [sortByLastName, setSortByLastName] = useState(false);
+  const [showImportExportDropdown, setShowImportExportDropdown] = useState(false);
   const [form, setForm] = useState({
     id: null,
     fullName: "",
@@ -286,6 +291,11 @@ function Employees() {
   // Search state for each section
   const [searchActive, setSearchActive] = useState("");
   const [searchResigned, setSearchResigned] = useState("");
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  
   const [showDevicesModal, setShowDevicesModal] = useState(false);
   const [devicesForEmployee, setDevicesForEmployee] = useState([]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -310,10 +320,51 @@ function Employees() {
   });
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [resignEmployee, setResignEmployee] = useState(null);
-
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showRestoreConfirmModal, setShowRestoreConfirmModal] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [employeeToRestore, setEmployeeToRestore] = useState(null);
+  const [lastRestoredEmployee, setLastRestoredEmployee] = useState(null);
+  const [lastResignedEmployee, setLastResignedEmployee] = useState(null);
+  const [resignedDevicesCache, setResignedDevicesCache] = useState([]);
+  const [lastDeletedEmployee, setLastDeletedEmployee] = useState(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  
+  // Responsive screen size state
+  const [screenSize, setScreenSize] = useState('large');
 
   useEffect(() => {
     loadClientsAndEmployees();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showImportExportDropdown && !event.target.closest('.dropdown-container')) {
+        setShowImportExportDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showImportExportDropdown]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width >= 1400) {
+        setScreenSize('large');
+      } else if (width >= 1200) {
+        setScreenSize('medium');
+      } else if (width >= 1024) {
+        setScreenSize('small');
+      } else {
+        setScreenSize('compact');
+      }
+    };
+
+    handleResize(); // Set initial size
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const loadClientsAndEmployees = async () => {
@@ -346,42 +397,53 @@ function Employees() {
 
   const handleSave = async () => {
     if (!isFormValid()) return;
-    // Always set dateHired to today if not specified
-    let dateHired = form.dateHired;
-    if (!dateHired || dateHired.trim() === "") {
-      const now = new Date();
-      const offset = now.getTimezoneOffset();
-      dateHired = new Date(now.getTime() - offset * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
-    }
+    
+    try {
+      // Always set dateHired to today if not specified
+      let dateHired = form.dateHired;
+      if (!dateHired || dateHired.trim() === "") {
+        const now = new Date();
+        const offset = now.getTimezoneOffset();
+        dateHired = new Date(now.getTime() - offset * 60 * 1000)
+          .toISOString()
+          .slice(0, 10);
+      }
 
-    // Generate fullName from firstName and lastName if they exist
-    let fullName = form.fullName;
-    if (form.firstName && form.lastName) {
-      fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
-    }
+      // Generate fullName from firstName and lastName if they exist
+      let fullName = form.fullName;
+      if (form.firstName && form.lastName) {
+        fullName = `${form.firstName.trim()} ${form.lastName.trim()}`;
+      }
 
-    const payload = {
-      fullName: fullName.trim(),
-      firstName: form.firstName || "",
-      lastName: form.lastName || "",
-      middleName: form.middleName || "",
-      position: form.position || "",
-      clientId: form.clientId || "",
-      department: form.department || "",
-      dateHired,
-      corporateEmail: form.corporateEmail || "",
-      personalEmail: form.personalEmail || "",
-      // dateAdded removed
-    };
-    if (form.id) {
-      await updateEmployee(form.id, payload);
-    } else {
-      await addEmployee(payload);
+      const payload = {
+        fullName: fullName.trim(),
+        firstName: form.firstName || "",
+        lastName: form.lastName || "",
+        middleName: form.middleName || "",
+        position: form.position || "",
+        clientId: form.clientId || "",
+        department: form.department || "",
+        dateHired,
+        corporateEmail: form.corporateEmail || "",
+        personalEmail: form.personalEmail || "",
+      };
+      
+      const isEditing = !!form.id;
+      
+      if (isEditing) {
+        await updateEmployee(form.id, payload);
+        showSuccess(`Employee details updated successfully.`);
+      } else {
+        await addEmployee(payload);
+        showSuccess(`New employee successfully added.`);
+      }
+      
+      resetForm();
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error saving employee:', error);
+      showError(`Failed to ${form.id ? 'update' : 'add'} employee. Please try again.`);
     }
-    resetForm();
-    loadClientsAndEmployees();
   };
 
   const handleEdit = (emp) => {
@@ -407,10 +469,30 @@ function Employees() {
   };
 
   const confirmDelete = async () => {
-    await deleteEmployee(selectedId);
-    setSelectedId(null);
-    setShowConfirm(false);
-    loadClientsAndEmployees();
+    try {
+      const employeeToDelete = employees.find(emp => emp.id === selectedId);
+      
+      // This appears to be a soft delete (moving to resigned status)
+      await updateEmployee(selectedId, {
+        ...employeeToDelete,
+        status: "resigned",
+      });
+      
+      setLastDeletedEmployee(employeeToDelete);
+      showWarning(`Employee record moved to Resigned Employees.`);
+      
+      setSelectedId(null);
+      setShowConfirm(false);
+      loadClientsAndEmployees();
+      
+      // Auto-hide and clear last deleted employee after 6 seconds
+      setTimeout(() => {
+        setLastDeletedEmployee(null);
+      }, 6000);
+    } catch (error) {
+      console.error('Error moving employee to resigned:', error);
+      showError('Failed to move employee. Please try again.');
+    }
   };
 
   const cancelDelete = () => {
@@ -468,6 +550,263 @@ function Employees() {
       emp.fullName.toLowerCase().includes(searchResigned.toLowerCase()) &&
       emp.status === "resigned"
   );
+
+  // Pagination logic
+  const getCurrentEmployees = () => {
+    return employeeSection === "active" ? filteredActiveEmployees : filteredResignedEmployees;
+  };
+
+  const totalItems = getCurrentEmployees().length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentEmployees = getCurrentEmployees().slice(indexOfFirstItem, indexOfLastItem);
+
+  // Reset to first page when switching sections or searching
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [employeeSection, searchActive, searchResigned]);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const PaginationComponent = () => {
+    const handlePageChange = (page) => {
+      setCurrentPage(page);
+    };
+
+    const handleItemsPerPageChange = (newItemsPerPage) => {
+      setItemsPerPage(newItemsPerPage);
+      setCurrentPage(1);
+    };
+
+    const totalItems = getCurrentEmployees().length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    if (totalPages <= 1) return null;
+
+    return (
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "16px 20px",
+        border: "1px solid rgb(215, 215, 224)",
+        borderTop: "none",
+        background: "#fff",
+        borderBottomLeftRadius: "12px",
+        borderBottomRightRadius: "12px",
+        minHeight: "60px",
+        marginTop: "0",
+        boxSizing: "border-box",
+        flexWrap: "wrap",
+        gap: "12px",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          flexWrap: "wrap",
+        }}>
+          {/* First Page Button */}
+          <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            style={{
+              fontFamily: "Maax, sans-serif",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              background: currentPage === 1 ? "#f3f4f6" : "#fff",
+              color: currentPage === 1 ? "#6b7280" : "#374151",
+              borderRadius: "6px",
+              cursor: currentPage === 1 ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.3s ease",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+          >
+            &lt;&lt;
+          </button>
+          
+          {/* Previous Page Button */}
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            style={{
+              fontFamily: "Maax, sans-serif",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              background: currentPage === 1 ? "#f3f4f6" : "#fff",
+              color: currentPage === 1 ? "#6b7280" : "#374151",
+              borderRadius: "6px",
+              cursor: currentPage === 1 ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.3s ease",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 1) {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+          >
+            &lt;
+          </button>
+          
+          {/* Next Page Button */}
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            style={{
+              fontFamily: "Maax, sans-serif",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              background: currentPage === totalPages ? "#f3f4f6" : "#fff",
+              color: currentPage === totalPages ? "#6b7280" : "#374151",
+              borderRadius: "6px",
+              cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.3s ease",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+          >
+            &gt;
+          </button>
+          
+          {/* Last Page Button */}
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            style={{
+              fontFamily: "Maax, sans-serif",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              background: currentPage === totalPages ? "#f3f4f6" : "#fff",
+              color: currentPage === totalPages ? "#6b7280" : "#374151",
+              borderRadius: "6px",
+              cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.3s ease",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = "#f3f4f6";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== totalPages) {
+                e.currentTarget.style.background = "#fff";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+          >
+            &gt;&gt;
+          </button>
+          
+          {/* Items per page dropdown */}
+          <select
+            value={itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+            style={{
+              fontFamily: "Maax, sans-serif",
+              padding: "8px 12px",
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              background: "#fff",
+              fontSize: "14px",
+              cursor: "pointer",
+              marginLeft: "16px",
+              transition: "all 0.3s ease",
+              color: "#374151",
+              fontWeight: "500",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f3f4f6";
+              e.currentTarget.style.transform = "translateY(-1px)";
+              e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <option value={10}>10 items per page</option>
+            <option value={25}>25 items per page</option>
+            <option value={50}>50 items per page</option>
+            <option value={100}>100 items per page</option>
+          </select>
+        </div>
+        
+        <div style={{
+          fontFamily: "Maax, sans-serif",
+          fontSize: "14px",
+          color: "#6b7280",
+          fontWeight: "500",
+        }}>
+          {indexOfFirstItem + 1}–{Math.min(indexOfLastItem, totalItems)} of {totalItems} items
+        </div>
+      </div>
+    );
+  };
 
   const handleShowDevices = async (employee) => {
     setSelectedEmployee(employee);
@@ -591,10 +930,10 @@ function Employees() {
         setImportProgress({ current: i + 1, total: rows.length });
       }
       loadClientsAndEmployees();
-      alert("Import successful!");
+      showSuccess(`Successfully imported ${rows.length} employees from Excel.`);
     } catch (err) {
       console.error("Import error:", err);
-      alert("Failed to import data. Please check your file format.");
+      showError('Import failed. Please check the file format and try again.');
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -605,7 +944,7 @@ function Employees() {
   // Select all handler (only for active employees)
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedIds(filteredActiveEmployees.map((emp) => emp.id));
+      setSelectedIds(currentEmployees.map((emp) => emp.id));
     } else {
       setSelectedIds([]);
     }
@@ -619,20 +958,29 @@ function Employees() {
   };
 
   // Bulk delete handler with progress
-  const handleBulkDelete = async () => {
-    if (
-      selectedIds.length === 0 ||
-      !window.confirm(`Delete ${selectedIds.length} selected employee(s)?`)
-    )
-      return;
-    setDeleteProgress({ current: 0, total: selectedIds.length });
-    for (let i = 0; i < selectedIds.length; i++) {
-      await deleteEmployee(selectedIds[i]);
-      setDeleteProgress({ current: i + 1, total: selectedIds.length });
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      setDeleteProgress({ current: 0, total: selectedIds.length });
+      for (let i = 0; i < selectedIds.length; i++) {
+        await deleteEmployee(selectedIds[i]);
+        setDeleteProgress({ current: i + 1, total: selectedIds.length });
+      }
+      
+      showWarning(`Successfully deleted ${selectedIds.length} employee(s).`);
+      
+      setSelectedIds([]);
+      setDeleteProgress({ current: 0, total: 0 });
+      setShowBulkDeleteConfirm(false);
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error during bulk delete:', error);
+      showError('Failed to delete some employees. Please try again.');
     }
-    setSelectedIds([]);
-    setDeleteProgress({ current: 0, total: 0 });
-    loadClientsAndEmployees();
   };
 
   // Export to Excel handler
@@ -692,9 +1040,11 @@ function Employees() {
 
       // Save the file
       XLSX.writeFile(wb, filename);
+      
+      showSuccess(`Employee data exported to Excel successfully.`);
     } catch (error) {
       console.error("Export error:", error);
-      alert("Failed to export data. Please try again.");
+      showError('Failed to export data. Please try again.');
     }
   };
 
@@ -706,35 +1056,232 @@ function Employees() {
 
   const confirmResign = async () => {
     if (!resignEmployee) return;
-    // 1. Mark employee as resigned
-    await updateEmployee(resignEmployee.id, {
-      ...resignEmployee,
-      status: "resigned",
-    });
-    // 2. Unassign all devices
-    const allDevices = await getAllDevices();
-    const assignedDevices = allDevices.filter(
-      (d) => d.assignedTo === resignEmployee.id
-    );
-    for (const device of assignedDevices) {
-      const { id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
-        ...deviceWithoutId,
-        assignedTo: "",
-        assignmentDate: "",
-        status: "Stock Room",
-        condition: device.condition || "Working",
+    
+    try {
+      // 1. Get all assigned devices before unassigning (for undo functionality)
+      const allDevices = await getAllDevices();
+      const assignedDevices = allDevices.filter(
+        (d) => d.assignedTo === resignEmployee.id
+      );
+      
+      // 2. Mark employee as resigned
+      await updateEmployee(resignEmployee.id, {
+        ...resignEmployee,
+        status: "resigned",
       });
+      
+      // 3. Unassign all devices
+      for (const device of assignedDevices) {
+        const { id, ...deviceWithoutId } = device;
+        await updateDevice(device.id, {
+          ...deviceWithoutId,
+          assignedTo: "",
+          assignmentDate: "",
+          status: "Stock Room",
+          condition: device.condition || "Working",
+        });
+        await logDeviceHistory({
+          employeeId: resignEmployee.id,
+          deviceId: device.id,
+          deviceTag: device.deviceTag,
+          action: "unassigned",
+          reason: "Employee Resigned",
+          condition: device.condition || "Working",
+          date: new Date(),
+        });
+      }
+      
+      // 4. Cache resigned employee and devices for undo functionality
+      setLastResignedEmployee(resignEmployee);
+      setResignedDevicesCache(assignedDevices);
+      
+      // 5. Show snackbar notification
+      showWarning(`Employee ${resignEmployee.fullName} resigned and all assets returned to inventory.`);
+      
+      setShowResignConfirm(false);
+      setResignEmployee(null);
+      loadClientsAndEmployees();
+      
+      // Auto-hide and clear last resigned employee after 8 seconds (longer to allow undo action)
+      setTimeout(() => {
+        setLastResignedEmployee(null);
+        setResignedDevicesCache([]);
+      }, 8000);
+    } catch (error) {
+      console.error('Error resigning employee:', error);
+      showError('Failed to resign employee. Please try again.');
     }
-    setShowResignConfirm(false);
-    setResignEmployee(null);
-    loadClientsAndEmployees();
-    alert("Employee resigned and all assets unassigned.");
   };
 
   const cancelResign = () => {
     setShowResignConfirm(false);
     setResignEmployee(null);
+  };
+
+  // Add handlers for resigned employee actions
+  const handleDeleteResigned = (employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteConfirmModal(true);
+  };
+
+  const handleRestoreEmployee = (employee) => {
+    setEmployeeToRestore(employee);
+    setShowRestoreConfirmModal(true);
+  };
+
+  const confirmDeleteResigned = async () => {
+    if (!employeeToDelete) return;
+    
+    try {
+      await deleteEmployee(employeeToDelete.id);
+      setEmployees(prev => prev.filter(emp => emp.id !== employeeToDelete.id));
+      setShowDeleteConfirmModal(false);
+      setEmployeeToDelete(null);
+      
+      // Show success snackbar
+      showWarning(`Employee ${employeeToDelete.name} has been permanently deleted.`);
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      showError('Failed to delete employee. Please try again.');
+    }
+  };
+
+  const confirmRestoreEmployee = async () => {
+    if (!employeeToRestore) return;
+    
+    try {
+      await updateEmployee(employeeToRestore.id, {
+        ...employeeToRestore,
+        status: "active",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === employeeToRestore.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      setLastRestoredEmployee(employeeToRestore);
+      showSuccess(`Employee ${employeeToRestore.fullName} restored to Active Employees.`);
+      setShowRestoreConfirmModal(false);
+      setEmployeeToRestore(null);
+      
+      // Auto-hide and clear last restored employee after 5 seconds
+      setTimeout(() => {
+        setLastRestoredEmployee(null);
+      }, 5000);
+    } catch (error) {
+      console.error('Error restoring employee:', error);
+      showError('Failed to restore employee. Please try again.');
+    }
+  };
+
+  const handleUndoRestore = async () => {
+    if (!lastRestoredEmployee) return;
+    
+    try {
+      await updateEmployee(lastRestoredEmployee.id, {
+        ...lastRestoredEmployee,
+        status: "resigned",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastRestoredEmployee.id 
+            ? { ...emp, status: "resigned" }
+            : emp
+        )
+      );
+      
+      setLastRestoredEmployee(null);
+    } catch (error) {
+      console.error('Error undoing restore:', error);
+      showError('Failed to undo restore. Please try again.');
+    }
+  };
+
+  const handleUndoResign = async () => {
+    if (!lastResignedEmployee) return;
+    
+    try {
+      // 1. Restore employee status to active
+      await updateEmployee(lastResignedEmployee.id, {
+        ...lastResignedEmployee,
+        status: "active",
+      });
+      
+      // 2. Reassign all previously assigned devices
+      for (const device of resignedDevicesCache) {
+        const { id, ...deviceWithoutId } = device;
+        await updateDevice(device.id, {
+          ...deviceWithoutId,
+          assignedTo: lastResignedEmployee.id,
+          assignmentDate: device.assignmentDate,
+          status: "Assigned",
+          condition: device.condition || "Working",
+        });
+        await logDeviceHistory({
+          employeeId: lastResignedEmployee.id,
+          deviceId: device.id,
+          deviceTag: device.deviceTag,
+          action: "assigned",
+          reason: "Resignation Undone",
+          condition: device.condition || "Working",
+          date: new Date(),
+        });
+      }
+      
+      // 3. Update UI state
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastResignedEmployee.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      // 4. Show success message
+      showSuccess(`Resignation undone. Employee ${lastResignedEmployee.fullName} and assets restored.`);
+      
+      // 5. Clear undo state
+      setLastResignedEmployee(null);
+      setResignedDevicesCache([]);
+      
+      // 6. Refresh data
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error undoing resignation:', error);
+      showError('Failed to undo resignation. Please try again.');
+    }
+  };
+
+  const handleUndoDelete = async () => {
+    if (!lastDeletedEmployee) return;
+    
+    try {
+      await updateEmployee(lastDeletedEmployee.id, {
+        ...lastDeletedEmployee,
+        status: "active",
+      });
+      
+      setEmployees(prev => 
+        prev.map(emp => 
+          emp.id === lastDeletedEmployee.id 
+            ? { ...emp, status: "active" }
+            : emp
+        )
+      );
+      
+      showSuccess(`Employee ${lastDeletedEmployee.fullName} restored to Active Employees.`);
+      
+      setLastDeletedEmployee(null);
+      loadClientsAndEmployees();
+    } catch (error) {
+      console.error('Error undoing delete:', error);
+      showError('Failed to undo delete. Please try again.');
+    }
   };
 
   // Resign confirmation modal
@@ -780,449 +1327,759 @@ function Employees() {
 }
   return (
     <div style={styles.pageContainer}>
-      <div style={styles.headerRow}>
-        <h2 style={styles.pageTitle}>Employee Database</h2>
-        <div>
-          <button onClick={() => setShowForm(true)} style={styles.actionBtn}>
-            + Add Employee
-          </button>
-          <button
-            onClick={handleExportToExcel}
-            style={{
-              ...styles.secondaryBtn,
-              marginLeft: 8,
-              background: "#10b981",
-              color: "#fff",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#059669")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#10b981")}
-          >
-            📊 Export Excel
-          </button>
-          <label style={{ marginLeft: 8 }}>
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: "none" }}
-              onChange={handleImportExcel}
-              disabled={importing}
-            />
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              disabled={importing}
-              onClick={() =>
-                document
-                  .querySelector('input[type="file"][accept=".xlsx,.xls"]')
-                  .click()
-              }
+      <div style={styles.headerSection}>
+        <div style={styles.headerRow}>
+          <h2 style={styles.pageTitle}>Employee Database</h2>
+          <div style={styles.headerActions}>
+            <button 
+              onClick={() => setShowForm(true)} 
+              style={styles.addBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgb(37, 99, 235)";
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgb(242, 242, 242)";
+                e.currentTarget.style.color = "rgb(59, 59, 74)";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }}
             >
-              {importing
-                ? importProgress.total > 0
-                  ? `📥 Importing ${importProgress.current}/${importProgress.total}...`
-                  : "📥 Importing..."
-                : "📥 Import Excel"}
+              + Add Employee
             </button>
-          </label>
-        </div>
-      </div>
-
-
-      {/* Enhanced unified toolbar for section toggles, search, and sort */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 18,
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 1px 4px rgba(68,95,109,0.06)",
-          padding: "12px 18px 12px 18px",
-          minHeight: 64,
-        }}
-      >
-        {/* Left: Section toggle buttons */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            style={{
-              ...styles.secondaryBtn,
-              background: employeeSection === "active" ? "#2563eb" : "#FFE066",
-              color: employeeSection === "active" ? "#fff" : "#233037",
-              fontWeight: employeeSection === "active" ? 800 : 700,
-              border: employeeSection === "active" ? "2px solid #2563eb" : "none",
-              boxShadow: employeeSection === "active" ? "0 2px 8px rgba(37,99,235,0.10)" : styles.secondaryBtn.boxShadow,
-              minWidth: 120,
-              fontSize: 16,
-              letterSpacing: 0.2,
-              transition: "background 0.18s, color 0.18s, border 0.18s",
-            }}
-            onClick={() => setEmployeeSection("active")}
-            tabIndex={0}
-          >
-            Active Employees
-          </button>
-          <button
-            type="button"
-            style={{
-              ...styles.secondaryBtn,
-              background: employeeSection === "resigned" ? "#eab308" : "#FFE066",
-              color: employeeSection === "resigned" ? "#fff" : "#233037",
-              fontWeight: employeeSection === "resigned" ? 800 : 700,
-              border: employeeSection === "resigned" ? "2px solid #eab308" : "none",
-              boxShadow: employeeSection === "resigned" ? "0 2px 8px rgba(234,179,8,0.10)" : styles.secondaryBtn.boxShadow,
-              minWidth: 160,
-              fontSize: 16,
-              letterSpacing: 0.2,
-              transition: "background 0.18s, color 0.18s, border 0.18s",
-            }}
-            onClick={() => setEmployeeSection("resigned")}
-            tabIndex={0}
-          >
-            Resigned Employees
-          </button>
-        </div>
-        {/* Right: Search and sort controls (contextual) */}
-        <div style={{ display: "flex", gap: 8, flex: 1, justifyContent: "flex-end", minWidth: 260 }}>
-          {employeeSection === "active" ? (
-            <>
-              <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchActive}
-                onChange={(e) => setSearchActive(e.target.value)}
-                style={{ ...styles.input, marginRight: 0, minWidth: 180, flex: 1 }}
-              />
-              <button onClick={toggleSortByLastName} style={{ ...styles.secondaryBtn, minWidth: 120 }}>
-                {sortByLastName ? "Clear Sort" : "Sort by Last Name (A-Z)"}
+            <div style={styles.dropdownContainer} className="dropdown-container">
+              <button
+                onClick={() => setShowImportExportDropdown(!showImportExportDropdown)}
+                style={styles.dropdownBtn}
+                disabled={importing}
+                onMouseEnter={(e) => {
+                  if (!importing) {
+                    e.currentTarget.style.background = "rgb(37, 99, 235)";
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!importing) {
+                    e.currentTarget.style.background = "rgb(242, 242, 242)";
+                    e.currentTarget.style.color = "rgb(59, 59, 74)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+                  }
+                }}
+              >
+                {importing
+                  ? importProgress.total > 0
+                    ? `Importing ${importProgress.current}/${importProgress.total}...`
+                    : "Importing..."
+                  : "▼ Import / Export"}
               </button>
-            </>
-          ) : (
-            <>
-              <input
-                type="text"
-                placeholder="Search by name..."
-                value={searchResigned}
-                onChange={(e) => setSearchResigned(e.target.value)}
-                style={{ ...styles.input, marginRight: 0, minWidth: 180, flex: 1 }}
-              />
-              <button onClick={toggleSortByLastName} style={{ ...styles.secondaryBtn, minWidth: 120 }}>
-                {sortByLastName ? "Clear Sort" : "Sort by Last Name (A-Z)"}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Section content: Active or Resigned */}
-      {employeeSection === "active" && (
-        <>
-          {/* Removed redundant toolbar: search and sort are now in the unified top toolbar */}
-          <div style={{ marginBottom: 12 }}>
-            {selectedIds.length > 0 && (
-              <>
-                <button
-                  style={{
-                    ...(deleteProgress.total > 0
-                      ? { ...styles.deleteBtn, ...styles.washedOutBtn }
-                      : styles.deleteBtn),
-                    minWidth: 44,
-                    minHeight: 32,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    borderRadius: 7,
-                    marginRight: 8,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    outline: "none",
-                    transition:
-                      "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
-                  }}
-                  disabled={deleteProgress.total > 0}
-                  onClick={handleBulkDelete}
-                  onMouseEnter={(e) => {
-                    if (!(deleteProgress.total > 0)) {
-                      e.currentTarget.style.background = "#c81e3a";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!(deleteProgress.total > 0)) {
-                      e.currentTarget.style.background = "#e11d48";
-                    }
-                  }}
-                >
-                  {/* Trash SVG icon */}
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    style={{ marginRight: 2 }}
+              {showImportExportDropdown && (
+                <div style={styles.dropdownMenu}>
+                  <label style={styles.dropdownItem}>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      style={{ display: "none" }}
+                      onChange={handleImportExcel}
+                      disabled={importing}
+                    />
+                    <span 
+                      onClick={() => {
+                        document.querySelector('input[type="file"][accept=".xlsx,.xls"]').click();
+                        setShowImportExportDropdown(false);
+                      }}
+                      style={{ cursor: "pointer", display: "block", width: "100%", height: "100%" }}
+                      onMouseEnter={(e) => (e.currentTarget.parentElement.style.background = "rgb(248, 248, 248)")}
+                      onMouseLeave={(e) => (e.currentTarget.parentElement.style.background = "transparent")}
+                    >
+                      Import
+                    </span>
+                  </label>
+                  <button
+                    onClick={() => {
+                      handleExportToExcel();
+                      setShowImportExportDropdown(false);
+                    }}
+                    style={styles.dropdownItem}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgb(248, 248, 248)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <rect
-                      x="5.5"
-                      y="7.5"
-                      width="9"
-                      height="8"
-                      rx="2"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                    <path
-                      d="M8 10v4M12 10v4"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M3 7.5h14"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M8.5 4.5h3a1 1 0 0 1 1 1V7.5h-5V5.5a1 1 0 0 1 1-1z"
-                      stroke="#fff"
-                      strokeWidth="1.5"
-                      fill="none"
-                    />
-                  </svg>
-                  Delete Selected
-                </button>
-                {deleteProgress.total > 0 && (
-                  <span style={{ color: "#e11d48", fontWeight: 600 }}>
-                    Deleting {deleteProgress.current}/{deleteProgress.total}...
-                  </span>
-                )}
-              </>
-            )}
+                    Export
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Section Toggle Buttons - Browser Tab Style */}
+      <div style={{
+        width: "100%",
+        maxWidth: "none",
+        margin: "0",
+        padding: "0 24px",
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 0,
+        marginBottom: "-1px", // Connect to table
+        zIndex: 10,
+        position: "relative",
+      }}>
+        <button
+          type="button"
+          style={{
+            fontFamily: "Maax, sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            padding: "12px 24px",
+            borderRadius: "12px 12px 0 0", // Rounded top corners only
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: employeeSection === "active" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            minHeight: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: employeeSection === "active" ? "0 -2px 8px rgba(37, 99, 235, 0.1)" : "none",
+            transform: employeeSection === "active" ? "translateY(0)" : "translateY(2px)",
+            background: employeeSection === "active" ? "#fff" : "rgb(248, 250, 252)",
+            color: employeeSection === "active" ? "#2563eb" : "#6b7280",
+            position: "relative",
+            zIndex: employeeSection === "active" ? 15 : 10,
+            whiteSpace: "nowrap",
+            marginRight: "4px",
+          }}
+          onClick={() => setEmployeeSection("active")}
+          onMouseEnter={(e) => {
+            if (employeeSection !== "active") {
+              e.currentTarget.style.background = "rgb(245, 247, 250)";
+              e.currentTarget.style.color = "#2563eb";
+              e.currentTarget.style.transform = "translateY(0)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (employeeSection !== "active") {
+              e.currentTarget.style.background = "rgb(248, 250, 252)";
+              e.currentTarget.style.color = "#6b7280";
+              e.currentTarget.style.transform = "translateY(2px)";
+            }
+          }}
+        >
+          👥 Active Employees
+        </button>
+        <button
+          type="button"
+          style={{
+            fontFamily: "Maax, sans-serif",
+            fontSize: "14px",
+            fontWeight: 500,
+            padding: "12px 24px",
+            borderRadius: "12px 12px 0 0", // Rounded top corners only
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: employeeSection === "resigned" ? "1px solid #fff" : "1px solid rgb(215, 215, 224)",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            minHeight: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: employeeSection === "resigned" ? "0 -2px 8px rgba(234, 179, 8, 0.1)" : "none",
+            transform: employeeSection === "resigned" ? "translateY(0)" : "translateY(2px)",
+            background: employeeSection === "resigned" ? "#fff" : "rgb(248, 250, 252)",
+            color: employeeSection === "resigned" ? "#eab308" : "#6b7280",
+            position: "relative",
+            zIndex: employeeSection === "resigned" ? 15 : 10,
+            whiteSpace: "nowrap",
+          }}
+          onClick={() => setEmployeeSection("resigned")}
+          onMouseEnter={(e) => {
+            if (employeeSection !== "resigned") {
+              e.currentTarget.style.background = "rgb(245, 247, 250)";
+              e.currentTarget.style.color = "#eab308";
+              e.currentTarget.style.transform = "translateY(0)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (employeeSection !== "resigned") {
+              e.currentTarget.style.background = "rgb(248, 250, 252)";
+              e.currentTarget.style.color = "#6b7280";
+              e.currentTarget.style.transform = "translateY(2px)";
+            }
+          }}
+        >
+          📋 Resigned Employees
+        </button>
+      </div>
+
+      {/* Table Section */}
+      {employeeSection === "active" && (
+        <div style={{
+          ...styles.tableWrapper,
+          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+          borderTopRightRadius: "12px",
+          marginTop: "0",
+          position: "relative",
+          zIndex: 5,
+        }}>
+          {/* Bulk Actions */}
+          {selectedIds.length > 0 && (
+            <div style={styles.bulkActionsContainer}>
+              <button
+                style={{
+                  ...(deleteProgress.total > 0
+                    ? { ...styles.deleteBtn, ...styles.washedOutBtn }
+                    : {
+                        ...styles.deleteBtn,
+                        minWidth: "120px",
+                        minHeight: "36px",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        borderRadius: 6,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6,
+                        outline: "none",
+                        transition: "all 0.3s ease",
+                      }),
+                }}
+                disabled={deleteProgress.total > 0}
+                onClick={handleBulkDelete}
+                onMouseEnter={(e) => {
+                  if (deleteProgress.total === 0) {
+                    e.currentTarget.style.background = "#dc2626";
+                    e.currentTarget.style.transform = "translateY(-2px) scale(1.05)";
+                    e.currentTarget.style.boxShadow = "0 4px 16px rgba(220, 38, 38, 0.4)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (deleteProgress.total === 0) {
+                    e.currentTarget.style.background = "#e11d48";
+                    e.currentTarget.style.transform = "translateY(0) scale(1)";
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(225,29,72,0.10)";
+                  }
+                }}
+              >
+                🗑️ Delete Selected
+              </button>
+              {deleteProgress.total > 0 && (
+                <span style={{ color: "#e11d48", fontWeight: 600, fontSize: 14, marginLeft: 12 }}>
+                  Deleting {deleteProgress.current}/{deleteProgress.total}...
+                </span>
+              )}
+            </div>
+          )}
+          
+          {/* Table Toolbar */}
+          <div style={{
+            width: "100%",
+            height: "40px",
+            background: "#fff",
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: "none",
+            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+            borderTopRightRadius: "12px",
+            margin: 0,
+            boxSizing: "border-box",
+            display: "flex",
+            alignItems: "center",
+            padding: "8px 16px",
+            gap: 12,
+            justifyContent: "space-between",
+            position: "relative",
+            zIndex: 10,
+          }}>
+            <div style={{
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+            }}>
+              <span style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                pointerEvents: "none",
+                color: "#1D2536",
+                fontSize: 16,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={styles.searchIcon}>
+                  <circle cx="7" cy="7" r="5.5" stroke="#1D2536" strokeWidth="1.5"></circle>
+                  <line x1="11.3536" y1="11.6464" x2="15" y2="15.2929" stroke="#1D2536" strokeWidth="1.5" strokeLinecap="round"></line>
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder={`Search by ${employeeSection === "active" ? "Active" : "Resigned"} Employee Name...`}
+                value={employeeSection === "active" ? searchActive : searchResigned}
+                onChange={(e) => employeeSection === "active" ? setSearchActive(e.target.value) : setSearchResigned(e.target.value)}
+                style={{
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 14,
+                  color: "#2B2C3B",
+                  background: "#F8F8F8",
+                  width: 280,
+                  height: 24,
+                  borderRadius: 6,
+                  border: "1px solid rgb(215, 215, 224)",
+                  outline: "none",
+                  padding: "4px 8px 4px 32px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <select
+              value={sortByLastName ? "lastName" : "default"}
+              onChange={(e) => setSortByLastName(e.target.value === "lastName")}
+              style={{
+                fontFamily: "Maax, sans-serif",
+                fontSize: 14,
+                color: "rgb(59, 59, 74)",
+                background: "rgb(242, 242, 242)",
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid rgb(215, 215, 224)",
+                outline: "none",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgb(37, 99, 235)";
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgb(242, 242, 242)";
+                e.currentTarget.style.color = "rgb(59, 59, 74)";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }}
+            >
+              <option value="default">Sort: Default</option>
+              <option value="lastName">Sort: Last A–Z</option>
+            </select>
+          </div>
+
           {loading ? (
-            <p style={{ textAlign: "center", marginTop: 40 }}>Loading...</p>
+            <TableLoadingSpinner text="Loading active employees..." />
           ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
+            <>
+              {/* Fixed Header */}
+              <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th
-                      style={{
-                        ...styles.th,
-                        width: 32,
-                        minWidth: 32,
-                        maxWidth: 32,
-                        textAlign: "center",
-                      }}
-                    >
+                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
                       <input
                         type="checkbox"
                         checked={
-                          filteredActiveEmployees.length > 0 &&
-                          selectedIds.length === filteredActiveEmployees.length
+                          getCurrentEmployees().length > 0 &&
+                          selectedIds.length === getCurrentEmployees().length
                         }
                         onChange={handleSelectAll}
-                        style={{ width: 16, height: 16, margin: 0 }}
+                        style={styles.checkbox}
                       />
                     </th>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Full Name</th>
-                    <th style={styles.th}>Position</th>
-                    <th style={styles.th}>Department</th>
-                    <th style={styles.th}>Client</th>
-                    <th style={styles.th}>Corporate Email</th>
-                    <th style={styles.th}>Personal Email</th>
-                    <th style={styles.th}>Date Hired</th>
-                    <th style={styles.th}>Actions</th>
+                    <th style={{ ...styles.clientTh, width: "60px", minWidth: "60px", flexShrink: 0 }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "22%", minWidth: "180px" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "14%", minWidth: "120px" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "110px" }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredActiveEmployees.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      style={
-                        emp.client === "Joii Workstream"
-                          ? { backgroundColor: "#f8fafc" }
-                          : {}
-                      }
-                    >
-                      <td
-                        style={{
-                          ...styles.td,
-                          width: 32,
-                          minWidth: 32,
-                          maxWidth: 32,
-                          textAlign: "center",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(emp.id)}
-                          onChange={() => handleSelectOne(emp.id)}
-                          style={{ width: 16, height: 16, margin: 0 }}
-                        />
-                      </td>
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}>
-                        <span
-                          style={{
-                            cursor: "pointer",
-                            color: "#2563eb",
-                            fontWeight: 500,
-                            textDecoration: "underline",
-                            textUnderlineOffset: 2,
-                          }}
-                          onClick={() => handleShowDevices(emp)}
-                        >
-                          {formatName(emp.fullName)}
-                        </span>
-                      </td>
-                      <td style={styles.td}>{emp.position}</td>
-                      <td style={styles.td}>{emp.department || "-"}</td>
-                      <td style={styles.td}>{emp.client}</td>
-                      <td style={styles.td}>{emp.corporateEmail || "-"}</td>
-                      <td style={styles.td}>{emp.personalEmail || "-"}</td>
-                      <td style={styles.td}>
-                        {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 24 }}>
-                          <button
-                            style={{
-                              width: 48,
-                              height: 48,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 12,
-                              background: "#eaf7fa",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#d0f0f7")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#eaf7fa")
-                            }
-                            onClick={() => handleEdit(emp)}
-                            title="Edit"
-                          >
-                            <svg
-                              width="18"
-                              height="18"
-                              fill="none"
-                              stroke="#2563eb"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                            </svg>
-                          </button>
-                          {/* Delete button removed as per request; use Resign instead */}
-                          <button
-                            style={{
-                              width: 48,
-                              height: 48,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 12,
-                              background: "#fef9c3",
-                              cursor: "pointer",
-                              transition: "background 0.18s",
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#fde68a")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#fef9c3")
-                            }
-                            onClick={() => handleResign(emp)}
-                            title="Resign"
-                          >
-                            {/* Resign SVG icon */}
-                            <svg
-                              width="18"
-                              height="18"
-                              fill="none"
-                              stroke="#eab308"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M6 19V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" />
-                              <path d="M9 9h6" />
-                              <path d="M9 13h6" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
-            </div>
+              
+              {/* Scrollable Body */}
+              <div style={styles.tableBody}>
+                <table style={styles.bodyTable}>
+                  <tbody>
+                    {currentEmployees.length > 0 ? (
+                      currentEmployees.map((emp, index) => (
+                        <tr
+                          key={emp.id}
+                          style={{
+                            ...styles.clientTr,
+                            background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#e0f7f4")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                        >
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(emp.id)}
+                              onChange={() => handleSelectOne(emp.id)}
+                              style={styles.checkbox}
+                            />
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
+                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>
+                            <span
+                              style={{
+                                cursor: "pointer",
+                                color: "#2563eb",
+                                fontWeight: 500,
+                                textDecoration: "underline",
+                                textUnderlineOffset: 2,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis"
+                              }}
+                              onClick={() => handleShowDevices(emp)}
+                            >
+                              {formatName(emp.fullName)}
+                            </span>
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.position}</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.department || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>{emp.client}</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{emp.corporateEmail || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>
+                            {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>
+                            <div style={styles.actionButtonsContainer}>
+                              <button
+                                style={{
+                                  ...styles.actionButton,
+                                  background: "rgba(37, 99, 235, 0.2)",
+                                }}
+                                onClick={() => handleEdit(emp)}
+                                title="Edit"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(37, 99, 235, 0.35)";
+                                  e.currentTarget.style.transform = "scale(1.1)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(37, 99, 235, 0.4)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(37, 99, 235, 0.2)";
+                                  e.currentTarget.style.transform = "scale(1)";
+                                  e.currentTarget.style.boxShadow = "none";
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="#2563eb" strokeWidth="2">
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                </svg>
+                              </button>
+                              <button
+                                style={{
+                                  ...styles.actionButton,
+                                  background: "rgba(234, 179, 8, 0.2)",
+                                }}
+                                onClick={() => handleResign(emp)}
+                                title="Resign"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(234, 179, 8, 0.35)";
+                                  e.currentTarget.style.transform = "scale(1.1)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(234, 179, 8, 0.4)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(234, 179, 8, 0.2)";
+                                  e.currentTarget.style.transform = "scale(1)";
+                                  e.currentTarget.style.boxShadow = "none";
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="#eab308" strokeWidth="2">
+                                  <path d="M6 19V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" />
+                                  <path d="M9 9h6" />
+                                  <path d="M9 13h6" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="9" style={{ 
+                          ...styles.clientTd, 
+                          textAlign: 'center', 
+                          padding: '40px 20px',
+                          fontSize: '16px',
+                          color: '#6b7280',
+                          fontStyle: 'italic'
+                        }}>
+                          No active employees found
+                        </td>
+                      </tr>
+                    )}
+                    {/* Add empty rows to maintain consistent table height */}
+                    {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
+                      Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
+                        <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", maxWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "60px", minWidth: "60px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "22%", minWidth: "180px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "14%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "110px" }}>&nbsp;</td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-        </>
+          {/* Pagination for Active Employees */}
+          {employeeSection === "active" && <PaginationComponent />}
+        </div>
       )}
 
       {employeeSection === "resigned" && (
-        <>
-          {/* Removed redundant toolbar: search and sort are now in the unified top toolbar */}
-          {/* Table for Resigned Employees (read-only) */}
+        <div style={{
+          ...styles.tableWrapper,
+          borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+          borderTopRightRadius: "12px",
+          marginTop: "0",
+          position: "relative",
+          zIndex: 5,
+        }}>
+          {/* Table Toolbar */}
+          <div style={{
+            width: "100%",
+            height: "40px",
+            background: "#fff",
+            border: "1px solid rgb(215, 215, 224)",
+            borderBottom: "none",
+            borderTopLeftRadius: "0", // Remove top-left radius to connect with tab
+            borderTopRightRadius: "12px",
+            margin: 0,
+            boxSizing: "border-box",
+            display: "flex",
+            alignItems: "center",
+            padding: "8px 16px",
+            gap: 12,
+            justifyContent: "space-between",
+            position: "relative",
+            zIndex: 10,
+          }}>
+            <div style={{
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+            }}>
+              <span style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                pointerEvents: "none",
+                color: "#1D2536",
+                fontSize: 16,
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={styles.searchIcon}>
+                  <circle cx="7" cy="7" r="5.5" stroke="#1D2536" strokeWidth="1.5"></circle>
+                  <line x1="11.3536" y1="11.6464" x2="15" y2="15.2929" stroke="#1D2536" strokeWidth="1.5" strokeLinecap="round"></line>
+                </svg>
+              </span>
+              <input
+                type="text"
+                placeholder={`Search by ${employeeSection === "active" ? "Active" : "Resigned"} Employee Name...`}
+                value={employeeSection === "active" ? searchActive : searchResigned}
+                onChange={(e) => employeeSection === "active" ? setSearchActive(e.target.value) : setSearchResigned(e.target.value)}
+                style={{
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 14,
+                  color: "#2B2C3B",
+                  background: "#F8F8F8",
+                  width: 280,
+                  height: 24,
+                  borderRadius: 6,
+                  border: "1px solid rgb(215, 215, 224)",
+                  outline: "none",
+                  padding: "4px 8px 4px 32px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <select
+              value={sortByLastName ? "lastName" : "default"}
+              onChange={(e) => setSortByLastName(e.target.value === "lastName")}
+              style={{
+                fontFamily: "Maax, sans-serif",
+                fontSize: 14,
+                color: "rgb(59, 59, 74)",
+                background: "rgb(242, 242, 242)",
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid rgb(215, 215, 224)",
+                outline: "none",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgb(37, 99, 235)";
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(37, 99, 235, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgb(242, 242, 242)";
+                e.currentTarget.style.color = "rgb(59, 59, 74)";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)";
+              }}
+            >
+              <option value="default">Sort: Default</option>
+              <option value="lastName">Sort: Last A–Z</option>
+            </select>
+          </div>
+
           {loading ? (
-            <p style={{ textAlign: "center", marginTop: 40 }}>Loading...</p>
+            <TableLoadingSpinner text="Loading resigned employees..." />
           ) : (
-            <div style={styles.tableContainer}>
-              <table style={styles.table}>
+            <>
+              {/* Fixed Header */}
+              <table style={styles.headerTable}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Full Name</th>
-                    <th style={styles.th}>Position</th>
-                    <th style={styles.th}>Department</th>
-                    <th style={styles.th}>Client</th>
-                    <th style={styles.th}>Corporate Email</th>
-                    <th style={styles.th}>Personal Email</th>
-                    <th style={styles.th}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "50px", minWidth: "50px", flexShrink: 0 }}>#</th>
+                    <th style={{ ...styles.clientTh, width: "20%", minWidth: "160px" }}>Full Name</th>
+                    <th style={{ ...styles.clientTh, width: "16%", minWidth: "120px" }}>Position</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Department</th>
+                    <th style={{ ...styles.clientTh, width: "12%", minWidth: "100px" }}>Client</th>
+                    <th style={{ ...styles.clientTh, width: "18%", minWidth: "140px" }}>Corporate Email</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Date Hired</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "90px" }}>Resigned Date</th>
+                    <th style={{ ...styles.clientTh, width: "10%", minWidth: "100px" }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filteredResignedEmployees.map((emp) => (
-                    <tr
-                      key={emp.id}
-                      style={{ background: "#fef9c3" }}
-                    >
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}>{formatName(emp.fullName)}</td>
-                      <td style={styles.td}>{emp.position}</td>
-                      <td style={styles.td}>{emp.department || "-"}</td>
-                      <td style={styles.td}>{emp.client}</td>
-                      <td style={styles.td}>{emp.corporateEmail || "-"}</td>
-                      <td style={styles.td}>{emp.personalEmail || "-"}</td>
-                      <td style={styles.td}>
-                        {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
               </table>
-            </div>
+              
+              {/* Scrollable Body */}
+              <div style={styles.tableBody}>
+                <table style={styles.bodyTable}>
+                  <tbody>
+                    {currentEmployees.length > 0 ? (
+                      currentEmployees.map((emp, index) => (
+                        <tr
+                          key={emp.id}
+                          style={{
+                            ...styles.clientTr,
+                            background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#fef9c3")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)")}
+                        >
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>{indexOfFirstItem + index + 1}</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>{formatName(emp.fullName)}</td>
+                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>{emp.position}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.department || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>{emp.client}</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>{emp.corporateEmail || "-"}</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
+                            {emp.dateHired ? formatDisplayDate(emp.dateHired) : "-"}
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>
+                            {emp.resignedDate ? formatDisplayDate(emp.resignedDate) : "-"}
+                          </td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>
+                            <div style={styles.actionButtonsContainer}>
+                              <button
+                                style={{
+                                  ...styles.actionButton,
+                                  background: "rgba(22, 163, 74, 0.2)",
+                                }}
+                                onClick={() => handleRestoreEmployee(emp)}
+                                title="Restore"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(22, 163, 74, 0.35)";
+                                  e.currentTarget.style.transform = "scale(1.1)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(22, 163, 74, 0.4)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(22, 163, 74, 0.2)";
+                                  e.currentTarget.style.transform = "scale(1)";
+                                  e.currentTarget.style.boxShadow = "none";
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="#16a34a" strokeWidth="2">
+                                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                                  <path d="M3 3v5h5" />
+                                </svg>
+                              </button>
+                              <button
+                                style={{
+                                  ...styles.actionButton,
+                                  background: "rgba(220, 38, 38, 0.2)",
+                                }}
+                                onClick={() => handleDeleteResigned(emp)}
+                                title="Delete"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "rgba(220, 38, 38, 0.35)";
+                                  e.currentTarget.style.transform = "scale(1.1)";
+                                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(220, 38, 38, 0.4)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "rgba(220, 38, 38, 0.2)";
+                                  e.currentTarget.style.transform = "scale(1)";
+                                  e.currentTarget.style.boxShadow = "none";
+                                }}
+                              >
+                                <svg width="16" height="16" fill="none" stroke="#dc2626" strokeWidth="2">
+                                  <path d="M3 6h18" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="9" style={{ 
+                          ...styles.clientTd, 
+                          textAlign: 'center', 
+                          padding: '40px 20px',
+                          fontSize: '16px',
+                          color: '#6b7280',
+                          fontStyle: 'italic'
+                        }}>
+                          No resigned employees found
+                        </td>
+                      </tr>
+                    )}
+                    {/* Add empty rows to maintain consistent table height */}
+                    {currentEmployees.length > 0 && currentEmployees.length < itemsPerPage && 
+                      Array.from({ length: itemsPerPage - currentEmployees.length }, (_, i) => (
+                        <tr key={`empty-${i}`} style={{ ...styles.clientTr, background: (currentEmployees.length + i) % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)" }}>
+                          <td style={{ ...styles.clientTd, width: "50px", minWidth: "50px", flexShrink: 0 }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "20%", minWidth: "160px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "16%", minWidth: "120px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "12%", minWidth: "100px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "18%", minWidth: "140px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "90px" }}>&nbsp;</td>
+                          <td style={{ ...styles.clientTd, width: "10%", minWidth: "100px" }}>&nbsp;</td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-        </>
+          {/* Pagination for Resigned Employees */}
+          {employeeSection === "resigned" && <PaginationComponent />}
+        </div>
       )}
 
       {/* Modals and overlays */}
@@ -1572,10 +2429,11 @@ function Employees() {
                                 setAssignModalOpen(false);
                                 setAssigningDevice(null);
                                 setAssignSearch("");
+                                
+                                showSuccess(`Device ${assigningDevice.deviceTag} assigned to ${emp.fullName}.`);
                               } catch (err) {
-                                alert(
-                                  "Failed to assign device. Please try again."
-                                );
+                                console.error('Error assigning device:', err);
+                                showError('Failed to assign device. Please try again.');
                               }
                             }}
                           >
@@ -1646,7 +2504,13 @@ function Employees() {
               }}
             >
               {loadingHistory ? (
-                <p style={{ textAlign: "center", margin: 32 }}>Loading...</p>
+                <LoadingSpinner 
+                  size="medium" 
+                  color="#2563eb" 
+                  text="Loading device history..." 
+                  showText={true}
+                  backgroundColor="transparent"
+                />
               ) : history.length === 0 ? (
                 <p style={{ textAlign: "center", margin: 32 }}>
                   No history found.
@@ -1808,6 +2672,121 @@ function Employees() {
           employee={resignEmployee}
         />
       )}
+
+      {showDeleteConfirmModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#dc2626", marginBottom: 16, fontSize: 20 }}>
+              Confirm Deletion
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Are you sure you want to permanently delete this employee record? This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirmModal(false);
+                  setEmployeeToDelete(null);
+                }}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteResigned}
+                style={{
+                  ...styles.deleteBtn,
+                  minWidth: 100,
+                }}
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRestoreConfirmModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#16a34a", marginBottom: 16, fontSize: 20 }}>
+              Restore Employee
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Do you want to restore this employee to the Active Employees list?
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowRestoreConfirmModal(false);
+                  setEmployeeToRestore(null);
+                }}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRestoreEmployee}
+                style={{
+                  background: "#16a34a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.18s",
+                  minWidth: 100,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#15803d")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#16a34a")}
+              >
+                Yes, Restore
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteConfirm && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modalContent, maxWidth: 400 }}>
+            <h3 style={{ color: "#dc2626", marginBottom: 16, fontSize: 20 }}>
+              Confirm Bulk Delete
+            </h3>
+            <p style={{ marginBottom: 24, lineHeight: 1.6 }}>
+              Are you sure you want to delete {selectedIds.length} selected employee(s)? This will move them to Resigned Employees.
+            </p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                style={{
+                  ...styles.cancelBtn,
+                  minWidth: 80,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmBulkDelete}
+                style={{
+                  ...styles.deleteBtn,
+                  minWidth: 100,
+                }}
+              >
+                Yes, Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1816,32 +2795,375 @@ export default Employees;
 
 const styles = {
   pageContainer: {
-    padding: "32px 0 32px 0",
-    maxWidth: "100%",
-    background: "#f7f9fb",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
     minHeight: "100vh",
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    background: "rgb(250, 250, 252)",
+    width: "100%",
+    fontFamily: "Maax, sans-serif",
+    padding: "0",
+    boxSizing: "border-box",
+  },
+  headerSection: {
+    width: "100%",
+    maxWidth: "none",
+    margin: "0",
+    padding: "20px 24px",
   },
   headerRow: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 18,
-    paddingLeft: 0,
+    justifyContent: "space-between",
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: "16px",
   },
   pageTitle: {
-    color: "#233037",
-    fontWeight: 800,
-    fontSize: 28,
+    fontFamily: "Maax, sans-serif",
+    fontSize: "28px",
+    lineHeight: "37.24px",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    color: "rgb(43, 44, 59)",
     margin: 0,
   },
-  toolbar: {
+  headerActions: {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    marginBottom: 18,
-    paddingLeft: 0,
+    flexWrap: "wrap",
   },
+  topControlsSection: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 16,
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: "12px",
+  },
+  leftControls: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  sortSelect: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    fontWeight: 500,
+    padding: "8px 16px",
+    background: "rgb(242, 242, 242)",
+    color: "rgb(59, 59, 74)",
+    border: "1px solid rgb(215, 215, 224)",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    minHeight: "36px",
+    minWidth: "140px",
+    outline: "none",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    transform: "translateY(0)",
+  },
+  addBtn: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    fontWeight: 500,
+    letterSpacing: "normal",
+    color: "rgb(59, 59, 74)",
+    background: "rgb(242, 242, 242)",
+    minWidth: "120px",
+    height: "36px",
+    borderRadius: "6px",
+    border: "none",
+    outline: "none",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    userSelect: "none",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    padding: "0px 16px",
+    whiteSpace: "nowrap",
+    transform: "translateY(0)",
+  },
+  dropdownContainer: {
+    position: "relative",
+    display: "inline-block",
+  },
+  dropdownBtn: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    fontWeight: 500,
+    letterSpacing: "normal",
+    color: "rgb(59, 59, 74)",
+    background: "rgb(242, 242, 242)",
+    minWidth: "150px",
+    height: "36px",
+    borderRadius: "6px",
+    border: "none",
+    outline: "none",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    userSelect: "none",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    padding: "0px 16px",
+    whiteSpace: "nowrap",
+    transform: "translateY(0)",
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
+    background: "rgb(255, 255, 255)",
+    border: "1px solid rgb(215, 215, 224)",
+    borderRadius: "6px",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    zIndex: 1000,
+    marginTop: "4px",
+    overflow: "hidden",
+  },
+  dropdownItem: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    fontWeight: 400,
+    color: "rgb(59, 59, 74)",
+    background: "transparent",
+    border: "none",
+    padding: "12px 16px",
+    width: "100%",
+    textAlign: "left",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    display: "block",
+    "&:hover": {
+      background: "rgb(248, 248, 248)",
+    },
+  },
+  sectionToggle: {
+    display: "flex",
+    gap: 8,
+    marginBottom: 16,
+    width: "100%",
+    maxWidth: "none",
+    margin: "0 auto 16px auto",
+    padding: "0 24px",
+    justifyContent: "center",
+    flexWrap: "wrap",
+  },
+  toggleBtn: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    fontWeight: 500,
+    padding: "10px 20px",
+    borderRadius: "6px",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    minHeight: "36px",
+    minWidth: "120px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+    transform: "translateY(0)",
+    whiteSpace: "nowrap",
+  },
+  searchContainer: {
+    display: "none", // Remove old search container
+  },
+  searchInputWrapper: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "8px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    display: "flex",
+    alignItems: "center",
+    pointerEvents: "none",
+    color: "rgb(29, 37, 54)",
+    fontSize: "16px",
+    paddingLeft: "0px",
+    paddingRight: "4px",
+    height: "20px",
+  },
+  searchInput: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    fontWeight: 400,
+    letterSpacing: "normal",
+    color: "rgb(43, 44, 59)",
+    background: "rgb(248, 248, 248)",
+    width: "100%",
+    maxWidth: "min(320px, calc(100vw - 200px))",
+    minWidth: "200px",
+    height: "36px",
+    borderRadius: "6px",
+    border: "1px solid rgb(215, 215, 224)",
+    outline: "none",
+    padding: "8px 12px 8px 32px",
+    boxSizing: "border-box",
+  },
+  sortBtn: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "12px",
+    fontWeight: 500,
+    padding: "8px 16px",
+    background: "rgb(242, 242, 242)",
+    color: "rgb(59, 59, 74)",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    minHeight: "36px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
+  },
+  tableWrapper: {
+    width: "100%",
+    maxWidth: "none",
+    margin: "0",
+    padding: "0 24px",
+    overflowX: "auto",
+    boxSizing: "border-box",
+  },
+  bulkActionsContainer: {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  headerTable: {
+    borderCollapse: "collapse",
+    width: "100%",
+    minWidth: "1000px",
+    tableLayout: "fixed",
+    boxShadow: "none",
+    border: "1px solid rgb(215, 215, 224)",
+    borderBottom: "none",
+    borderTop: "none",
+    background: "rgb(255, 255, 255)",
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    fontWeight: 400,
+    transition: "all 0.3s ease",
+  },
+  clientTh: {
+    textAlign: "left",
+    verticalAlign: "middle",
+    fontWeight: 400,
+    background: "rgb(255, 255, 255)",
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    padding: "16px 8px",
+    border: "1px solid rgb(215, 215, 224)",
+    whiteSpace: "nowrap",
+    boxSizing: "border-box",
+  },
+  tableBody: {
+    width: "100%",
+    height: "650px",
+    maxHeight: "650px",
+    overflowY: "scroll",
+    scrollbarWidth: "none",
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    WebkitOverflowScrolling: "touch",
+  },
+  bodyTable: {
+    borderCollapse: "collapse",
+    width: "100%",
+    minWidth: "1000px",
+    tableLayout: "fixed",
+    boxShadow: "none",
+    borderTop: "none",
+    borderRight: "1px solid rgb(215, 215, 224)",
+    borderBottom: "none",
+    borderLeft: "1px solid rgb(215, 215, 224)",
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    lineHeight: "20.0004px",
+    color: "rgb(59, 59, 74)",
+    letterSpacing: "normal",
+    fontWeight: 400,
+  },
+  clientTr: {
+    cursor: "pointer",
+    transition: "background 0.2s",
+  },
+  clientTd: {
+    textAlign: "left",
+    verticalAlign: "middle",
+    borderLeft: "1px solid rgb(215, 215, 224)",
+    borderRight: "1px solid rgb(215, 215, 224)",
+    borderTop: "none",
+    borderBottom: "none",
+    padding: "16px 8px",
+    color: "rgb(59, 59, 74)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    minHeight: "60px",
+    boxSizing: "border-box",
+  },
+  checkbox: {
+    border: "1px solid rgb(215, 215, 224)",
+    boxSizing: "border-box",
+    width: "16px",
+    height: "16px",
+    margin: "0px",
+    display: "block",
+    position: "relative",
+    left: "50%",
+    transform: "translateX(-50%)",
+  },
+  actionButton: {
+    background: "none",
+    border: "none",
+    padding: "0px",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "32px",
+    height: "32px",
+    borderRadius: "6px",
+    transition: "all 0.3s ease",
+    flexShrink: 0,
+    transform: "scale(1)",
+  },
+  actionButtonsContainer: {
+    display: "flex",
+    gap: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: "80px",
+    flexWrap: "wrap",
+  },
+  // Legacy styles for modals and other components
   input: {
     padding: "10px 14px",
     borderRadius: 8,
@@ -1861,54 +3183,6 @@ const styles = {
     fontWeight: 500,
     color: "#334155",
     marginBottom: 2,
-  },
-  tableContainer: {
-    marginTop: 16,
-    background: "#fff",
-    borderRadius: 16,
-    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
-    padding: 0,
-    width: "100%",
-    maxWidth: "100vw",
-    overflowX: "unset", // Remove horizontal scroll
-  },
-  table: {
-    width: "100%",
-    minWidth: 0, // Allow table to shrink
-    borderCollapse: "separate",
-    borderSpacing: 0,
-    background: "#fff",
-    borderRadius: 16,
-    overflow: "hidden",
-    tableLayout: "fixed", // Make columns auto-fit
-    maxWidth: "100%",
-    margin: "0 auto",
-  },
-  th: {
-    padding: "16px 12px",
-    background: "#445F6D",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 16,
-    borderBottom: "2px solid #e0e7ef",
-    textAlign: "left",
-    letterSpacing: 0.2,
-    whiteSpace: "normal",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  td: {
-    padding: "14px 12px",
-    color: "#233037",
-    fontSize: 15,
-    borderBottom: "1px solid #e0e7ef",
-    background: "#f7f9fb",
-    verticalAlign: "middle",
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    maxWidth: "none",
   },
   actionBtn: {
     background: "#70C1B3",
@@ -1952,16 +3226,15 @@ const styles = {
     fontSize: 13,
     cursor: "pointer",
     marginLeft: 0,
-    transition:
-      "background 0.18s, box-shadow 0.18s, color 0.18s, opacity 0.18s",
+    transition: "all 0.3s ease",
     minWidth: 36,
     minHeight: 28,
     display: "inline-block",
     boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
     outline: "none",
     opacity: 1,
+    transform: "translateY(0) scale(1)",
   },
-  // Add a washed out style for disabled state
   washedOutBtn: {
     background: "#f3f4f6",
     color: "#b91c1c",
@@ -1997,10 +3270,13 @@ const styles = {
     background: "#fff",
     padding: "36px 40px",
     borderRadius: 18,
-    minWidth: 340,
+    minWidth: "min(400px, 90vw)",
+    maxWidth: "min(500px, 95vw)",
+    width: "auto",
     boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
     position: "relative",
-    maxWidth: 420,
+    margin: "20px",
+    boxSizing: "border-box",
   },
   modalTitle: {
     margin: "0 0 18px 0",
@@ -2010,25 +3286,51 @@ const styles = {
     fontSize: 22,
     textAlign: "center",
   },
-  iconBtn: {
-    background: "none",
-    border: "none",
-    padding: 6,
-    borderRadius: 6,
+  
+  // Pagination styles
+  paginationContainer: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 20,
+    padding: "16px 0",
+  },
+  paginationBtn: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    fontWeight: 500,
+    padding: "8px 16px",
+    background: "rgb(242, 242, 242)",
+    color: "rgb(59, 59, 74)",
+    border: "1px solid rgb(215, 215, 224)",
+    borderRadius: "6px",
     cursor: "pointer",
-    marginRight: 4,
-    display: "inline-flex",
+    transition: "all 0.3s ease",
+    minHeight: "36px",
+    display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    transition: "background 0.18s, box-shadow 0.18s",
-    boxShadow: "none",
+    minWidth: "36px",
   },
-  iconBtnHover: {
-    background: "#e0f7f4",
-    boxShadow: "0 2px 8px rgba(112,193,179,0.10)",
+  paginationBtnActive: {
+    background: "#2563eb",
+    color: "#fff",
+    borderColor: "#2563eb",
   },
-  iconBtnDeleteHover: {
-    background: "#ffe4ec",
-    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
+  paginationBtnDisabled: {
+    background: "rgb(248, 248, 248)",
+    color: "rgb(156, 163, 175)",
+    cursor: "not-allowed",
+    borderColor: "rgb(229, 231, 235)",
+  },
+  paginationEllipsis: {
+    fontFamily: "Maax, sans-serif",
+    fontSize: "14px",
+    color: "rgb(107, 114, 128)",
+    padding: "8px 4px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 };

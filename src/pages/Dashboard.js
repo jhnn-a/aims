@@ -5,6 +5,7 @@ import { getAllClients } from "../services/clientService";
 import { exportDashboardToExcel } from '../utils/exportDashboardToExcel';
 import { getDeviceHistory } from "../services/deviceHistoryService";
 import { getUnitSpecsByTag } from "../services/unitSpecsService";
+import LoadingSpinner, { TableLoadingSpinner, CardLoadingSpinner } from "../components/LoadingSpinner";
 
 // Simple bar component
 function Bar({ label, value, max, color = "#2563eb" }) {
@@ -227,7 +228,7 @@ function Dashboard() {
   ];
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto", fontFamily: 'Segoe UI, Arial, sans-serif' }}>
+    <div style={{ padding: 32, maxWidth: 1100, margin: "0 auto", fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif" }}>
       <h2
         style={sectionTitleStyle}
       >
@@ -623,15 +624,7 @@ function Dashboard() {
           </div>
           
           {loadingSpecs ? (
-            <div style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              padding: "20px 0",
-              color: "#64748b" 
-            }}>
-              Loading specifications...
-            </div>
+            <CardLoadingSpinner text="Loading specifications..." />
           ) : unitSpecs ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -819,7 +812,7 @@ const sectionTitleStyle = {
   fontWeight: 800,
   fontSize: 26,
   marginBottom: 16,
-  fontFamily: 'Segoe UI, Arial, sans-serif',
+  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
 };
 
 const cardTitleStyle = {

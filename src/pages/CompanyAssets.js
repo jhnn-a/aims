@@ -1,23 +1,26 @@
 import React, { useState } from "react";
 import Assets from "./Assets";
 import Inventory from "./Inventory";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 
 const tabStyles = {
   container: {
     display: "flex",
     flexDirection: "column",
     width: "100%",
-    minHeight: "100vh",
+    height: "100vh", // Fixed height to viewport
     background: "#f7f9fb",
-    fontFamily: 'Segoe UI, Arial, sans-serif',
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    overflow: "hidden", // Prevent scrolling on the main container
+    boxSizing: "border-box",
   },
   header: {
     fontSize: 28,
     fontWeight: 700,
     color: "#222e3a",
     letterSpacing: 1,
-    margin: "32px 0 24px 0",
-    padding: "0 24px",
+    padding: "20px 24px 16px 24px", // Reduced margin for fixed layout
+    flexShrink: 0, // Prevent header from shrinking
   },
   tabsBar: {
     display: "flex",
@@ -25,6 +28,8 @@ const tabStyles = {
     borderBottom: "2px solid #e0e7ef",
     margin: "0 24px 0 24px",
     gap: 2,
+    flexShrink: 0, // Prevent tabs from shrinking
+    paddingBottom: 0,
   },
   tab: (active) => ({
     border: "none",
@@ -33,7 +38,7 @@ const tabStyles = {
     fontWeight: active ? 700 : 500,
     fontSize: 16,
     padding: "10px 32px",
-    borderRadius: "12px 12px 0 0",
+    borderRadius: 0,
     cursor: "pointer",
     boxShadow: active ? "0 -2px 8px rgba(68,95,109,0.08)" : "none",
     outline: "none",
@@ -41,11 +46,15 @@ const tabStyles = {
   }),
   tabContent: {
     background: "#fff",
-    borderRadius: "0 0 16px 16px",
+    borderRadius: 0,
     boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
     margin: "0 24px 24px 24px",
     padding: 0,
-    minHeight: 600,
+    flex: 1, // Take remaining space
+    overflow: "hidden", // Let child components handle their own scrolling
+    minHeight: 0, // Allow flex child to shrink below content size
+    display: "flex",
+    flexDirection: "column",
   },
 };
 
@@ -54,7 +63,7 @@ function CompanyAssets() {
 
   return (
     <div style={tabStyles.container}>
-      <div style={tabStyles.header}>Company Assets</div>
+      <div style={tabStyles.header}>COMPANY ASSETS</div>
       <div style={tabStyles.tabsBar}>
         <button
           style={tabStyles.tab(activeTab === "assets")}

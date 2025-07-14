@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
   deleteDevice,
@@ -6,8 +6,10 @@ import {
 } from "../services/deviceService";
 import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { useSnackbar } from "../components/Snackbar";
 
 function DeviceFormModal({
   data,
@@ -411,6 +413,7 @@ function DeviceFormModal({
 }
 
 function Assets() {
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [devices, setDevices] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -441,10 +444,6 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
   const [currentPage, setCurrentPage] = useState(1);
   const [devicesPerPage, setDevicesPerPage] = useState(50);
-  // Device history state
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
-    useState(null);
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -462,17 +461,22 @@ function Assets() {
 
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
-    const [allDevices, allEmployees] = await Promise.all([
-      getAllDevices(),
-      getAllEmployees(),
-    ]);
-    // Filter to only show assigned devices (devices with assignedTo value)
-    const assignedDevices = allDevices.filter(
-      (device) => device.assignedTo && device.assignedTo.trim() !== ""
-    );
-    setDevices(assignedDevices);
-    setEmployees(allEmployees);
-    setLoading(false);
+    try {
+      const [allDevices, allEmployees] = await Promise.all([
+        getAllDevices(),
+        getAllEmployees(),
+      ]);
+      // Filter to only show assigned devices (devices with assignedTo value)
+      const assignedDevices = allDevices.filter(
+        (device) => device.assignedTo && device.assignedTo.trim() !== ""
+      );
+      setDevices(assignedDevices);
+      setEmployees(allEmployees);
+    } catch (error) {
+      showError("Failed to load devices and employees. Please refresh the page.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getEmployeeName = (id) => {
@@ -494,19 +498,30 @@ function Assets() {
     setSaveError("");
     if (!form.deviceType || !form.deviceTag || !form.brand || !form.condition) {
       setSaveError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
-    const { id, ...payloadWithoutId } = form;
-    await updateDevice(form._editDeviceId, payloadWithoutId);
-    setShowForm(false);
-    setForm({});
-    loadDevicesAndEmployees();
+    try {
+      const { id, ...payloadWithoutId } = form;
+      await updateDevice(form._editDeviceId, payloadWithoutId);
+      setShowForm(false);
+      setForm({});
+      loadDevicesAndEmployees();
+      showSuccess("Device updated successfully!");
+    } catch (error) {
+      showError("Failed to update device. Please try again.");
+    }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this device?")) {
-      await deleteDevice(id);
-      loadDevicesAndEmployees();
+      try {
+        await deleteDevice(id);
+        loadDevicesAndEmployees();
+        showSuccess("Device deleted successfully!");
+      } catch (error) {
+        showError("Failed to delete device. Please try again.");
+      }
     }
   };
 
@@ -524,31 +539,36 @@ function Assets() {
       condition = "Defective";
       reason = "Defective";
     }
-    const { id, ...deviceWithoutId } = unassignDevice;
-    await updateDevice(unassignDevice.id, {
-      ...deviceWithoutId,
-      assignedTo: "",
-      assignmentDate: "",
-      status: "Stock Room",
-      condition,
-      // Remove 'Temporary Deployed' remark if present (case-insensitive)
-      remarks:
-        (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
-          ? ""
-          : deviceWithoutId.remarks,
-    });
-    await logDeviceHistory({
-      employeeId: unassignDevice.assignedTo,
-      deviceId: unassignDevice.id,
-      deviceTag: unassignDevice.deviceTag,
-      action: "unassigned",
-      reason,
-      condition,
-      date: new Date().toISOString(),
-    });
-    setShowUnassignModal(false);
-    setUnassignDevice(null);
-    loadDevicesAndEmployees();
+    try {
+      const { id, ...deviceWithoutId } = unassignDevice;
+      await updateDevice(unassignDevice.id, {
+        ...deviceWithoutId,
+        assignedTo: "",
+        assignmentDate: "",
+        status: "Stock Room",
+        condition,
+        // Remove 'Temporary Deployed' remark if present (case-insensitive)
+        remarks:
+          (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
+            ? ""
+            : deviceWithoutId.remarks,
+      });
+      await logDeviceHistory({
+        employeeId: unassignDevice.assignedTo,
+        deviceId: unassignDevice.id,
+        deviceTag: unassignDevice.deviceTag,
+        action: "unassigned",
+        reason,
+        condition,
+        date: new Date().toISOString(),
+      });
+      setShowUnassignModal(false);
+      setUnassignDevice(null);
+      loadDevicesAndEmployees();
+      showSuccess(`Device ${unassignDevice.deviceTag} unassigned successfully!`);
+    } catch (error) {
+      showError("Failed to unassign device. Please try again.");
+    }
   };
 
   const cancelUnassign = () => {
@@ -746,6 +766,7 @@ function Assets() {
     });
     setBulkReassignModalOpen(false);
     setSelectedDeviceIds([]);
+    showSuccess(`Successfully reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`);
     loadDevicesAndEmployees();
   };
 
@@ -804,6 +825,7 @@ function Assets() {
     });
     setBulkUnassignModalOpen(false);
     setSelectedDeviceIds([]);
+    showSuccess(`Successfully unassigned ${selected.length} device(s) from ${emp.fullName || 'employee'}`);
     loadDevicesAndEmployees();
   };
 
@@ -1071,54 +1093,89 @@ function Assets() {
   }
 
   return (
-    <div
-      style={{
-        padding: "20px",
-        background: "#f7f9fb",
-        minHeight: "100vh",
-        fontFamily: "Segoe UI, Arial, sans-serif",
-        width: "100%",
-        boxSizing: "border-box",
-        overflowX: "auto",
-      }}
-    >
+    <React.Fragment>
+      <style>
+        {`
+          @media (min-width: 1366px) {
+            .assets-container {
+              padding: 24px !important;
+            }
+            .assets-search-container {
+              flex-wrap: nowrap !important;
+              gap: 16px !important;
+            }
+            .assets-table {
+              min-width: 100% !important;
+            }
+          }
+          @media (min-width: 1920px) {
+            .assets-container {
+              padding: 32px !important;
+              max-width: 1800px !important;
+              margin: 0 auto !important;
+            }
+          }
+          @media (min-width: 1600px) {
+            .assets-table-container {
+              overflow-x: visible !important;
+            }
+          }
+          .assets-table {
+            min-width: 1200px;
+          }
+        `}
+      </style>
       <div
+        className="assets-container"
         style={{
-          display: "flex",
-          alignItems: "flex-end",
-          marginBottom: 24,
-          marginTop: 8,
+          padding: "0", // Remove padding to maximize space
+          background: "transparent", // Let parent handle background
+          height: "100%", // Fill available height
+          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           width: "100%",
-          maxWidth: "1200px",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden", // Prevent overflow on main container
         }}
       >
-        {/* Search bar (outside outline, left-aligned) */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "flex-end",
-            minHeight: 60,
-          }}
-        >
+      {/* Fixed Header - Search bar and buttons section */}
+      <div style={{
+        background: "#fff",
+        borderRadius: "0",
+        boxShadow: "none",
+        border: "none",
+        borderBottom: "1px solid #e5e7eb",
+        position: "sticky",
+        top: "0",
+        zIndex: "10",
+        flexShrink: 0,
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "16px 20px",
+          borderBottom: "1px solid #e5e7eb",
+          gap: "12px",
+          flexWrap: "wrap",
+        }} className="assets-search-container">
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#fff",
-              borderRadius: 0,
-              boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
-              border: "1.5px solid #e0e7ef",
-              padding: "2px 16px 2px 12px",
-              width: 400,
-              minWidth: 0,
-              transition: "box-shadow 0.2s, border 0.2s",
+              background: "#f9fafb",
+              borderRadius: "6px",
+              border: "1px solid #d1d5db",
+              padding: "10px 14px",
+              flex: 1,
+              maxWidth: "400px",
+              minWidth: "280px",
             }}
           >
             <svg
-              width="22"
-              height="22"
-              style={{ color: "#445F6D", opacity: 0.7 }}
+              width="18"
+              height="18"
+              style={{ color: "#6b7280", opacity: 0.8 }}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -1138,106 +1195,86 @@ function Assets() {
                 border: "none",
                 outline: "none",
                 background: "transparent",
-                fontSize: "18px",
-                color: "#233037",
-                padding: "10px 0 10px 8px",
+                fontSize: "14px",
+                color: "#374151",
+                padding: "0 0 0 10px",
                 width: "100%",
-                fontWeight: 500,
-                minWidth: 0,
+                fontWeight: 400,
               }}
             />
           </div>
-        </div>
-        {/* Outlined button group, right-aligned */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
-            marginLeft: 18,
-            minWidth: 180,
-            justifyContent: "flex-end",
-          }}
-        >
-          <span
+          <button
+            disabled={!selectedDeviceIds.length}
+            onClick={handleBulkReassign}
             style={{
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#1b7f6b",
-              marginBottom: 4,
-              letterSpacing: 0.5,
-              textAlign: "right",
-              opacity: 0.85,
-            }}
-          ></span>
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              border: "2.5px solid #70C1B3",
-              borderRadius: 18,
-              background: "#f8fffc",
-              padding: "10px 18px",
-              boxShadow: "0 2px 8px rgba(112,193,179,0.08)",
-              justifyContent: "flex-end",
-              minWidth: 160,
+              padding: "10px 16px",
+              border: "1px solid #3b82f6",
+              borderRadius: "6px",
+              background: selectedDeviceIds.length ? "#3b82f6" : "#f9fafb",
+              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+              fontSize: "14px",
+              fontWeight: 500,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              minWidth: "90px",
             }}
           >
-            <button
-              style={{
-                background: selectedDeviceIds.length ? "#70C1B3" : "#e0e7ef",
-                color: selectedDeviceIds.length ? "#233037" : "#888",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkReassign}
-            >
-              Reassign
-            </button>
-            <button
-              style={{
-                background: selectedDeviceIds.length ? "#445F6D" : "#e0e7ef",
-                color: selectedDeviceIds.length ? "#fff" : "#888",
-                border: "none",
-                borderRadius: 8,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkUnassign}
-            >
-              Unassign
-            </button>
-          </div>
+            Reassign
+          </button>
+          <button
+            disabled={!selectedDeviceIds.length}
+            onClick={handleBulkUnassign}
+            style={{
+              padding: "10px 16px",
+              border: "1px solid #ef4444",
+              borderRadius: "6px",
+              background: selectedDeviceIds.length ? "#ef4444" : "#f9fafb",
+              color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+              cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+              fontSize: "14px",
+              fontWeight: 500,
+              transition: "all 0.2s",
+              whiteSpace: "nowrap",
+              minWidth: "90px",
+            }}
+          >
+            Unassign
+          </button>
         </div>
       </div>
-      <div style={{ width: "100%" }}>
+      
+      {/* Scrollable Table Container */}
+      <div style={{ 
+        background: "#fff",
+        border: "none",
+        flex: "1",
+        overflow: "auto",
+        minHeight: "0",
+      }}>
+        <div style={{ overflowX: "auto", width: "100%", height: "100%" }} className="assets-table-container">
         <table
+          className="assets-table"
           style={{
             width: "100%",
-            borderCollapse: "separate",
-            borderSpacing: 0,
+            borderCollapse: "collapse",
             background: "#fff",
-            borderRadius: 0,
-            boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
-            overflow: "hidden",
-            tableLayout: "fixed",
+            fontSize: "14px",
           }}
         >
-          <thead>
-            <tr style={{ background: "#445F6D" }}>
-              <th style={{ padding: 12, border: "none", width: "4%" }}>
+          <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+            <tr style={{ background: "rgb(255, 255, 255)", borderBottom: "1px solid #e5e7eb" }}>
+              <th style={{ 
+                padding: "12px 16px", 
+                border: "none", 
+                width: "40px", 
+                textAlign: "center",
+                fontWeight: 500,
+                color: "#374151",
+                fontSize: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}>
                 <input
                   type="checkbox"
                   checked={isAllSelected}
@@ -1245,115 +1282,125 @@ function Assets() {
                     if (el) el.indeterminate = isIndeterminate;
                   }}
                   onChange={toggleSelectAll}
-                  style={{ width: 18, height: 18, accentColor: "#70C1B3" }}
+                  style={{ 
+                    width: 16, 
+                    height: 16, 
+                    accentColor: "#3b82f6",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "3px"
+                  }}
                   title="Select all"
                 />
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "12%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                #
+              </th>
+              <th
+                style={{
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
+                  border: "none",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Device Tag
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "8%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Type
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "10%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Brand
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "17%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Model
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "17%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 Assigned To
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "12%",
-                  whiteSpace: "nowrap",
+                  textAlign: "left",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
-                Condition
+                Date Assigned
               </th>
               <th
                 style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
+                  color: "#374151",
+                  fontWeight: 500,
+                  padding: "12px 16px",
                   border: "none",
-                  width: "14%",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Assignment Date
-              </th>
-              <th
-                style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
-                  border: "none",
-                  width: "22%",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Remarks
-              </th>
-              <th
-                style={{
-                  color: "#fff",
-                  fontWeight: 600,
-                  padding: 12,
-                  border: "none",
-                  width: "6%",
                   textAlign: "center",
-                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  width: "100px",
                 }}
               >
                 Actions
@@ -1361,16 +1408,23 @@ function Assets() {
             </tr>
           </thead>
           <tbody>
-            {currentPageDevices.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="9" style={{ padding: "0", border: "none" }}>
+                  <TableLoadingSpinner text="Loading assigned assets..." />
+                </td>
+              </tr>
+            ) : currentPageDevices.length === 0 ? (
               <tr>
                 <td
-                  colSpan="10"
+                  colSpan="9"
                   style={{
                     padding: "40px 20px",
                     textAlign: "center",
-                    color: "#667085",
-                    fontSize: "16px",
-                    fontWeight: "500",
+                    color: "#9ca3af",
+                    fontSize: "14px",
+                    fontWeight: "400",
+                    borderBottom: "1px solid #f3f4f6",
                   }}
                 >
                   {search
@@ -1379,26 +1433,39 @@ function Assets() {
                 </td>
               </tr>
             ) : (
-              currentPageDevices.map((device) => {
+              currentPageDevices.map((device, index) => {
                 const isSelected = selectedDeviceIds.includes(device.id);
+                const rowIndex = (currentPage - 1) * devicesPerPage + index + 1;
                 return (
                   <tr
                     key={device.id}
                     style={{
-                      background: isSelected ? "#e6f7f3" : "transparent",
+                      background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
                       cursor: "pointer",
                       transition: "background 0.15s",
+                      borderBottom: "1px solid #f3f4f6",
                     }}
                     onClick={(e) => {
                       if (e.target.type !== "checkbox") {
                         toggleSelectDevice(device.id);
                       }
                     }}
+                    onMouseEnter={(e) => {
+                      if (index % 2 === 0) {
+                        e.currentTarget.style.background = "rgb(235, 235, 240)";
+                      } else {
+                        e.currentTarget.style.background = "rgb(225, 225, 235)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)";
+                    }}
                   >
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: "none",
                       }}
                     >
                       <input
@@ -1407,117 +1474,85 @@ function Assets() {
                         onChange={() => toggleSelectDevice(device.id)}
                         onClick={(e) => e.stopPropagation()}
                         style={{
-                          width: 18,
-                          height: 18,
-                          accentColor: "#70C1B3",
+                          width: 16,
+                          height: 16,
+                          accentColor: "#3b82f6",
+                          border: "1px solid #d1d5db",
+                          borderRadius: "3px",
                         }}
                         title="Select device"
                       />
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        borderBottom: "none",
                       }}
                     >
-                      <span
-                        onClick={() => handleShowDeviceHistory(device)}
-                        style={{
-                          cursor: "pointer",
-                          color: "#2563eb",
-                          textDecoration: "underline",
-                          transition: "color 0.2s",
-                        }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.color = "#1d4ed8")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.color = "#2563eb")
-                        }
-                        title="Click to view device history"
-                      >
+                      {rowIndex}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: "#1f2937",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        borderBottom: "none",
+                      }}
+                    >
+                      <span style={{ color: "#3b82f6", textDecoration: "underline", cursor: "pointer" }}>
                         {device.deviceTag}
                       </span>
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.deviceType}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.brand}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.model}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {getEmployeeName(device.assignedTo)}
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
-                      }}
-                    >
-                      {device.condition}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
+                        padding: "12px 16px",
+                        color: "#6b7280",
+                        fontSize: "14px",
+                        borderBottom: "none",
                       }}
                     >
                       {device.assignmentDate
@@ -1530,25 +1565,9 @@ function Assets() {
                     </td>
                     <td
                       style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        color: "#233037",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "1em",
-                      }}
-                      title={device.remarks || ""}
-                    >
-                      {device.remarks || ""}
-                    </td>
-                    <td
-                      style={{
-                        padding: "0.7em 0.5em",
-                        borderBottom: "1px solid #e0e7ef",
-                        width: "6%",
+                        padding: "12px 16px",
                         textAlign: "center",
-                        whiteSpace: "nowrap",
+                        borderBottom: "none",
                       }}
                     >
                       <div
@@ -1556,34 +1575,39 @@ function Assets() {
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          gap: 8,
+                          gap: "8px",
                         }}
                       >
                         <button
                           style={{
-                            background: "#e0f2f1",
+                            background: "transparent",
                             border: "none",
-                            borderRadius: 6,
-                            padding: 6,
+                            borderRadius: "4px",
+                            padding: "6px",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "center",
                             transition: "background 0.2s",
+                            color: "#3b82f6",
                           }}
                           title="Edit"
-                          onClick={() => handleEdit(device)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(device);
+                          }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#b2dfdb")
+                            (e.currentTarget.style.background = "#dbeafe")
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#e0f2f1")
+                            (e.currentTarget.style.background = "transparent")
                           }
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="16"
+                            height="16"
                             fill="none"
-                            stroke="#2563eb"
+                            stroke="currentColor"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -1595,36 +1619,41 @@ function Assets() {
                         </button>
                         <button
                           style={{
-                            background: "#ffebee",
+                            background: "transparent",
                             border: "none",
-                            borderRadius: 6,
-                            padding: 6,
+                            borderRadius: "4px",
+                            padding: "6px",
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "center",
                             transition: "background 0.2s",
+                            color: "#ef4444",
                           }}
                           title="Delete"
-                          onClick={() => handleDelete(device.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(device.id);
+                          }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.background = "#ffcdd2")
+                            (e.currentTarget.style.background = "#fef2f2")
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "#ffebee")
+                            (e.currentTarget.style.background = "transparent")
                           }
                         >
                           <svg
-                            width="18"
-                            height="18"
+                            width="16"
+                            height="16"
                             fill="none"
-                            stroke="#e57373"
+                            stroke="currentColor"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             viewBox="0 0 24 24"
                           >
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                            <polyline points="3,6 5,6 21,6" />
+                            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
                             <line x1="10" y1="11" x2="10" y2="17" />
                             <line x1="14" y1="11" x2="14" y2="17" />
                           </svg>
@@ -1637,9 +1666,10 @@ function Assets() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
-      {/* Pagination Controls */}
+      {/* Fixed Pagination Footer */}
       {(() => {
         const totalPages = Math.ceil(filteredDevices.length / devicesPerPage);
         const startIndex = (currentPage - 1) * devicesPerPage + 1;
@@ -1648,19 +1678,22 @@ function Assets() {
           filteredDevices.length
         );
 
-        if (totalPages <= 1) return null;
-
         return (
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginTop: "20px",
-              padding: "16px 20px",
+              padding: "12px 20px", // Reduced padding for fixed layout
               background: "#fff",
-              borderRadius: "12px",
-              boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+              borderRadius: "0",
+              boxShadow: "none",
+              border: "none",
+              borderTop: "1px solid #e5e7eb",
+              position: "sticky",
+              bottom: "0",
+              zIndex: "10",
+              flexShrink: 0,
             }}
           >
             <div
@@ -1674,7 +1707,7 @@ function Assets() {
               }}
             >
               <span>
-                Showing {startIndex} - {endIndex} of {filteredDevices.length}{" "}
+                Showing {filteredDevices.length === 0 ? 0 : startIndex} - {filteredDevices.length === 0 ? 0 : endIndex} of {filteredDevices.length}{" "}
                 devices
               </span>
               <div
@@ -1696,6 +1729,7 @@ function Assets() {
                     color: "#445F6D",
                   }}
                 >
+                  <option value={10}>10</option>
                   <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
@@ -1704,119 +1738,121 @@ function Assets() {
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <button
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                First
-              </button>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  First
+                </button>
 
-              <button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Previous
-              </button>
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Previous
+                </button>
 
-              {/* Page Numbers */}
-              {(() => {
-                const pageNumbers = [];
-                const maxVisiblePages = 5;
-                let startPage = Math.max(
-                  1,
-                  currentPage - Math.floor(maxVisiblePages / 2)
-                );
-                let endPage = Math.min(
-                  totalPages,
-                  startPage + maxVisiblePages - 1
-                );
-
-                if (endPage - startPage + 1 < maxVisiblePages) {
-                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-
-                for (let i = startPage; i <= endPage; i++) {
-                  pageNumbers.push(
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(i)}
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: i === currentPage ? "#70C1B3" : "#fff",
-                        color: i === currentPage ? "#fff" : "#445F6D",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        minWidth: "40px",
-                      }}
-                    >
-                      {i}
-                    </button>
+                {/* Page Numbers */}
+                {(() => {
+                  const pageNumbers = [];
+                  const maxVisiblePages = 5;
+                  let startPage = Math.max(
+                    1,
+                    currentPage - Math.floor(maxVisiblePages / 2)
                   );
-                }
+                  let endPage = Math.min(
+                    totalPages,
+                    startPage + maxVisiblePages - 1
+                  );
 
-                return pageNumbers;
-              })()}
+                  if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                  }
 
-              <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Next
-              </button>
+                  for (let i = startPage; i <= endPage; i++) {
+                    pageNumbers.push(
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #e0e7ef",
+                          background: i === currentPage ? "#70C1B3" : "#fff",
+                          color: i === currentPage ? "#fff" : "#445F6D",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          minWidth: "40px",
+                        }}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
 
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Last
-              </button>
-            </div>
+                  return pageNumbers;
+                })()}
+
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Next
+                </button>
+
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    border: "1px solid #e0e7ef",
+                    background: currentPage === totalPages ? "#f5f7fa" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                >
+                  Last
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -2255,6 +2291,7 @@ function Assets() {
 
                             setSelectedTransferEmployee(emp);
                             setShowTransferPrompt(true);
+                            showSuccess(`Device ${assigningDevice.deviceTag} successfully assigned to ${emp.fullName}`);
                             loadDevicesAndEmployees();
                           }}
                         >
@@ -2552,16 +2589,8 @@ function Assets() {
           </div>
         </div>
       )}
-
-      {/* Device History Modal */}
-      {showDeviceHistory && selectedDeviceForHistory && (
-        <DeviceHistory
-          deviceTag={selectedDeviceForHistory.deviceTag}
-          deviceId={selectedDeviceForHistory.id}
-          onClose={handleCloseDeviceHistory}
-        />
-      )}
-    </div>
+      </div>
+    </React.Fragment>
   );
 }
 

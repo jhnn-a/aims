@@ -1,8 +1,44 @@
 import { Link, useLocation } from "react-router-dom";
 
+// Add responsive styles
+const responsiveStyles = `
+  @media (max-width: 768px) {
+    .sidebar-nav {
+      width: 200px !important;
+    }
+    .main-content {
+      margin-left: 200px !important;
+      width: calc(100vw - 200px) !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .sidebar-nav {
+      width: 160px !important;
+    }
+    .main-content {
+      margin-left: 160px !important;
+      width: calc(100vw - 160px) !important;
+    }
+  }
+  
+  /* Ensure no scrollbars on body and html */
+  body, html {
+    overflow: hidden !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  #root {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+`;
+
 const sidebarStyle = {
   background: "#445F6D", // Payne's gray
-  minHeight: "100vh",
+  height: "calc(100vh - 56px)", // Full height minus header height
   padding: "36px 0 24px 0",
   boxShadow: "2px 0 16px rgba(68,95,109,0.10)",
   display: "flex",
@@ -11,10 +47,14 @@ const sidebarStyle = {
   borderRight: "1px solid #5a768a",
   transition: "background 0.2s",
   zIndex: 10,
-  position: "relative",
+  position: "fixed", // Fixed positioning
+  top: "56px", // Start below header
+  left: "0", // Align to left edge
   minWidth: 120,
   maxWidth: 260,
-  width: "fit-content",
+  width: "260px", // Fixed width for consistent margin calculation
+  overflowY: "auto", // Allow scrolling within sidebar if content is too long
+  overflowX: "hidden", // Prevent horizontal scrolling
 };
 
 const ulStyle = {
@@ -80,7 +120,7 @@ const bottomBoxStyle = {
   fontSize: 13,
   color: "#FFE066", // Naples yellow for accent
   letterSpacing: 0.2,
-  fontFamily: "Segoe UI, Arial, sans-serif",
+  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 };
 
 function Sidebar({ user }) {
@@ -97,7 +137,9 @@ function Sidebar({ user }) {
     links.push({ to: "/user-management", label: "User Management" });
   }
   return (
-    <nav style={sidebarStyle}>
+    <>
+      <style>{responsiveStyles}</style>
+      <nav style={sidebarStyle} className="sidebar-nav">
       <ul style={ulStyle}>
         {links.map((l) => (
           <li key={l.to} style={liStyle}>
@@ -123,6 +165,7 @@ function Sidebar({ user }) {
         </span>
       </div>
     </nav>
+    </>
   );
 }
 

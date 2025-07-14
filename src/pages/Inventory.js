@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
+import LoadingSpinner, { TableLoadingSpinner } from "../components/LoadingSpinner";
 import {
   addDevice,
   updateDevice,
@@ -16,6 +17,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
 import DeviceHistory from "../components/DeviceHistory";
+import { useSnackbar } from "../components/Snackbar";
 
 const initialForm = {
   deviceType: "",
@@ -530,8 +532,9 @@ function Inventory() {
       });
       closeAssignModal();
       loadDevicesAndEmployees();
+      showSuccess(`Device ${assigningDevice.deviceTag} temporarily deployed to ${selectedAssignEmployee.fullName}!`);
     } catch (err) {
-      alert("Failed to assign device or generate document. Please try again.");
+      showError("Failed to assign device or generate document. Please try again.");
     }
   };
 
@@ -542,6 +545,9 @@ function Inventory() {
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Snackbar notifications
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [tagError, setTagError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [useSerial, setUseSerial] = useState(false);
@@ -748,77 +754,90 @@ function Inventory() {
     setSaveError("");
     if (!isFormValid()) {
       setSaveError("Please fill in all required fields.");
+      showError("Please fill in all required fields.");
       return;
     }
-    const allDevices = await getAllDevices();
-    if (useSerial) {
-      const serialExists = allDevices.some(
-        (d) =>
-          d.deviceTag &&
-          d.deviceTag.toLowerCase() === form.deviceTag.toLowerCase() &&
-          (!form._editDeviceId || d.id !== form._editDeviceId)
-      );
-      if (serialExists) {
-        setSaveError(
-          "Serial number already exists. Please use a unique serial number."
+    
+    try {
+      const allDevices = await getAllDevices();
+      if (useSerial) {
+        const serialExists = allDevices.some(
+          (d) =>
+            d.deviceTag &&
+            d.deviceTag.toLowerCase() === form.deviceTag.toLowerCase() &&
+            (!form._editDeviceId || d.id !== form._editDeviceId)
         );
+        if (serialExists) {
+          setSaveError(
+            "Serial number already exists. Please use a unique serial number."
+          );
+          showError("Serial number already exists. Please use a unique serial number.");
+          return;
+        }
+      } else {
+        const isDuplicate = allDevices.some(
+          (d) =>
+            d.deviceTag === form.deviceTag &&
+            (!form._editDeviceId || d.id !== form._editDeviceId)
+        );
+        if (isDuplicate) {
+          setSaveError("Device tag already exists. Please use a unique tag.");
+          showError("Device tag already exists. Please use a unique tag.");
+          return;
+        }
+      }
+      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
+      if (!typeObj) {
+        setSaveError("Invalid device type.");
+        showError("Invalid device type.");
         return;
       }
-    } else {
-      const isDuplicate = allDevices.some(
-        (d) =>
-          d.deviceTag === form.deviceTag &&
-          (!form._editDeviceId || d.id !== form._editDeviceId)
-      );
-      if (isDuplicate) {
-        setSaveError("Device tag already exists. Please use a unique tag.");
-        return;
-      }
-    }
-    const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
-    if (!typeObj) {
-      setSaveError("Invalid device type.");
-      return;
-    }
-    const tagPrefix = `JOII${typeObj.code}`;
-    const payload = {
-      ...form,
-      condition: form.condition || "New",
-      acquisitionDate: form.acquisitionDate || "",
-    };
-    if (useSerial) {
-      if (!form._editDeviceId) {
-        const newDevice = await addDevice(payload);
-        // Log device creation
-        await logDeviceHistory({
-          employeeId: null,
-          employeeName: null,
-          deviceId: newDevice.id,
-          deviceTag: payload.deviceTag,
-          action: "added",
-          date: new Date(), // Store full timestamp for precise ordering
-        });
+      const tagPrefix = `JOII${typeObj.code}`;
+      const payload = {
+        ...form,
+        condition: form.condition || "New",
+        acquisitionDate: form.acquisitionDate || "",
+      };
+      if (useSerial) {
+        if (!form._editDeviceId) {
+          const newDevice = await addDevice(payload);
+          // Log device creation
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: newDevice.id,
+            deviceTag: payload.deviceTag,
+            action: "added",
+            date: new Date(), // Store full timestamp for precise ordering
+          });
+          showSuccess(`Device ${payload.deviceTag} added successfully!`);
+        } else {
+          await updateDevice(form._editDeviceId, payload);
+          showSuccess(`Device ${payload.deviceTag} updated successfully!`);
+        }
       } else {
-        await updateDevice(form._editDeviceId, payload);
+        if (!form._editDeviceId) {
+          const newDevice = await addDevice(payload, tagPrefix);
+          // Log device creation
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: newDevice.id,
+            deviceTag: payload.deviceTag,
+            action: "added",
+            date: new Date(), // Store full timestamp for precise ordering
+          });
+          showSuccess(`Device ${payload.deviceTag} added successfully!`);
+        } else {
+          await updateDevice(form._editDeviceId, payload);
+          showSuccess(`Device ${payload.deviceTag} updated successfully!`);
+        }
       }
-    } else {
-      if (!form._editDeviceId) {
-        const newDevice = await addDevice(payload, tagPrefix);
-        // Log device creation
-        await logDeviceHistory({
-          employeeId: null,
-          employeeName: null,
-          deviceId: newDevice.id,
-          deviceTag: payload.deviceTag,
-          action: "added",
-          date: new Date(), // Store full timestamp for precise ordering
-        });
-      } else {
-        await updateDevice(form._editDeviceId, payload);
-      }
+      resetForm();
+      loadDevicesAndEmployees();
+    } catch (error) {
+      showError("Failed to save device. Please try again.");
     }
-    resetForm();
-    loadDevicesAndEmployees();
   };
 
   const handleEdit = (device) => {
@@ -865,8 +884,14 @@ function Inventory() {
   };
 
   const handleDelete = async (id) => {
-    await deleteDevice(id);
-    loadDevicesAndEmployees();
+    try {
+      const device = devices.find(d => d.id === id);
+      await deleteDevice(id);
+      loadDevicesAndEmployees();
+      showSuccess(`Device ${device?.deviceTag || id} deleted successfully!`);
+    } catch (error) {
+      showError("Failed to delete device. Please try again.");
+    }
   };
 
   const resetForm = () => {
@@ -958,11 +983,11 @@ function Inventory() {
         }
       }
       await loadDevicesAndEmployees();
-      alert(
+      showSuccess(
         `Import finished! Imported ${importedCount} of ${filteredRows.length} row(s).`
       );
     } catch (err) {
-      alert("Failed to import. Please check your Excel file format.");
+      showError("Failed to import. Please check your Excel file format.");
     }
     setImporting(false);
     setImportProgress({ current: 0, total: 0 });
@@ -1020,6 +1045,7 @@ function Inventory() {
     setSelectedIds([]);
     setSelectAll(false);
     setDeleteProgress({ current: 0, total: 0 });
+    showSuccess(`Successfully deleted ${selectedIds.length} device(s) from inventory`);
     loadDevicesAndEmployees();
   };
 
@@ -1204,6 +1230,7 @@ function Inventory() {
       });
     }
     closeAssignModal();
+    showSuccess(`Successfully assigned ${selectedIds.length} device(s) to ${selectedAssignEmployee.fullName}`);
     loadDevicesAndEmployees();
   };
 
@@ -1227,8 +1254,9 @@ function Inventory() {
         devices: filteredDevices, // Export only the filtered/displayed devices
         employees,
       });
+      showSuccess("Inventory data exported successfully!");
     } catch (error) {
-      alert("Failed to export inventory data. Please try again.");
+      showError("Failed to export inventory data. Please try again.");
     }
   };
 
@@ -1805,12 +1833,12 @@ function Inventory() {
         const firstTabData = newAcqTabs[0].data;
         await generateAcquisitionDocument(allDeviceList, firstTabData);
         setProgress(100);
-        alert(
+        showSuccess(
           `Successfully added ${totalAdded} device(s) across ${rangeTabs.length} device type(s) and generated acquisition document!`
         );
       } catch (docError) {
         console.error("Document generation failed:", docError);
-        alert(
+        showWarning(
           `Successfully added ${totalAdded} device(s), but document generation failed: ${docError.message}`
         );
       }
@@ -2159,7 +2187,7 @@ function Inventory() {
       )}
 
       {loading ? (
-        <p>Loading...</p>
+        <TableLoadingSpinner text="Loading inventory..." />
       ) : (
         <>
           <div style={styles.tableContainer}>
@@ -2389,7 +2417,7 @@ function Inventory() {
             </table>
           </div>
 
-          {/* Pagination Controls */}
+          {/* Fixed Pagination Footer */}
           {(() => {
             const totalPages = Math.ceil(
               filteredDevices.length / devicesPerPage
@@ -2400,19 +2428,23 @@ function Inventory() {
               filteredDevices.length
             );
 
-            if (totalPages <= 1) return null;
-
             return (
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  marginTop: "20px",
-                  padding: "16px 20px",
+                  padding: "12px 20px", // Reduced padding
                   background: "#fff",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 8px rgba(68,95,109,0.08)",
+                  borderRadius: "0",
+                  boxShadow: "none",
+                  border: "none",
+                  borderTop: "1px solid #e5e7eb",
+                  position: "sticky",
+                  bottom: "0",
+                  zIndex: "10",
+                  flexShrink: 0,
+                  marginTop: "0",
                 }}
               >
                 <div
@@ -2616,7 +2648,7 @@ function Inventory() {
                     boxSizing: "border-box",
                     outline: "none",
                     transition: "border-color 0.2s, background 0.2s",
-                    fontFamily: "Segoe UI, Arial, sans-serif",
+                    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#2563eb";
@@ -2661,7 +2693,7 @@ function Inventory() {
                             cursor: "pointer",
                             textAlign: "left",
                             transition: "all 0.2s",
-                            fontFamily: "Segoe UI, Arial, sans-serif",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           }}
                           onMouseEnter={(e) => {
                             e.target.style.background = "#f3f4f6";
@@ -3928,18 +3960,24 @@ export default Inventory;
 
 const styles = {
   pageContainer: {
-    padding: "32px 0 32px 0",
+    padding: "0", // Remove padding for fixed layout
     maxWidth: "100%",
-    background: "#f7f9fb",
-    minHeight: "100vh",
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    background: "transparent", // Let parent handle background
+    height: "100%", // Fill available height
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden", // Prevent page-level scrolling
   },
   headerBar: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 24,
-    padding: "0 24px",
+    marginBottom: 16, // Reduced margin for fixed layout
+    padding: "16px 24px", // Added consistent padding
+    flexShrink: 0, // Prevent header from shrinking
+    background: "#fff", // Add background for visual separation
+    borderBottom: "1px solid #e5e7eb",
   },
   title: {
     fontSize: 28,
@@ -3961,7 +3999,7 @@ const styles = {
     fontSize: 28,
     marginBottom: 18,
     letterSpacing: 0,
-    fontFamily: "Segoe UI, Arial, sans-serif",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
   },
   googleSearchBar: {
     display: "flex",
@@ -4014,7 +4052,11 @@ const styles = {
   tableContainer: {
     marginTop: 0,
     overflowX: "auto",
+    overflowY: "auto", // Allow vertical scrolling
     padding: "0 24px",
+    flex: 1, // Take remaining space
+    minHeight: 0, // Allow shrinking
+    background: "#fff",
   },
   table: {
     width: "100%",
