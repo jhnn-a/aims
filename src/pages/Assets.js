@@ -12,6 +12,7 @@ import LoadingSpinner, {
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
+import DeviceHistory from "../components/DeviceHistory";
 
 function DeviceFormModal({
   data,
@@ -446,6 +447,10 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
   const [currentPage, setCurrentPage] = useState(1);
   const [devicesPerPage, setDevicesPerPage] = useState(50);
+  
+  // Device history state
+  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -527,6 +532,19 @@ function Assets() {
         showError("Failed to delete device. Please try again.");
       }
     }
+  };
+
+  const handleShowDeviceHistory = (device) => {
+    console.log("Opening device history for device:", device);
+    console.log("Device tag:", device.deviceTag);
+    console.log("Device ID:", device.id);
+    setSelectedDeviceForHistory(device);
+    setShowDeviceHistory(true);
+  };
+
+  const handleCloseDeviceHistory = () => {
+    setShowDeviceHistory(false);
+    setSelectedDeviceForHistory(null);
   };
 
   const handleUnassign = (device) => {
@@ -1226,10 +1244,10 @@ function Assets() {
               onClick={handleBulkReassign}
               style={{
                 padding: "10px 16px",
-                border: "1px solid #3b82f6",
+                border: "1px solid #d1d5db",
                 borderRadius: "6px",
-                background: selectedDeviceIds.length ? "#3b82f6" : "#f9fafb",
-                color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+                background: selectedDeviceIds.length ? "#3b82f6" : "#f3f4f6",
+                color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
                 cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                 fontSize: "14px",
                 fontWeight: 500,
@@ -1245,10 +1263,10 @@ function Assets() {
               onClick={handleBulkUnassign}
               style={{
                 padding: "10px 16px",
-                border: "1px solid #ef4444",
+                border: "1px solid #d1d5db",
                 borderRadius: "6px",
-                background: selectedDeviceIds.length ? "#ef4444" : "#f9fafb",
-                color: selectedDeviceIds.length ? "#fff" : "#6b7280",
+                background: selectedDeviceIds.length ? "#ef4444" : "#f3f4f6",
+                color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
                 cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                 fontSize: "14px",
                 fontWeight: 500,
@@ -1536,18 +1554,21 @@ function Assets() {
                         <td
                           style={{
                             padding: "12px 16px",
-                            color: "#1f2937",
+                            color: "rgb(107, 114, 128)",
                             fontSize: "14px",
-                            fontWeight: "500",
                             borderBottom: "none",
                           }}
                         >
                           <span
                             style={{
-                              color: "#3b82f6",
-                              textDecoration: "underline",
+                              color: "rgb(107, 114, 128)",
                               cursor: "pointer",
                             }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowDeviceHistory(device);
+                            }}
+                            title="Click to view device history"
                           >
                             {device.deviceTag}
                           </span>
@@ -2647,6 +2668,15 @@ function Assets() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Device History Modal */}
+        {showDeviceHistory && selectedDeviceForHistory && (
+          <DeviceHistory
+            deviceTag={selectedDeviceForHistory.deviceTag}
+            deviceId={selectedDeviceForHistory.id}
+            onClose={handleCloseDeviceHistory}
+          />
         )}
       </div>
     </React.Fragment>
