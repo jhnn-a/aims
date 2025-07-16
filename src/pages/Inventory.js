@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
@@ -446,6 +446,52 @@ function DeviceFormModal({
 }
 
 function Inventory() {
+  // Helper function to create truncated text with hover tooltip
+  const TruncatedText = ({ text, maxLength = 20, style = {}, title = null }) => {
+    const displayText = text && text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
+    
+    return (
+      <div 
+        style={{
+          ...style,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          width: '100%',
+          cursor: text && text.length > maxLength ? 'help' : 'default',
+        }}
+        title={title || (text && text.length > maxLength ? text : undefined)}
+      >
+        {displayText || ''}
+      </div>
+    );
+  };
+
+  // Add global styles to hide scrollbars
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Hide scrollbars for webkit browsers */
+      ::-webkit-scrollbar {
+        display: none;
+      }
+      
+      /* Hide scrollbars for Firefox */
+      * {
+        scrollbar-width: none;
+      }
+      
+      /* Hide scrollbars for IE and Edge */
+      * {
+        -ms-overflow-style: none;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   // Add this function inside your Inventory component, before the return statement:
   const handleTempDeployDone = async () => {
     if (!selectedAssignEmployee || !assigningDevice) return;
@@ -2100,105 +2146,382 @@ function Inventory() {
   };
 
   return (
-    <div style={styles.pageContainer}>
-      <div style={styles.headerBarGoogle}>
-        <h2 style={styles.googleTitle}>Device Inventory</h2>
-        <div style={styles.googleSearchBar}>
-          <svg
-            width="22"
-            height="22"
-            style={{ color: "#445F6D", opacity: 0.7 }}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search devices..."
-            value={deviceSearch}
-            onChange={(e) => setDeviceSearch(e.target.value)}
-            style={styles.googleSearchInput}
-          />
+    <div style={{
+      height: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      background: "transparent",
+      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      overflow: "hidden",
+      boxSizing: "border-box",
+    }}>
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+        flexShrink: 0,
+        background: "rgb(255, 255, 255)",
+        borderBottom: "1px solid #e5e7eb",
+      }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "16px 16px",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#f9fafb",
+            borderRadius: "6px",
+            border: "1px solid #d1d5db",
+            padding: "10px 14px",
+            flex: 1,
+            maxWidth: "400px",
+            minWidth: "280px",
+          }}>
+            <svg
+              width="18"
+              height="18"
+              style={{ color: "#6b7280", opacity: 0.8 }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search inventory devices..."
+              value={deviceSearch}
+              onChange={(e) => setDeviceSearch(e.target.value)}
+              style={{
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: "14px",
+                color: "#374151",
+                padding: "0 0 0 10px",
+                width: "100%",
+                fontWeight: 400,
+              }}
+            />
+          </div>
+          
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            marginLeft: "auto",
+            flexWrap: "wrap",
+          }}>
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                background: "#6b7280",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#4b5563";
+                e.target.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#6b7280";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Device
+            </button>
+            
+            <label>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: "none" }}
+                onChange={handleImportExcel}
+                disabled={importing}
+              />
+              <button
+                type="button"
+                disabled={importing}
+                onClick={() =>
+                  document
+                    .querySelector('input[type="file"][accept=".xlsx,.xls"]')
+                    .click()
+                }
+                style={{
+                  background: importing ? "#9ca3af" : "#6b7280",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "9px 16px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  cursor: importing ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!importing) {
+                    e.target.style.background = "#4b5563";
+                    e.target.style.transform = "translateY(-1px)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!importing) {
+                    e.target.style.background = "#6b7280";
+                    e.target.style.transform = "translateY(0)";
+                  }
+                }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
+                </svg>
+                {importing
+                  ? importProgress.total > 0
+                    ? `Importing ${importProgress.current}/${importProgress.total}...`
+                    : "Importing..."
+                  : "Import Excel"}
+              </button>
+            </label>
+            
+            <button
+              onClick={handleExportToExcel}
+              title="Export all inventory data to Excel"
+              style={{
+                background: "#6b7280",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#4b5563";
+                e.target.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#6b7280";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 4v12"></path>
+              </svg>
+              Export Excel
+            </button>
+            
+            <button
+              disabled={selectedIds.length === 0}
+              onClick={() => handleBulkAssign()}
+              style={{
+                background: selectedIds.length ? "#6b7280" : "#9ca3af",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: selectedIds.length ? "pointer" : "not-allowed",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (selectedIds.length) {
+                  e.target.style.background = "#4b5563";
+                  e.target.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedIds.length) {
+                  e.target.style.background = "#6b7280";
+                  e.target.style.transform = "translateY(0)";
+                }
+              }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 7a4 4 0 108 0 4 4 0 00-8 0zM22 11l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              Assign
+            </button>
+            
+            <button
+              disabled={selectedIds.length === 0 || deleteProgress.total > 0}
+              onClick={handleBulkDelete}
+              style={{
+                background: selectedIds.length && deleteProgress.total === 0 ? "#ef4444" : "#9ca3af",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: selectedIds.length && deleteProgress.total === 0 ? "pointer" : "not-allowed",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                if (selectedIds.length && deleteProgress.total === 0) {
+                  e.target.style.background = "#dc2626";
+                  e.target.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedIds.length && deleteProgress.total === 0) {
+                  e.target.style.background = "#ef4444";
+                  e.target.style.transform = "translateY(0)";
+                }
+              }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <polyline points="3,6 5,6 21,6"></polyline>
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+              </svg>
+              Delete
+            </button>
+            
+            <button
+              onClick={() => setShowNewAcqModal(true)}
+              style={{
+                background: "#6b7280",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#4b5563";
+                e.target.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#6b7280";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10,9 9,9 8,9"></polyline>
+              </svg>
+              New Acquisitions
+            </button>
+            
+            {deleteProgress.total > 0 && (
+              <span style={{
+                fontSize: "14px",
+                color: "#ef4444",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}>
+                <div style={{
+                  width: "16px",
+                  height: "16px",
+                  border: "2px solid #ef4444",
+                  borderTop: "2px solid transparent",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite",
+                }}></div>
+                Deleting {deleteProgress.current}/{deleteProgress.total}...
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <div style={styles.buttonBar}>
-        <button style={styles.button} onClick={() => setShowForm(true)}>
-          Add Device
-        </button>
-        <label>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            style={{ display: "none" }}
-            onChange={handleImportExcel}
-            disabled={importing}
-          />
-          <button
-            type="button"
-            disabled={importing}
-            style={styles.button}
-            onClick={() =>
-              document
-                .querySelector('input[type="file"][accept=".xlsx,.xls"]')
-                .click()
-            }
-          >
-            {importing
-              ? importProgress.total > 0
-                ? `Importing ${importProgress.current}/${importProgress.total}...`
-                : "Importing..."
-              : "Import Excel"}
-          </button>
-        </label>
-        <button
-          style={styles.button}
-          onClick={handleExportToExcel}
-          title="Export all inventory data to Excel"
-        >
-          Export Excel
-        </button>
-        <button
-          style={{
-            ...styles.button,
-            background: selectedIds.length
-              ? styles.button.background
-              : styles.buttonDisabled.background,
-            color: selectedIds.length
-              ? styles.button.color
-              : styles.buttonDisabled.color,
-          }}
-          disabled={selectedIds.length === 0}
-          onClick={() => handleBulkAssign()}
-        >
-          Assign
-        </button>
-        <button
-          style={{
-            ...styles.button,
-            background: selectedIds.length
-              ? "#e57373"
-              : styles.buttonDisabled.background,
-            color: selectedIds.length ? "#fff" : styles.buttonDisabled.color,
-          }}
-          disabled={selectedIds.length === 0 || deleteProgress.total > 0}
-          onClick={handleBulkDelete}
-        >
-          Delete
-        </button>
-        <button style={styles.button} onClick={() => setShowNewAcqModal(true)}>
-          New Acquisitions
-        </button>
-        {deleteProgress.total > 0 && (
-          <span style={styles.deletingText}>
-            Deleting {deleteProgress.current}/{deleteProgress.total}...
-          </span>
-        )}
+        
+        {/* Table Header - Fixed with search bar */}
+        <div style={{
+          padding: "0",
+          background: "rgb(255, 255, 255)",
+        }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            minWidth: "1200px",
+            background: "#fff",
+            padding: "0",
+          }}>
+            <div style={{ ...styles.th, flex: "0 0 50px", textAlign: "center", overflow: "hidden" }}>
+              <input
+                type="checkbox"
+                checked={(() => {
+                  // Filter devices based on search AND exclude assigned devices
+                  const filteredDevices = getUnassignedDevices(
+                    devices,
+                    deviceSearch
+                  );
+
+                  // Get current page devices
+                  const startIndex = (currentPage - 1) * devicesPerPage;
+                  const endIndex = startIndex + devicesPerPage;
+                  const currentPageDevices = filteredDevices.slice(
+                    startIndex,
+                    endIndex
+                  );
+
+                  return (
+                    currentPageDevices.length > 0 &&
+                    currentPageDevices.every((device) =>
+                      selectedIds.includes(device.id)
+                    )
+                  );
+                })()}
+                onChange={handleSelectAll}
+                style={{ width: 16, height: 16, margin: 0 }}
+              />
+            </div>
+            <div style={{ ...styles.th, flex: "0 0 60px", overflow: "hidden" }}>#</div>
+            <div style={{ ...styles.th, flex: "0 0 150px", overflow: "hidden" }}>{fieldLabels.deviceTag}</div>
+            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.deviceType}</div>
+            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.brand}</div>
+            <div style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}>{fieldLabels.model}</div>
+            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.client}</div>
+            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.condition}</div>
+            <div style={{ ...styles.th, flex: "1 1 auto", overflow: "hidden" }}>{fieldLabels.remarks}</div>
+            <div style={{ ...styles.th, flex: "0 0 140px", overflow: "hidden" }}>{fieldLabels.acquisitionDate}</div>
+            <div style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}>Actions</div>
+          </div>
+        </div>
       </div>
 
       {showForm && (
@@ -2224,68 +2547,30 @@ function Inventory() {
       {loading ? (
         <TableLoadingSpinner text="Loading inventory..." />
       ) : (
-        <>
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th
-                    style={{
-                      ...styles.th,
-                      width: 32,
-                      minWidth: 32,
-                      maxWidth: 32,
-                      textAlign: "center",
-                    }}
-                  >
-                    {" "}
-                    <input
-                      type="checkbox"
-                      checked={(() => {
-                        // Filter devices based on search AND exclude assigned devices
-                        const filteredDevices = getUnassignedDevices(
-                          devices,
-                          deviceSearch
-                        );
-
-                        // Get current page devices
-                        const startIndex = (currentPage - 1) * devicesPerPage;
-                        const endIndex = startIndex + devicesPerPage;
-                        const currentPageDevices = filteredDevices.slice(
-                          startIndex,
-                          endIndex
-                        );
-
-                        return (
-                          currentPageDevices.length > 0 &&
-                          currentPageDevices.every((device) =>
-                            selectedIds.includes(device.id)
-                          )
-                        );
-                      })()}
-                      onChange={handleSelectAll}
-                      style={{ width: 16, height: 16, margin: 0 }}
-                    />
-                  </th>
-                  <th style={styles.th}>{fieldLabels.acquisitionDate}</th>
-                  <th style={styles.th}>{fieldLabels.deviceType}</th>
-                  <th style={styles.th}>{fieldLabels.deviceTag}</th>
-                  <th style={styles.th}>{fieldLabels.brand}</th>
-                  <th style={styles.th}>{fieldLabels.model}</th>
-                  <th style={styles.th}>{fieldLabels.client}</th>
-                  <th style={styles.th}>{fieldLabels.condition}</th>
-                  <th style={styles.th}>{fieldLabels.remarks}</th>
-                  <th
-                    style={{
-                      ...styles.th,
-                      textAlign: "center",
-                    }}
-                  >
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+        <div style={{
+          flex: 1,
+          overflow: "auto",
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          WebkitScrollbar: { display: "none" },
+        }}>
+          <div style={{
+            overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: "100%",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            WebkitScrollbar: { display: "none" },
+          }}>
+            <div style={{
+              width: "100%",
+              minWidth: "1200px",
+              background: "#fff",
+            }}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
                   const filteredDevices = getUnassignedDevices(
@@ -2304,95 +2589,130 @@ function Inventory() {
                     endIndex
                   );
 
-                  return currentDevices.map((device) => (
-                    <tr key={device.id}>
-                      <td
-                        style={{
-                          ...styles.td,
-                          width: 32,
-                          minWidth: 32,
-                          maxWidth: 32,
-                          textAlign: "center",
-                        }}
-                      >
+                  return currentDevices.map((device, index) => (
+                    <div
+                      key={device.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        minWidth: "1200px",
+                        borderBottom: "1px solid #f3f4f6",
+                        background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                        cursor: "pointer",
+                        transition: "background 0.15s",
+                      }}
+                      onClick={() => handleSelectOne(device.id)}
+                      onMouseEnter={(e) => {
+                        if (index % 2 === 0) {
+                          e.currentTarget.style.background = "rgb(235, 235, 240)";
+                        } else {
+                          e.currentTarget.style.background = "rgb(225, 225, 235)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)";
+                      }}
+                    >
+                      <div style={{ flex: "0 0 50px", padding: "12px 16px", textAlign: "center" }}>
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(device.id)}
-                          onChange={() => handleSelectOne(device.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectOne(device.id);
+                          }}
                           style={{ width: 16, height: 16, margin: 0 }}
                         />
-                      </td>
-                      <td style={styles.td}>
+                      </div>
+                      <div style={{ flex: "0 0 60px", padding: "12px 16px", fontSize: "14px", color: "rgb(55, 65, 81)" }}>
+                        {(currentPage - 1) * devicesPerPage + index + 1}
+                      </div>
+                      <div style={{ flex: "0 0 150px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShowDeviceHistory(device);
+                          }}
+                          style={{
+                            cursor: "pointer",
+                            color: "rgb(107, 114, 128)",
+                            textDecoration: "none",
+                            fontWeight: 400,
+                            transition: "color 0.2s",
+                            display: "block",
+                            width: "100%",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                          }
+                          title={`Click to view device history: ${device.deviceTag}`}
+                        >
+                          <TruncatedText text={device.deviceTag} maxLength={18} style={{ cursor: "pointer" }} />
+                        </span>
+                      </div>
+                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.deviceType} maxLength={12} />
+                      </div>
+                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.brand} maxLength={12} />
+                      </div>
+                      <div style={{ flex: "0 0 120px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.model} maxLength={14} />
+                      </div>
+                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.client || "-"} maxLength={12} />
+                      </div>
+                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.condition} maxLength={12} />
+                      </div>
+                      <div style={{ flex: "1 1 auto", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                        <TruncatedText text={device.remarks} maxLength={50} />
+                      </div>
+                      <div style={{ flex: "0 0 140px", padding: "12px 16px", fontSize: "14px", color: "#374151" }}>
                         {device.acquisitionDate
                           ? formatDateToMMDDYYYY(device.acquisitionDate)
                           : ""}
-                      </td>
-                      <td style={styles.td}>{device.deviceType}</td>
-                      <td style={styles.td}>
-                        <span
-                          onClick={() => handleShowDeviceHistory(device)}
-                          style={{
-                            cursor: "pointer",
-                            color: "#2563eb",
-                            textDecoration: "underline",
-                            transition: "color 0.2s",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.color = "#1d4ed8")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.color = "#2563eb")
-                          }
-                          title="Click to view device history"
-                        >
-                          {device.deviceTag}
-                        </span>
-                      </td>
-                      <td style={styles.td}>{device.brand}</td>
-                      <td style={styles.td}>{device.model}</td>
-                      <td style={styles.td}>{device.client || "-"}</td>
-                      <td style={styles.td}>{device.condition}</td>
-                      <td style={styles.td}>{device.remarks}</td>
-                      <td
-                        style={{
-                          ...styles.td,
-                          textAlign: "center",
-                        }}
-                      >
+                      </div>
+                      <div style={{ flex: "0 0 120px", padding: "12px 16px" }}>
                         <div
                           style={{
                             display: "flex",
-                            gap: 24,
+                            gap: 8,
                             alignItems: "center",
                             justifyContent: "center",
                           }}
                         >
                           <button
                             style={{
-                              width: 48,
-                              height: 48,
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 12,
-                              background: "#eaf7fa",
+                              borderRadius: 4,
+                              background: "transparent",
                               cursor: "pointer",
                               transition: "background 0.18s",
+                              padding: "6px",
                             }}
                             onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#d0f0f7")
+                              (e.currentTarget.style.background = "#dbeafe")
                             }
                             onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#eaf7fa")
+                              (e.currentTarget.style.background = "transparent")
                             }
-                            onClick={() => handleEdit(device)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(device);
+                            }}
                             title="Edit"
                           >
                             <svg
-                              width="18"
-                              height="18"
+                              width="16"
+                              height="16"
                               fill="none"
                               stroke="#2563eb"
                               strokeWidth="2"
@@ -2406,30 +2726,32 @@ function Inventory() {
                           </button>
                           <button
                             style={{
-                              width: 48,
-                              height: 48,
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 12,
-                              background: "#ffe9ec",
+                              borderRadius: 4,
+                              background: "transparent",
                               cursor: "pointer",
                               transition: "background 0.18s",
+                              padding: "6px",
                             }}
                             onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#ffd6de")
+                              (e.currentTarget.style.background = "#fef2f2")
                             }
                             onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "#ffe9ec")
+                              (e.currentTarget.style.background = "transparent")
                             }
-                            onClick={() => handleDelete(device.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(device.id);
+                            }}
                             title="Delete"
                           >
                             <svg
-                              width="18"
-                              height="18"
+                              width="16"
+                              height="16"
                               fill="none"
                               stroke="#e57373"
                               strokeWidth="2"
@@ -2444,12 +2766,12 @@ function Inventory() {
                             </svg>
                           </button>
                         </div>
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ));
                 })()}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
 
           {/* Fixed Pagination Footer */}
@@ -2470,7 +2792,7 @@ function Inventory() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 20px", // Reduced padding
-                  background: "#fff",
+                  background: "rgb(255, 255, 255)",
                   borderRadius: "0",
                   boxShadow: "none",
                   border: "none",
@@ -2647,7 +2969,7 @@ function Inventory() {
               </div>
             );
           })()}
-        </>
+        </div>
       )}
 
       {/* Assign Modal */}
@@ -2706,6 +3028,9 @@ function Inventory() {
                     borderRadius: 8,
                     background: "#f9fafb",
                     marginBottom: 16,
+                    scrollbarWidth: "none",
+                    msOverflowStyle: "none",
+                    WebkitScrollbar: { display: "none" },
                   }}
                 >
                   {employees
@@ -4002,7 +4327,7 @@ const styles = {
     background: "transparent", // Let parent handle background
     height: "100%", // Fill available height
     fontFamily:
-      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden", // Prevent page-level scrolling
@@ -4038,7 +4363,7 @@ const styles = {
     marginBottom: 18,
     letterSpacing: 0,
     fontFamily:
-      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   googleSearchBar: {
     display: "flex",
@@ -4092,39 +4417,46 @@ const styles = {
     marginTop: 0,
     overflowX: "auto",
     overflowY: "auto", // Allow vertical scrolling
-    padding: "0 24px",
+    padding: "0",
     flex: 1, // Take remaining space
     minHeight: 0, // Allow shrinking
     background: "#fff",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    WebkitScrollbar: { display: "none" },
   },
   table: {
     width: "100%",
     minWidth: 900,
-    borderCollapse: "separate",
+    borderCollapse: "collapse",
     borderSpacing: 0,
     background: "#fff",
-    borderRadius: 16,
-    boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
     overflow: "hidden",
     tableLayout: "auto",
   },
   th: {
-    padding: "16px 12px",
-    background: "#445F6D",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 16,
-    borderBottom: "2px solid #e0e7ef",
+    padding: "12px 16px",
+    background: "rgb(255, 255, 255)",
+    color: "rgb(55, 65, 81)",
+    fontWeight: 500,
+    fontSize: 12,
+    border: "none",
     textAlign: "left",
-    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
     whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    position: "sticky",
+    top: 0,
+    zIndex: 5,
   },
   td: {
-    padding: "14px 12px",
-    color: "#233037",
-    fontSize: 15,
-    borderBottom: "1px solid #e0e7ef",
-    background: "#f7f9fb",
+    padding: "12px 16px",
+    color: "#374151",
+    fontSize: 14,
+    borderBottom: "1px solid #e5e7eb",
+    background: "#fff",
     verticalAlign: "middle",
     wordBreak: "break-word",
   },
@@ -4195,6 +4527,9 @@ const styles = {
     transition: "box-shadow 0.2s",
     maxHeight: "85vh",
     overflowY: "auto",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    WebkitScrollbar: { display: "none" },
   },
   modalTitle: {
     fontSize: 20,
@@ -4303,38 +4638,32 @@ const styles = {
     width: "100%",
   },
   actionEditButton: {
-    background: "#eaf7fa",
+    background: "transparent",
     border: "none",
-    borderRadius: 12,
-    width: 48,
-    height: 48,
-    padding: 0,
+    borderRadius: 4,
+    padding: "6px",
     cursor: "pointer",
-    transition: "background 0.18s, box-shadow 0.18s",
-    boxShadow: "0 1px 4px rgba(68,95,109,0.08)",
+    transition: "background 0.18s",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
   actionEditButtonHover: {
-    background: "#d0f0f7",
+    background: "#dbeafe",
   },
   actionDeleteButton: {
-    background: "#ffe9ec",
+    background: "transparent",
     border: "none",
-    borderRadius: 12,
-    width: 48,
-    height: 48,
-    padding: 0,
+    borderRadius: 4,
+    padding: "6px",
     cursor: "pointer",
-    transition: "background 0.18s, box-shadow 0.18s",
-    boxShadow: "0 1px 4px rgba(68,95,109,0.08)",
+    transition: "background 0.18s",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
   actionDeleteButtonHover: {
-    background: "#ffd6de",
+    background: "#fef2f2",
   },
   // Tab styles for the New Acquisitions modal
   tabButton: {
