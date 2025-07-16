@@ -197,7 +197,7 @@ export const createSampleDeviceHistory = async (deviceTag, deviceId) => {
       action: "unassigned",
       date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
       reason: "Device upgrade",
-      condition: "Working",
+      condition: "GOOD",
     }
   ];
 

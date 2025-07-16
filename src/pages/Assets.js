@@ -14,6 +14,24 @@ import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
 import DeviceHistory from "../components/DeviceHistory";
 
+// Function to get background color based on condition
+const getConditionColor = (condition) => {
+  const colorMap = {
+    GOOD: "#007BFF", // Blue
+    BRANDNEW: "#28A745", // Green
+    DEFECTIVE: "#DC3545", // Red
+    "NEEDS REPAIR": "#FFC107", // Yellow
+    RETIRED: "#6C757D", // Gray
+  };
+  return colorMap[condition] || "#6C757D"; // Default to gray
+};
+
+// Function to get text color for better contrast
+const getConditionTextColor = (condition) => {
+  // Yellow background needs dark text for better contrast
+  return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
+
 function DeviceFormModal({
   data,
   onChange,
@@ -42,7 +60,7 @@ function DeviceFormModal({
     { label: "SSD", code: "SSD" },
     { label: "Webcam", code: "W" },
   ];
-  const conditions = ["New", "Working", "Needs Repair", "Retired"];
+  const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
 
   return (
     <div
@@ -447,7 +465,7 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
   const [currentPage, setCurrentPage] = useState(1);
   const [devicesPerPage, setDevicesPerPage] = useState(50);
-  
+
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
@@ -555,10 +573,10 @@ function Assets() {
 
   const confirmUnassign = async () => {
     if (!unassignDevice) return;
-    let condition = "Working";
+    let condition = "GOOD";
     let reason = "Normal unassign (still working)";
     if (unassignReason === "defective") {
-      condition = "Defective";
+      condition = "DEFECTIVE";
       reason = "Defective";
     }
     try {
@@ -806,10 +824,10 @@ function Assets() {
       );
       return;
     }
-    let condition = "Working";
+    let condition = "GOOD";
     let reason = "Normal unassign (still working)";
     if (bulkUnassignReason === "defective") {
-      condition = "Defective";
+      condition = "DEFECTIVE";
       reason = "Defective (bulk)";
     }
     // Get the employee
@@ -2275,6 +2293,7 @@ function Assets() {
               {!showTransferPrompt && (
                 <>
                   <input
+
                     type="text"
                     placeholder="Search employee..."
                     value={assignSearch}
