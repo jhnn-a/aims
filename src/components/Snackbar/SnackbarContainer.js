@@ -11,6 +11,9 @@ const SnackbarContainer = () => {
       {snackbars.map((snackbar, index) => (
         <div
           key={snackbar.id}
+          role="alert"
+          aria-live="polite"
+          aria-atomic="true"
           style={{
             position: "fixed",
             bottom: 20 + (index * 70), // Stack multiple notifications
@@ -37,6 +40,7 @@ const SnackbarContainer = () => {
           <span>{snackbar.message}</span>
           <button
             onClick={() => removeSnackbar(snackbar.id)}
+            aria-label="Close notification"
             style={{
               background: "transparent",
               border: "1px solid #fff",

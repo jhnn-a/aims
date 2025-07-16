@@ -12,8 +12,8 @@ import LoadingSpinner, {
 } from "../components/LoadingSpinner";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
-// Import react-hot-toast
-import { Toaster, toast } from "react-hot-toast";
+// Import snackbar for notifications
+import { useSnackbar } from "../components/Snackbar";
 
 const emptyUnit = {
   Tag: "",
@@ -235,6 +235,9 @@ const cpuGenOptions = ["i3", "i5", "i7"];
 const ramOptions = Array.from({ length: 32 }, (_, i) => i + 1);
 
 const UnitSpecs = () => {
+  // Initialize snackbar hook
+  const { showSuccess, showError, showInfo } = useSnackbar();
+  
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -346,7 +349,7 @@ const UnitSpecs = () => {
         await setDoc(doc(db, targetTable, unit.Tag), unit);
       }
       fetchData();
-      toast.success("Excel data imported successfully!");
+      showSuccess("Excel data imported successfully!");
     };
     reader.readAsBinaryString(file);
     // Reset input so same file can be re-imported if needed
@@ -392,7 +395,7 @@ const UnitSpecs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.Tag || form.Tag.trim() === "") {
-      toast.error("TAG is a required field.");
+      showError("TAG is a required field.");
       return;
     }
 
@@ -406,13 +409,13 @@ const UnitSpecs = () => {
     // --- Improved Validation ---
     // 1. RAM validation (now checks the numeric part from the form state)
     if (form.RAM && !/^\d+$/.test(form.RAM.toString())) {
-      toast.error("RAM must be a valid number.");
+      showError("RAM must be a valid number.");
       return;
     }
 
     // 2. CPU validation (must contain i3, i5, or i7)
     if (unitData.CPU && !/i[357]/i.test(unitData.CPU)) {
-      toast.error("CPU format must include i3, i5, or i7.");
+      showError("CPU format must include i3, i5, or i7.");
       return;
     }
 
@@ -422,7 +425,7 @@ const UnitSpecs = () => {
       const allUnits = [...inventory, ...deployed];
       const tagExists = allUnits.some((unit) => unit.Tag === unitData.Tag);
       if (tagExists) {
-        toast.error(`Tag '${unitData.Tag}' already exists.`);
+        showError(`Tag '${unitData.Tag}' already exists.`);
         return;
       }
     }
@@ -435,10 +438,10 @@ const UnitSpecs = () => {
       }
       setEditId(null);
       setEditCollection("");
-      toast.success(`Unit ${unitData.Tag} updated successfully!`);
+      showSuccess(`Unit ${unitData.Tag} updated successfully!`);
     } else {
       await setDoc(doc(db, addTo, unitData.Tag), unitData);
-      toast.success(
+      showSuccess(
         `Unit ${unitData.Tag} added to ${
           addTo === "InventoryUnits" ? "Inventory" : "Deployed"
         }!`
@@ -455,7 +458,7 @@ const UnitSpecs = () => {
     await setDoc(doc(db, to, newUnit.Tag), newUnit);
     await deleteDoc(doc(db, from, unit.id));
     fetchData();
-    toast.success(
+    showSuccess(
       `Unit ${unit.Tag} moved to ${
         to === "InventoryUnits" ? "Inventory" : "Deployed"
       }.`
@@ -652,7 +655,7 @@ const UnitSpecs = () => {
     setDeleteMode({ table: null, active: false });
     setSelectedToDelete([]);
     fetchData();
-    toast.success(`${selectedToDelete.length} unit(s) deleted successfully.`);
+    showSuccess(`${selectedToDelete.length} unit(s) deleted successfully.`);
   };
 
   const cancelDeleteMode = () => {
@@ -667,9 +670,9 @@ const UnitSpecs = () => {
     try {
       await deleteDoc(doc(db, collectionName, unit.id));
       fetchData();
-      toast.success(`Unit ${unit.Tag} has been deleted.`);
+      showSuccess(`Unit ${unit.Tag} has been deleted.`);
     } catch (error) {
-      toast.error("Failed to delete unit.");
+      showError("Failed to delete unit.");
       console.error("Error deleting document: ", error);
     }
     setConfirmSingleDelete(null);
@@ -1423,7 +1426,6 @@ const UnitSpecs = () => {
           'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      <Toaster position="top-center" reverseOrder={false} />
       <div
         style={{
           display: "flex",
