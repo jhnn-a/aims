@@ -13,6 +13,7 @@ import { db, auth } from "./utils/firebase";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import LoginPage from "./pages/LoginPage";
+import "./App.css";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -68,7 +69,7 @@ function App() {
       setIsAuthenticated(true);
       setLoginError("");
       setRedirectToDashboard(true);
-    } catch (err) {
+    } catch {
       setLoginError("Invalid email or password.");
     }
   }
@@ -80,53 +81,15 @@ function App() {
   }, [redirectToDashboard]);
 
   if (authLoading) {
-    const loadingStyles = {
-      container: {
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#1D2435",
-        flexDirection: "column",
-      },
-      logo: {
-        height: 40,
-        width: "auto",
-        marginBottom: 24,
-        filter: "drop-shadow(0 4px 16px #0006)",
-      },
-      spinner: {
-        width: 38,
-        height: 38,
-        border: "4px solid #FFE066",
-        borderTop: "4px solid #1D2435",
-        borderRadius: "50%",
-        animation: "joii-spin 1s linear infinite",
-        marginBottom: 18,
-      },
-      loadingText: {
-        fontSize: 18,
-        color: "#FFE066",
-        fontWeight: 700,
-        letterSpacing: 1.2,
-        textShadow: "0 2px 8px #0005",
-      },
-    };
     return (
-      <div style={loadingStyles.container}>
+      <div className="loading-container">
         <img
           src={require("./layout/joii.png")}
           alt="JOII Logo"
-          style={loadingStyles.logo}
+          className="loading-logo"
         />
-        <div style={loadingStyles.spinner} />
-        <style>{`
-          @keyframes joii-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={loadingStyles.loadingText}>Loading...</div>
+        <div className="loading-spinner" />
+        <div className="loading-text">Loading...</div>
       </div>
     );
   }
@@ -143,23 +106,9 @@ function App() {
   return (
     <SnackbarProvider>
       <Header user={user} />
-      <div style={{ display: "flex", marginTop: 56 }}>
-        <Sidebar user={user} />
-        <main
-          className="main-content"
-          style={{
-            flex: 1,
-            padding: 0,
-            backgroundColor: "#F9F9F9",
-            boxSizing: "border-box",
-            marginLeft: 260,
-            height: "calc(100vh - 56px)",
-            width: "calc(100vw - 260px)",
-            overflow: "hidden",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+      <div className="app-main">
+        <Sidebar user={user} className="sidebar" />
+        <main className="main-content">
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard user={user} />} />

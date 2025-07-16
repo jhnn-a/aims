@@ -1,0 +1,125 @@
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: url('../Joii_Background.png') center center / cover no-repeat;
+}
+
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  padding: 36px 40px;
+  border-radius: 18px;
+  box-shadow: 0 12px 48px rgba(37, 99, 235, 0.08);
+  min-width: 320px;
+  max-width: 360px;
+}
+
+
+.login-logo {
+  height: 32px;
+  width: auto;
+  margin-bottom: 16px;
+  display: block;
+  cursor: pointer;
+}
+
+
+.login-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #233037;
+  text-align: center;
+  margin-bottom: 24px;
+  font-family: Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  letter-spacing: 0.5px;
+}
+
+
+.login-input {
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 9999px;
+  width: 100%;
+  height: 48px;
+  box-sizing: border-box;
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+  font-weight: 400;
+  margin-bottom: 10px;
+  border: 1px solid #d7d7e0;
+  background: #fff;
+  color: #2B2C3B;
+  outline: none;
+}
+
+
+.login-password-wrapper {
+  width: 100%;
+  margin-bottom: 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+
+.login-show-password {
+  position: absolute;
+  right: 16px;
+  top: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #888;
+  font-size: 22px;
+  user-select: none;
+  width: 24px;
+  justify-content: center;
+  transition: color 0.18s cubic-bezier(.4,0,.2,1);
+}
+
+
+.login-show-password.active {
+  color: #2B2C3B;
+}
+
+
+.login-error {
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #D32F2F;
+  margin-bottom: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+}
+
+
+.login-button {
+  padding: 12px 20px;
+  font-size: 16px;
+  border-radius: 9999px;
+  width: 100%;
+  height: 48px;
+  font-family: 'IBM Plex Sans', Arial, sans-serif;
+  font-weight: 500;
+  border: none;
+  background: #1D2536;
+  color: #fff;
+  cursor: pointer;
+  margin-bottom: 0;
+  transition: background 0.18s cubic-bezier(.4,0,.2,1), color 0.18s cubic-bezier(.4,0,.2,1);
+}
+
+
+.login-button:hover,
+.login-button:focus {
+  background: #E5E5E5;
+  color: #1D2536;
+}
