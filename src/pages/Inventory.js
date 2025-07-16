@@ -57,7 +57,25 @@ const deviceTypes = [
   { label: "Webcam", code: "W" },
 ];
 
-const conditions = ["New", "Working", "Needs Repair", "Retired"];
+const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
+
+// Function to get background color based on condition
+const getConditionColor = (condition) => {
+  const colorMap = {
+    "GOOD": "#007BFF",        // Blue
+    "BRANDNEW": "#28A745",    // Green
+    "DEFECTIVE": "#DC3545",   // Red
+    "NEEDS REPAIR": "#FFC107", // Yellow
+    "RETIRED": "#6C757D"      // Gray
+  };
+  return colorMap[condition] || "#6C757D"; // Default to gray
+};
+
+// Function to get text color for better contrast
+const getConditionTextColor = (condition) => {
+  // Yellow background needs dark text for better contrast
+  return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
 
 // Utility function to format dates as "January 23, 2025"
 const formatDateToFullWord = (dateString) => {
@@ -447,29 +465,37 @@ function DeviceFormModal({
 
 function Inventory() {
   // Helper function to create truncated text with hover tooltip
-  const TruncatedText = ({ text, maxLength = 20, style = {}, title = null }) => {
-    const displayText = text && text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
-    
+  const TruncatedText = ({
+    text,
+    maxLength = 20,
+    style = {},
+    title = null,
+  }) => {
+    const displayText =
+      text && text.length > maxLength
+        ? `${text.substring(0, maxLength)}...`
+        : text;
+
     return (
-      <div 
+      <div
         style={{
           ...style,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          width: '100%',
-          cursor: text && text.length > maxLength ? 'help' : 'default',
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          width: "100%",
+          cursor: text && text.length > maxLength ? "help" : "default",
         }}
         title={title || (text && text.length > maxLength ? text : undefined)}
       >
-        {displayText || ''}
+        {displayText || ""}
       </div>
     );
   };
 
   // Add global styles to hide scrollbars
   React.useEffect(() => {
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       /* Hide scrollbars for webkit browsers */
       ::-webkit-scrollbar {
@@ -487,7 +513,7 @@ function Inventory() {
       }
     `;
     document.head.appendChild(style);
-    
+
     return () => {
       document.head.removeChild(style);
     };
@@ -733,8 +759,8 @@ function Inventory() {
     if (name === "assignedTo") {
       setForm((prev) => {
         let newCondition = prev.condition;
-        if (value && (prev.condition === "New" || !prev.condition)) {
-          newCondition = "Working";
+        if (value && (prev.condition === "BRANDNEW" || !prev.condition)) {
+          newCondition = "GOOD";
         }
         return {
           ...prev,
@@ -2146,48 +2172,57 @@ function Inventory() {
   };
 
   return (
-    <div style={{
-      height: "100vh",
-      display: "flex",
-      flexDirection: "column",
-      background: "transparent",
-      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      overflow: "hidden",
-      boxSizing: "border-box",
-    }}>
-      <div style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        flexShrink: 0,
-        background: "rgb(255, 255, 255)",
-        borderBottom: "1px solid #e5e7eb",
-      }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          padding: "16px 16px",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}>
-          <div style={{
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "transparent",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          flexShrink: 0,
+          background: "rgb(255, 255, 255)",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <div
+          style={{
             display: "flex",
             alignItems: "center",
-            background: "#f9fafb",
-            borderRadius: "6px",
-            border: "1px solid #d1d5db",
-            padding: "10px 14px",
-            flex: 1,
-            maxWidth: "400px",
-            minWidth: "280px",
-          }}>
+            padding: "16px 16px",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#f9fafb",
+              borderRadius: "6px",
+              border: "1px solid #d1d5db",
+              padding: "10px 14px",
+              flex: 1,
+              maxWidth: "400px",
+              minWidth: "280px",
+            }}
+          >
             <svg
               width="18"
               height="18"
               style={{ color: "#6b7280", opacity: 0.8 }}
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
               viewBox="0 0 24 24"
@@ -2212,14 +2247,16 @@ function Inventory() {
               }}
             />
           </div>
-          
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            marginLeft: "auto",
-            flexWrap: "wrap",
-          }}>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginLeft: "auto",
+              flexWrap: "wrap",
+            }}
+          >
             <button
               onClick={() => setShowForm(true)}
               style={{
@@ -2245,13 +2282,20 @@ function Inventory() {
                 e.target.style.transform = "translateY(0)";
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
               Add Device
             </button>
-            
+
             <label>
               <input
                 type="file"
@@ -2295,7 +2339,14 @@ function Inventory() {
                   }
                 }}
               >
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"></path>
                 </svg>
                 {importing
@@ -2305,7 +2356,7 @@ function Inventory() {
                   : "Import Excel"}
               </button>
             </label>
-            
+
             <button
               onClick={handleExportToExcel}
               title="Export all inventory data to Excel"
@@ -2332,12 +2383,19 @@ function Inventory() {
                 e.target.style.transform = "translateY(0)";
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 4v12"></path>
               </svg>
               Export Excel
             </button>
-            
+
             <button
               disabled={selectedIds.length === 0}
               onClick={() => handleBulkAssign()}
@@ -2368,24 +2426,37 @@ function Inventory() {
                 }
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 7a4 4 0 108 0 4 4 0 00-8 0zM22 11l-3-3m0 0l-3 3m3-3v12"></path>
               </svg>
               Assign
             </button>
-            
+
             <button
               disabled={selectedIds.length === 0 || deleteProgress.total > 0}
               onClick={handleBulkDelete}
               style={{
-                background: selectedIds.length && deleteProgress.total === 0 ? "#ef4444" : "#9ca3af",
+                background:
+                  selectedIds.length && deleteProgress.total === 0
+                    ? "#ef4444"
+                    : "#9ca3af",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
                 padding: "9px 16px",
                 fontSize: "14px",
                 fontWeight: 500,
-                cursor: selectedIds.length && deleteProgress.total === 0 ? "pointer" : "not-allowed",
+                cursor:
+                  selectedIds.length && deleteProgress.total === 0
+                    ? "pointer"
+                    : "not-allowed",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
@@ -2404,13 +2475,20 @@ function Inventory() {
                 }
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <polyline points="3,6 5,6 21,6"></polyline>
                 <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
               </svg>
               Delete
             </button>
-            
+
             <button
               onClick={() => setShowNewAcqModal(true)}
               style={{
@@ -2436,7 +2514,14 @@ function Inventory() {
                 e.target.style.transform = "translateY(0)";
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
                 <polyline points="14,2 14,8 20,8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -2445,43 +2530,58 @@ function Inventory() {
               </svg>
               New Acquisitions
             </button>
-            
+
             {deleteProgress.total > 0 && (
-              <span style={{
-                fontSize: "14px",
-                color: "#ef4444",
-                fontWeight: 500,
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}>
-                <div style={{
-                  width: "16px",
-                  height: "16px",
-                  border: "2px solid #ef4444",
-                  borderTop: "2px solid transparent",
-                  borderRadius: "50%",
-                  animation: "spin 1s linear infinite",
-                }}></div>
+              <span
+                style={{
+                  fontSize: "14px",
+                  color: "#ef4444",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    border: "2px solid #ef4444",
+                    borderTop: "2px solid transparent",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite",
+                  }}
+                ></div>
                 Deleting {deleteProgress.current}/{deleteProgress.total}...
               </span>
             )}
           </div>
         </div>
-        
+
         {/* Table Header - Fixed with search bar */}
-        <div style={{
-          padding: "0",
-          background: "rgb(255, 255, 255)",
-        }}>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            minWidth: "1200px",
-            background: "#fff",
+        <div
+          style={{
             padding: "0",
-          }}>
-            <div style={{ ...styles.th, flex: "0 0 50px", textAlign: "center", overflow: "hidden" }}>
+            background: "rgb(255, 255, 255)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              minWidth: "1200px",
+              background: "#fff",
+              padding: "0",
+            }}
+          >
+            <div
+              style={{
+                ...styles.th,
+                flex: "0 0 50px",
+                textAlign: "center",
+                overflow: "hidden",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={(() => {
@@ -2510,16 +2610,52 @@ function Inventory() {
                 style={{ width: 16, height: 16, margin: 0 }}
               />
             </div>
-            <div style={{ ...styles.th, flex: "0 0 60px", overflow: "hidden" }}>#</div>
-            <div style={{ ...styles.th, flex: "0 0 150px", overflow: "hidden" }}>{fieldLabels.deviceTag}</div>
-            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.deviceType}</div>
-            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.brand}</div>
-            <div style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}>{fieldLabels.model}</div>
-            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.client}</div>
-            <div style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}>{fieldLabels.condition}</div>
-            <div style={{ ...styles.th, flex: "1 1 auto", overflow: "hidden" }}>{fieldLabels.remarks}</div>
-            <div style={{ ...styles.th, flex: "0 0 140px", overflow: "hidden" }}>{fieldLabels.acquisitionDate}</div>
-            <div style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}>Actions</div>
+            <div style={{ ...styles.th, flex: "0 0 60px", overflow: "hidden" }}>
+              #
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 150px", overflow: "hidden" }}
+            >
+              {fieldLabels.deviceTag}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
+            >
+              {fieldLabels.deviceType}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
+            >
+              {fieldLabels.brand}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
+            >
+              {fieldLabels.model}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
+            >
+              {fieldLabels.client}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
+            >
+              {fieldLabels.condition}
+            </div>
+            <div style={{ ...styles.th, flex: "1 1 auto", overflow: "hidden" }}>
+              {fieldLabels.remarks}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 140px", overflow: "hidden" }}
+            >
+              {fieldLabels.acquisitionDate}
+            </div>
+            <div
+              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
+            >
+              Actions
+            </div>
           </div>
         </div>
       </div>
@@ -2547,29 +2683,36 @@ function Inventory() {
       {loading ? (
         <TableLoadingSpinner text="Loading inventory..." />
       ) : (
-        <div style={{
-          flex: 1,
-          overflow: "auto",
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-          WebkitScrollbar: { display: "none" },
-        }}>
-          <div style={{
-            overflowX: "auto",
-            overflowY: "auto",
-            maxHeight: "100%",
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            boxShadow:
+              "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
             scrollbarWidth: "none",
             msOverflowStyle: "none",
             WebkitScrollbar: { display: "none" },
-          }}>
-            <div style={{
-              width: "100%",
-              minWidth: "1200px",
-              background: "#fff",
-            }}>
+          }}
+        >
+          <div
+            style={{
+              overflowX: "auto",
+              overflowY: "auto",
+              maxHeight: "100%",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitScrollbar: { display: "none" },
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                minWidth: "1200px",
+                background: "#fff",
+              }}
+            >
               <div style={{ display: "flex", flexDirection: "column" }}>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
@@ -2597,23 +2740,37 @@ function Inventory() {
                         alignItems: "center",
                         minWidth: "1200px",
                         borderBottom: "1px solid #f3f4f6",
-                        background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+                        background:
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)",
                         cursor: "pointer",
                         transition: "background 0.15s",
                       }}
                       onClick={() => handleSelectOne(device.id)}
                       onMouseEnter={(e) => {
                         if (index % 2 === 0) {
-                          e.currentTarget.style.background = "rgb(235, 235, 240)";
+                          e.currentTarget.style.background =
+                            "rgb(235, 235, 240)";
                         } else {
-                          e.currentTarget.style.background = "rgb(225, 225, 235)";
+                          e.currentTarget.style.background =
+                            "rgb(225, 225, 235)";
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)";
+                        e.currentTarget.style.background =
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)";
                       }}
                     >
-                      <div style={{ flex: "0 0 50px", padding: "12px 16px", textAlign: "center" }}>
+                      <div
+                        style={{
+                          flex: "0 0 50px",
+                          padding: "12px 16px",
+                          textAlign: "center",
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(device.id)}
@@ -2624,10 +2781,25 @@ function Inventory() {
                           style={{ width: 16, height: 16, margin: 0 }}
                         />
                       </div>
-                      <div style={{ flex: "0 0 60px", padding: "12px 16px", fontSize: "14px", color: "rgb(55, 65, 81)" }}>
+                      <div
+                        style={{
+                          flex: "0 0 60px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "rgb(55, 65, 81)",
+                        }}
+                      >
                         {(currentPage - 1) * devicesPerPage + index + 1}
                       </div>
-                      <div style={{ flex: "0 0 150px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          flex: "0 0 150px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
                         <span
                           onClick={(e) => {
                             e.stopPropagation();
@@ -2650,28 +2822,108 @@ function Inventory() {
                           }
                           title={`Click to view device history: ${device.deviceTag}`}
                         >
-                          <TruncatedText text={device.deviceTag} maxLength={18} style={{ cursor: "pointer" }} />
+                          <TruncatedText
+                            text={device.deviceTag}
+                            maxLength={18}
+                            style={{ cursor: "pointer" }}
+                          />
                         </span>
                       </div>
-                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
-                        <TruncatedText text={device.deviceType} maxLength={12} />
+                      <div
+                        style={{
+                          flex: "0 0 100px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <TruncatedText
+                          text={device.deviceType}
+                          maxLength={12}
+                        />
                       </div>
-                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          flex: "0 0 100px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
                         <TruncatedText text={device.brand} maxLength={12} />
                       </div>
-                      <div style={{ flex: "0 0 120px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          flex: "0 0 120px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
                         <TruncatedText text={device.model} maxLength={14} />
                       </div>
-                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
-                        <TruncatedText text={device.client || "-"} maxLength={12} />
+                      <div
+                        style={{
+                          flex: "0 0 100px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <TruncatedText
+                          text={device.client || "-"}
+                          maxLength={12}
+                        />
                       </div>
-                      <div style={{ flex: "0 0 100px", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
-                        <TruncatedText text={device.condition} maxLength={12} />
+                      <div
+                        style={{
+                          flex: "0 0 100px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "inline-block",
+                            background: getConditionColor(device.condition),
+                            color: getConditionTextColor(device.condition),
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textAlign: "center",
+                            minWidth: "70px",
+                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          <TruncatedText text={device.condition} maxLength={12} />
+                        </div>
                       </div>
-                      <div style={{ flex: "1 1 auto", padding: "12px 16px", fontSize: "14px", color: "#374151", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          flex: "1 1 auto",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          overflow: "hidden",
+                        }}
+                      >
                         <TruncatedText text={device.remarks} maxLength={50} />
                       </div>
-                      <div style={{ flex: "0 0 140px", padding: "12px 16px", fontSize: "14px", color: "#374151" }}>
+                      <div
+                        style={{
+                          flex: "0 0 140px",
+                          padding: "12px 16px",
+                          fontSize: "14px",
+                          color: "#374151",
+                        }}
+                      >
                         {device.acquisitionDate
                           ? formatDateToMMDDYYYY(device.acquisitionDate)
                           : ""}

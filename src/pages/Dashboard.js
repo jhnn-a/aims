@@ -129,9 +129,10 @@ function Dashboard() {
   const [retiredCount, setRetiredCount] = useState(0);
   const [deviceTypes, setDeviceTypes] = useState([]);
   // Add device condition counts
-  const [workingCount, setWorkingCount] = useState(0);
+  const [goodCount, setGoodCount] = useState(0);
   const [needsRepairCount, setNeedsRepairCount] = useState(0);
-  const [newCount, setNewCount] = useState(0);
+  const [brandNewCount, setBrandNewCount] = useState(0);
+  const [defectiveCount, setDefectiveCount] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [modalDevices, setModalDevices] = useState([]);
@@ -183,11 +184,13 @@ function Dashboard() {
       setDeviceTypes(sortedTypes);
 
       // Count device conditions
-      setWorkingCount(devices.filter((d) => d.condition === "Working").length);
+      setGoodCount(devices.filter((d) => d.condition === "GOOD").length);
       setNeedsRepairCount(
-        devices.filter((d) => d.condition === "Needs Repair").length
+        devices.filter((d) => d.condition === "NEEDS REPAIR").length
       );
-      setNewCount(devices.filter((d) => d.condition === "New").length);
+      setBrandNewCount(devices.filter((d) => d.condition === "BRANDNEW").length);
+      setDefectiveCount(devices.filter((d) => d.condition === "DEFECTIVE").length);
+      setRetiredCount(devices.filter((d) => d.condition === "RETIRED").length);
       // Save all devices for modal filtering
       setAllDevices(devices);
 
@@ -230,10 +233,12 @@ function Dashboard() {
 
   // For device condition donut
   const conditionDonutData = [
-    { label: "Working", value: workingCount, color: "#22c55e" },
-    { label: "Needs Repair", value: needsRepairCount, color: "#f59e42" },
-    { label: "New", value: newCount, color: "#2563eb" },
-  ];
+    { label: "GOOD", value: goodCount, color: "#007BFF" },
+    { label: "NEEDS REPAIR", value: needsRepairCount, color: "#FFC107" },
+    { label: "BRANDNEW", value: brandNewCount, color: "#28A745" },
+    { label: "DEFECTIVE", value: defectiveCount, color: "#DC3545" },
+    { label: "RETIRED", value: retiredCount, color: "#6C757D" },
+  ].filter(item => item.value > 0); // Only show conditions that have devices
 
   return (
     <div
@@ -438,7 +443,7 @@ function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allDevices.filter((dev) => dev.condition === "Needs Repair")
+                  {allDevices.filter((dev) => dev.condition === "NEEDS REPAIR")
                     .length === 0 ? (
                     <tr>
                       <td
@@ -456,7 +461,7 @@ function Dashboard() {
                     </tr>
                   ) : (
                     allDevices
-                      .filter((dev) => dev.condition === "Needs Repair")
+                      .filter((dev) => dev.condition === "NEEDS REPAIR")
                       .map((dev) => (
                         <tr
                           key={dev.deviceTag}
