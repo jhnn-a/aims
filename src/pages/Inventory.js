@@ -2714,11 +2714,20 @@ function Inventory() {
                               width="16"
                               height="16"
                               fill="none"
-                              stroke="#2563eb"
+                              stroke="#6b7280"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.18s",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#2563eb")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
                             >
                               <path d="M12 20h9" />
                               <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -2753,11 +2762,20 @@ function Inventory() {
                               width="16"
                               height="16"
                               fill="none"
-                              stroke="#e57373"
+                              stroke="#6b7280"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.18s",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#e57373")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
                             >
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />

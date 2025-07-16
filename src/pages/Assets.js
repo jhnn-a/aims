@@ -1639,20 +1639,21 @@ function Assets() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "background 0.2s",
-                                color: "#3b82f6",
+                                color: "#6b7280",
                               }}
                               title="Edit"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEdit(device);
                               }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background = "#dbeafe")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#dbeafe";
+                                e.currentTarget.style.color = "#3b82f6";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                              }}
                             >
                               <svg
                                 width="16"
@@ -1679,20 +1680,21 @@ function Assets() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "background 0.2s",
-                                color: "#ef4444",
+                                color: "#6b7280",
                               }}
                               title="Delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(device.id);
                               }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background = "#fef2f2")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#fef2f2";
+                                e.currentTarget.style.color = "#ef4444";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                              }}
                             >
                               <svg
                                 width="16"
