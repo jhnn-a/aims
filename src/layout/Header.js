@@ -58,7 +58,7 @@ const Header = () => {
         <img src={require("./joii.png")} alt="JOII Logo" style={styles.logo} />
         <span>Assets & Inventory Management System</span>
       </div>
-      <button 
+      <button
         onClick={handleLogout}
         style={styles.logoutButton}
         onMouseEnter={(e) => {
