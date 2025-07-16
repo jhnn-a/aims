@@ -173,12 +173,124 @@ function DeviceFormModal({
 
   const isEditMode = Boolean(editingDevice);
 
+  // Handle keyboard navigation
+  React.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onCancel]);
+
   return (
     <div style={styles.modalOverlay}>
-      <div style={styles.inventoryModalContent}>
-        <h3 style={styles.inventoryModalTitle}>
-          {data.id ? "Edit Device" : "Add Device"}
-        </h3>
+      <div 
+        className="device-form-modal"
+        style={{
+          ...styles.inventoryModalContent,
+          border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
+          backgroundColor: isEditMode ? "#fefbff" : "#ffffff",
+          animation: "modalFadeIn 0.2s ease-out",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <style>{`
+          @keyframes modalFadeIn {
+            from {
+              opacity: 0;
+              transform: scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          
+          .device-form-modal input:focus,
+          .device-form-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .device-form-modal input:hover,
+          .device-form-modal select:hover {
+            border-color: #64748b;
+          }
+          
+          .new-acquisitions-modal input:focus,
+          .new-acquisitions-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .new-acquisitions-modal input:hover,
+          .new-acquisitions-modal select:hover {
+            border-color: #64748b;
+          }
+        `}</style>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+          {isEditMode && (
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          )}
+          <h3 
+            id="modal-title" 
+            style={{
+              ...styles.inventoryModalTitle,
+              color: isEditMode ? "#2563eb" : "#374151",
+            }}
+          >
+            {isEditMode ? "Edit Device" : "Add Device"}
+          </h3>
+        </div>
+
+        {isEditMode && (
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1d4ed8",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editing existing device - modify the fields below to update the device information
+          </div>
+        )}
 
         {/* Row 1: Device Type and Brand */}
         <div
@@ -268,14 +380,17 @@ function DeviceFormModal({
                       padding: "8px 12px",
                       borderRadius: 6,
                       border: "1.5px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      background: editingDevice ? "#f5f5f5" : "#f1f5f9",
                       fontSize: 14,
                       height: "36px",
                       boxSizing: "border-box",
+                      cursor: editingDevice ? "not-allowed" : "text",
+                      color: editingDevice ? "#666" : "#000",
                     }}
                     maxLength={4}
                     pattern="\\d{0,4}"
                     placeholder="0001"
+                    disabled={editingDevice}
                   />
                   <button
                     type="button"
@@ -284,7 +399,10 @@ function DeviceFormModal({
                       ...styles.inventoryModalButtonSmall,
                       padding: "6px 12px",
                       fontSize: 13,
+                      opacity: editingDevice ? 0.5 : 1,
+                      cursor: editingDevice ? "not-allowed" : "pointer",
                     }}
+                    disabled={editingDevice}
                   >
                     Generate
                   </button>
@@ -300,13 +418,16 @@ function DeviceFormModal({
                     padding: "8px 12px",
                     borderRadius: 6,
                     border: "1.5px solid #cbd5e1",
-                    background: "#f1f5f9",
+                    background: editingDevice ? "#f5f5f5" : "#f1f5f9",
                     fontSize: 14,
                     height: "36px",
                     boxSizing: "border-box",
+                    cursor: editingDevice ? "not-allowed" : "text",
+                    color: editingDevice ? "#666" : "#000",
                   }}
                   maxLength={64}
                   placeholder="Enter Serial Number"
+                  disabled={editingDevice}
                 />
               )}
             </div>
@@ -317,14 +438,19 @@ function DeviceFormModal({
                 alignItems: "center",
                 fontWeight: 400,
                 fontSize: 13,
-                color: "#222e3a",
+                color: editingDevice ? "#999" : "#222e3a",
               }}
             >
               <input
                 type="checkbox"
                 checked={useSerial}
                 onChange={handleSerialToggle}
-                style={{ marginRight: 6, accentColor: "#2563eb" }}
+                style={{ 
+                  marginRight: 6, 
+                  accentColor: "#2563eb",
+                  cursor: editingDevice ? "not-allowed" : "pointer",
+                }}
+                disabled={editingDevice}
               />
               Use Serial Number Instead
             </label>
@@ -444,8 +570,9 @@ function DeviceFormModal({
               padding: "10px 24px",
               fontSize: 14,
             }}
+            aria-label={isEditMode ? "Update device information" : "Save new device"}
           >
-            Save
+            {isEditMode ? "Update" : "Save"}
           </button>
           <button
             onClick={onCancel}
@@ -454,6 +581,7 @@ function DeviceFormModal({
               padding: "10px 24px",
               fontSize: 14,
             }}
+            aria-label="Cancel and close dialog"
           >
             Cancel
           </button>
@@ -681,8 +809,7 @@ function Inventory() {
         condition: "",
         remarks: "",
         acquisitionDate: "",
-        startTag: "",
-        endTag: "",
+        quantity: 1,
         supplier: "",
         client: "",
       },
@@ -698,6 +825,42 @@ function Inventory() {
   const [manualSerials, setManualSerials] = useState([]);
   const [activeManualTabId, setActiveManualTabId] = useState(1);
   const [importTexts, setImportTexts] = useState({}); // Track import text per tab
+
+  // --- HANDLERS ---
+
+  // Global TAG validation function
+  const validateTagUniqueness = async (tag, editingDeviceId = null) => {
+    if (!tag || tag.trim() === "") {
+      return { isValid: false, message: "TAG is required" };
+    }
+
+    const trimmedTag = tag.trim();
+    
+    try {
+      const allDevices = await getAllDevices();
+      const existingDevice = allDevices.find(
+        (device) => 
+          device.deviceTag &&
+          device.deviceTag.toLowerCase() === trimmedTag.toLowerCase() &&
+          device.id !== editingDeviceId
+      );
+
+      if (existingDevice) {
+        return { 
+          isValid: false, 
+          message: `TAG "${trimmedTag}" already exists for device ID: ${existingDevice.id}` 
+        };
+      }
+
+      return { isValid: true, message: "" };
+    } catch (error) {
+      console.error("Error validating TAG uniqueness:", error);
+      return { 
+        isValid: false, 
+        message: "Error validating TAG. Please try again." 
+      };
+    }
+  };
 
   // --- HANDLERS ---
 
@@ -741,6 +904,14 @@ function Inventory() {
       if (useSerial) {
         setTagError("");
         setForm((prev) => ({ ...prev, [name]: value }));
+        // Real-time validation for manual serial input
+        if (value.trim()) {
+          validateTagUniqueness(value.trim(), form._editDeviceId).then(validation => {
+            if (!validation.isValid) {
+              setTagError(validation.message);
+            }
+          });
+        }
         return;
       }
       const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
@@ -808,6 +979,32 @@ function Inventory() {
     setCurrentPage(1);
   }, [devicesPerPage]);
 
+  // Focus management for modal accessibility
+  useEffect(() => {
+    if (showForm) {
+      const firstInput = document.querySelector('.device-form-modal input[type="text"]');
+      if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+      }
+    }
+  }, [showForm]);
+
+  // Escape key handler for modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showForm) {
+        resetForm();
+      }
+    };
+    
+    if (showForm) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [showForm]);
+
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
     const [deviceData, employeeData, clientData] = await Promise.all([
@@ -828,6 +1025,36 @@ function Inventory() {
     form.condition.trim() !== "" &&
     !tagError;
 
+  // Helper function to compare device data and generate change description
+  const getDeviceChanges = (oldDevice, newDevice) => {
+    const changes = [];
+    const fieldLabels = {
+      deviceType: "Device Type",
+      deviceTag: "Device Tag",
+      brand: "Brand",
+      model: "Model",
+      client: "Client",
+      condition: "Condition",
+      remarks: "Remarks",
+      acquisitionDate: "Acquisition Date"
+    };
+
+    // Compare each field
+    Object.keys(fieldLabels).forEach(field => {
+      const oldValue = (oldDevice && oldDevice[field]) || "";
+      const newValue = (newDevice && newDevice[field]) || "";
+      
+      if (oldValue !== newValue) {
+        // Format empty values for better readability
+        const oldDisplay = oldValue === "" ? "(empty)" : oldValue;
+        const newDisplay = newValue === "" ? "(empty)" : newValue;
+        changes.push(`${fieldLabels[field]}: ${oldDisplay} → ${newDisplay}`);
+      }
+    });
+
+    return changes.length > 0 ? `Updated: ${changes.join(", ")}` : "No changes detected";
+  };
+
   const handleSave = async () => {
     setSaveError("");
     if (!isFormValid()) {
@@ -837,47 +1064,33 @@ function Inventory() {
     }
 
     try {
-      const allDevices = await getAllDevices();
-      if (useSerial) {
-        const serialExists = allDevices.some(
-          (d) =>
-            d.deviceTag &&
-            d.deviceTag.toLowerCase() === form.deviceTag.toLowerCase() &&
-            (!form._editDeviceId || d.id !== form._editDeviceId)
-        );
-        if (serialExists) {
-          setSaveError(
-            "Serial number already exists. Please use a unique serial number."
-          );
-          showError(
-            "Serial number already exists. Please use a unique serial number."
-          );
-          return;
-        }
-      } else {
-        const isDuplicate = allDevices.some(
-          (d) =>
-            d.deviceTag === form.deviceTag &&
-            (!form._editDeviceId || d.id !== form._editDeviceId)
-        );
-        if (isDuplicate) {
-          setSaveError("Device tag already exists. Please use a unique tag.");
-          showError("Device tag already exists. Please use a unique tag.");
-          return;
-        }
+      // Enhanced TAG validation
+      const tagValidation = await validateTagUniqueness(
+        form.deviceTag, 
+        form._editDeviceId
+      );
+      
+      if (!tagValidation.isValid) {
+        setSaveError(tagValidation.message);
+        showError(tagValidation.message);
+        return;
       }
+
+      const allDevices = await getAllDevices();
       const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
       if (!typeObj) {
         setSaveError("Invalid device type.");
         showError("Invalid device type.");
         return;
       }
+
       const tagPrefix = `JOII${typeObj.code}`;
       const payload = {
         ...form,
         condition: form.condition || "New",
-        acquisitionDate: form.acquisitionDate || "",
+        acquisitionDate: form.acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
       };
+
       if (useSerial) {
         if (!form._editDeviceId) {
           const newDevice = await addDevice(payload);
@@ -892,7 +1105,23 @@ function Inventory() {
           });
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
+          // Get the original device data for comparison
+          const originalDevice = allDevices.find(d => d.id === form._editDeviceId);
+          const changeDescription = getDeviceChanges(originalDevice, payload);
+          
           await updateDevice(form._editDeviceId, payload);
+          
+          // Log device update with change details
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: form._editDeviceId,
+            deviceTag: payload.deviceTag,
+            action: "updated",
+            reason: changeDescription,
+            date: new Date(),
+          });
+          
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
       } else {
@@ -909,13 +1138,30 @@ function Inventory() {
           });
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
+          // Get the original device data for comparison
+          const originalDevice = allDevices.find(d => d.id === form._editDeviceId);
+          const changeDescription = getDeviceChanges(originalDevice, payload);
+          
           await updateDevice(form._editDeviceId, payload);
+          
+          // Log device update with change details
+          await logDeviceHistory({
+            employeeId: null,
+            employeeName: null,
+            deviceId: form._editDeviceId,
+            deviceTag: payload.deviceTag,
+            action: "updated",
+            reason: changeDescription,
+            date: new Date(),
+          });
+          
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
       }
       resetForm();
       loadDevicesAndEmployees();
     } catch (error) {
+      console.error("Error saving device:", error);
       showError("Failed to save device. Please try again.");
     }
   };
@@ -936,6 +1182,7 @@ function Inventory() {
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
       _editDeviceId: id,
+      id: id, // Keep id for edit mode detection
     };
 
     setForm(formData);
@@ -978,6 +1225,8 @@ function Inventory() {
     setForm({ ...initialForm });
     setUseSerial(false);
     setShowForm(false);
+    setSaveError("");
+    setTagError("");
   };
 
   const getEmployeeName = (id) => {
@@ -1390,40 +1639,63 @@ function Inventory() {
     condition,
     remarks,
     acquisitionDate,
-    startTag,
-    endTag,
+    quantity,
     client,
   }) => {
     console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
-    if (!deviceType || !brand || !condition || !startTag || !endTag) {
+    if (!deviceType || !brand || !condition || !quantity) {
       throw new Error("Please fill in all required fields.");
     }
+    
     const typeObj = deviceTypes.find((t) => t.label === deviceType);
     if (!typeObj) {
       throw new Error("Invalid device type.");
     }
+    
     const prefix = `JOII${typeObj.code}`;
-    const start = parseInt(startTag, 10);
-    const end = parseInt(endTag, 10);
-    if (
-      isNaN(start) ||
-      isNaN(end) ||
-      start > end ||
-      start < 0 ||
-      end < 0 ||
-      end - start + 1 > 100
-    ) {
-      throw new Error(
-        "Invalid tag range (max 100 at a time, start <= end, numbers only)."
-      );
+    const qty = parseInt(quantity, 10);
+    
+    if (isNaN(qty) || qty < 1 || qty > 100) {
+      throw new Error("Invalid quantity (must be between 1 and 99).");
     }
+
+    // Find the next available TAG number
     const allDevices = await getAllDevices();
-    let added = 0;
-    for (let i = start; i <= end; i++) {
+    const deviceTags = allDevices
+      .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
+      .map(device => {
+        const tagNumber = device.deviceTag.replace(prefix, '');
+        return parseInt(tagNumber, 10);
+      })
+      .filter(num => !isNaN(num))
+      .sort((a, b) => b - a);
+
+    const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
+    const startTag = lastUsedNumber + 1;
+    const endTag = startTag + qty - 1;
+
+    // Enhanced validation: Check all TAGs before adding any devices
+    const tagsToCheck = [];
+    for (let i = startTag; i <= endTag; i++) {
       const tagNum = String(i).padStart(4, "0");
       const deviceTag = `${prefix}${tagNum}`;
-      const existing = allDevices.find((d) => d.deviceTag === deviceTag);
+      tagsToCheck.push(deviceTag);
+    }
+
+    // Validate all tags for uniqueness
+    for (const tag of tagsToCheck) {
+      const validation = await validateTagUniqueness(tag);
+      if (!validation.isValid) {
+        throw new Error(`TAG validation failed: ${validation.message}`);
+      }
+    }
+
+    let added = 0;
+    for (let i = startTag; i <= endTag; i++) {
+      const tagNum = String(i).padStart(4, "0");
+      const deviceTag = `${prefix}${tagNum}`;
+      
       const payload = {
         deviceType,
         deviceTag,
@@ -1434,18 +1706,24 @@ function Inventory() {
         client: client || "",
         assignedTo: "",
         assignmentDate: "",
-        acquisitionDate: acquisitionDate || "",
+        acquisitionDate: acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
       };
+      
       console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
       try {
-        if (existing) {
-          await updateDevice(existing.id, payload);
-        } else {
-          await addDevice(payload);
-        }
+        const newDevice = await addDevice(payload);
+        // Log device creation
+        await logDeviceHistory({
+          employeeId: null,
+          employeeName: null,
+          deviceId: newDevice.id,
+          deviceTag: payload.deviceTag,
+          action: "added",
+          date: new Date(),
+        });
         added++;
       } catch (error) {
-        console.error(`Failed to add/update device ${deviceTag}:`, error);
+        console.error(`Failed to add device ${deviceTag}:`, error);
       }
     }
     await loadDevicesAndEmployees();
@@ -1473,6 +1751,54 @@ function Inventory() {
       )
     );
     setNewAcqError("");
+
+    // Auto-initialize TAG fields when device type is selected
+    if (name === "deviceType" && value) {
+      initializeTagFields(value);
+    }
+  };
+
+  // Function to auto-initialize quantity field and show next available TAGs
+  const initializeTagFields = async (deviceType) => {
+    try {
+      const typeObj = deviceTypes.find((t) => t.label === deviceType);
+      if (!typeObj) return;
+
+      const prefix = `JOII${typeObj.code}`;
+      const allDevices = await getAllDevices();
+      
+      // Find all devices of this type to determine the last used TAG
+      const deviceTags = allDevices
+        .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
+        .map(device => {
+          const tagNumber = device.deviceTag.replace(prefix, '');
+          return parseInt(tagNumber, 10);
+        })
+        .filter(num => !isNaN(num))
+        .sort((a, b) => b - a); // Sort descending to get the highest number first
+
+      // Get the next available TAG number
+      const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
+      const nextStartTag = lastUsedNumber + 1;
+
+      // Update the current tab with default quantity and display info
+      setNewAcqTabs((prevTabs) =>
+        prevTabs.map((tab) =>
+          tab.id === activeTabId
+            ? {
+                ...tab,
+                data: {
+                  ...tab.data,
+                  quantity: 1,
+                  nextAvailableTag: nextStartTag, // For display purposes
+                },
+              }
+            : tab
+        )
+      );
+    } catch (error) {
+      console.error("Error initializing TAG fields:", error);
+    }
   };
 
   // Tab management functions
@@ -1487,8 +1813,7 @@ function Inventory() {
         condition: "",
         remarks: "",
         acquisitionDate: "",
-        startTag: "",
-        endTag: "",
+        quantity: 1,
         supplier: "",
         client: "",
         useManualSerial: false,
@@ -1555,15 +1880,30 @@ function Inventory() {
 
   const handleQuantityChange = (e) => {
     const qty = parseInt(e.target.value) || 1;
-    const newQuantity = Math.max(1, Math.min(100, qty));
+    const newQuantity = Math.max(1, Math.min(99, qty));
 
-    // Update the current tab's manual quantity
+    // Update the current tab's manual quantity and adjust the serials array
     setNewAcqTabs((prevTabs) =>
-      prevTabs.map((tab) =>
-        tab.id === activeTabId
-          ? { ...tab, data: { ...tab.data, manualQuantity: newQuantity } }
-          : tab
-      )
+      prevTabs.map((tab) => {
+        if (tab.id === activeTabId) {
+          // Create new serials array with the new quantity
+          const currentSerials = tab.data.manualSerials || [];
+          const newSerials = Array(newQuantity).fill("").map((_, index) => ({
+            id: index,
+            serial: currentSerials[index]?.serial || "",
+          }));
+          
+          return {
+            ...tab,
+            data: {
+              ...tab.data,
+              manualQuantity: newQuantity,
+              manualSerials: newSerials,
+            },
+          };
+        }
+        return tab;
+      })
     );
   };
 
@@ -1582,16 +1922,16 @@ function Inventory() {
 
     // Initialize serial inputs for all manual tabs
     const updatedTabs = newAcqTabs.map((tab) => {
-      if (
-        tab.data.useManualSerial &&
-        (!tab.data.manualSerials || tab.data.manualSerials.length === 0)
-      ) {
-        const serialsArray = Array(tab.data.manualQuantity || 1)
-          .fill("")
-          .map((_, index) => ({
-            id: index,
-            serial: "",
-          }));
+      if (tab.data.useManualSerial) {
+        const currentQuantity = tab.data.manualQuantity || 1;
+        const currentSerials = tab.data.manualSerials || [];
+        
+        // Always create/update the serials array to match the quantity
+        const serialsArray = Array(currentQuantity).fill("").map((_, index) => ({
+          id: index,
+          serial: currentSerials[index]?.serial || "",
+        }));
+        
         return {
           ...tab,
           data: {
@@ -1641,24 +1981,28 @@ function Inventory() {
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line);
+    
     setNewAcqTabs((prevTabs) =>
-      prevTabs.map((tab) =>
-        tab.id === tabId
-          ? {
-              ...tab,
-              data: {
-                ...tab.data,
-                manualSerials: tab.data.manualSerials.map((item, index) => ({
-                  ...item,
-                  serial: lines[index] || item.serial,
-                })),
-              },
-            }
-          : tab
-      )
+      prevTabs.map((tab) => {
+        if (tab.id === tabId) {
+          const updatedSerials = tab.data.manualSerials.map((item, index) => ({
+            ...item,
+            serial: lines[index] || item.serial,
+          }));
+          
+          return {
+            ...tab,
+            data: {
+              ...tab.data,
+              manualSerials: updatedSerials,
+            },
+          };
+        }
+        return tab;
+      })
     );
 
-    // Clear the import text for this tab after importing (optional - user can also use Clear button)
+    // Clear the import text for this tab after importing
     setImportTexts((prev) => ({ ...prev, [tabId]: "" }));
   };
 
@@ -1667,54 +2011,62 @@ function Inventory() {
     setNewAcqLoading(true);
 
     try {
-      // Validate all serials are filled
-      const emptySerials = manualSerials.filter((item) => !item.serial.trim());
-      if (emptySerials.length > 0) {
-        setNewAcqError("Please fill in all serial numbers.");
-        setNewAcqLoading(false);
-        return;
+      // Get all tabs with manual serial assignment
+      const manualTabs = newAcqTabs.filter((tab) => tab.data.useManualSerial);
+      
+      // Validate all serials are filled for manual tabs
+      for (const tab of manualTabs) {
+        const emptySerials = tab.data.manualSerials.filter((item) => !item.serial.trim());
+        if (emptySerials.length > 0) {
+          setNewAcqError(`Please fill in all serial numbers for ${tab.label}.`);
+          setNewAcqLoading(false);
+          return;
+        }
       }
 
-      // Check for duplicate serials in the input
-      const serialValues = manualSerials.map((item) => item.serial.trim());
-      const duplicateSerials = serialValues.filter(
-        (serial, index) => serialValues.indexOf(serial) !== index
+      // Collect all serial values from all manual tabs
+      const allSerialValues = [];
+      for (const tab of manualTabs) {
+        const serialValues = tab.data.manualSerials.map((item) => item.serial.trim());
+        allSerialValues.push(...serialValues);
+      }
+
+      // Check for duplicates within the input
+      const duplicateSerials = allSerialValues.filter(
+        (serial, index) => allSerialValues.indexOf(serial) !== index
       );
       if (duplicateSerials.length > 0) {
         setNewAcqError(
-          "Duplicate serial numbers found. Please use unique serials."
+          `Duplicate serial numbers found: ${duplicateSerials.join(", ")}`
         );
         setNewAcqLoading(false);
         return;
       }
 
-      // Check against existing devices
-      const allDevices = await getAllDevices();
-      const existingSerials = serialValues.filter((serial) =>
-        allDevices.some(
-          (device) =>
-            device.deviceTag &&
-            device.deviceTag.toLowerCase() === serial.toLowerCase()
-        )
-      );
-
-      if (existingSerials.length > 0) {
-        setNewAcqError(
-          `Serial numbers already exist: ${existingSerials.join(", ")}`
-        );
-        setNewAcqLoading(false);
-        return;
+      // Enhanced validation: Check against existing devices using global validation
+      for (const serial of allSerialValues) {
+        const validation = await validateTagUniqueness(serial);
+        if (!validation.isValid) {
+          setNewAcqError(validation.message);
+          setNewAcqLoading(false);
+          return;
+        }
       }
 
       // Add devices with manual serials for each tab
       let allDeviceList = [];
       let totalAdded = 0;
 
-      // Get all tabs with manual serial assignment
-      const manualTabs = newAcqTabs.filter((tab) => tab.data.useManualSerial);
-
       for (const tab of manualTabs) {
         const tabData = tab.data;
+        
+        // Validate required fields
+        if (!tabData.deviceType || !tabData.brand || !tabData.condition) {
+          setNewAcqError(`Please fill in Device Type, Brand, and Condition for ${tab.label}.`);
+          setNewAcqLoading(false);
+          return;
+        }
+
         let tabDeviceList = [];
         let added = 0;
 
@@ -1729,13 +2081,22 @@ function Inventory() {
             client: tabData.client || "",
             assignedTo: "",
             assignmentDate: "",
-            acquisitionDate: tabData.acquisitionDate || "",
+            acquisitionDate: tabData.acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
           };
 
           tabDeviceList.push(payload);
 
           try {
-            await addDevice(payload);
+            const newDevice = await addDevice(payload);
+            // Log device creation
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: newDevice.id,
+              deviceTag: payload.deviceTag,
+              action: "added",
+              date: new Date(),
+            });
             added++;
           } catch (error) {
             console.error(`Failed to add device ${serialItem.serial}:`, error);
@@ -1792,7 +2153,7 @@ function Inventory() {
         // Continue even if document generation fails
       }
 
-      alert(`Added ${totalAdded} device(s) successfully.`);
+      showSuccess(`Added ${totalAdded} device(s) successfully.`);
 
       // Reset form
       setShowNewAcqModal(false);
@@ -1807,8 +2168,7 @@ function Inventory() {
             condition: "",
             remarks: "",
             acquisitionDate: "",
-            startTag: "",
-            endTag: "",
+            quantity: 1,
             supplier: "",
             client: "",
             useManualSerial: false,
@@ -1820,7 +2180,7 @@ function Inventory() {
       setActiveTabId(1);
       setNextTabId(2);
       setShowManualSerialPanel(false);
-      setImportTexts({}); // Clear all import texts
+      setImportTexts({});
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
@@ -1850,8 +2210,8 @@ function Inventory() {
           !tab.data.deviceType ||
           !tab.data.brand ||
           !tab.data.condition ||
-          !tab.data.startTag ||
-          !tab.data.endTag
+          !tab.data.quantity ||
+          parseInt(tab.data.quantity) < 1
       );
 
       if (invalidTabs.length > 0) {
@@ -1878,19 +2238,15 @@ function Inventory() {
           tabData.deviceType
         );
 
-        // Calculate device tags for document generation
-        const startNum = parseInt(tabData.startTag.replace(/\D/g, ""), 10);
-        const endNum = parseInt(tabData.endTag.replace(/\D/g, ""), 10);
+        const quantity = parseInt(tabData.quantity, 10);
 
-        if (isNaN(startNum) || isNaN(endNum) || startNum > endNum) {
+        if (isNaN(quantity) || quantity < 1 || quantity > 99) {
           setNewAcqError(
-            `Invalid tag range in ${rangeTabs[i].label}. Please check start and end tags.`
+            `Invalid quantity in ${rangeTabs[i].label}. Must be between 1 and 99.`
           );
           setNewAcqLoading(false);
           return;
         }
-
-        const quantity = endNum - startNum + 1;
 
         // Get device type prefix
         const typeObj = deviceTypes.find((t) => t.label === tabData.deviceType);
@@ -1900,6 +2256,38 @@ function Inventory() {
           return;
         }
         const prefix = `JOII${typeObj.code}`;
+
+        // Find the next available TAG number for this device type
+        const allDevices = await getAllDevices();
+        const deviceTags = allDevices
+          .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
+          .map(device => {
+            const tagNumber = device.deviceTag.replace(prefix, '');
+            return parseInt(tagNumber, 10);
+          })
+          .filter(num => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
+        const startNum = lastUsedNumber + 1;
+        const endNum = startNum + quantity - 1;
+
+        // Enhanced TAG validation: Check all TAGs in range before proceeding
+        const tagsToValidate = [];
+        for (let j = 0; j < quantity; j++) {
+          const deviceTag = `${prefix}${String(startNum + j).padStart(4, "0")}`;
+          tagsToValidate.push(deviceTag);
+        }
+
+        // Validate all TAGs for uniqueness
+        for (const tag of tagsToValidate) {
+          const tagValidation = await validateTagUniqueness(tag);
+          if (!tagValidation.isValid) {
+            setNewAcqError(`${tagValidation.message} in ${rangeTabs[i].label}`);
+            setNewAcqLoading(false);
+            return;
+          }
+        }
 
         // Generate device list for this tab
         const tabDeviceList = [];
@@ -1923,7 +2311,10 @@ function Inventory() {
             tabData.deviceType
           }" from tab ${i + 1}`
         );
-        const addedCount = await addDevicesInBulk(tabData);
+        const addedCount = await addDevicesInBulk({
+          ...tabData,
+          quantity: quantity,
+        });
         totalAdded += addedCount;
         console.log(
           `Successfully added ${addedCount} devices from tab ${i + 1}`
@@ -2924,9 +3315,13 @@ function Inventory() {
                           color: "#374151",
                         }}
                       >
-                        {device.acquisitionDate
-                          ? formatDateToMMDDYYYY(device.acquisitionDate)
-                          : ""}
+                        {device.acquisitionDate ? (
+                          formatDateToMMDDYYYY(device.acquisitionDate)
+                        ) : (
+                          <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                            Not recorded
+                          </span>
+                        )}
                       </div>
                       <div style={{ flex: "0 0 120px", padding: "12px 16px" }}>
                         <div
@@ -3620,7 +4015,10 @@ function Inventory() {
       {/* New Acquisitions Modal */}
       {showNewAcqModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.inventoryModalContent}>
+          <div 
+            className="new-acquisitions-modal"
+            style={styles.inventoryModalContent}
+          >
             {!showManualSerialPanel ? (
               <>
                 <h3 style={styles.inventoryModalTitle}>
@@ -3908,8 +4306,17 @@ function Inventory() {
                             ""
                           }
                           onChange={handleNewAcqInput}
-                          style={styles.inventoryInput}
+                          style={{
+                            ...styles.inventoryInput,
+                            borderColor: !currentData.acquisitionDate ? "#f59e0b" : styles.inventoryInput.borderColor,
+                          }}
+                          title="Select the date when these devices were acquired"
                         />
+                        {!currentData.acquisitionDate && (
+                          <span style={{ color: "#f59e0b", fontSize: 11, marginTop: 2 }}>
+                            Acquisition date is recommended for proper record keeping
+                          </span>
+                        )}
                       </div>
                       <div
                         style={{
@@ -3982,57 +4389,92 @@ function Inventory() {
                             onChange={handleQuantityChange}
                             style={styles.inventoryInput}
                             min="1"
-                            max="100"
+                            max="99"
+                            maxLength="2"
                             placeholder="Enter quantity"
                           />
                         </div>
                       ) : (
                         <div
                           style={{
-                            display: "flex",
-                            gap: 12,
-                            width: "100%",
+                            ...styles.inventoryInputGroup,
                             marginBottom: 10,
                           }}
                         >
+                          <label style={styles.inventoryLabel}>
+                            Quantity (How many devices to add):
+                          </label>
+                          <input
+                            name="quantity"
+                            type="number"
+                            value={currentData.quantity || 1}
+                            onChange={handleNewAcqInput}
+                            style={styles.inventoryInput}
+                            min="1"
+                            max="99"
+                            maxLength="2"
+                            placeholder="Enter quantity (e.g., 10)"
+                          />
                           <div
                             style={{
-                              ...styles.inventoryInputGroup,
-                              flex: 1,
-                              marginBottom: 0,
+                              fontSize: 12,
+                              color: "#64748b",
+                              marginTop: 4,
                             }}
                           >
-                            <label style={styles.inventoryLabel}>
-                              Start Tag (e.g. 0009):
-                            </label>
-                            <input
-                              name="startTag"
-                              value={currentData.startTag}
-                              onChange={handleNewAcqInput}
-                              style={styles.inventoryInput}
-                              maxLength={4}
-                              placeholder="0001"
-                            />
+                            TAGs will be automatically generated starting from the next available number
                           </div>
-                          <div
-                            style={{
-                              ...styles.inventoryInputGroup,
-                              flex: 1,
-                              marginBottom: 0,
-                            }}
-                          >
-                            <label style={styles.inventoryLabel}>
-                              End Tag (e.g. 0015):
-                            </label>
-                            <input
-                              name="endTag"
-                              value={currentData.endTag}
-                              onChange={handleNewAcqInput}
-                              style={styles.inventoryInput}
-                              maxLength={4}
-                              placeholder="0015"
-                            />
-                          </div>
+                          
+                          {/* TAG Preview Section */}
+                          {currentData.deviceType && currentData.quantity && (
+                            <div
+                              style={{
+                                marginTop: 8,
+                                padding: 8,
+                                backgroundColor: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: 4,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: "#374151",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Preview TAGs to be generated:
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "#64748b",
+                                  fontFamily: "monospace",
+                                }}
+                              >
+                                {(() => {
+                                  const typeObj = deviceTypes.find(
+                                    (t) => t.label === currentData.deviceType
+                                  );
+                                  if (typeObj) {
+                                    const prefix = `JOII${typeObj.code}`;
+                                    const qty = parseInt(currentData.quantity) || 1;
+                                    const nextTag = currentData.nextAvailableTag || 1;
+                                    const tags = [];
+                                    for (let i = 0; i < Math.min(qty, 5); i++) {
+                                      tags.push(`${prefix}${String(nextTag + i).padStart(4, '0')}`);
+                                    }
+                                    if (qty > 5) {
+                                      tags.push(`... and ${qty - 5} more`);
+                                    }
+                                    return tags.join(", ");
+                                  }
+                                  return "Select device type to preview TAGs";
+                                })()}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </>
@@ -4040,11 +4482,31 @@ function Inventory() {
                 })()}
 
                 {newAcqError && (
-                  <span
-                    style={{ color: "#e57373", fontSize: 12, marginBottom: 6 }}
+                  <div
+                    style={{
+                      background: "#fef2f2",
+                      color: "#dc2626",
+                      padding: "8px 12px",
+                      borderRadius: 6,
+                      marginBottom: 12,
+                      border: "1px solid #fecaca",
+                      fontSize: 13,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
                   >
-                    {newAcqError}
-                  </span>
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      style={{ flexShrink: 0 }}
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                    </svg>
+                    <span>{newAcqError}</span>
+                  </div>
                 )}
 
                 {/* Progress bar */}
@@ -4124,9 +4586,9 @@ function Inventory() {
                             condition: "",
                             remarks: "",
                             acquisitionDate: "",
-                            startTag: "",
-                            endTag: "",
+                            quantity: 1,
                             supplier: "",
+                            client: "",
                             useManualSerial: false,
                             manualQuantity: 1,
                             manualSerials: [],
@@ -4148,16 +4610,68 @@ function Inventory() {
             ) : (
               /* Manual Serial Entry Panel */
               <>
-                <h3 style={styles.inventoryModalTitle}>
-                  Enter Serial Numbers (
-                  {newAcqTabs.filter((tab) => tab.data.useManualSerial).length}{" "}
-                  Device Type
-                  {newAcqTabs.filter((tab) => tab.data.useManualSerial).length >
-                  1
-                    ? "s"
-                    : ""}
-                  )
-                </h3>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <svg
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    style={{ flexShrink: 0 }}
+                    aria-hidden="true"
+                  >
+                    <path d="M9 12l2 2 4-4" />
+                    <path d="M21 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
+                    <path d="M3 12c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
+                    <path d="M12 3c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
+                    <path d="M12 21c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
+                  </svg>
+                  <h3 
+                    style={{
+                      ...styles.inventoryModalTitle,
+                      marginBottom: 0,
+                      color: "#2563eb",
+                    }}
+                  >
+                    Enter Serial Numbers (
+                    {newAcqTabs.filter((tab) => tab.data.useManualSerial).length}{" "}
+                    Device Type
+                    {newAcqTabs.filter((tab) => tab.data.useManualSerial).length >
+                    1
+                      ? "s"
+                      : ""}
+                    )
+                  </h3>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: "#eff6ff",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "6px",
+                    padding: "8px 12px",
+                    marginBottom: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "14px",
+                    color: "#1d4ed8",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Manually assign serial numbers for each device type below
+                </div>
 
                 {(() => {
                   const manualTabs = newAcqTabs.filter(
@@ -4207,16 +4721,21 @@ function Inventory() {
                                       ...styles.tabButton,
                                       background:
                                         tab.id === activeManualTabId
-                                          ? "#22c55e"
-                                          : "#f1f5f9",
+                                          ? "#2563eb"
+                                          : "#f8fafc",
                                       color:
                                         tab.id === activeManualTabId
                                           ? "#fff"
                                           : "#64748b",
+                                      borderTopLeftRadius: 6,
+                                      borderTopRightRadius: 6,
                                       borderBottomLeftRadius:
                                         tab.id === activeManualTabId ? 0 : 6,
                                       borderBottomRightRadius:
                                         tab.id === activeManualTabId ? 0 : 6,
+                                      fontWeight: tab.id === activeManualTabId ? 600 : 400,
+                                      transition: "all 0.2s",
+                                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                       minWidth: Math.max(
                                         80,
                                         Math.min(
@@ -4257,8 +4776,9 @@ function Inventory() {
                               width: "100%",
                               height: 2,
                               background: "#22c55e",
-                              borderRadius: "0 6px 0 0",
-                              marginBottom: 16,
+                              borderRadius: "0 4px 0 0",
+                              marginBottom: 12,
+                              boxSizing: "border-box",
                             }}
                           />
                         </div>
@@ -4268,12 +4788,13 @@ function Inventory() {
                         <>
                           <div
                             style={{
-                              marginBottom: 16,
-                              padding: 12,
+                              marginBottom: 12,
+                              padding: 10,
                               background: "#f1f5f9",
-                              borderRadius: 8,
+                              borderRadius: 6,
                               border: "1px solid #cbd5e1",
                               width: "100%",
+                              boxSizing: "border-box",
                             }}
                           >
                             <div
@@ -4299,11 +4820,12 @@ function Inventory() {
                           <div
                             style={{
                               width: "100%",
-                              marginBottom: 16,
-                              padding: 12,
+                              marginBottom: 12,
+                              padding: 10,
                               background: "#f8fafc",
                               border: "1px solid #e2e8f0",
-                              borderRadius: 8,
+                              borderRadius: 6,
+                              boxSizing: "border-box",
                             }}
                           >
                             <div
@@ -4311,7 +4833,7 @@ function Inventory() {
                                 fontSize: 13,
                                 fontWeight: 600,
                                 color: "#374151",
-                                marginBottom: 8,
+                                marginBottom: 6,
                               }}
                             >
                               Quick Import Serial Numbers
@@ -4320,7 +4842,7 @@ function Inventory() {
                               style={{
                                 fontSize: 12,
                                 color: "#64748b",
-                                marginBottom: 8,
+                                marginBottom: 6,
                               }}
                             >
                               Paste serial numbers below (one per line) and
@@ -4328,16 +4850,20 @@ function Inventory() {
                             </div>
                             <textarea
                               style={{
+                                ...styles.inventoryInput,
                                 width: "100%",
-                                height: 80,
-                                padding: 8,
-                                border: "1px solid #d1d5db",
+                                height: 70,
+                                padding: "6px 8px",
+                                border: "1.5px solid #cbd5e1",
                                 borderRadius: 4,
-                                fontSize: 12,
-                                fontFamily: "monospace",
+                                fontSize: 13,
+                                fontFamily: "Maax, monospace",
                                 resize: "vertical",
                                 boxSizing: "border-box",
-                                marginBottom: 8,
+                                marginBottom: 6,
+                                outline: "none",
+                                transition: "border-color 0.2s, box-shadow 0.2s",
+                                backgroundColor: "#fff",
                               }}
                               placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
                               value={importTexts[currentManualTab.id] || ""}
@@ -4362,16 +4888,19 @@ function Inventory() {
                                 }
                               }}
                               style={{
+                                ...styles.inventoryModalButton,
                                 background: "#22c55e",
                                 color: "#fff",
                                 border: "none",
-                                borderRadius: 4,
-                                padding: "6px 12px",
-                                fontSize: 12,
-                                fontWeight: 600,
+                                borderRadius: 6,
+                                padding: "8px 16px",
+                                fontSize: 13,
+                                fontWeight: 500,
                                 cursor: "pointer",
                                 marginBottom: 8,
                                 marginRight: 8,
+                                transition: "background 0.2s",
+                                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                 opacity:
                                   importTexts[currentManualTab.id] &&
                                   importTexts[currentManualTab.id].trim()
@@ -4402,15 +4931,18 @@ function Inventory() {
                                 }));
                               }}
                               style={{
+                                ...styles.inventoryModalButton,
                                 background: "#6b7280",
                                 color: "#fff",
                                 border: "none",
-                                borderRadius: 4,
-                                padding: "6px 12px",
-                                fontSize: 12,
-                                fontWeight: 600,
+                                borderRadius: 6,
+                                padding: "8px 16px",
+                                fontSize: 13,
+                                fontWeight: 500,
                                 cursor: "pointer",
                                 marginBottom: 8,
+                                transition: "background 0.2s",
+                                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                               }}
                             >
                               Clear
@@ -4434,16 +4966,18 @@ function Inventory() {
                               overflowY: "auto",
                               border: "1px solid #e2e8f0",
                               borderRadius: 8,
-                              padding: 16,
+                              padding: 12,
                               background: "#fafbfc",
+                              boxSizing: "border-box",
                             }}
                           >
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns:
-                                  "repeat(auto-fit, minmax(220px, 1fr))",
-                                gap: 12,
+                                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                                gap: 8,
+                                width: "100%",
+                                justifyContent: "start",
                               }}
                             >
                               {currentManualTab.data.manualSerials?.map(
@@ -4452,10 +4986,12 @@ function Inventory() {
                                     key={item.id}
                                     style={{
                                       background: "#fff",
-                                      padding: 10,
+                                      padding: 8,
                                       borderRadius: 6,
                                       border: "1px solid #e2e8f0",
                                       boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                      width: "100%",
+                                      boxSizing: "border-box",
                                     }}
                                   >
                                     <label
@@ -4465,13 +5001,14 @@ function Inventory() {
                                         fontWeight: 600,
                                         color: "#374151",
                                         marginBottom: 4,
+                                        display: "block",
                                       }}
                                     >
                                       Device #{index + 1}
                                     </label>
                                     <input
                                       type="text"
-                                      value={item.serial}
+                                      value={item.serial || ""}
                                       onChange={(e) =>
                                         handleManualSerialChange(
                                           currentManualTab.id,
@@ -4480,13 +5017,18 @@ function Inventory() {
                                         )
                                       }
                                       style={{
+                                        ...styles.inventoryInput,
                                         width: "100%",
                                         padding: "6px 8px",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: 4,
                                         fontSize: 13,
+                                        height: "32px",
                                         backgroundColor: "#fff",
+                                        border: "1.5px solid #cbd5e1",
+                                        borderRadius: 4,
+                                        outline: "none",
+                                        transition: "border-color 0.2s, box-shadow 0.2s",
                                         boxSizing: "border-box",
+                                        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                       }}
                                       placeholder={`Enter serial number`}
                                       maxLength={64}
@@ -4503,26 +5045,40 @@ function Inventory() {
                         <div
                           style={{
                             marginTop: 12,
-                            padding: 8,
+                            padding: "8px 12px",
                             background: "#fef2f2",
                             border: "1px solid #fecaca",
                             borderRadius: 6,
                             color: "#dc2626",
-                            fontSize: 12,
+                            fontSize: 13,
                             width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
                           }}
                         >
-                          {newAcqError}
+                          <svg
+                            width="16"
+                            height="16"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            style={{ flexShrink: 0 }}
+                          >
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                          </svg>
+                          <span>{newAcqError}</span>
                         </div>
                       )}
 
                       <div
                         style={{
-                          marginTop: 16,
+                          marginTop: 12,
                           display: "flex",
                           justifyContent: "center",
-                          gap: 10,
+                          gap: 8,
                           width: "100%",
+                          padding: "0 4px",
+                          boxSizing: "border-box",
                         }}
                       >
                         <button
@@ -4532,6 +5088,8 @@ function Inventory() {
                             ...styles.inventoryModalButton,
                             opacity: newAcqLoading ? 0.6 : 1,
                             background: "#22c55e",
+                            padding: "8px 16px",
+                            fontSize: 13,
                           }}
                         >
                           {newAcqLoading
@@ -4543,7 +5101,11 @@ function Inventory() {
                             setShowManualSerialPanel(false);
                             setImportTexts({}); // Clear import texts when going back
                           }}
-                          style={styles.inventoryModalButtonSecondary}
+                          style={{
+                            ...styles.inventoryModalButtonSecondary,
+                            padding: "8px 16px",
+                            fontSize: 13,
+                          }}
                           disabled={newAcqLoading}
                         >
                           Back to Form
@@ -4762,6 +5324,7 @@ const styles = {
     position: "relative",
     border: "1.5px solid #e5e7eb",
     transition: "box-shadow 0.2s",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalContent: {
     background: "#fff",
@@ -4782,6 +5345,7 @@ const styles = {
     scrollbarWidth: "none",
     msOverflowStyle: "none",
     WebkitScrollbar: { display: "none" },
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   modalTitle: {
     fontSize: 20,
@@ -4790,6 +5354,7 @@ const styles = {
     marginBottom: 16,
     letterSpacing: 0.5,
     textAlign: "center",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalTitle: {
     fontSize: 18,
@@ -4799,6 +5364,7 @@ const styles = {
     letterSpacing: 0.5,
     textAlign: "center",
     width: "100%",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryInputGroup: {
     display: "flex",
@@ -4814,6 +5380,7 @@ const styles = {
     color: "#222e3a",
     marginBottom: 3,
     fontSize: 13,
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryInput: {
     width: "100%",
@@ -4826,6 +5393,9 @@ const styles = {
     height: "30px",
     boxSizing: "border-box",
     marginBottom: 0,
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    outline: "none",
+    transition: "border-color 0.2s, box-shadow 0.2s",
   },
   inventoryModalButton: {
     background: "#2563eb",
@@ -4839,6 +5409,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalButtonSmall: {
     background: "#2563eb",
@@ -4853,6 +5424,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalButtonSecondary: {
     background: "#e0e7ef",
@@ -4867,6 +5439,7 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   modalCheckbox: {
     accentColor: "#2563eb",
@@ -4888,6 +5461,7 @@ const styles = {
     fontSize: 15,
     textAlign: "left",
     width: "100%",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   actionEditButton: {
     background: "transparent",
@@ -4933,6 +5507,7 @@ const styles = {
     maxWidth: 120,
     justifyContent: "space-between",
     flexShrink: 0,
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   addTabButton: {
     background: "#f1f5f9",
@@ -4949,5 +5524,6 @@ const styles = {
     justifyContent: "center",
     transition: "all 0.2s",
     boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
 };
