@@ -2651,7 +2651,7 @@ function Inventory() {
             <button
               onClick={() => setShowForm(true)}
               style={{
-                background: "#6b7280",
+                background: "#3b82f6",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -2665,11 +2665,11 @@ function Inventory() {
                 transition: "all 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#4b5563";
+                e.target.style.background = "#2563eb";
                 e.target.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "#6b7280";
+                e.target.style.background = "#3b82f6";
                 e.target.style.transform = "translateY(0)";
               }}
             >
@@ -2704,7 +2704,7 @@ function Inventory() {
                     .click()
                 }
                 style={{
-                  background: importing ? "#9ca3af" : "#6b7280",
+                  background: importing ? "#9ca3af" : "#10b981",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -2719,13 +2719,13 @@ function Inventory() {
                 }}
                 onMouseEnter={(e) => {
                   if (!importing) {
-                    e.target.style.background = "#4b5563";
+                    e.target.style.background = "#059669";
                     e.target.style.transform = "translateY(-1px)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!importing) {
-                    e.target.style.background = "#6b7280";
+                    e.target.style.background = "#10b981";
                     e.target.style.transform = "translateY(0)";
                   }
                 }}
@@ -2752,7 +2752,7 @@ function Inventory() {
               onClick={handleExportToExcel}
               title="Export all inventory data to Excel"
               style={{
-                background: "#6b7280",
+                background: "#f59e0b",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -2766,11 +2766,11 @@ function Inventory() {
                 transition: "all 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#4b5563";
+                e.target.style.background = "#d97706";
                 e.target.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "#6b7280";
+                e.target.style.background = "#f59e0b";
                 e.target.style.transform = "translateY(0)";
               }}
             >
@@ -2791,7 +2791,7 @@ function Inventory() {
               disabled={selectedIds.length === 0}
               onClick={() => handleBulkAssign()}
               style={{
-                background: selectedIds.length ? "#6b7280" : "#9ca3af",
+                background: selectedIds.length ? "#8b5cf6" : "#9ca3af",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -2806,13 +2806,13 @@ function Inventory() {
               }}
               onMouseEnter={(e) => {
                 if (selectedIds.length) {
-                  e.target.style.background = "#4b5563";
+                  e.target.style.background = "#7c3aed";
                   e.target.style.transform = "translateY(-1px)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (selectedIds.length) {
-                  e.target.style.background = "#6b7280";
+                  e.target.style.background = "#8b5cf6";
                   e.target.style.transform = "translateY(0)";
                 }
               }}
@@ -2883,7 +2883,7 @@ function Inventory() {
             <button
               onClick={() => setShowNewAcqModal(true)}
               style={{
-                background: "#6b7280",
+                background: "#06b6d4",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -2897,11 +2897,11 @@ function Inventory() {
                 transition: "all 0.15s ease",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#4b5563";
+                e.target.style.background = "#0891b2";
                 e.target.style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "#6b7280";
+                e.target.style.background = "#06b6d4";
                 e.target.style.transform = "translateY(0)";
               }}
             >
@@ -3339,18 +3339,22 @@ function Inventory() {
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 4,
+                              borderRadius: 6,
                               background: "transparent",
                               cursor: "pointer",
-                              transition: "background 0.18s",
-                              padding: "6px",
+                              transition: "all 0.2s ease",
+                              padding: "8px",
                             }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#dbeafe")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#3b82f6";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleEdit(device);
@@ -3361,11 +3365,20 @@ function Inventory() {
                               width="16"
                               height="16"
                               fill="none"
-                              stroke="#2563eb"
+                              stroke="#6b7280"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
                             >
                               <path d="M12 20h9" />
                               <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
@@ -3378,18 +3391,22 @@ function Inventory() {
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 4,
+                              borderRadius: 6,
                               background: "transparent",
                               cursor: "pointer",
-                              transition: "background 0.18s",
-                              padding: "6px",
+                              transition: "all 0.2s ease",
+                              padding: "8px",
                             }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.background = "#fef2f2")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.background = "transparent")
-                            }
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#ef4444";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDelete(device.id);
@@ -3400,11 +3417,20 @@ function Inventory() {
                               width="16"
                               height="16"
                               fill="none"
-                              stroke="#e57373"
+                              stroke="#6b7280"
                               strokeWidth="2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
                             >
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />

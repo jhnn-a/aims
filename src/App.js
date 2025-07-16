@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -16,11 +16,11 @@ import LoginPage from "./pages/LoginPage";
 import "./App.css";
 
 function App() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [redirectToDashboard, setRedirectToDashboard] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -68,17 +68,11 @@ function App() {
       setUser({ ...userData, ...claims });
       setIsAuthenticated(true);
       setLoginError("");
-      setRedirectToDashboard(true);
+      navigate("/dashboard", { replace: true });
     } catch {
       setLoginError("Invalid email or password.");
     }
   }
-
-  useEffect(() => {
-    if (redirectToDashboard) {
-      setRedirectToDashboard(false);
-    }
-  }, [redirectToDashboard]);
 
   if (authLoading) {
     return (
@@ -96,11 +90,6 @@ function App() {
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={handleLogin} error={loginError} />;
-  }
-
-  if (redirectToDashboard) {
-    setRedirectToDashboard(false);
-    return <Navigate to="/dashboard" replace />;
   }
 
   return (

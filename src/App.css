@@ -18,9 +18,9 @@
   padding: 0;
   background-color: #f9f9f9;
   box-sizing: border-box;
-  margin-left: 260px;
+  margin-left: 220px; /* match sidebar width */
   height: calc(100vh - 56px);
-  width: calc(100vw - 260px);
+  width: calc(100vw - 220px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
