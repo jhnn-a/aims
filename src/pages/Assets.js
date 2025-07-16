@@ -1650,13 +1650,13 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "4px",
-                                padding: "6px",
+                                borderRadius: "6px",
+                                padding: "8px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                transition: "background 0.2s",
+                                transition: "all 0.2s ease",
                                 color: "#6b7280",
                               }}
                               title="Edit"
@@ -1665,12 +1665,16 @@ function Assets() {
                                 handleEdit(device);
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.background = "#dbeafe";
-                                e.currentTarget.style.color = "#3b82f6";
+                                e.currentTarget.style.background = "#3b82f6";
+                                e.currentTarget.style.color = "#ffffff";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.background = "transparent";
                                 e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
                               }}
                             >
                               <svg
@@ -1691,13 +1695,13 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "4px",
-                                padding: "6px",
+                                borderRadius: "6px",
+                                padding: "8px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                transition: "background 0.2s",
+                                transition: "all 0.2s ease",
                                 color: "#6b7280",
                               }}
                               title="Delete"
@@ -1706,12 +1710,16 @@ function Assets() {
                                 handleDelete(device.id);
                               }}
                               onMouseEnter={(e) => {
-                                e.currentTarget.style.background = "#fef2f2";
-                                e.currentTarget.style.color = "#ef4444";
+                                e.currentTarget.style.background = "#ef4444";
+                                e.currentTarget.style.color = "#ffffff";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
                               }}
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.background = "transparent";
                                 e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
                               }}
                             >
                               <svg
