@@ -1,171 +1,98 @@
 import { Link, useLocation } from "react-router-dom";
-
-// Add responsive styles
-const responsiveStyles = `
-  @media (max-width: 768px) {
-    .sidebar-nav {
-      width: 200px !important;
-    }
-    .main-content {
-      margin-left: 200px !important;
-      width: calc(100vw - 200px) !important;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .sidebar-nav {
-      width: 160px !important;
-    }
-    .main-content {
-      margin-left: 160px !important;
-      width: calc(100vw - 160px) !important;
-    }
-  }
-  
-  /* Ensure no scrollbars on body and html */
-  body, html {
-    overflow: hidden !important;
-    height: 100vh !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  #root {
-    height: 100vh !important;
-    overflow: hidden !important;
-  }
-`;
-
-const sidebarStyle = {
-  background: "#445F6D", // Payne's gray
-  height: "calc(100vh - 56px)", // Full height minus header height
-  padding: "36px 0 24px 0",
-  boxShadow: "2px 0 16px rgba(68,95,109,0.10)",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  borderRight: "1px solid #5a768a",
-  transition: "background 0.2s",
-  zIndex: 10,
-  position: "fixed", // Fixed positioning
-  top: "56px", // Start below header
-  left: "0", // Align to left edge
-  minWidth: 120,
-  maxWidth: 260,
-  width: "260px", // Fixed width for consistent margin calculation
-  overflowY: "auto", // Allow scrolling within sidebar if content is too long
-  overflowX: "hidden", // Prevent horizontal scrolling
-};
-
-const ulStyle = {
-  listStyle: "none",
-  padding: 0,
-  margin: 0,
-  width: "100%",
-  flex: 1,
-  display: "flex",
-  flexDirection: "column",
-  gap: 2,
-};
-
-const liStyle = {
-  width: "100%",
-};
-
-const linkStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 0,
-  width: "100%",
-  padding: "12px 22px",
-  borderRadius: 18,
-  color: "#fff", // White for contrast
-  textDecoration: "none",
-  fontWeight: 500,
-  fontSize: 17,
-  letterSpacing: 0.2,
-  transition: "background 0.18s, color 0.18s, box-shadow 0.18s",
-  background: "none",
-  border: "none",
-  outline: "none",
-  position: "relative",
-  boxSizing: "border-box",
-  marginRight: 0,
-  whiteSpace: "nowrap",
-};
-
-const activeLinkStyle = {
-  background:
-    "linear-gradient(90deg, #FFE066 60%, #70C1B3 90%, rgba(112,193,179,0) 100%)", // Fade to transparent right
-  color: "#233037", // Gunmetal for active
-  fontWeight: 700,
-  boxShadow: "0 2px 12px 0 #FFE06633",
-  borderRadius: 0, // No rounded corners
-  marginRight: 0,
-};
-
-const dividerStyle = {
-  width: "80%",
-  height: 1,
-  background: "#5a768a", // Slightly lighter than sidebar
-  margin: "24px auto 18px auto",
-  border: "none",
-};
-
-const bottomBoxStyle = {
-  marginTop: "auto",
-  padding: "18px 0 0 0",
-  width: "100%",
-  textAlign: "center",
-  fontSize: 13,
-  color: "#FFE066", // Naples yellow for accent
-  letterSpacing: 0.2,
-  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-};
+import { useState } from "react";
+import {
+  MdDashboard,
+  MdBusinessCenter,
+  MdPeople,
+  MdHandshake,
+  MdComputer,
+  MdAdminPanelSettings,
+} from "react-icons/md";
+import "./Sidebar.css";
 
 function Sidebar({ user }) {
   const location = useLocation();
+  const [showCredits, setShowCredits] = useState(false);
+
   const links = [
-    { to: "/", label: "Dashboard" },
-    { to: "/company-assets", label: "Company Assets" },
-    { to: "/employees", label: "Employees" },
-    { to: "/clients", label: "Clients" },
-    { to: "/unit-specs", label: "Unit Specs" },
+    { to: "/dashboard", label: "Dashboard", icon: <MdDashboard size={22} /> },
+    {
+      to: "/company-assets",
+      label: "Company Assets",
+      icon: <MdBusinessCenter size={22} />,
+    },
+    { to: "/employees", label: "Employees", icon: <MdPeople size={22} /> },
+    { to: "/clients", label: "Clients", icon: <MdHandshake size={22} /> },
+    { to: "/unit-specs", label: "Unit Specs", icon: <MdComputer size={22} /> },
   ];
-  // Add User Management link for admins
   if (user && user.role === "admin") {
-    links.push({ to: "/user-management", label: "User Management" });
+    links.push({
+      to: "/user-management",
+      label: "User Management",
+      icon: <MdAdminPanelSettings size={22} />,
+    });
   }
+
   return (
-    <>
-      <style>{responsiveStyles}</style>
-      <nav style={sidebarStyle} className="sidebar-nav">
-      <ul style={ulStyle}>
-        {links.map((l) => (
-          <li key={l.to} style={liStyle}>
+    <nav className="sidebar-nav">
+      <ul className="sidebar-list">
+        {links.map((link) => (
+          <li key={link.to} className="sidebar-list-item">
             <Link
-              to={l.to}
-              style={{
-                ...linkStyle,
-                ...(location.pathname === l.to ? activeLinkStyle : {}),
-                marginLeft: 0,
-                marginRight: 0,
-              }}
+              to={link.to}
+              className={
+                location.pathname === link.to
+                  ? "sidebar-link active"
+                  : "sidebar-link"
+              }
             >
-              {l.label}
+              <span
+                style={{
+                  marginRight: 12,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {link.icon}
+              </span>
+              {link.label}
             </Link>
           </li>
         ))}
       </ul>
-      <hr style={dividerStyle} />
-      <div style={bottomBoxStyle}>
-        <span>
-          <span style={{ color: "#2563eb", fontWeight: 700 }}>AIMS</span> &copy;{" "}
-          {new Date().getFullYear()}
+      <hr className="sidebar-divider" />
+      <div className="sidebar-bottom">
+        <span
+          className={`sidebar-footer-clickable${
+            showCredits ? " sidebar-footer-active" : ""
+          }`}
+          style={{
+            cursor: "pointer",
+            display: "inline-block",
+            position: "relative",
+            fontWeight: 700,
+          }}
+          onMouseEnter={() => setShowCredits(true)}
+          onMouseLeave={() => setShowCredits(false)}
+        >
+          <span className="sidebar-brand" style={{ color: "inherit" }}>
+            AIMS
+          </span>{" "}
+          &copy; {new Date().getFullYear()}
+          {showCredits && (
+            <div className="sidebar-credits-tooltip">
+              <div className="sidebar-credits-title">Developed by</div>
+              <div className="sidebar-credits-names">
+                Ryan Bumalic
+                <br />
+                John Mungcal
+              </div>
+              <div className="sidebar-credits-pointer" />
+            </div>
+          )}
         </span>
       </div>
     </nav>
-    </>
   );
 }
 
