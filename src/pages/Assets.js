@@ -1126,62 +1126,38 @@ function Assets() {
     <React.Fragment>
       <style>
         {`
-          @media (min-width: 1366px) {
-            .assets-container {
-              padding: 24px !important;
-            }
-            .assets-search-container {
-              flex-wrap: nowrap !important;
-              gap: 16px !important;
-            }
-            .assets-table {
-              min-width: 100% !important;
-            }
-          }
-          @media (min-width: 1920px) {
-            .assets-container {
-              padding: 32px !important;
-              max-width: 1800px !important;
-              margin: 0 auto !important;
-            }
+          .assets-table {
+            min-width: 1200px;
           }
           @media (min-width: 1600px) {
             .assets-table-container {
               overflow-x: visible !important;
             }
           }
-          .assets-table {
-            min-width: 1200px;
-          }
         `}
       </style>
       <div
         className="assets-container"
         style={{
-          padding: "0", // Remove padding to maximize space
-          background: "transparent", // Let parent handle background
-          height: "100%", // Fill available height
-          fontFamily:
-            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-          width: "100%",
-          boxSizing: "border-box",
+          height: "100vh",
           display: "flex",
           flexDirection: "column",
-          overflow: "hidden", // Prevent overflow on main container
+          background: "transparent",
+          fontFamily:
+            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          overflow: "hidden",
+          boxSizing: "border-box",
         }}
       >
         {/* Fixed Header - Search bar and buttons section */}
         <div
           style={{
-            background: "#fff",
-            borderRadius: "0",
-            boxShadow: "none",
-            border: "none",
-            borderBottom: "1px solid #e5e7eb",
             position: "sticky",
-            top: "0",
-            zIndex: "10",
+            top: 0,
+            zIndex: 10,
             flexShrink: 0,
+            background: "rgb(255, 255, 255)",
+            borderBottom: "1px solid #e5e7eb",
           }}
         >
           <div
@@ -1239,44 +1215,52 @@ function Assets() {
                 }}
               />
             </div>
-            <button
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkReassign}
-              style={{
-                padding: "10px 16px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                background: selectedDeviceIds.length ? "#3b82f6" : "#f3f4f6",
-                color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                fontSize: "14px",
-                fontWeight: 500,
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-                minWidth: "90px",
-              }}
-            >
-              Reassign
-            </button>
-            <button
-              disabled={!selectedDeviceIds.length}
-              onClick={handleBulkUnassign}
-              style={{
-                padding: "10px 16px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
-                background: selectedDeviceIds.length ? "#ef4444" : "#f3f4f6",
-                color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
-                cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
-                fontSize: "14px",
-                fontWeight: 500,
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-                minWidth: "90px",
-              }}
-            >
-              Unassign
-            </button>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginLeft: "auto",
+              flexWrap: "wrap",
+            }}>
+              <button
+                disabled={!selectedDeviceIds.length}
+                onClick={handleBulkReassign}
+                style={{
+                  padding: "9px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  background: selectedDeviceIds.length ? "#3b82f6" : "#f3f4f6",
+                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                }}
+              >
+                Reassign
+              </button>
+              <button
+                disabled={!selectedDeviceIds.length}
+                onClick={handleBulkUnassign}
+                style={{
+                  padding: "9px 16px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  background: selectedDeviceIds.length ? "#ef4444" : "#f3f4f6",
+                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                }}
+              >
+                Unassign
+              </button>
+            </div>
           </div>
         </div>
 
