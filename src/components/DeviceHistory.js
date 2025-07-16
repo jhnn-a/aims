@@ -1,6 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { getDeviceHistoryByTag, getDeviceHistoryById, createSampleDeviceHistory } from "../services/deviceHistoryService";
 
+// Function to get background color based on condition
+const getConditionColor = (condition) => {
+  const colorMap = {
+    "GOOD": "#007BFF",        // Blue
+    "BRANDNEW": "#28A745",    // Green
+    "DEFECTIVE": "#DC3545",   // Red
+    "NEEDS REPAIR": "#FFC107", // Yellow
+    "RETIRED": "#6C757D"      // Gray
+  };
+  return colorMap[condition] || "#6C757D"; // Default to gray
+};
+
+// Function to get text color for better contrast
+const getConditionTextColor = (condition) => {
+  // Yellow background needs dark text for better contrast
+  return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
+
 // Utility function to format dates consistently as MM/DD/YYYY
 const formatDateToMMDDYYYY = (dateValue) => {
   if (!dateValue) return "";
@@ -433,7 +451,22 @@ const DeviceHistory = ({ deviceTag, deviceId, onClose }) => {
                         )}
                         {item.condition && (
                           <div style={styles.infoRow}>
-                            <strong>Condition:</strong> {item.condition}
+                            <strong>Condition:</strong>{" "}
+                            <span
+                              style={{
+                                display: "inline-block",
+                                background: getConditionColor(item.condition),
+                                color: getConditionTextColor(item.condition),
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                marginLeft: "4px",
+                                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                              }}
+                            >
+                              {item.condition}
+                            </span>
                           </div>
                         )}
                       </div>

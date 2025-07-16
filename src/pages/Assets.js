@@ -14,6 +14,24 @@ import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
 import DeviceHistory from "../components/DeviceHistory";
 
+// Function to get background color based on condition
+const getConditionColor = (condition) => {
+  const colorMap = {
+    GOOD: "#007BFF", // Blue
+    BRANDNEW: "#28A745", // Green
+    DEFECTIVE: "#DC3545", // Red
+    "NEEDS REPAIR": "#FFC107", // Yellow
+    RETIRED: "#6C757D", // Gray
+  };
+  return colorMap[condition] || "#6C757D"; // Default to gray
+};
+
+// Function to get text color for better contrast
+const getConditionTextColor = (condition) => {
+  // Yellow background needs dark text for better contrast
+  return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
+
 function DeviceFormModal({
   data,
   onChange,
@@ -42,7 +60,7 @@ function DeviceFormModal({
     { label: "SSD", code: "SSD" },
     { label: "Webcam", code: "W" },
   ];
-  const conditions = ["New", "Working", "Needs Repair", "Retired"];
+  const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
 
   return (
     <div
@@ -447,7 +465,7 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
   const [currentPage, setCurrentPage] = useState(1);
   const [devicesPerPage, setDevicesPerPage] = useState(50);
-  
+
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
@@ -555,10 +573,10 @@ function Assets() {
 
   const confirmUnassign = async () => {
     if (!unassignDevice) return;
-    let condition = "Working";
+    let condition = "GOOD";
     let reason = "Normal unassign (still working)";
     if (unassignReason === "defective") {
-      condition = "Defective";
+      condition = "DEFECTIVE";
       reason = "Defective";
     }
     try {
@@ -806,10 +824,10 @@ function Assets() {
       );
       return;
     }
-    let condition = "Working";
+    let condition = "GOOD";
     let reason = "Normal unassign (still working)";
     if (bulkUnassignReason === "defective") {
-      condition = "Defective";
+      condition = "DEFECTIVE";
       reason = "Defective (bulk)";
     }
     // Get the employee
@@ -1632,27 +1650,32 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "4px",
-                                padding: "6px",
+                                borderRadius: "6px",
+                                padding: "8px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                transition: "background 0.2s",
-                                color: "#3b82f6",
+                                transition: "all 0.2s ease",
+                                color: "#6b7280",
                               }}
                               title="Edit"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEdit(device);
                               }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background = "#dbeafe")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#3b82f6";
+                                e.currentTarget.style.color = "#ffffff";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
                             >
                               <svg
                                 width="16"
@@ -1672,27 +1695,32 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "4px",
-                                padding: "6px",
+                                borderRadius: "6px",
+                                padding: "8px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                transition: "background 0.2s",
-                                color: "#ef4444",
+                                transition: "all 0.2s ease",
+                                color: "#6b7280",
                               }}
                               title="Delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(device.id);
                               }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.background = "#fef2f2")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.background =
-                                  "transparent")
-                              }
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#ef4444";
+                                e.currentTarget.style.color = "#ffffff";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
                             >
                               <svg
                                 width="16"
@@ -2275,6 +2303,7 @@ function Assets() {
               {!showTransferPrompt && (
                 <>
                   <input
+
                     type="text"
                     placeholder="Search employee..."
                     value={assignSearch}
