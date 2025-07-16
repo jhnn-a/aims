@@ -39,26 +39,23 @@ function Login({ onLogin, error }) {
     setLocalError(error);
   }, [error]);
 
-  // Use exact header styles for logo and title
-  const headerStyles = {
-    display: "flex",
-    alignItems: "center",
-    height: 56,
-    background: "linear-gradient(90deg, #FFD87D 0%, #92D6E3 100%)",
-    color: "#3B3B4A",
-    paddingLeft: 32,
-    paddingRight: 32,
-    width: "100%",
-    marginBottom: 24,
-  };
-  const leftStyles = {
-    display: "flex",
-    alignItems: "center",
-  };
+  // Styles for logo and title above the form
   const logoStyles = {
-    height: 20,
+    height: 32,
     width: "auto",
-    marginRight: 12,
+    marginBottom: 12,
+    display: "block",
+    cursor: "pointer",
+  };
+  const titleStyles = {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#233037",
+    textAlign: "center",
+    marginBottom: 24,
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    letterSpacing: 0.5,
   };
 
   // Consistent styles for input and button
@@ -95,7 +92,16 @@ function Login({ onLogin, error }) {
   };
 
   return (
-    <div>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background:
+          "url('/Joii_Wallpaper_1.png') center center / cover no-repeat",
+      }}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -105,32 +111,30 @@ function Login({ onLogin, error }) {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          background: "#fff",
+          padding: "36px 40px",
+          borderRadius: 18,
+          boxShadow: "0 12px 48px rgba(37,99,235,0.08)",
         }}
       >
-        <div style={{ width: "100%", boxSizing: "border-box", paddingLeft: 0 }}>
-          <div style={headerStyles}>
-            <div style={leftStyles}>
-              <img
-                src={require("./layout/joii_black.png")}
-                alt="JOII Logo"
-                style={logoStyles}
-                onClick={() =>
-                  (window.location.href = "https://joii.org/workstream/")
-                }
-              />
-              <span>Assets & Inventory Management System</span>
-            </div>
-          </div>
-        </div>
         <div
           style={{
-            fontSize: 32,
-            textAlign: "center",
-            marginTop: 200,
-            marginBottom: 24,
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          Welcome back
+          <img
+            src={require("./layout/joii_black.png")}
+            alt="JOII Logo"
+            style={logoStyles}
+            onClick={() =>
+              (window.location.href = "https://joii.org/workstream/")
+            }
+          />
+          <div style={titleStyles}>Assets & Inventory Management System</div>
         </div>
         <div style={{ width: 338, marginBottom: 8 }}>
           <input
@@ -220,7 +224,6 @@ function Login({ onLogin, error }) {
           Continue
         </button>
       </form>
-      {/* Remove the footer from the Login component */}
     </div>
   );
 }
@@ -377,10 +380,12 @@ function App() {
   return (
     <SnackbarProvider>
       <Header user={user} />
-      <div style={{ 
-        display: "flex",
-        marginTop: "56px", // Add top margin equal to header height
-      }}>
+      <div
+        style={{
+          display: "flex",
+          marginTop: "56px", // Add top margin equal to header height
+        }}
+      >
         <Sidebar user={user} />
         <main
           className="main-content"
