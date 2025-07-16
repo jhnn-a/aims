@@ -1337,6 +1337,7 @@ function Assets() {
                 borderCollapse: "collapse",
                 background: "#fff",
                 fontSize: "14px",
+                border: "1px solid #d1d5db",
               }}
             >
               <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
@@ -1349,7 +1350,7 @@ function Assets() {
                   <th
                     style={{
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       width: "40px",
                       textAlign: "center",
                       fontWeight: 500,
@@ -1381,7 +1382,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1395,7 +1396,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1409,7 +1410,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1423,7 +1424,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1437,7 +1438,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1451,7 +1452,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1465,7 +1466,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1479,7 +1480,7 @@ function Assets() {
                       color: "#374151",
                       fontWeight: 500,
                       padding: "12px 16px",
-                      border: "none",
+                      border: "1px solid #d1d5db",
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1508,7 +1509,7 @@ function Assets() {
                         color: "#9ca3af",
                         fontSize: "14px",
                         fontWeight: "400",
-                        borderBottom: "1px solid #f3f4f6",
+                        border: "1px solid #d1d5db",
                       }}
                     >
                       {search
@@ -1558,7 +1559,7 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           <input
@@ -1582,7 +1583,7 @@ function Assets() {
                             color: "#6b7280",
                             fontSize: "14px",
                             fontWeight: "500",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {rowIndex}
@@ -1592,7 +1593,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "rgb(107, 114, 128)",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           <span
@@ -1614,7 +1615,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {device.deviceType}
@@ -1624,7 +1625,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {device.brand}
@@ -1634,7 +1635,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {device.model}
@@ -1644,7 +1645,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {getEmployeeName(device.assignedTo)}
@@ -1654,7 +1655,7 @@ function Assets() {
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           {device.assignmentDate
@@ -1669,7 +1670,7 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            borderBottom: "none",
+                            border: "1px solid #d1d5db",
                           }}
                         >
                           <div
