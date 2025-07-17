@@ -188,8 +188,12 @@ function Dashboard() {
       setNeedsRepairCount(
         devices.filter((d) => d.condition === "NEEDS REPAIR").length
       );
-      setBrandNewCount(devices.filter((d) => d.condition === "BRANDNEW").length);
-      setDefectiveCount(devices.filter((d) => d.condition === "DEFECTIVE").length);
+      setBrandNewCount(
+        devices.filter((d) => d.condition === "BRANDNEW").length
+      );
+      setDefectiveCount(
+        devices.filter((d) => d.condition === "DEFECTIVE").length
+      );
       setRetiredCount(devices.filter((d) => d.condition === "RETIRED").length);
       // Save all devices for modal filtering
       setAllDevices(devices);
@@ -238,16 +242,19 @@ function Dashboard() {
     { label: "BRANDNEW", value: brandNewCount, color: "#28A745" },
     { label: "DEFECTIVE", value: defectiveCount, color: "#DC3545" },
     { label: "RETIRED", value: retiredCount, color: "#6C757D" },
-  ].filter(item => item.value > 0); // Only show conditions that have devices
+  ].filter((item) => item.value > 0); // Only show conditions that have devices
 
   return (
     <div
       style={{
-        padding: 32,
-        maxWidth: 1100,
-        margin: "0 auto",
+        padding: "40px 48px 80px 48px", // generous padding, esp. left/right and bottom
+        width: "100%",
+        minHeight: "100vh",
+        boxSizing: "border-box",
         fontFamily:
           'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        overflowY: "auto",
+        background: "#f9f9f9",
       }}
     >
       <h2 style={sectionTitleStyle}>Dashboard Overview</h2>
