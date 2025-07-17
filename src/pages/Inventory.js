@@ -23,6 +23,14 @@ import { saveAs } from "file-saver";
 import DeviceHistory from "../components/DeviceHistory";
 import { useSnackbar } from "../components/Snackbar";
 import undoManager from "../utils/undoManager";
+import {
+  TextFilter,
+  DropdownFilter,
+  DateFilter,
+  FilterContainer,
+  useTableFilters,
+  applyFilters
+} from "../components/TableHeaderFilters";
 
 const initialForm = {
   deviceType: "",
@@ -78,6 +86,36 @@ const getConditionColor = (condition) => {
 const getConditionTextColor = (condition) => {
   // Yellow background needs dark text for better contrast
   return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
+
+// Utility function to render cell content with text wrapping and tooltips
+const renderCellWithTooltip = (content, maxLength = 50, onClick = null) => {
+  if (!content) return <span>-</span>;
+  
+  const shouldShowTooltip = content.length > maxLength;
+  
+  return (
+    <span
+      className={shouldShowTooltip ? "inventory-table-cell-tooltip" : ""}
+      data-tooltip={shouldShowTooltip ? content : ""}
+      style={{
+        display: "block",
+        lineHeight: "1.4",
+        wordWrap: "break-word",
+        wordBreak: "break-word",
+        whiteSpace: "normal",
+        cursor: onClick ? "pointer" : "default",
+        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        maxWidth: "100%",
+      }}
+      onClick={onClick}
+      title={onClick ? "Click to view device history" : undefined}
+    >
+      {content}
+    </span>
+  );
 };
 
 // Utility function to format dates as "January 23, 2025"
@@ -742,6 +780,23 @@ function Inventory() {
     );
   };
 
+  // Helper function to render cells with tooltip for text wrapping
+  const renderCellWithTooltip = (text, maxLength = 20) => {
+    if (!text) return "-";
+    
+    const shouldTruncate = text.length > maxLength;
+    const displayText = shouldTruncate ? `${text.substring(0, maxLength)}...` : text;
+    
+    return (
+      <div 
+        title={shouldTruncate ? text : ""} 
+        className="cell-with-tooltip"
+      >
+        {displayText}
+      </div>
+    );
+  };
+
   // Add global styles to hide scrollbars
   React.useEffect(() => {
     const style = document.createElement("style");
@@ -900,6 +955,14 @@ function Inventory() {
   });
   // Add search state
   const [deviceSearch, setDeviceSearch] = useState("");
+  
+  // Header filters state
+  const {
+    filters: headerFilters,
+    updateFilter: updateHeaderFilter,
+    clearAllFilters: clearAllHeaderFilters,
+    hasActiveFilters: hasActiveHeaderFilters
+  } = useTableFilters();
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
@@ -997,33 +1060,40 @@ function Inventory() {
   // --- HANDLERS ---
 
   // Helper function to get unassigned devices (for inventory display)
-  const getUnassignedDevices = (devicesArray, searchQuery = "") => {
-    return devicesArray
+  const getUnassignedDevices = (devicesArray, searchQuery = "", filters = {}) => {
+    let result = devicesArray
       .filter((device) => {
         // First filter: Only show devices that are NOT assigned
         const isNotAssigned = !device.assignedTo || device.assignedTo === "";
         if (!isNotAssigned) return false;
 
-        // Second filter: Search functionality
+        // Second filter: Global search functionality
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          return (
+          const matchesSearch = 
             device.deviceType?.toLowerCase().includes(q) ||
             device.deviceTag?.toLowerCase().includes(q) ||
             device.brand?.toLowerCase().includes(q) ||
             device.model?.toLowerCase().includes(q) ||
             device.condition?.toLowerCase().includes(q) ||
-            device.remarks?.toLowerCase().includes(q)
-          );
+            device.remarks?.toLowerCase().includes(q) ||
+            device.client?.toLowerCase().includes(q);
+          if (!matchesSearch) return false;
         }
         return true;
-      })
-      .sort((a, b) => {
-        // Sort by ID in descending order so newer devices appear first
-        const aNum = parseInt(a.id.replace(/\D/g, ""), 10) || 0;
-        const bNum = parseInt(b.id.replace(/\D/g, ""), 10) || 0;
-        return bNum - aNum;
       });
+
+    // Third filter: Apply header filters
+    if (filters && Object.keys(filters).length > 0) {
+      result = applyFilters(result, filters);
+    }
+
+    return result.sort((a, b) => {
+      // Sort by ID in descending order so newer devices appear first
+      const aNum = parseInt(a.id.replace(/\D/g, ""), 10) || 0;
+      const bNum = parseInt(b.id.replace(/\D/g, ""), 10) || 0;
+      return bNum - aNum;
+    });
   };
 
   const handleInput = ({ target: { name, value, type } }) => {
@@ -1520,13 +1590,13 @@ function Inventory() {
   };
 
   // --- FILTERED DEVICES ---
-  const filteredDevices = getUnassignedDevices(devices, deviceSearch);
+  const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
 
     // Filter devices based on search AND exclude assigned devices
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch);
+    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
 
     // Get current page devices
     const startIndex = (currentPage - 1) * devicesPerPage;
@@ -2837,6 +2907,127 @@ function Inventory() {
         boxSizing: "border-box",
       }}
     >
+      <style>
+        {`
+          .inventory-table {
+            min-width: 1400px;
+            border-collapse: collapse;
+            font-family: Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          }
+          
+          /* Text wrapping styles for long content */
+          .inventory-table-cell {
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.4;
+            vertical-align: top;
+            font-family: Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          }
+          
+          .inventory-table-cell-tag {
+            max-width: 150px;
+            min-width: 120px;
+          }
+          
+          .inventory-table-cell-model {
+            max-width: 160px;
+            min-width: 140px;
+          }
+          
+          .inventory-table-cell-client {
+            max-width: 120px;
+            min-width: 100px;
+          }
+          
+          .inventory-table-cell-remarks {
+            max-width: 200px;
+            min-width: 180px;
+          }
+          
+          .inventory-table-cell-brand {
+            max-width: 120px;
+            min-width: 100px;
+          }
+          
+          .inventory-table-cell-type {
+            max-width: 120px;
+            min-width: 100px;
+          }
+          
+          /* Tooltip styles for truncated content */
+          .inventory-table-cell-tooltip {
+            position: relative;
+            cursor: help;
+          }
+          
+          .inventory-table-cell-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            word-wrap: break-word;
+            white-space: normal;
+            pointer-events: none;
+            font-family: Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          }
+          
+          .inventory-table-cell-tooltip:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 94%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            pointer-events: none;
+          }
+          
+          /* Responsive adjustments */
+          @media (max-width: 1400px) {
+            .inventory-table-cell-tag {
+              max-width: 130px;
+              min-width: 110px;
+            }
+            
+            .inventory-table-cell-model {
+              max-width: 140px;
+              min-width: 120px;
+            }
+            
+            .inventory-table-cell-client {
+              max-width: 100px;
+              min-width: 90px;
+            }
+            
+            .inventory-table-cell-remarks {
+              max-width: 180px;
+              min-width: 150px;
+            }
+            
+            .inventory-table-cell-brand {
+              max-width: 100px;
+              min-width: 90px;
+            }
+            
+            .inventory-table-cell-type {
+              max-width: 100px;
+              min-width: 90px;
+            }
+          }
+        `}
+      </style>
       <div
         style={{
           position: "sticky",
@@ -3211,107 +3402,964 @@ function Inventory() {
           </div>
         </div>
 
-        {/* Table Header - Fixed with search bar */}
+        {/* Filter Status Indicator */}
+        {(hasActiveHeaderFilters || deviceSearch) && (
+          <div
+            style={{
+              padding: "8px 16px",
+              background: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderBottom: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "13px",
+              color: "#1d4ed8",
+              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span>
+              Active filters applied
+              {deviceSearch && ` • Global search: "${deviceSearch}"`}
+              {Object.keys(headerFilters).length > 0 && 
+                ` • Column filters: ${Object.keys(headerFilters).length}`}
+            </span>
+            <button
+              onClick={() => {
+                setDeviceSearch('');
+                clearAllHeaderFilters();
+              }}
+              style={{
+                padding: "2px 8px",
+                fontSize: "11px",
+                border: "1px solid #1d4ed8",
+                borderRadius: "4px",
+                background: "#ffffff",
+                color: "#1d4ed8",
+                cursor: "pointer",
+                marginLeft: "auto",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#1d4ed8";
+                e.target.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#ffffff";
+                e.target.style.color = "#1d4ed8";
+              }}
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
+        {/* Table Container */}
         <div
           style={{
-            padding: "0",
-            background: "rgb(255, 255, 255)",
+            flex: 1,
+            overflow: "auto",
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
           }}
         >
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              minWidth: "1200px",
-              background: "#fff",
-              padding: "0",
+              overflowX: "auto",
+              overflowY: "auto",
+              maxHeight: "100%",
             }}
           >
-            <div
+            <table
+              className="inventory-table"
               style={{
-                ...styles.th,
-                flex: "0 0 50px",
-                textAlign: "center",
-                overflow: "hidden",
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "#fff",
+                fontSize: "14px",
+                border: "1px solid #d1d5db",
+                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
             >
-              <input
-                type="checkbox"
-                checked={(() => {
-                  // Filter devices based on search AND exclude assigned devices
-                  const filteredDevices = getUnassignedDevices(
-                    devices,
-                    deviceSearch
-                  );
+              <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+                {/* Header Row with Column Titles */}
+                <tr
+                  style={{
+                    background: "rgb(255, 255, 255)",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      width: "50px",
+                      textAlign: "center",
+                      fontWeight: 500,
+                      color: "#374151",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={(() => {
+                        const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+                        const startIndex = (currentPage - 1) * devicesPerPage;
+                        const endIndex = startIndex + devicesPerPage;
+                        const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
+                        return (
+                          currentPageDevices.length > 0 &&
+                          currentPageDevices.every((device) => selectedIds.includes(device.id))
+                        );
+                      })()}
+                      onChange={handleSelectAll}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        accentColor: "#3b82f6",
+                        border: "1px solid #d1d5db",
+                        borderRadius: "3px",
+                      }}
+                      title="Select all"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "60px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    #
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "150px",
+                      maxWidth: "150px",
+                      minWidth: "120px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.deviceTag}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.deviceType}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.brand}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "160px",
+                      maxWidth: "160px",
+                      minWidth: "140px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.model}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.client}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.condition}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "200px",
+                      maxWidth: "200px",
+                      minWidth: "180px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.remarks}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "140px",
+                      maxWidth: "140px",
+                      minWidth: "120px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    {fieldLabels.acquisitionDate}
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
+                  >
+                    Actions
+                  </th>
+                </tr>
+                
+                {/* Filter Row */}
+                <tr
+                  style={{
+                    background: "#f8fafc",
+                    borderBottom: "2px solid #e5e7eb",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "50px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {hasActiveHeaderFilters && (
+                      <button
+                        onClick={clearAllHeaderFilters}
+                        style={{
+                          padding: "2px 4px",
+                          fontSize: "10px",
+                          border: "1px solid #dc2626",
+                          borderRadius: "3px",
+                          background: "#ffffff",
+                          color: "#dc2626",
+                          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = "#dc2626";
+                          e.target.style.color = "#ffffff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = "#ffffff";
+                          e.target.style.color = "#dc2626";
+                        }}
+                        title="Clear all filters"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "60px",
+                    }}
+                  >
+                    {/* No filter for row number */}
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "150px",
+                      maxWidth: "150px",
+                      minWidth: "120px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.deviceTag || ''}
+                      onChange={(value) => updateHeaderFilter('deviceTag', value)}
+                      placeholder="Filter by tag..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.deviceType || ''}
+                      onChange={(value) => updateHeaderFilter('deviceType', value)}
+                      options={deviceTypes.map(type => type.label)}
+                      placeholder="All Types"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.brand || ''}
+                      onChange={(value) => updateHeaderFilter('brand', value)}
+                      placeholder="Filter by brand..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "160px",
+                      maxWidth: "160px",
+                      minWidth: "140px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.model || ''}
+                      onChange={(value) => updateHeaderFilter('model', value)}
+                      placeholder="Filter by model..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.client || ''}
+                      onChange={(value) => updateHeaderFilter('client', value)}
+                      placeholder="Filter by client..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.condition || ''}
+                      onChange={(value) => updateHeaderFilter('condition', value)}
+                      options={conditions}
+                      placeholder="All Conditions"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "200px",
+                      maxWidth: "200px",
+                      minWidth: "180px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.remarks || ''}
+                      onChange={(value) => updateHeaderFilter('remarks', value)}
+                      placeholder="Filter by remarks..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "140px",
+                      maxWidth: "140px",
+                      minWidth: "120px",
+                    }}
+                  >
+                    <DateFilter
+                      value={headerFilters.acquisitionDate || ''}
+                      onChange={(value) => updateHeaderFilter('acquisitionDate', value)}
+                      placeholder="Filter by date..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {/* No filter for actions */}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="11" style={{ textAlign: "center", padding: "40px" }}>
+                      <TableLoadingSpinner text="Loading inventory..." />
+                    </td>
+                  </tr>
+                ) : (
+                  (() => {
+                    // Filter devices based on search AND exclude assigned devices
+                    const filteredDevices = getUnassignedDevices(
+                      devices,
+                      deviceSearch
+                    );
 
-                  // Get current page devices
-                  const startIndex = (currentPage - 1) * devicesPerPage;
-                  const endIndex = startIndex + devicesPerPage;
-                  const currentPageDevices = filteredDevices.slice(
-                    startIndex,
-                    endIndex
-                  );
+                    // Calculate pagination
+                    const totalPages = Math.ceil(
+                      filteredDevices.length / devicesPerPage
+                    );
+                    const startIndex = (currentPage - 1) * devicesPerPage;
+                    const endIndex = startIndex + devicesPerPage;
+                    const currentDevices = filteredDevices.slice(
+                      startIndex,
+                      endIndex
+                    );
 
-                  return (
-                    currentPageDevices.length > 0 &&
-                    currentPageDevices.every((device) =>
-                      selectedIds.includes(device.id)
-                    )
-                  );
-                })()}
-                onChange={handleSelectAll}
-                style={{ width: 16, height: 16, margin: 0 }}
-              />
-            </div>
-            <div style={{ ...styles.th, flex: "0 0 60px", overflow: "hidden" }}>
-              #
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 150px", overflow: "hidden" }}
-            >
-              {fieldLabels.deviceTag}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.deviceType}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.brand}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
-            >
-              {fieldLabels.model}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.client}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.condition}
-            </div>
-            <div style={{ ...styles.th, flex: "1 1 auto", overflow: "hidden" }}>
-              {fieldLabels.remarks}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 140px", overflow: "hidden" }}
-            >
-              {fieldLabels.acquisitionDate}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
-            >
-              Actions
-            </div>
+                    return currentDevices.map((device, index) => (
+                      <tr
+                        key={device.id}
+                        style={{
+                          background: index % 2 === 0 ? "#f9fafb" : "#ffffff",
+                          borderBottom: "1px solid #e5e7eb",
+                          cursor: "pointer",
+                          transition: "background 0.15s",
+                        }}
+                        onClick={() => handleSelectOne(device.id)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#f3f4f6";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = index % 2 === 0 ? "#f9fafb" : "#ffffff";
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            textAlign: "center",
+                            width: "50px",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(device.id)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleSelectOne(device.id);
+                            }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              margin: 0,
+                              accentColor: "#3b82f6",
+                              border: "1px solid #d1d5db",
+                              borderRadius: "3px",
+                            }}
+                          />
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          }}
+                        >
+                          {(currentPage - 1) * devicesPerPage + index + 1}
+                        </td>
+                        <td
+                          className="inventory-table-cell-tag"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "150px",
+                            maxWidth: "150px",
+                            minWidth: "120px",
+                          }}
+                        >
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowDeviceHistory(device);
+                            }}
+                            style={{
+                              cursor: "pointer",
+                              color: "rgb(107, 114, 128)",
+                              textDecoration: "none",
+                              fontWeight: 400,
+                              transition: "color 0.2s",
+                              display: "block",
+                              width: "100%",
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                            }
+                            title={`Click to view device history: ${device.deviceTag}`}
+                          >
+                            {renderCellWithTooltip(device.deviceTag, "tag")}
+                          </span>
+                        </td>
+                        <td
+                          className="inventory-table-cell"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "120px",
+                            maxWidth: "120px",
+                            minWidth: "100px",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.deviceType, "type")}
+                        </td>
+                        <td
+                          className="inventory-table-cell-brand"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "120px",
+                            maxWidth: "120px",
+                            minWidth: "100px",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.brand, "brand")}
+                        </td>
+                        <td
+                          className="inventory-table-cell-model"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "160px",
+                            maxWidth: "160px",
+                            minWidth: "140px",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.model, "model")}
+                        </td>
+                        <td
+                          className="inventory-table-cell-client"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "120px",
+                            maxWidth: "120px",
+                            minWidth: "100px",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.client || "-", "client")}
+                        </td>
+                        <td
+                          className="inventory-table-cell"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "120px",
+                            maxWidth: "120px",
+                            minWidth: "100px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "inline-block",
+                              background: getConditionColor(device.condition),
+                              color: getConditionTextColor(device.condition),
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              textAlign: "center",
+                              minWidth: "70px",
+                              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                            }}
+                          >
+                            {renderCellWithTooltip(device.condition, "condition")}
+                          </div>
+                        </td>
+                        <td
+                          className="inventory-table-cell-remarks"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "200px",
+                            maxWidth: "200px",
+                            minWidth: "180px",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.remarks, "remarks")}
+                        </td>
+                        <td
+                          className="inventory-table-cell"
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            color: "#374151",
+                            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            width: "140px",
+                            maxWidth: "140px",
+                            minWidth: "120px",
+                          }}
+                        >
+                          {device.acquisitionDate ? (
+                            formatDateToMMDDYYYY(device.acquisitionDate)
+                          ) : (
+                            <span
+                              style={{ color: "#9ca3af", fontStyle: "italic" }}
+                            >
+                              Not recorded
+                            </span>
+                          )}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 16px",
+                            border: "1px solid #e5e7eb",
+                            textAlign: "center",
+                            width: "120px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <button
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: "none",
+                                outline: "none",
+                                borderRadius: 6,
+                                background: "transparent",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                padding: "8px",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#3b82f6";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow =
+                                  "0 4px 12px rgba(59, 130, 246, 0.3)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(device);
+                              }}
+                              title="Edit"
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="#6b7280"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                viewBox="0 0 24 24"
+                                style={{
+                                  transition: "stroke 0.2s ease",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.stroke = "#ffffff")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.stroke = "#6b7280")
+                                }
+                              >
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: "none",
+                                outline: "none",
+                                borderRadius: 6,
+                                background: "transparent",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                padding: "8px",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#ef4444";
+                                e.currentTarget.style.transform = "scale(1.1)";
+                                e.currentTarget.style.boxShadow =
+                                  "0 4px 12px rgba(239, 68, 68, 0.3)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "none";
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(device.id);
+                              }}
+                              title="Delete"
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                fill="none"
+                                stroke="#6b7280"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                viewBox="0 0 24 24"
+                                style={{
+                                  transition: "stroke 0.2s ease",
+                                }}
+                                onMouseEnter={(e) =>
+                                  (e.currentTarget.style.stroke = "#ffffff")
+                                }
+                                onMouseLeave={(e) =>
+                                  (e.currentTarget.style.stroke = "#6b7280")
+                                }
+                              >
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })()
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+
+      {/* Fixed Pagination Footer */}
+        {!loading && (() => {
+          const totalPages = Math.ceil(
+            getUnassignedDevices(devices, deviceSearch, headerFilters).length / devicesPerPage
+          );
+          return (
+            <div
+              style={{
+                padding: "16px 24px",
+                background: "#fff",
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ fontSize: "14px", color: "#6b7280" }}>
+                Showing {((currentPage - 1) * devicesPerPage + 1)} to{" "}
+                {Math.min(
+                  currentPage * devicesPerPage,
+                  getUnassignedDevices(devices, deviceSearch, headerFilters).length
+                )}{" "}
+                of {getUnassignedDevices(devices, deviceSearch, headerFilters).length} results
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: currentPage === 1 ? "#f9fafb" : "#fff",
+                    color: currentPage === 1 ? "#9ca3af" : "#374151",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  Previous
+                </button>
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "6px",
+                      background: currentPage === i + 1 ? "#3b82f6" : "#fff",
+                      color: currentPage === i + 1 ? "#fff" : "#374151",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: currentPage === totalPages ? "#f9fafb" : "#fff",
+                    color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontSize: "14px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+    </div>
 
       {showForm && (
         <DeviceFormModal
@@ -3333,9 +4381,129 @@ function Inventory() {
         />
       )}
 
-      {loading ? (
-        <TableLoadingSpinner text="Loading inventory..." />
-      ) : (
+      {/* DeviceHistory Modal */}
+      {showDeviceHistory && (
+        <DeviceHistory
+          device={selectedDevice}
+          onClose={() => setShowDeviceHistory(false)}
+        />
+      )}
+
+      {/* Confirm Delete Modal */}
+      {showConfirmDelete && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: "36px 40px",
+              borderRadius: 18,
+              minWidth: "min(400px, 90vw)",
+              maxWidth: "min(500px, 95vw)",
+              width: "auto",
+              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              position: "relative",
+              margin: "20px",
+              boxSizing: "border-box",
+              fontFamily: "Maax, sans-serif",
+            }}
+          >
+            <h2
+              style={{
+                color: "#e11d48",
+                marginBottom: 12,
+                margin: "0 0 18px 0",
+                fontWeight: 700,
+                letterSpacing: 1,
+                fontSize: 22,
+                textAlign: "center",
+              }}
+            >
+              {selectedIds.length > 1 ? "Confirm Bulk Delete" : "Confirm Delete"}
+            </h2>
+            <p
+              style={{
+                margin: "0 0 16px 0",
+                color: "#374151",
+                fontSize: 16,
+                textAlign: "center",
+              }}
+            >
+              {selectedIds.length > 1
+                ? `Are you sure you want to delete ${selectedIds.length} selected devices?`
+                : "Are you sure you want to delete this device?"}
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+                marginTop: 24,
+              }}
+            >
+              <button
+                onClick={confirmDelete}
+                style={{
+                  padding: "12px 24px",
+                  border: "none",
+                  borderRadius: 8,
+                  background: "#e11d48",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 16,
+                  transition: "all 0.2s",
+                  fontFamily: "Maax, sans-serif",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#be185d";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(225, 29, 72, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#e11d48";
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setShowConfirmDelete(false)}
+                style={{
+                  padding: "12px 24px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 8,
+                  background: "#fff",
+                  color: "#374151",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 16,
+                  transition: "all 0.2s",
+                  fontFamily: "Maax, sans-serif",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
         <div
           style={{
             flex: 1,
@@ -3910,9 +5078,89 @@ function Inventory() {
                 </div>
               </div>
             );
-          })()}
-        </div>
-      )}
+          })()
+        }
+
+      {/* Fixed Pagination Footer */}
+      {(() => {
+        const totalPages = Math.ceil(
+          getUnassignedDevices(devices, deviceSearch, headerFilters).length / devicesPerPage
+        );
+        return (
+          <div
+            style={{
+              padding: "16px 24px",
+              background: "#fff",
+              borderTop: "1px solid #e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ fontSize: "14px", color: "#6b7280" }}>
+              Showing {((currentPage - 1) * devicesPerPage + 1)} to{" "}
+              {Math.min(
+                currentPage * devicesPerPage,
+                getUnassignedDevices(devices, deviceSearch, headerFilters).length
+              )}{" "}
+              of {getUnassignedDevices(devices, deviceSearch, headerFilters).length} results
+            </div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  background: currentPage === 1 ? "#f9fafb" : "#fff",
+                  color: currentPage === 1 ? "#9ca3af" : "#374151",
+                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  transition: "all 0.2s",
+                }}
+              >
+                Previous
+              </button>
+              {[...Array(totalPages)].map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: currentPage === i + 1 ? "#3b82f6" : "#fff",
+                    color: currentPage === i + 1 ? "#fff" : "#374151",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    transition: "all 0.2s",
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "6px",
+                  background: currentPage === totalPages ? "#f9fafb" : "#fff",
+                  color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  fontSize: "14px",
+                  transition: "all 0.2s",
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Assign Modal */}
       {assignModalOpen && assigningDevice && (

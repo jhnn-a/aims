@@ -13,6 +13,14 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
 import DeviceHistory from "../components/DeviceHistory";
+import {
+  TextFilter,
+  DropdownFilter,
+  DateFilter,
+  FilterContainer,
+  useTableFilters,
+  applyFilters,
+} from "../components/TableHeaderFilters";
 
 // Function to get background color based on condition
 const getConditionColor = (condition) => {
@@ -30,6 +38,32 @@ const getConditionColor = (condition) => {
 const getConditionTextColor = (condition) => {
   // Yellow background needs dark text for better contrast
   return condition === "NEEDS REPAIR" ? "#000" : "#fff";
+};
+
+// Utility function to render cell content with text wrapping and tooltips
+const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
+  if (!content) return <span>-</span>;
+
+  const shouldShowTooltip = content.length > maxLength;
+
+  return (
+    <span
+      className={shouldShowTooltip ? "assets-table-cell-tooltip" : ""}
+      data-tooltip={shouldShowTooltip ? content : ""}
+      style={{
+        display: "block",
+        lineHeight: "1.4",
+        wordWrap: "break-word",
+        wordBreak: "break-word",
+        whiteSpace: "normal",
+        cursor: onClick ? "pointer" : "default",
+      }}
+      onClick={onClick}
+      title={onClick ? "Click to view device history" : undefined}
+    >
+      {content}
+    </span>
+  );
 };
 
 function DeviceFormModal({
@@ -60,7 +94,13 @@ function DeviceFormModal({
     { label: "SSD", code: "SSD" },
     { label: "Webcam", code: "W" },
   ];
-  const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
+  const conditions = [
+    "BRANDNEW",
+    "GOOD",
+    "DEFECTIVE",
+    "NEEDS REPAIR",
+    "RETIRED",
+  ];
 
   return (
     <div
@@ -455,7 +495,37 @@ function Assets() {
   const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false);
   const [bulkAssignSearch, setBulkAssignSearch] = useState("");
   const [bulkUnassignReason, setBulkUnassignReason] = useState(""); // No default
+
+  // Header filters state
+  const {
+    filters: headerFilters,
+    updateFilter: updateHeaderFilter,
+    clearAllFilters: clearAllHeaderFilters,
+    hasActiveFilters: hasActiveHeaderFilters,
+  } = useTableFilters();
   const [showTransferPrompt, setShowTransferPrompt] = useState(false);
+
+  // Constants for filters
+  const deviceTypes = [
+    { label: "Headset", code: "HS" },
+    { label: "Keyboard", code: "KB" },
+    { label: "Laptop", code: "LPT" },
+    { label: "Monitor", code: "MN" },
+    { label: "Mouse", code: "M" },
+    { label: "PC", code: "PC" },
+    { label: "PSU", code: "PSU" },
+    { label: "RAM", code: "RAM" },
+    { label: "SSD", code: "SSD" },
+    { label: "UPS", code: "UPS" },
+    { label: "Webcam", code: "W" },
+  ];
+  const conditions = [
+    "BRANDNEW",
+    "GOOD",
+    "DEFECTIVE",
+    "NEEDS REPAIR",
+    "RETIRED",
+  ];
   const [selectedTransferEmployee, setSelectedTransferEmployee] =
     useState(null);
   const [progress, setProgress] = useState(0); // Progress bar state
@@ -468,7 +538,8 @@ function Assets() {
 
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null);
 
   useEffect(() => {
     loadDevicesAndEmployees();
@@ -612,17 +683,61 @@ function Assets() {
       // Only show assigned devices
       if (!device.assignedTo) return false;
 
+      // Global search filter
       const q = search.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        (device.deviceTag || "").toLowerCase().includes(q) ||
-        (device.deviceType || "").toLowerCase().includes(q) ||
-        (device.brand || "").toLowerCase().includes(q) ||
-        (device.model || "").toLowerCase().includes(q) ||
-        (getEmployeeName(device.assignedTo) || "").toLowerCase().includes(q) ||
-        (device.condition || "").toLowerCase().includes(q) ||
-        (device.remarks || "").toLowerCase().includes(q)
-      );
+      if (q) {
+        const matchesSearch =
+          (device.deviceTag || "").toLowerCase().includes(q) ||
+          (device.deviceType || "").toLowerCase().includes(q) ||
+          (device.brand || "").toLowerCase().includes(q) ||
+          (device.model || "").toLowerCase().includes(q) ||
+          (getEmployeeName(device.assignedTo) || "")
+            .toLowerCase()
+            .includes(q) ||
+          (device.condition || "").toLowerCase().includes(q) ||
+          (device.remarks || "").toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+      }
+
+      // Header filters
+      if (headerFilters && Object.keys(headerFilters).length > 0) {
+        // Apply header filters with special handling for assignedTo
+        const filtersToApply = { ...headerFilters };
+
+        // Handle assignedTo filter separately since it needs employee name matching
+        if (filtersToApply.assignedTo) {
+          const assignedToFilter = filtersToApply.assignedTo.toLowerCase();
+          const employeeName = getEmployeeName(device.assignedTo);
+          if (!employeeName.toLowerCase().includes(assignedToFilter)) {
+            return false;
+          }
+          delete filtersToApply.assignedTo;
+        }
+
+        // Apply remaining filters
+        const matchesHeaderFilters = Object.entries(filtersToApply).every(
+          ([key, filterValue]) => {
+            if (!filterValue) return true;
+
+            const itemValue = device[key];
+            if (itemValue === undefined || itemValue === null) return false;
+
+            // For string comparisons (case-insensitive)
+            if (typeof filterValue === "string") {
+              return String(itemValue)
+                .toLowerCase()
+                .includes(filterValue.toLowerCase());
+            }
+
+            // For exact matches (numbers, dates, etc.)
+            return itemValue === filterValue;
+          }
+        );
+
+        if (!matchesHeaderFilters) return false;
+      }
+
+      return true;
     })
     .sort((a, b) => {
       // Sort by assignment date (newest first), then by device ID (newest first)
@@ -1133,11 +1248,121 @@ function Assets() {
       <style>
         {`
           .assets-table {
-            min-width: 1200px;
+            min-width: 1500px;
           }
           @media (min-width: 1600px) {
             .assets-table-container {
               overflow-x: visible !important;
+            }
+          }
+          
+          /* Text wrapping styles for long content */
+          .assets-table-cell {
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: normal;
+            line-height: 1.4;
+            vertical-align: top;
+          }
+          
+          .assets-table-cell-tag {
+            max-width: 120px;
+            min-width: 100px;
+          }
+          
+          .assets-table-cell-model {
+            max-width: 180px;
+            min-width: 150px;
+          }
+          
+          .assets-table-cell-assigned {
+            max-width: 200px;
+            min-width: 180px;
+          }
+          
+          .assets-table-cell-brand {
+            max-width: 150px;
+            min-width: 120px;
+          }
+          
+          .assets-table-cell-type {
+            max-width: 130px;
+            min-width: 110px;
+          }
+          
+          .assets-table-cell-remarks {
+            max-width: 180px;
+            min-width: 150px;
+          }
+          
+          /* Tooltip styles for truncated content */
+          .assets-table-cell-tooltip {
+            position: relative;
+            cursor: help;
+          }
+          
+          .assets-table-cell-tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            max-width: 300px;
+            word-wrap: break-word;
+            white-space: normal;
+            pointer-events: none;
+          }
+          
+          .assets-table-cell-tooltip:hover::before {
+            content: '';
+            position: absolute;
+            bottom: 94%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            pointer-events: none;
+          }
+          
+          /* Responsive adjustments */
+          @media (max-width: 1200px) {
+            .assets-table-cell-tag {
+              max-width: 100px;
+              min-width: 80px;
+            }
+            
+            .assets-table-cell-model {
+              max-width: 150px;
+              min-width: 120px;
+            }
+            
+            .assets-table-cell-assigned {
+              max-width: 170px;
+              min-width: 150px;
+            }
+            
+            .assets-table-cell-brand {
+              max-width: 120px;
+              min-width: 100px;
+            }
+            
+            .assets-table-cell-type {
+              max-width: 110px;
+              min-width: 90px;
+            }
+            
+            .assets-table-cell-remarks {
+              max-width: 150px;
+              min-width: 120px;
             }
           }
         `}
@@ -1221,13 +1446,15 @@ function Assets() {
                 }}
               />
             </div>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              marginLeft: "auto",
-              flexWrap: "wrap",
-            }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginLeft: "auto",
+                flexWrap: "wrap",
+              }}
+            >
               <button
                 disabled={!selectedDeviceIds.length}
                 onClick={handleBulkReassign}
@@ -1304,6 +1531,116 @@ function Assets() {
           </div>
         </div>
 
+        {/* Filter Status Display */}
+        {hasActiveHeaderFilters && (
+          <div
+            style={{
+              background: "#f0f9ff",
+              border: "1px solid #0ea5e9",
+              borderRadius: "6px",
+              padding: "12px 16px",
+              margin: "0 24px 16px 24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              fontSize: "14px",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: "#0369a1",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+              </svg>
+              <span style={{ fontWeight: 500 }}>
+                {Object.values(headerFilters).filter(Boolean).length} active
+                filter(s)
+              </span>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              {Object.entries(headerFilters)
+                .filter(([key, value]) => value)
+                .map(([key, value]) => (
+                  <span
+                    key={key}
+                    style={{
+                      display: "inline-block",
+                      background: "#ffffff",
+                      border: "1px solid #0ea5e9",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      margin: "0 4px 4px 0",
+                      fontSize: "12px",
+                      color: "#0369a1",
+                    }}
+                  >
+                    {key}: {value}
+                  </span>
+                ))}
+            </div>
+
+            <button
+              onClick={clearAllHeaderFilters}
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                border: "1px solid #0ea5e9",
+                borderRadius: "4px",
+                background: "#ffffff",
+                color: "#0369a1",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#0ea5e9";
+                e.target.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#ffffff";
+                e.target.style.color = "#0369a1";
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
         {/* Scrollable Table Container */}
         <div
           style={{
@@ -1329,6 +1666,7 @@ function Assets() {
               }}
             >
               <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+                {/* Header Row with Column Titles */}
                 <tr
                   style={{
                     background: "rgb(255, 255, 255)",
@@ -1337,7 +1675,7 @@ function Assets() {
                 >
                   <th
                     style={{
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       width: "40px",
                       textAlign: "center",
@@ -1369,7 +1707,7 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
@@ -1383,12 +1721,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
                     }}
                   >
                     Device Tag
@@ -1397,12 +1738,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
                     }}
                   >
                     Type
@@ -1411,12 +1755,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "150px",
+                      maxWidth: "150px",
+                      minWidth: "120px",
                     }}
                   >
                     Brand
@@ -1425,12 +1772,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "180px",
+                      maxWidth: "180px",
+                      minWidth: "150px",
                     }}
                   >
                     Model
@@ -1439,12 +1789,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "200px",
+                      maxWidth: "200px",
+                      minWidth: "180px",
                     }}
                   >
                     Assigned To
@@ -1453,12 +1806,15 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "left",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
                     }}
                   >
                     Date Assigned
@@ -1467,7 +1823,41 @@ function Assets() {
                     style={{
                       color: "#374151",
                       fontWeight: 500,
-                      padding: "12px 16px",
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    Condition
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      textAlign: "left",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "180px",
+                      maxWidth: "180px",
+                      minWidth: "150px",
+                    }}
+                  >
+                    Remarks
+                  </th>
+                  <th
+                    style={{
+                      color: "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
                       border: "1px solid #d1d5db",
                       textAlign: "center",
                       fontSize: "12px",
@@ -1479,18 +1869,214 @@ function Assets() {
                     Actions
                   </th>
                 </tr>
+
+                {/* Filter Row */}
+                <tr
+                  style={{
+                    background: "#f8fafc",
+                    borderBottom: "2px solid #e5e7eb",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "40px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {hasActiveHeaderFilters && (
+                      <button
+                        onClick={clearAllHeaderFilters}
+                        style={{
+                          padding: "2px 4px",
+                          fontSize: "10px",
+                          border: "1px solid #dc2626",
+                          borderRadius: "3px",
+                          background: "#ffffff",
+                          color: "#dc2626",
+                          fontFamily:
+                            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = "#dc2626";
+                          e.target.style.color = "#ffffff";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = "#ffffff";
+                          e.target.style.color = "#dc2626";
+                        }}
+                        title="Clear all filters"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                    }}
+                  >
+                    {/* No filter for row number */}
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.deviceTag || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceTag", value)
+                      }
+                      placeholder="Filter by tag..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.deviceType || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceType", value)
+                      }
+                      options={deviceTypes.map((type) => type.label)}
+                      placeholder="All Types"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "150px",
+                      maxWidth: "150px",
+                      minWidth: "120px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.brand || ""}
+                      onChange={(value) => updateHeaderFilter("brand", value)}
+                      placeholder="Filter by brand..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "180px",
+                      maxWidth: "180px",
+                      minWidth: "150px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.model || ""}
+                      onChange={(value) => updateHeaderFilter("model", value)}
+                      placeholder="Filter by model..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "200px",
+                      maxWidth: "200px",
+                      minWidth: "180px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.assignedTo || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("assignedTo", value)
+                      }
+                      placeholder="Filter by employee..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <DateFilter
+                      value={headerFilters.assignmentDate || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("assignmentDate", value)
+                      }
+                      placeholder="Filter by date..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "120px",
+                      maxWidth: "120px",
+                      minWidth: "100px",
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.condition || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("condition", value)
+                      }
+                      options={conditions}
+                      placeholder="All Conditions"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "180px",
+                      maxWidth: "180px",
+                      minWidth: "150px",
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.remarks || ""}
+                      onChange={(value) => updateHeaderFilter("remarks", value)}
+                      placeholder="Filter by remarks..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      width: "100px",
+                      textAlign: "center",
+                    }}
+                  >
+                    {/* No filter for actions */}
+                  </th>
+                </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="9" style={{ padding: "0", border: "none" }}>
+                    <td colSpan="11" style={{ padding: "0", border: "none" }}>
                       <TableLoadingSpinner text="Loading assigned assets..." />
                     </td>
                   </tr>
                 ) : currentPageDevices.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="11"
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
@@ -1577,82 +2163,135 @@ function Assets() {
                           {rowIndex}
                         </td>
                         <td
+                          className="assets-table-cell assets-table-cell-tag"
                           style={{
                             padding: "12px 16px",
                             color: "rgb(107, 114, 128)",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.deviceTag, 15, (e) => {
+                            e.stopPropagation();
+                            handleShowDeviceHistory(device);
+                          })}
+                        </td>
+                        <td
+                          className="assets-table-cell assets-table-cell-type"
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.deviceType, 18)}
+                        </td>
+                        <td
+                          className="assets-table-cell assets-table-cell-brand"
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.brand, 20)}
+                        </td>
+                        <td
+                          className="assets-table-cell assets-table-cell-model"
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {renderCellWithTooltip(device.model, 25)}
+                        </td>
+                        <td
+                          className="assets-table-cell assets-table-cell-assigned"
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                          }}
+                        >
+                          {renderCellWithTooltip(
+                            getEmployeeName(device.assignedTo),
+                            30
+                          )}
+                        </td>
+                        <td
+                          className="assets-table-cell"
+                          style={{
+                            padding: "12px 16px",
+                            color: "#6b7280",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                            maxWidth: "120px",
+                            minWidth: "100px",
+                          }}
+                        >
+                          <span style={{ display: "block", lineHeight: "1.4" }}>
+                            {device.assignmentDate
+                              ? new Date(
+                                  device.assignmentDate.seconds
+                                    ? device.assignmentDate.seconds * 1000
+                                    : device.assignmentDate
+                                ).toLocaleDateString()
+                              : ""}
+                          </span>
+                        </td>
+                        <td
+                          className="assets-table-cell"
+                          style={{
+                            padding: "12px 16px",
+                            fontSize: "14px",
+                            border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                            maxWidth: "120px",
+                            minWidth: "100px",
                           }}
                         >
                           <span
                             style={{
-                              color: "rgb(107, 114, 128)",
-                              cursor: "pointer",
+                              display: "inline-block",
+                              padding: "4px 8px",
+                              borderRadius: "12px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: getConditionTextColor(device.condition),
+                              backgroundColor: getConditionColor(
+                                device.condition
+                              ),
+                              lineHeight: "1.2",
+                              whiteSpace: "nowrap",
                             }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleShowDeviceHistory(device);
-                            }}
-                            title="Click to view device history"
                           >
-                            {device.deviceTag}
+                            {device.condition || "UNKNOWN"}
                           </span>
                         </td>
                         <td
+                          className="assets-table-cell assets-table-cell-remarks"
                           style={{
                             padding: "12px 16px",
                             color: "#6b7280",
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
+                            verticalAlign: "top",
+                            maxWidth: "180px",
+                            minWidth: "150px",
                           }}
                         >
-                          {device.deviceType}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
-                            fontSize: "14px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          {device.brand}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
-                            fontSize: "14px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          {device.model}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
-                            fontSize: "14px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          {getEmployeeName(device.assignedTo)}
-                        </td>
-                        <td
-                          style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
-                            fontSize: "14px",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          {device.assignmentDate
-                            ? new Date(
-                                device.assignmentDate.seconds
-                                  ? device.assignmentDate.seconds * 1000
-                                  : device.assignmentDate
-                              ).toLocaleDateString()
-                            : ""}
+                          {renderCellWithTooltip(device.remarks, 25)}
                         </td>
                         <td
                           style={{
@@ -1691,10 +2330,12 @@ function Assets() {
                                 e.currentTarget.style.background = "#3b82f6";
                                 e.currentTarget.style.color = "#ffffff";
                                 e.currentTarget.style.transform = "scale(1.1)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                                e.currentTarget.style.boxShadow =
+                                  "0 4px 12px rgba(59, 130, 246, 0.3)";
                               }}
                               onMouseLeave={(e) => {
-                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.background =
+                                  "transparent";
                                 e.currentTarget.style.color = "#6b7280";
                                 e.currentTarget.style.transform = "scale(1)";
                                 e.currentTarget.style.boxShadow = "none";
@@ -2360,7 +3001,6 @@ function Assets() {
               {!showTransferPrompt && (
                 <>
                   <input
-
                     type="text"
                     placeholder="Search employee..."
                     value={assignSearch}
