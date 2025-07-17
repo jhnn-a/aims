@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
-  deleteDevice,
   updateDevice,
   addDevice,
 } from "../services/deviceService";
@@ -14,7 +13,6 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { useSnackbar } from "../components/Snackbar";
 import DeviceHistory from "../components/DeviceHistory";
-import undoManager from "../utils/undoManager";
 
 // Function to get background color based on condition
 const getConditionColor = (condition) => {
@@ -436,7 +434,7 @@ function DeviceFormModal({
 }
 
 function Assets() {
-  const { showSuccess, showError, showWarning, showInfo, showUndoNotification } = useSnackbar();
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
   const [devices, setDevices] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -470,8 +468,6 @@ function Assets() {
 
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null);
 
   useEffect(() => {
@@ -542,70 +538,6 @@ function Assets() {
     } catch (error) {
       showError("Failed to update device. Please try again.");
     }
-  };
-
-  const handleDelete = async (id) => {
-    const device = devices.find(d => d.id === id);
-    if (!device) return;
-    
-    setDeviceToDelete(device);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!deviceToDelete) return;
-    
-    try {
-      // Create a backup of the device data
-      const deviceBackup = { ...deviceToDelete };
-      
-      // Delete the device
-      await deleteDevice(deviceToDelete.id);
-      
-      // Update UI immediately
-      setDevices(prev => prev.filter(device => device.id !== deviceToDelete.id));
-      
-      // Show undo notification
-      showUndoNotification(
-        `Device ${deviceBackup.deviceTag} deleted`,
-        async () => {
-          // Undo function - restore the device
-          try {
-            const restoredDevice = await addDevice(deviceBackup);
-            
-            // Log the restoration
-            await logDeviceHistory({
-              employeeId: deviceBackup.assignedTo || null,
-              employeeName: deviceBackup.assignedTo ? employees.find(emp => emp.id === deviceBackup.assignedTo)?.fullName : null,
-              deviceId: restoredDevice.id,
-              deviceTag: deviceBackup.deviceTag,
-              action: "restored",
-              date: new Date(),
-            });
-            
-            // Refresh the device list
-            await loadDevicesAndEmployees();
-            
-            showSuccess(`Device ${deviceBackup.deviceTag} restored successfully`);
-          } catch (error) {
-            console.error('Error restoring device:', error);
-            showError('Failed to restore device. Please try again.');
-          }
-        },
-        5000 // 5 seconds to undo
-      );
-      
-    } catch (error) {
-      showError("Failed to delete device. Please try again.");
-    } finally {
-      setShowDeleteConfirm(false);
-      setDeviceToDelete(null);
-    }
-  };
-
-  const cancelDelete = () => {
-    setShowDeleteConfirm(false);
-    setDeviceToDelete(null);
   };
 
   const handleShowDeviceHistory = (device) => {
@@ -1782,53 +1714,6 @@ function Assets() {
                                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                               </svg>
                             </button>
-                            <button
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: "6px",
-                                padding: "8px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.2s ease",
-                                color: "#6b7280",
-                              }}
-                              title="Delete"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(device.id);
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = "#ef4444";
-                                e.currentTarget.style.color = "#ffffff";
-                                e.currentTarget.style.transform = "scale(1.1)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = "transparent";
-                                e.currentTarget.style.color = "#6b7280";
-                                e.currentTarget.style.transform = "scale(1)";
-                                e.currentTarget.style.boxShadow = "none";
-                              }}
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                viewBox="0 0 24 24"
-                              >
-                                <polyline points="3,6 5,6 21,6" />
-                                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
-                              </svg>
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -2900,125 +2785,6 @@ function Assets() {
             deviceId={selectedDeviceForHistory.id}
             onClose={handleCloseDeviceHistory}
           />
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && deviceToDelete && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.18)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 1000,
-            }}
-          >
-            <div
-              style={{
-                background: "#fff",
-                padding: "36px 40px",
-                borderRadius: 18,
-                minWidth: "min(400px, 90vw)",
-                maxWidth: "min(500px, 95vw)",
-                width: "auto",
-                boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
-                position: "relative",
-                margin: "20px",
-                boxSizing: "border-box",
-                fontFamily: "Maax, sans-serif",
-              }}
-            >
-              <h2
-                style={{
-                  color: "#e11d48",
-                  marginBottom: 12,
-                  margin: "0 0 18px 0",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  fontSize: 22,
-                  textAlign: "center",
-                }}
-              >
-                Confirm Deletion
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 16px 0",
-                  color: "#374151",
-                  fontSize: 16,
-                  textAlign: "center",
-                }}
-              >
-                Are you sure you want to delete device <strong>{deviceToDelete.deviceTag}</strong>?
-              </p>
-              <p
-                style={{
-                  color: "#666",
-                  fontSize: "14px",
-                  marginTop: 8,
-                  textAlign: "center",
-                }}
-              >
-                This action will be reversible for 5 seconds using the undo notification.
-              </p>
-              <div
-                style={{
-                  marginTop: 24,
-                  textAlign: "right",
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                }}
-              >
-                <button
-                  onClick={confirmDelete}
-                  style={{
-                    background: "#e11d48",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 7,
-                    padding: "7px 16px",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    minWidth: 36,
-                    minHeight: 28,
-                    display: "inline-block",
-                    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
-                    outline: "none",
-                    opacity: 1,
-                    transform: "translateY(0) scale(1)",
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  Delete
-                </button>
-                <button
-                  onClick={cancelDelete}
-                  style={{
-                    background: "#e0e7ef",
-                    color: "#233037",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "8px 18px",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    marginLeft: 8,
-                    cursor: "pointer",
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </React.Fragment>

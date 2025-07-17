@@ -9,6 +9,8 @@ import { useSnackbar } from "../components/Snackbar";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -254,8 +256,14 @@ const Clients = () => {
         async () => {
           // Undo function - restore the client
           try {
-            const restoredClient = await addClient(clientBackup);
-            setClients(prev => [...prev, restoredClient]);
+            // Restore client with original ID using setDoc
+            const { id: originalId, ...clientDataToRestore } = clientBackup;
+            await setDoc(doc(db, "clients", originalId), clientDataToRestore);
+            
+            // Refresh the clients list
+            const updatedClients = await getAllClients();
+            setClients(updatedClients);
+            
             showSuccess(`Client "${clientBackup.name}" restored successfully`);
           } catch (error) {
             console.error("Error restoring client:", error);
@@ -295,12 +303,16 @@ const Clients = () => {
         async () => {
           // Undo function - restore all clients
           try {
-            const restoredClients = [];
             for (const clientData of clientsToDelete) {
-              const restoredClient = await addClient(clientData);
-              restoredClients.push(restoredClient);
+              // Restore client with original ID using setDoc
+              const { id: originalId, ...clientDataToRestore } = clientData;
+              await setDoc(doc(db, "clients", originalId), clientDataToRestore);
             }
-            setClients(prev => [...prev, ...restoredClients]);
+            
+            // Refresh the clients list
+            const updatedClients = await getAllClients();
+            setClients(updatedClients);
+            
             showSuccess(`${clientsToDelete.length} client(s) restored successfully`);
           } catch (error) {
             console.error("Error restoring clients:", error);

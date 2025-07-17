@@ -15,6 +15,8 @@ import {
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
@@ -1377,11 +1379,14 @@ function Inventory() {
         async () => {
           // Undo function - restore the device
           try {
-            const restoredDevice = await addDevice(deviceData);
+            // Restore device with original ID using setDoc
+            const { id: originalId, ...deviceDataToRestore } = deviceData;
+            await setDoc(doc(db, "devices", originalId), deviceDataToRestore);
+            
             await logDeviceHistory({
               employeeId: null,
               employeeName: null,
-              deviceId: restoredDevice.id,
+              deviceId: originalId,
               deviceTag: deviceData.deviceTag,
               action: "restored",
               date: new Date(),
@@ -1578,14 +1583,15 @@ function Inventory() {
         async () => {
           // Undo function - restore all devices
           try {
-            const restoredDevices = [];
             for (const deviceData of devicesToDelete) {
-              const restoredDevice = await addDevice(deviceData);
-              restoredDevices.push(restoredDevice);
+              // Restore device with original ID using setDoc
+              const { id: originalId, ...deviceDataToRestore } = deviceData;
+              await setDoc(doc(db, "devices", originalId), deviceDataToRestore);
+              
               await logDeviceHistory({
                 employeeId: null,
                 employeeName: null,
-                deviceId: restoredDevice.id,
+                deviceId: originalId,
                 deviceTag: deviceData.deviceTag,
                 action: "restored",
                 date: new Date(),
