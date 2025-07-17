@@ -76,14 +76,32 @@ function App() {
 
   if (authLoading) {
     return (
-      <div className="loading-container">
-        <img
-          src={require("./layout/joii.png")}
-          alt="JOII Logo"
-          className="loading-logo"
+      <div
+        className="loading-container"
+        style={{
+          background: "#F9F9F9",
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {/* Joii logo removed from loading screen */}
+        <div
+          className="loading-spinner"
+          style={{
+            width: 48,
+            height: 48,
+            border: "3px solid #e0e7ef",
+            borderTop: "3px solid #2563EB",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            marginBottom: 0,
+            background: "none",
+          }}
         />
-        <div className="loading-spinner" />
-        <div className="loading-text">Loading...</div>
+        {/* Removed Loading... text */}
       </div>
     );
   }
