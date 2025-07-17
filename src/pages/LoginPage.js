@@ -31,7 +31,8 @@ function LoginPage({ onLogin, error }) {
       className="login-container"
       style={{
         minHeight: "100vh",
-        background: "#233037 url('/Joii_Background.png') center center/cover no-repeat"
+        background:
+          "#233037 url('/Joii_Background.png') center center/cover no-repeat",
       }}
     >
       <form onSubmit={handleSubmit} className="login-form">
