@@ -27,7 +27,13 @@ function LoginPage({ onLogin, error }) {
   };
 
   return (
-    <div className="login-container">
+    <div
+      className="login-container"
+      style={{
+        minHeight: "100vh",
+        background: "#233037 url('/Joii_Background.png') center center/cover no-repeat"
+      }}
+    >
       <form onSubmit={handleSubmit} className="login-form">
         <img
           src={require("../layout/joii_black.png")}

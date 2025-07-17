@@ -1,3 +1,8 @@
+.login-container {
+min-height: 100vh;
+background: #233037;
+/* fallback color matches image */
+}
 
 .login-container {
   min-height: 100vh;
