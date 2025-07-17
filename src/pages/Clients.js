@@ -190,6 +190,8 @@ const Clients = () => {
     anchor: null,
   });
   const actionMenuRef = useRef();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20); // Now adjustable
 
   // Fetch clients on mount
   useEffect(() => {
@@ -347,10 +349,37 @@ const Clients = () => {
     [clients, search]
   );
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / rowsPerPage));
+  const paginatedClients = useMemo(() => {
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    return filteredClients.slice(startIdx, startIdx + rowsPerPage);
+  }, [filteredClients, currentPage, rowsPerPage]);
+
+  // Calculate summary
+  const startIdx = filteredClients.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const endIdx = Math.min(currentPage * rowsPerPage, filteredClients.length);
+
+  // Page numbers for navigation
+  const getPageNumbers = () => {
+    const pages = [];
+    // Show up to 5 pages, center around current
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
   useEffect(() => {
+    // Reset checkedRows if page changes and checkedRows are not visible
     const validIds = new Set(filteredClients.map((client) => client.id));
     setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
-  }, [filteredClients]);
+    // If current page is out of bounds, reset to last page
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredClients, currentPage, totalPages]);
 
   const handleCheckboxChange = useCallback((id) => {
     setCheckedRows((prev) =>
@@ -404,7 +433,7 @@ const Clients = () => {
           >
             <div
               style={{
-                fontFamily: "IBM Plex Sans",
+                fontFamily: "Maax, sans-serif", // Changed from "IBM Plex Sans"
                 fontSize: 28,
                 lineHeight: "37.24px",
                 fontWeight: 400,
@@ -871,7 +900,7 @@ const Clients = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredClients.map((client, idx) => {
+                    paginatedClients.map((client, idx) => {
                       const isChecked = checkedRows.includes(client.id);
                       // Alternating highlight colors for selected rows
                       let rowBg;
@@ -881,7 +910,7 @@ const Clients = () => {
                         rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
                       }
                       const isFirstRow = idx === 0;
-                      const isLastRow = idx === filteredClients.length - 1;
+                      const isLastRow = idx === paginatedClients.length - 1;
                       // Remove top and bottom borders for all table body cells, and remove bottom border for last row
                       const getCellBorderStyle = (cellIdx) => ({
                         width:
@@ -1102,6 +1131,147 @@ const Clients = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+            {/* Pagination Controls */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "18px 0 12px 0",
+                background: "#fff",
+                borderTop: "1px solid #d7d7e0",
+                fontFamily: "Maax, sans-serif",
+                fontSize: 14,
+                minHeight: 48,
+                gap: 16,
+              }}
+            >
+              {/* Left: Showing summary and rows per page */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <span style={{ color: "#233037", fontWeight: 500 }}>
+                  Showing {startIdx} - {endIdx} of {filteredClients.length} clients
+                </span>
+                <span style={{ color: "#233037", fontWeight: 500 }}>
+                  Show:
+                  <select
+                    value={rowsPerPage}
+                    onChange={e => {
+                      setRowsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      marginLeft: 8,
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      border: "1px solid #d7d7e0",
+                      fontFamily: "Maax, sans-serif",
+                      fontSize: 14,
+                      background: "#fff",
+                      color: "#233037",
+                      outline: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {[10, 20, 50, 100].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </span>
+              </div>
+              {/* Right: Pagination buttons */}
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  style={{
+                    minWidth: 48,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "1px solid #d7d7e0",
+                    background: currentPage === 1 ? "#F3F4F6" : "#fff",
+                    color: "#233037",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontFamily: "Maax, sans-serif",
+                  }}
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    minWidth: 48,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "1px solid #d7d7e0",
+                    background: currentPage === 1 ? "#F3F4F6" : "#fff",
+                    color: "#233037",
+                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontFamily: "Maax, sans-serif",
+                  }}
+                >
+                  Previous
+                </button>
+                {getPageNumbers().map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    style={{
+                      minWidth: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      border: "1px solid #d7d7e0",
+                      background: page === currentPage ? "#5EC6B8" : "#fff",
+                      color: page === currentPage ? "#fff" : "#233037",
+                      fontWeight: page === currentPage ? 700 : 500,
+                      fontFamily: "Maax, sans-serif",
+                      cursor: page === currentPage ? "default" : "pointer",
+                      boxShadow: page === currentPage ? "0 2px 8px rgba(94,198,184,0.10)" : "none",
+                      outline: "none",
+                    }}
+                    disabled={page === currentPage}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    minWidth: 48,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "1px solid #d7d7e0",
+                    background: currentPage === totalPages ? "#F3F4F6" : "#fff",
+                    color: "#233037",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontFamily: "Maax, sans-serif",
+                  }}
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    minWidth: 48,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "1px solid #d7d7e0",
+                    background: currentPage === totalPages ? "#F3F4F6" : "#fff",
+                    color: "#233037",
+                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    fontWeight: 500,
+                    fontFamily: "Maax, sans-serif",
+                  }}
+                >
+                  Last
+                </button>
+              </div>
             </div>
             {/* Sticky Footer Table */}
             <div
