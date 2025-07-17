@@ -2,7 +2,7 @@ import React from 'react';
 import { useSnackbar } from './SnackbarContext';
 
 const SnackbarContainer = () => {
-  const { snackbars, removeSnackbar } = useSnackbar();
+  const { snackbars, removeSnackbar, handleUndo } = useSnackbar();
 
   if (snackbars.length === 0) return null;
 
@@ -37,7 +37,36 @@ const SnackbarContainer = () => {
             animation: "slideIn 0.3s ease-out",
           }}
         >
-          <span>{snackbar.message}</span>
+          <span style={{ flex: 1 }}>{snackbar.message}</span>
+          
+          {/* Show undo button if undoAction is available */}
+          {snackbar.undoAction && (
+            <button
+              onClick={() => handleUndo(snackbar.id)}
+              aria-label="Undo action"
+              style={{
+                background: "rgba(255, 255, 255, 0.2)",
+                border: "1px solid #fff",
+                color: "#fff",
+                padding: "4px 12px",
+                borderRadius: 4,
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 600,
+                transition: "all 0.2s ease",
+                marginRight: 8,
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "rgba(255, 255, 255, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "rgba(255, 255, 255, 0.2)";
+              }}
+            >
+              UNDO
+            </button>
+          )}
+          
           <button
             onClick={() => removeSnackbar(snackbar.id)}
             aria-label="Close notification"
