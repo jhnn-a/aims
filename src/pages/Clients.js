@@ -431,78 +431,34 @@ const Clients = () => {
               marginBottom: 16,
             }}
           >
-            <div
-              style={{
-                fontFamily: "Maax, sans-serif", // Changed from "IBM Plex Sans"
-                fontSize: 28,
-                lineHeight: "37.24px",
-                fontWeight: 400,
-                letterSpacing: "normal",
-                color: "#2B2C3B",
-              }}
-            >
-              Client Database
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {checkedRows.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm("bulk")}
-                  style={{
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    fontWeight: 500,
-                    letterSpacing: "normal",
-                    color: "#D32F2F", // Changed text color
-                    background: "#f2f2f2",
-                    minWidth: 87.625,
-                    height: 30.6667,
-                    borderRadius: 6,
-                    border: "none",
-                    outline: "none",
-                    cursor: "pointer",
-                    transition: "background 0.2s, color 0.2s",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    userSelect: "none",
-                    boxShadow: "none",
-                    padding: "0 16px",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = "#F1C9BF"; // Changed hover background
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = "#f2f2f2";
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.background = "#F1C9BF";
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.background = "#f2f2f2";
-                  }}
-                >
-                  Delete Selected
-                </button>
-              )}
+            {/* Header with title and Add New Client button */}
+            <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
+              <span
+                style={{
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 28,
+                  lineHeight: "37.24px",
+                  fontWeight: 400,
+                  letterSpacing: "normal",
+                  color: "#2B2C3B",
+                }}
+              >
+                Client Database
+              </span>
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
                 style={{
-                  fontFamily:
-                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
                   lineHeight: "20.0004px",
                   fontWeight: 500,
                   letterSpacing: "normal",
                   color: "#3B3B4A",
                   background: "#f2f2f2",
-                  minWidth: 87.625,
-                  height: 30.6667,
-                  borderRadius: 6,
+                  minWidth: 120,
+                  height: 36,
+                  borderRadius: 8,
                   border: "none",
                   outline: "none",
                   cursor: "pointer",
@@ -512,22 +468,23 @@ const Clients = () => {
                   justifyContent: "center",
                   userSelect: "none",
                   boxShadow: "none",
-                  padding: "0 16px",
+                  padding: "0 20px",
                   whiteSpace: "nowrap",
+                  marginLeft: 16,
                 }}
-                onMouseOver={(e) => {
+                onMouseOver={e => {
                   e.currentTarget.style.background = "#E5E5E5";
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
-                onMouseOut={(e) => {
+                onMouseOut={e => {
                   e.currentTarget.style.background = "#f2f2f2";
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
-                onMouseDown={(e) => {
+                onMouseDown={e => {
                   e.currentTarget.style.background = "#E5E5E5";
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
-                onMouseUp={(e) => {
+                onMouseUp={e => {
                   e.currentTarget.style.background = "#f2f2f2";
                   e.currentTarget.style.color = "#3B3B4A";
                 }}
@@ -549,7 +506,7 @@ const Clients = () => {
               boxSizing: "border-box",
               display: "flex",
               alignItems: "center",
-              padding: 8, // 8px all around for toolbar
+              padding: 8,
               gap: 12,
               justifyContent: "space-between",
             }}
@@ -560,74 +517,50 @@ const Clients = () => {
                 position: "relative",
                 display: "flex",
                 alignItems: "center",
+                minWidth: 320,
+                maxWidth: 400,
+                width: 320,
               }}
             >
-              <span
-                style={{
-                  position: "absolute",
-                  left: 4,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  display: "flex",
-                  alignItems: "center",
-                  pointerEvents: "none",
-                  color: "#1D2536", // updated icon color
-                  fontSize: 16,
-                  paddingLeft: 0,
-                  paddingRight: 4,
-                  height: 20,
-                }}
-              >
-                {/* Simple magnifier glass SVG icon */}
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle
-                    cx="7"
-                    cy="7"
-                    r="5.5"
-                    stroke="#1D2536"
-                    strokeWidth="1.5"
-                  />
-                  <line
-                    x1="11.3536"
-                    y1="11.6464"
-                    x2="15"
-                    y2="15.2929"
-                    stroke="#1D2536"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
               <input
                 type="text"
-                placeholder="Search by Client Name or Client ID..."
+                placeholder="Search assigned assets..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
-                  fontFamily:
-                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: 14,
-                  lineHeight: "20.0004px",
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 15,
                   fontWeight: 400,
-                  letterSpacing: "normal",
-                  color: "#2B2C3B",
-                  background: "#F8F8F8",
-                  width: 270,
-                  height: 28,
-                  borderRadius: 6,
-                  border: "1px solid #d7d7e0",
+                  color: "#233037",
+                  background: "#F8F9FB",
+                  border: "1px solid #E0E7EF",
+                  borderRadius: 8,
+                  padding: "8px 12px 8px 38px",
+                  width: "100%",
                   outline: "none",
-                  marginRight: 16,
-                  padding: "4px 8px 4px 28px", // left padding for icon
                   boxSizing: "border-box",
+                  transition: "border 0.2s",
                 }}
               />
+              {/* Magnifier icon (left) */}
+              <span
+                style={{
+                  position: "absolute",
+                  left: 14,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                  color: "#A0AEC0",
+                  fontSize: 18,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="#A0AEC0" strokeWidth="1.5"/>
+                  <line x1="13.3536" y1="13.6464" x2="17" y2="17.2929" stroke="#A0AEC0" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </span>
             </div>
           </div>
           {/* Secondary toolbar for row selection actions */}
