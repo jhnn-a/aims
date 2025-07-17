@@ -15,11 +15,14 @@ import {
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
 import DeviceHistory from "../components/DeviceHistory";
 import { useSnackbar } from "../components/Snackbar";
+import undoManager from "../utils/undoManager";
 
 const initialForm = {
   deviceType: "",
@@ -62,11 +65,11 @@ const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
 // Function to get background color based on condition
 const getConditionColor = (condition) => {
   const colorMap = {
-    "GOOD": "#007BFF",        // Blue
-    "BRANDNEW": "#28A745",    // Green
-    "DEFECTIVE": "#DC3545",   // Red
+    GOOD: "#007BFF", // Blue
+    BRANDNEW: "#28A745", // Green
+    DEFECTIVE: "#DC3545", // Red
     "NEEDS REPAIR": "#FFC107", // Yellow
-    "RETIRED": "#6C757D"      // Gray
+    RETIRED: "#6C757D", // Gray
   };
   return colorMap[condition] || "#6C757D"; // Default to gray
 };
@@ -176,20 +179,20 @@ function DeviceFormModal({
   // Handle keyboard navigation
   React.useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         onCancel();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [onCancel]);
 
   return (
     <div style={styles.modalOverlay}>
-      <div 
+      <div
         className="device-form-modal"
         style={{
           ...styles.inventoryModalContent,
@@ -235,7 +238,14 @@ function DeviceFormModal({
             border-color: #64748b;
           }
         `}</style>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
+          }}
+        >
           {isEditMode && (
             <svg
               width="20"
@@ -253,8 +263,8 @@ function DeviceFormModal({
               <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
             </svg>
           )}
-          <h3 
-            id="modal-title" 
+          <h3
+            id="modal-title"
             style={{
               ...styles.inventoryModalTitle,
               color: isEditMode ? "#2563eb" : "#374151",
@@ -288,7 +298,8 @@ function DeviceFormModal({
             >
               <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Editing existing device - modify the fields below to update the device information
+            Editing existing device - modify the fields below to update the
+            device information
           </div>
         )}
 
@@ -445,8 +456,8 @@ function DeviceFormModal({
                 type="checkbox"
                 checked={useSerial}
                 onChange={handleSerialToggle}
-                style={{ 
-                  marginRight: 6, 
+                style={{
+                  marginRight: 6,
                   accentColor: "#2563eb",
                   cursor: editingDevice ? "not-allowed" : "pointer",
                 }}
@@ -570,7 +581,9 @@ function DeviceFormModal({
               padding: "10px 24px",
               fontSize: 14,
             }}
-            aria-label={isEditMode ? "Update device information" : "Save new device"}
+            aria-label={
+              isEditMode ? "Update device information" : "Save new device"
+            }
           >
             {isEditMode ? "Update" : "Save"}
           </button>
@@ -582,6 +595,114 @@ function DeviceFormModal({
               fontSize: 14,
             }}
             aria-label="Cancel and close dialog"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Delete Confirmation Modal Component
+function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0,0,0,0.18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          padding: "36px 40px",
+          borderRadius: 18,
+          minWidth: "min(400px, 90vw)",
+          maxWidth: "min(500px, 95vw)",
+          width: "auto",
+          boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+          position: "relative",
+          margin: "20px",
+          boxSizing: "border-box",
+        }}
+      >
+        <h2
+          style={{
+            color: "#e11d48",
+            marginBottom: 12,
+            margin: "0 0 18px 0",
+            fontWeight: 700,
+            letterSpacing: 1,
+            fontSize: 22,
+            textAlign: "center",
+          }}
+        >
+          Confirm Deletion
+        </h2>
+        <p
+          style={{
+            margin: "0 0 16px 0",
+            color: "#374151",
+            fontSize: 16,
+            textAlign: "center",
+          }}
+        >
+          Are you sure you want to delete device <strong>{deviceTag}</strong>?
+        </p>
+        <div
+          style={{
+            marginTop: 24,
+            textAlign: "right",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
+          <button
+            onClick={onConfirm}
+            style={{
+              background: "#e11d48",
+              color: "#fff",
+              border: "none",
+              borderRadius: 7,
+              padding: "7px 16px",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              minWidth: 36,
+              minHeight: 28,
+              display: "inline-block",
+              boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
+              outline: "none",
+              opacity: 1,
+              transform: "translateY(0) scale(1)",
+            }}
+          >
+            Delete
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              background: "#e0e7ef",
+              color: "#233037",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 18px",
+              fontWeight: 700,
+              fontSize: 14,
+              marginLeft: 8,
+              cursor: "pointer",
+            }}
           >
             Cancel
           </button>
@@ -753,7 +874,13 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
 
   // Snackbar notifications
-  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  const {
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showUndoNotification,
+  } = useSnackbar();
   const [tagError, setTagError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [useSerial, setUseSerial] = useState(false);
@@ -777,6 +904,11 @@ function Inventory() {
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
     useState(null);
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -835,29 +967,29 @@ function Inventory() {
     }
 
     const trimmedTag = tag.trim();
-    
+
     try {
       const allDevices = await getAllDevices();
       const existingDevice = allDevices.find(
-        (device) => 
+        (device) =>
           device.deviceTag &&
           device.deviceTag.toLowerCase() === trimmedTag.toLowerCase() &&
           device.id !== editingDeviceId
       );
 
       if (existingDevice) {
-        return { 
-          isValid: false, 
-          message: `TAG "${trimmedTag}" already exists for device ID: ${existingDevice.id}` 
+        return {
+          isValid: false,
+          message: `TAG "${trimmedTag}" already exists for device ID: ${existingDevice.id}`,
         };
       }
 
       return { isValid: true, message: "" };
     } catch (error) {
       console.error("Error validating TAG uniqueness:", error);
-      return { 
-        isValid: false, 
-        message: "Error validating TAG. Please try again." 
+      return {
+        isValid: false,
+        message: "Error validating TAG. Please try again.",
       };
     }
   };
@@ -906,11 +1038,13 @@ function Inventory() {
         setForm((prev) => ({ ...prev, [name]: value }));
         // Real-time validation for manual serial input
         if (value.trim()) {
-          validateTagUniqueness(value.trim(), form._editDeviceId).then(validation => {
-            if (!validation.isValid) {
-              setTagError(validation.message);
+          validateTagUniqueness(value.trim(), form._editDeviceId).then(
+            (validation) => {
+              if (!validation.isValid) {
+                setTagError(validation.message);
+              }
             }
-          });
+          );
         }
         return;
       }
@@ -982,7 +1116,9 @@ function Inventory() {
   // Focus management for modal accessibility
   useEffect(() => {
     if (showForm) {
-      const firstInput = document.querySelector('.device-form-modal input[type="text"]');
+      const firstInput = document.querySelector(
+        '.device-form-modal input[type="text"]'
+      );
       if (firstInput) {
         setTimeout(() => firstInput.focus(), 100);
       }
@@ -992,15 +1128,15 @@ function Inventory() {
   // Escape key handler for modal
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && showForm) {
+      if (e.key === "Escape" && showForm) {
         resetForm();
       }
     };
-    
+
     if (showForm) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
       return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener("keydown", handleKeyDown);
       };
     }
   }, [showForm]);
@@ -1036,14 +1172,14 @@ function Inventory() {
       client: "Client",
       condition: "Condition",
       remarks: "Remarks",
-      acquisitionDate: "Acquisition Date"
+      acquisitionDate: "Acquisition Date",
     };
 
     // Compare each field
-    Object.keys(fieldLabels).forEach(field => {
+    Object.keys(fieldLabels).forEach((field) => {
       const oldValue = (oldDevice && oldDevice[field]) || "";
       const newValue = (newDevice && newDevice[field]) || "";
-      
+
       if (oldValue !== newValue) {
         // Format empty values for better readability
         const oldDisplay = oldValue === "" ? "(empty)" : oldValue;
@@ -1052,7 +1188,9 @@ function Inventory() {
       }
     });
 
-    return changes.length > 0 ? `Updated: ${changes.join(", ")}` : "No changes detected";
+    return changes.length > 0
+      ? `Updated: ${changes.join(", ")}`
+      : "No changes detected";
   };
 
   const handleSave = async () => {
@@ -1066,10 +1204,10 @@ function Inventory() {
     try {
       // Enhanced TAG validation
       const tagValidation = await validateTagUniqueness(
-        form.deviceTag, 
+        form.deviceTag,
         form._editDeviceId
       );
-      
+
       if (!tagValidation.isValid) {
         setSaveError(tagValidation.message);
         showError(tagValidation.message);
@@ -1088,7 +1226,9 @@ function Inventory() {
       const payload = {
         ...form,
         condition: form.condition || "New",
-        acquisitionDate: form.acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
+        acquisitionDate:
+          form.acquisitionDate ||
+          formatDateToMMDDYYYY(new Date().toISOString().split("T")[0]),
       };
 
       if (useSerial) {
@@ -1106,11 +1246,13 @@ function Inventory() {
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
           // Get the original device data for comparison
-          const originalDevice = allDevices.find(d => d.id === form._editDeviceId);
+          const originalDevice = allDevices.find(
+            (d) => d.id === form._editDeviceId
+          );
           const changeDescription = getDeviceChanges(originalDevice, payload);
-          
+
           await updateDevice(form._editDeviceId, payload);
-          
+
           // Log device update with change details
           await logDeviceHistory({
             employeeId: null,
@@ -1121,7 +1263,7 @@ function Inventory() {
             reason: changeDescription,
             date: new Date(),
           });
-          
+
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
       } else {
@@ -1139,11 +1281,13 @@ function Inventory() {
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
           // Get the original device data for comparison
-          const originalDevice = allDevices.find(d => d.id === form._editDeviceId);
+          const originalDevice = allDevices.find(
+            (d) => d.id === form._editDeviceId
+          );
           const changeDescription = getDeviceChanges(originalDevice, payload);
-          
+
           await updateDevice(form._editDeviceId, payload);
-          
+
           // Log device update with change details
           await logDeviceHistory({
             employeeId: null,
@@ -1154,7 +1298,7 @@ function Inventory() {
             reason: changeDescription,
             date: new Date(),
           });
-          
+
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
       }
@@ -1210,15 +1354,67 @@ function Inventory() {
     setSelectedDeviceForHistory(null);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
+    const device = devices.find((d) => d.id === id);
+    setDeviceToDelete(device);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deviceToDelete) return;
+
     try {
-      const device = devices.find((d) => d.id === id);
-      await deleteDevice(id);
-      loadDevicesAndEmployees();
-      showSuccess(`Device ${device?.deviceTag || id} deleted successfully!`);
+      // Store the device data before deletion for undo
+      const deviceData = { ...deviceToDelete };
+
+      // Delete the device
+      await deleteDevice(deviceToDelete.id);
+
+      // Remove from UI immediately
+      setDevices((prev) => prev.filter((d) => d.id !== deviceToDelete.id));
+
+      // Show undo notification
+      showUndoNotification(
+        `Device ${deviceData.deviceTag} deleted successfully`,
+        async () => {
+          // Undo function - restore the device
+          try {
+            // Restore device with original ID using setDoc
+            const { id: originalId, ...deviceDataToRestore } = deviceData;
+            await setDoc(doc(db, "devices", originalId), deviceDataToRestore);
+            
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: originalId,
+              deviceTag: deviceData.deviceTag,
+              action: "restored",
+              date: new Date(),
+            });
+            loadDevicesAndEmployees();
+            showSuccess(`Device ${deviceData.deviceTag} restored successfully`);
+          } catch (error) {
+            console.error("Error restoring device:", error);
+            showError("Failed to restore device. Please try again.");
+          }
+        },
+        5000 // 5 seconds to undo
+      );
+
+      // Clear the modal state
+      setShowDeleteConfirm(false);
+      setDeviceToDelete(null);
     } catch (error) {
+      console.error("Error deleting device:", error);
       showError("Failed to delete device. Please try again.");
+      setShowDeleteConfirm(false);
+      setDeviceToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setDeviceToDelete(null);
   };
 
   const resetForm = () => {
@@ -1361,23 +1557,69 @@ function Inventory() {
   };
 
   const handleBulkDelete = async () => {
-    if (
-      selectedIds.length === 0 ||
-      !window.confirm(`Delete ${selectedIds.length} selected device(s)?`)
-    )
-      return;
-    setDeleteProgress({ current: 0, total: selectedIds.length });
-    for (let i = 0; i < selectedIds.length; i++) {
-      await deleteDevice(selectedIds[i]);
-      setDeleteProgress({ current: i + 1, total: selectedIds.length });
+    if (selectedIds.length === 0) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    try {
+      // Store selected devices data for undo
+      const devicesToDelete = devices.filter((d) => selectedIds.includes(d.id));
+
+      setDeleteProgress({ current: 0, total: selectedIds.length });
+
+      // Delete all selected devices
+      for (let i = 0; i < selectedIds.length; i++) {
+        await deleteDevice(selectedIds[i]);
+        setDeleteProgress({ current: i + 1, total: selectedIds.length });
+      }
+
+      // Remove from UI immediately
+      setDevices((prev) => prev.filter((d) => !selectedIds.includes(d.id)));
+
+      // Show undo notification
+      showUndoNotification(
+        `Successfully deleted ${selectedIds.length} device(s) from inventory`,
+        async () => {
+          // Undo function - restore all devices
+          try {
+            for (const deviceData of devicesToDelete) {
+              // Restore device with original ID using setDoc
+              const { id: originalId, ...deviceDataToRestore } = deviceData;
+              await setDoc(doc(db, "devices", originalId), deviceDataToRestore);
+              
+              await logDeviceHistory({
+                employeeId: null,
+                employeeName: null,
+                deviceId: originalId,
+                deviceTag: deviceData.deviceTag,
+                action: "restored",
+                date: new Date(),
+              });
+            }
+            loadDevicesAndEmployees();
+            showSuccess(
+              `${devicesToDelete.length} device(s) restored successfully`
+            );
+          } catch (error) {
+            console.error("Error restoring devices:", error);
+            showError("Failed to restore devices. Please try again.");
+          }
+        },
+        5000 // 5 seconds to undo
+      );
+
+      // Clear selections and progress
+      setSelectedIds([]);
+      setSelectAll(false);
+      setDeleteProgress({ current: 0, total: 0 });
+    } catch (error) {
+      console.error("Error deleting devices:", error);
+      showError("Failed to delete devices. Please try again.");
+      setDeleteProgress({ current: 0, total: 0 });
+    } finally {
+      setShowBulkDeleteConfirm(false);
     }
-    setSelectedIds([]);
-    setSelectAll(false);
-    setDeleteProgress({ current: 0, total: 0 });
-    showSuccess(
-      `Successfully deleted ${selectedIds.length} device(s) from inventory`
-    );
-    loadDevicesAndEmployees();
   };
 
   // --- ASSIGN MODAL LOGIC ---
@@ -1647,15 +1889,15 @@ function Inventory() {
     if (!deviceType || !brand || !condition || !quantity) {
       throw new Error("Please fill in all required fields.");
     }
-    
+
     const typeObj = deviceTypes.find((t) => t.label === deviceType);
     if (!typeObj) {
       throw new Error("Invalid device type.");
     }
-    
+
     const prefix = `JOII${typeObj.code}`;
     const qty = parseInt(quantity, 10);
-    
+
     if (isNaN(qty) || qty < 1 || qty > 100) {
       throw new Error("Invalid quantity (must be between 1 and 99).");
     }
@@ -1663,12 +1905,14 @@ function Inventory() {
     // Find the next available TAG number
     const allDevices = await getAllDevices();
     const deviceTags = allDevices
-      .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
-      .map(device => {
-        const tagNumber = device.deviceTag.replace(prefix, '');
+      .filter(
+        (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+      )
+      .map((device) => {
+        const tagNumber = device.deviceTag.replace(prefix, "");
         return parseInt(tagNumber, 10);
       })
-      .filter(num => !isNaN(num))
+      .filter((num) => !isNaN(num))
       .sort((a, b) => b - a);
 
     const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
@@ -1695,7 +1939,7 @@ function Inventory() {
     for (let i = startTag; i <= endTag; i++) {
       const tagNum = String(i).padStart(4, "0");
       const deviceTag = `${prefix}${tagNum}`;
-      
+
       const payload = {
         deviceType,
         deviceTag,
@@ -1706,9 +1950,11 @@ function Inventory() {
         client: client || "",
         assignedTo: "",
         assignmentDate: "",
-        acquisitionDate: acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
+        acquisitionDate:
+          acquisitionDate ||
+          formatDateToMMDDYYYY(new Date().toISOString().split("T")[0]),
       };
-      
+
       console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
       try {
         const newDevice = await addDevice(payload);
@@ -1766,15 +2012,17 @@ function Inventory() {
 
       const prefix = `JOII${typeObj.code}`;
       const allDevices = await getAllDevices();
-      
+
       // Find all devices of this type to determine the last used TAG
       const deviceTags = allDevices
-        .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
-        .map(device => {
-          const tagNumber = device.deviceTag.replace(prefix, '');
+        .filter(
+          (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+        )
+        .map((device) => {
+          const tagNumber = device.deviceTag.replace(prefix, "");
           return parseInt(tagNumber, 10);
         })
-        .filter(num => !isNaN(num))
+        .filter((num) => !isNaN(num))
         .sort((a, b) => b - a); // Sort descending to get the highest number first
 
       // Get the next available TAG number
@@ -1888,11 +2136,13 @@ function Inventory() {
         if (tab.id === activeTabId) {
           // Create new serials array with the new quantity
           const currentSerials = tab.data.manualSerials || [];
-          const newSerials = Array(newQuantity).fill("").map((_, index) => ({
-            id: index,
-            serial: currentSerials[index]?.serial || "",
-          }));
-          
+          const newSerials = Array(newQuantity)
+            .fill("")
+            .map((_, index) => ({
+              id: index,
+              serial: currentSerials[index]?.serial || "",
+            }));
+
           return {
             ...tab,
             data: {
@@ -1925,13 +2175,15 @@ function Inventory() {
       if (tab.data.useManualSerial) {
         const currentQuantity = tab.data.manualQuantity || 1;
         const currentSerials = tab.data.manualSerials || [];
-        
+
         // Always create/update the serials array to match the quantity
-        const serialsArray = Array(currentQuantity).fill("").map((_, index) => ({
-          id: index,
-          serial: currentSerials[index]?.serial || "",
-        }));
-        
+        const serialsArray = Array(currentQuantity)
+          .fill("")
+          .map((_, index) => ({
+            id: index,
+            serial: currentSerials[index]?.serial || "",
+          }));
+
         return {
           ...tab,
           data: {
@@ -1981,7 +2233,7 @@ function Inventory() {
       .split("\n")
       .map((line) => line.trim())
       .filter((line) => line);
-    
+
     setNewAcqTabs((prevTabs) =>
       prevTabs.map((tab) => {
         if (tab.id === tabId) {
@@ -1989,7 +2241,7 @@ function Inventory() {
             ...item,
             serial: lines[index] || item.serial,
           }));
-          
+
           return {
             ...tab,
             data: {
@@ -2013,10 +2265,12 @@ function Inventory() {
     try {
       // Get all tabs with manual serial assignment
       const manualTabs = newAcqTabs.filter((tab) => tab.data.useManualSerial);
-      
+
       // Validate all serials are filled for manual tabs
       for (const tab of manualTabs) {
-        const emptySerials = tab.data.manualSerials.filter((item) => !item.serial.trim());
+        const emptySerials = tab.data.manualSerials.filter(
+          (item) => !item.serial.trim()
+        );
         if (emptySerials.length > 0) {
           setNewAcqError(`Please fill in all serial numbers for ${tab.label}.`);
           setNewAcqLoading(false);
@@ -2027,7 +2281,9 @@ function Inventory() {
       // Collect all serial values from all manual tabs
       const allSerialValues = [];
       for (const tab of manualTabs) {
-        const serialValues = tab.data.manualSerials.map((item) => item.serial.trim());
+        const serialValues = tab.data.manualSerials.map((item) =>
+          item.serial.trim()
+        );
         allSerialValues.push(...serialValues);
       }
 
@@ -2059,10 +2315,12 @@ function Inventory() {
 
       for (const tab of manualTabs) {
         const tabData = tab.data;
-        
+
         // Validate required fields
         if (!tabData.deviceType || !tabData.brand || !tabData.condition) {
-          setNewAcqError(`Please fill in Device Type, Brand, and Condition for ${tab.label}.`);
+          setNewAcqError(
+            `Please fill in Device Type, Brand, and Condition for ${tab.label}.`
+          );
           setNewAcqLoading(false);
           return;
         }
@@ -2081,7 +2339,9 @@ function Inventory() {
             client: tabData.client || "",
             assignedTo: "",
             assignmentDate: "",
-            acquisitionDate: tabData.acquisitionDate || formatDateToMMDDYYYY(new Date().toISOString().split('T')[0]),
+            acquisitionDate:
+              tabData.acquisitionDate ||
+              formatDateToMMDDYYYY(new Date().toISOString().split("T")[0]),
           };
 
           tabDeviceList.push(payload);
@@ -2260,12 +2520,14 @@ function Inventory() {
         // Find the next available TAG number for this device type
         const allDevices = await getAllDevices();
         const deviceTags = allDevices
-          .filter(device => device.deviceTag && device.deviceTag.startsWith(prefix))
-          .map(device => {
-            const tagNumber = device.deviceTag.replace(prefix, '');
+          .filter(
+            (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+          )
+          .map((device) => {
+            const tagNumber = device.deviceTag.replace(prefix, "");
             return parseInt(tagNumber, 10);
           })
-          .filter(num => !isNaN(num))
+          .filter((num) => !isNaN(num))
           .sort((a, b) => b - a);
 
         const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
@@ -3293,7 +3555,10 @@ function Inventory() {
                             boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                           }}
                         >
-                          <TruncatedText text={device.condition} maxLength={12} />
+                          <TruncatedText
+                            text={device.condition}
+                            maxLength={12}
+                          />
                         </div>
                       </div>
                       <div
@@ -3318,7 +3583,9 @@ function Inventory() {
                         {device.acquisitionDate ? (
                           formatDateToMMDDYYYY(device.acquisitionDate)
                         ) : (
-                          <span style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                          <span
+                            style={{ color: "#9ca3af", fontStyle: "italic" }}
+                          >
                             Not recorded
                           </span>
                         )}
@@ -3348,7 +3615,8 @@ function Inventory() {
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#3b82f6";
                               e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(59, 130, 246, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
@@ -3400,7 +3668,8 @@ function Inventory() {
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#ef4444";
                               e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(239, 68, 68, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
@@ -4041,7 +4310,7 @@ function Inventory() {
       {/* New Acquisitions Modal */}
       {showNewAcqModal && (
         <div style={styles.modalOverlay}>
-          <div 
+          <div
             className="new-acquisitions-modal"
             style={styles.inventoryModalContent}
           >
@@ -4334,13 +4603,22 @@ function Inventory() {
                           onChange={handleNewAcqInput}
                           style={{
                             ...styles.inventoryInput,
-                            borderColor: !currentData.acquisitionDate ? "#f59e0b" : styles.inventoryInput.borderColor,
+                            borderColor: !currentData.acquisitionDate
+                              ? "#f59e0b"
+                              : styles.inventoryInput.borderColor,
                           }}
                           title="Select the date when these devices were acquired"
                         />
                         {!currentData.acquisitionDate && (
-                          <span style={{ color: "#f59e0b", fontSize: 11, marginTop: 2 }}>
-                            Acquisition date is recommended for proper record keeping
+                          <span
+                            style={{
+                              color: "#f59e0b",
+                              fontSize: 11,
+                              marginTop: 2,
+                            }}
+                          >
+                            Acquisition date is recommended for proper record
+                            keeping
                           </span>
                         )}
                       </div>
@@ -4448,9 +4726,10 @@ function Inventory() {
                               marginTop: 4,
                             }}
                           >
-                            TAGs will be automatically generated starting from the next available number
+                            TAGs will be automatically generated starting from
+                            the next available number
                           </div>
-                          
+
                           {/* TAG Preview Section */}
                           {currentData.deviceType && currentData.quantity && (
                             <div
@@ -4485,11 +4764,17 @@ function Inventory() {
                                   );
                                   if (typeObj) {
                                     const prefix = `JOII${typeObj.code}`;
-                                    const qty = parseInt(currentData.quantity) || 1;
-                                    const nextTag = currentData.nextAvailableTag || 1;
+                                    const qty =
+                                      parseInt(currentData.quantity) || 1;
+                                    const nextTag =
+                                      currentData.nextAvailableTag || 1;
                                     const tags = [];
                                     for (let i = 0; i < Math.min(qty, 5); i++) {
-                                      tags.push(`${prefix}${String(nextTag + i).padStart(4, '0')}`);
+                                      tags.push(
+                                        `${prefix}${String(
+                                          nextTag + i
+                                        ).padStart(4, "0")}`
+                                      );
                                     }
                                     if (qty > 5) {
                                       tags.push(`... and ${qty - 5} more`);
@@ -4636,7 +4921,14 @@ function Inventory() {
             ) : (
               /* Manual Serial Entry Panel */
               <>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "16px",
+                  }}
+                >
                   <svg
                     width="20"
                     height="20"
@@ -4655,7 +4947,7 @@ function Inventory() {
                     <path d="M12 3c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
                     <path d="M12 21c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z" />
                   </svg>
-                  <h3 
+                  <h3
                     style={{
                       ...styles.inventoryModalTitle,
                       marginBottom: 0,
@@ -4663,10 +4955,13 @@ function Inventory() {
                     }}
                   >
                     Enter Serial Numbers (
-                    {newAcqTabs.filter((tab) => tab.data.useManualSerial).length}{" "}
+                    {
+                      newAcqTabs.filter((tab) => tab.data.useManualSerial)
+                        .length
+                    }{" "}
                     Device Type
-                    {newAcqTabs.filter((tab) => tab.data.useManualSerial).length >
-                    1
+                    {newAcqTabs.filter((tab) => tab.data.useManualSerial)
+                      .length > 1
                       ? "s"
                       : ""}
                     )
@@ -4759,9 +5054,13 @@ function Inventory() {
                                         tab.id === activeManualTabId ? 0 : 6,
                                       borderBottomRightRadius:
                                         tab.id === activeManualTabId ? 0 : 6,
-                                      fontWeight: tab.id === activeManualTabId ? 600 : 400,
+                                      fontWeight:
+                                        tab.id === activeManualTabId
+                                          ? 600
+                                          : 400,
                                       transition: "all 0.2s",
-                                      fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                      fontFamily:
+                                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                       minWidth: Math.max(
                                         80,
                                         Math.min(
@@ -4888,7 +5187,8 @@ function Inventory() {
                                 boxSizing: "border-box",
                                 marginBottom: 6,
                                 outline: "none",
-                                transition: "border-color 0.2s, box-shadow 0.2s",
+                                transition:
+                                  "border-color 0.2s, box-shadow 0.2s",
                                 backgroundColor: "#fff",
                               }}
                               placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
@@ -4926,7 +5226,8 @@ function Inventory() {
                                 marginBottom: 8,
                                 marginRight: 8,
                                 transition: "background 0.2s",
-                                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                fontFamily:
+                                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                 opacity:
                                   importTexts[currentManualTab.id] &&
                                   importTexts[currentManualTab.id].trim()
@@ -4968,7 +5269,8 @@ function Inventory() {
                                 cursor: "pointer",
                                 marginBottom: 8,
                                 transition: "background 0.2s",
-                                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                fontFamily:
+                                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                               }}
                             >
                               Clear
@@ -5000,7 +5302,8 @@ function Inventory() {
                             <div
                               style={{
                                 display: "grid",
-                                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                                gridTemplateColumns:
+                                  "repeat(auto-fit, minmax(200px, 1fr))",
                                 gap: 8,
                                 width: "100%",
                                 justifyContent: "start",
@@ -5052,9 +5355,11 @@ function Inventory() {
                                         border: "1.5px solid #cbd5e1",
                                         borderRadius: 4,
                                         outline: "none",
-                                        transition: "border-color 0.2s, box-shadow 0.2s",
+                                        transition:
+                                          "border-color 0.2s, box-shadow 0.2s",
                                         boxSizing: "border-box",
-                                        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                                        fontFamily:
+                                          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                       }}
                                       placeholder={`Enter serial number`}
                                       maxLength={64}
@@ -5153,6 +5458,134 @@ function Inventory() {
           deviceId={selectedDeviceForHistory.id}
           onClose={handleCloseDeviceHistory}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && deviceToDelete && (
+        <DeleteConfirmationModal
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          deviceTag={deviceToDelete.deviceTag}
+        />
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: "36px 40px",
+              borderRadius: 18,
+              minWidth: "min(400px, 90vw)",
+              maxWidth: "min(500px, 95vw)",
+              width: "auto",
+              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              position: "relative",
+              margin: "20px",
+              boxSizing: "border-box",
+              fontFamily: "Maax, sans-serif",
+            }}
+          >
+            <h2
+              style={{
+                color: "#e11d48",
+                marginBottom: 12,
+                margin: "0 0 18px 0",
+                fontWeight: 700,
+                letterSpacing: 1,
+                fontSize: 22,
+                textAlign: "center",
+              }}
+            >
+              Confirm Bulk Delete
+            </h2>
+            <p
+              style={{
+                margin: "0 0 16px 0",
+                color: "#374151",
+                fontSize: 16,
+                textAlign: "center",
+              }}
+            >
+              Are you sure you want to delete {selectedIds.length} selected device(s)?
+            </p>
+            <p
+              style={{
+                color: "#666",
+                fontSize: "14px",
+                marginTop: 8,
+                textAlign: "center",
+              }}
+            >
+              This action will be reversible for 5 seconds using the undo notification.
+            </p>
+            <div
+              style={{
+                marginTop: 24,
+                textAlign: "right",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+              }}
+            >
+              <button
+                onClick={confirmBulkDelete}
+                style={{
+                  background: "#e11d48",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "7px 16px",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  minWidth: 36,
+                  minHeight: 28,
+                  display: "inline-block",
+                  boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
+                  outline: "none",
+                  opacity: 1,
+                  transform: "translateY(0) scale(1)",
+                  fontFamily: "Maax, sans-serif",
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                style={{
+                  background: "#e0e7ef",
+                  color: "#233037",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  marginLeft: 8,
+                  cursor: "pointer",
+                  fontFamily: "Maax, sans-serif",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -5350,7 +5783,8 @@ const styles = {
     position: "relative",
     border: "1.5px solid #e5e7eb",
     transition: "box-shadow 0.2s",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalContent: {
     background: "#fff",
@@ -5371,7 +5805,8 @@ const styles = {
     scrollbarWidth: "none",
     msOverflowStyle: "none",
     WebkitScrollbar: { display: "none" },
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   modalTitle: {
     fontSize: 20,
@@ -5380,7 +5815,8 @@ const styles = {
     marginBottom: 16,
     letterSpacing: 0.5,
     textAlign: "center",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalTitle: {
     fontSize: 18,
@@ -5390,7 +5826,8 @@ const styles = {
     letterSpacing: 0.5,
     textAlign: "center",
     width: "100%",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryInputGroup: {
     display: "flex",
@@ -5406,7 +5843,8 @@ const styles = {
     color: "#222e3a",
     marginBottom: 3,
     fontSize: 13,
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryInput: {
     width: "100%",
@@ -5419,7 +5857,8 @@ const styles = {
     height: "30px",
     boxSizing: "border-box",
     marginBottom: 0,
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     outline: "none",
     transition: "border-color 0.2s, box-shadow 0.2s",
   },
@@ -5435,7 +5874,8 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalButtonSmall: {
     background: "#2563eb",
@@ -5450,7 +5890,8 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   inventoryModalButtonSecondary: {
     background: "#e0e7ef",
@@ -5465,7 +5906,8 @@ const styles = {
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
     transition: "background 0.2s, box-shadow 0.2s",
     outline: "none",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   modalCheckbox: {
     accentColor: "#2563eb",
@@ -5487,7 +5929,8 @@ const styles = {
     fontSize: 15,
     textAlign: "left",
     width: "100%",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   actionEditButton: {
     background: "transparent",
@@ -5533,7 +5976,8 @@ const styles = {
     maxWidth: 120,
     justifyContent: "space-between",
     flexShrink: 0,
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   addTabButton: {
     background: "#f1f5f9",
@@ -5550,6 +5994,7 @@ const styles = {
     justifyContent: "center",
     transition: "all 0.2s",
     boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily:
+      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
 };

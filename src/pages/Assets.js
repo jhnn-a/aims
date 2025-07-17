@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
-  deleteDevice,
   updateDevice,
+  addDevice,
 } from "../services/deviceService";
 import { getAllEmployees } from "../services/employeeService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
@@ -537,18 +537,6 @@ function Assets() {
       showSuccess("Device updated successfully!");
     } catch (error) {
       showError("Failed to update device. Please try again.");
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this device?")) {
-      try {
-        await deleteDevice(id);
-        loadDevicesAndEmployees();
-        showSuccess("Device deleted successfully!");
-      } catch (error) {
-        showError("Failed to delete device. Please try again.");
-      }
     }
   };
 
@@ -1724,53 +1712,6 @@ function Assets() {
                               >
                                 <path d="M12 20h9" />
                                 <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                              </svg>
-                            </button>
-                            <button
-                              style={{
-                                background: "transparent",
-                                border: "none",
-                                borderRadius: "6px",
-                                padding: "8px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.2s ease",
-                                color: "#6b7280",
-                              }}
-                              title="Delete"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(device.id);
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.background = "#ef4444";
-                                e.currentTarget.style.color = "#ffffff";
-                                e.currentTarget.style.transform = "scale(1.1)";
-                                e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.background = "transparent";
-                                e.currentTarget.style.color = "#6b7280";
-                                e.currentTarget.style.transform = "scale(1)";
-                                e.currentTarget.style.boxShadow = "none";
-                              }}
-                            >
-                              <svg
-                                width="16"
-                                height="16"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                viewBox="0 0 24 24"
-                              >
-                                <polyline points="3,6 5,6 21,6" />
-                                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
                               </svg>
                             </button>
                           </div>

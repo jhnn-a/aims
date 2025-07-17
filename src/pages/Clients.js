@@ -9,6 +9,8 @@ import { useSnackbar } from "../components/Snackbar";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "../utils/firebase";
 
 // --- Modal Components ---
 const modalOverlayStyle = {
@@ -34,6 +36,67 @@ const modalBoxStyle = {
   fontStyle: "normal",
   fontSize: "inherit",
   color: "inherit",
+};
+
+// Employee Database modal styles for consistent design
+const employeeModalStyles = {
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modalContent: {
+    background: "#fff",
+    padding: "36px 40px",
+    borderRadius: 18,
+    minWidth: "min(400px, 90vw)",
+    maxWidth: "min(500px, 95vw)",
+    width: "auto",
+    boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+    position: "relative",
+    margin: "20px",
+    boxSizing: "border-box",
+    fontFamily: "Maax, sans-serif",
+  },
+  deleteBtn: {
+    background: "#e11d48",
+    color: "#fff",
+    border: "none",
+    borderRadius: 7,
+    padding: "7px 16px",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    marginLeft: 0,
+    transition: "all 0.3s ease",
+    minWidth: 36,
+    minHeight: 28,
+    display: "inline-block",
+    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
+    outline: "none",
+    opacity: 1,
+    transform: "translateY(0) scale(1)",
+    fontFamily: "Maax, sans-serif",
+  },
+  cancelBtn: {
+    background: "#e0e7ef",
+    color: "#233037",
+    border: "none",
+    borderRadius: 8,
+    padding: "8px 18px",
+    fontWeight: 700,
+    fontSize: 14,
+    marginLeft: 8,
+    cursor: "pointer",
+    fontFamily: "Maax, sans-serif",
+  },
 };
 
 const ClientFormModal = ({ data, onChange, onSave, onCancel }) => {
@@ -83,25 +146,35 @@ const ClientFormModal = ({ data, onChange, onSave, onCancel }) => {
 };
 
 const DeleteConfirmationModal = ({ onConfirm, onCancel, isDeleting }) => (
-  <div style={modalOverlayStyle}>
-    <div style={modalBoxStyle}>
-      <div>Confirm Deletion</div>
-      <div>
-        Are you sure you want to permanently delete this client? This action
-        cannot be undone.
+  <div style={employeeModalStyles.modalOverlay}>
+    <div style={employeeModalStyles.modalContent}>
+      <h2 style={{ color: "#e11d48", marginBottom: 12 }}>Confirm Deletion</h2>
+      <p>Are you sure you want to permanently delete this client?</p>
+      <p style={{ color: "#666", fontSize: "14px", marginTop: 8 }}>
+        This action will be reversible for 5 seconds using the undo notification.
+      </p>
+      <div style={{ marginTop: 24, textAlign: "right" }}>
+        <button 
+          onClick={onConfirm} 
+          disabled={isDeleting}
+          style={employeeModalStyles.deleteBtn}
+        >
+          {isDeleting ? "Deleting..." : "Delete"}
+        </button>
+        <button 
+          onClick={onCancel} 
+          disabled={isDeleting}
+          style={employeeModalStyles.cancelBtn}
+        >
+          Cancel
+        </button>
       </div>
-      <button onClick={onConfirm} disabled={isDeleting}>
-        {isDeleting ? "Deleting..." : "Delete"}
-      </button>
-      <button onClick={onCancel} disabled={isDeleting}>
-        Cancel
-      </button>
     </div>
   </div>
 );
 
 const Clients = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
+  const { showSuccess, showError, showWarning, showInfo, showUndoNotification } = useSnackbar();
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -162,20 +235,101 @@ const Clients = () => {
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    await deleteClient(selectedId);
-    setSelectedId(null);
-    setShowConfirm(false);
-    fetchClients();
-  }, [selectedId, fetchClients]);
+    if (!selectedId) return;
+
+    try {
+      // Store the client data before deletion for undo
+      const clientToDelete = clients.find(c => c.id === selectedId);
+      if (!clientToDelete) return;
+
+      const clientBackup = { ...clientToDelete };
+      
+      // Delete the client
+      await deleteClient(selectedId);
+      
+      // Remove from UI immediately
+      setClients(prev => prev.filter(c => c.id !== selectedId));
+      
+      // Show undo notification
+      showUndoNotification(
+        `Client "${clientBackup.name}" deleted successfully`,
+        async () => {
+          // Undo function - restore the client
+          try {
+            // Restore client with original ID using setDoc
+            const { id: originalId, ...clientDataToRestore } = clientBackup;
+            await setDoc(doc(db, "clients", originalId), clientDataToRestore);
+            
+            // Refresh the clients list
+            const updatedClients = await getAllClients();
+            setClients(updatedClients);
+            
+            showSuccess(`Client "${clientBackup.name}" restored successfully`);
+          } catch (error) {
+            console.error("Error restoring client:", error);
+            showError("Failed to restore client. Please try again.");
+          }
+        },
+        5000 // 5 seconds to undo
+      );
+      
+      setSelectedId(null);
+      setShowConfirm(false);
+      
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      showError("Failed to delete client. Please try again.");
+    }
+  }, [selectedId, clients, showUndoNotification, showSuccess, showError]);
 
   const handleBulkDelete = useCallback(async () => {
-    for (const id of checkedRows) {
-      await deleteClient(id);
+    if (checkedRows.length === 0) return;
+
+    try {
+      // Store the clients data before deletion for undo
+      const clientsToDelete = clients.filter(c => checkedRows.includes(c.id));
+      
+      // Delete all selected clients
+      for (const id of checkedRows) {
+        await deleteClient(id);
+      }
+      
+      // Remove from UI immediately
+      setClients(prev => prev.filter(c => !checkedRows.includes(c.id)));
+      
+      // Show undo notification
+      showUndoNotification(
+        `${checkedRows.length} client(s) deleted successfully`,
+        async () => {
+          // Undo function - restore all clients
+          try {
+            for (const clientData of clientsToDelete) {
+              // Restore client with original ID using setDoc
+              const { id: originalId, ...clientDataToRestore } = clientData;
+              await setDoc(doc(db, "clients", originalId), clientDataToRestore);
+            }
+            
+            // Refresh the clients list
+            const updatedClients = await getAllClients();
+            setClients(updatedClients);
+            
+            showSuccess(`${clientsToDelete.length} client(s) restored successfully`);
+          } catch (error) {
+            console.error("Error restoring clients:", error);
+            showError("Failed to restore clients. Please try again.");
+          }
+        },
+        5000 // 5 seconds to undo
+      );
+      
+      setCheckedRows([]);
+      setShowConfirm(false);
+      
+    } catch (error) {
+      console.error("Error deleting clients:", error);
+      showError("Failed to delete clients. Please try again.");
     }
-    setCheckedRows([]);
-    setShowConfirm(false);
-    fetchClients();
-  }, [checkedRows, fetchClients]);
+  }, [checkedRows, clients, showUndoNotification, showSuccess, showError]);
 
   const handleResetForm = useCallback(() => {
     setForm({ id: null, clientName: "" });
