@@ -1,53 +1,61 @@
+// === INVENTORY PAGE MAIN COMPONENT ===
+// This file handles the display and management of unassigned inventory devices
+// Main features: Add/edit devices, assign to employees/clients, search/filter, device history, bulk operations
+
+// === IMPORTS ===
 import React, { useState, useEffect } from "react";
-import * as XLSX from "xlsx";
-import { getAllEmployees } from "../services/employeeService";
-import { getAllClients } from "../services/clientService";
-import { TableLoadingSpinner } from "../components/LoadingSpinner";
-import { TextFilter, DropdownFilter, DateFilter } from "../components/TableHeaderFilters";
+import * as XLSX from "xlsx"; // Excel file processing for data import/export
+import { getAllEmployees } from "../services/employeeService"; // Employee data operations
+import { getAllClients } from "../services/clientService"; // Client data operations
+import { TableLoadingSpinner } from "../components/LoadingSpinner"; // Loading indicators
+import { TextFilter, DropdownFilter, DateFilter } from "../components/TableHeaderFilters"; // Table filtering components
 import {
-  addDevice,
-  updateDevice,
-  deleteDevice,
-  getAllDevices,
+  addDevice, // Create new device
+  updateDevice, // Update existing device
+  deleteDevice, // Remove device from inventory
+  getAllDevices, // Fetch all devices from database
 } from "../services/deviceService";
-import { logDeviceHistory } from "../services/deviceHistoryService";
-import { exportInventoryToExcel } from "../utils/exportInventoryToExcel";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../utils/firebase";
-import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
-import { saveAs } from "file-saver";
-import DeviceHistory from "../components/DeviceHistory";
-import { useSnackbar } from "../components/Snackbar";
+import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
+import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export functionality
+import { doc, setDoc } from "firebase/firestore"; // Firestore database operations
+import { db } from "../utils/firebase"; // Firebase configuration
+import PizZip from "pizzip"; // For DOCX file generation
+import Docxtemplater from "docxtemplater"; // For DOCX template processing
+import { saveAs } from "file-saver"; // File download functionality
+import DeviceHistory from "../components/DeviceHistory"; // Device history modal component
+import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
 import {
-  initialForm,
-  fieldLabels,
-  deviceTypes,
-  conditions,
-  getConditionColor,
-  getConditionTextColor,
+  initialForm, // Default form data structure
+  fieldLabels, // Display labels for form fields
+  deviceTypes, // Available device types with codes
+  conditions, // Available device conditions
+  getConditionColor, // Function to get condition background color
+  getConditionTextColor, // Function to get condition text color
 } from "./InventoryConstants";
 import {
-  formatDateToFullWord,
-  formatDateToMMDDYYYY,
-  formatDateToInputValue,
-  formatDateToYYYYMMDD,
-  validateTagUniqueness,
-  getUnassignedDevices,
-  generateNextDeviceTag,
+  formatDateToFullWord, // Format date to readable text
+  formatDateToMMDDYYYY, // Format date to MM/DD/YYYY
+  formatDateToInputValue, // Format date for HTML input
+  formatDateToYYYYMMDD, // Format date to YYYY-MM-DD
+  validateTagUniqueness, // Check if asset tag is unique
+  getUnassignedDevices, // Filter devices without assignment
+  generateNextDeviceTag, // Auto-generate next available tag
 } from "./InventoryUtils";
 
+// === DEVICE FORM MODAL COMPONENT ===
+// Modal component for adding/editing device information
+// Features: Device details input, tag generation, assignment options, validation
 function DeviceFormModal({
-  data,
-  onChange,
-  onSave,
-  onCancel,
-  onGenerateTag,
-  employees,
-  clients,
-  tagError,
-  saveError,
-  isValid,
+  data, // Device data object being edited/created
+  onChange, // Function to handle form field changes
+  onSave, // Function to save device data
+  onCancel, // Function to close modal without saving
+  onGenerateTag, // Function to generate automatic asset tags
+  employees, // List of employees for assignment dropdown
+  clients, // List of clients for assignment dropdown
+  tagError, // Error message for tag validation
+  saveError, // Error message for save operation
+  isValid, // Boolean indicating if form data is valid
   useSerial,
   setUseSerial,
   setTagError,
@@ -597,41 +605,45 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
   );
 }
 
+// === MAIN INVENTORY PAGE COMPONENT ===
+// This component manages the display and operations for unassigned inventory devices
 function Inventory() {
-  // Helper function to create truncated text with hover tooltip
+  // === UTILITY COMPONENTS ===
+  // Helper component to create truncated text with hover tooltip for long content
   const TruncatedText = ({
-    text,
-    maxLength = 20,
-    style = {},
-    title = null,
+    text, // Text content to display
+    maxLength = 20, // Maximum characters before truncation
+    style = {}, // Additional styles to apply
+    title = null, // Custom tooltip text
   }) => {
     const displayText =
       text && text.length > maxLength
-        ? `${text.substring(0, maxLength)}...`
+        ? `${text.substring(0, maxLength)}...` // Truncate and add ellipsis
         : text;
 
     return (
       <div
         style={{
           ...style,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          overflow: "hidden", // Hide overflow text
+          textOverflow: "ellipsis", // Show ellipsis for truncated text
+          whiteSpace: "nowrap", // Prevent text wrapping
           width: "100%",
-          cursor: text && text.length > maxLength ? "help" : "default",
+          cursor: text && text.length > maxLength ? "help" : "default", // Show help cursor for truncated text
         }}
-        title={title || (text && text.length > maxLength ? text : undefined)}
+        title={title || (text && text.length > maxLength ? text : undefined)} // Show full text on hover
       >
         {displayText || ""}
       </div>
     );
   };
 
-  // Add global styles to hide scrollbars
+  // === GLOBAL STYLING EFFECTS ===
+  // Add global styles to hide scrollbars across the application
   React.useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
-      /* Hide scrollbars for webkit browsers */
+      /* Hide scrollbars for webkit browsers (Chrome, Safari, Edge) */
       ::-webkit-scrollbar {
         display: none;
       }
@@ -750,62 +762,68 @@ function Inventory() {
     }
   };
 
-  // --- STATE ---
-  const [devices, setDevices] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ...initialForm });
-  const [employees, setEmployees] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // === STATE MANAGEMENT ===
+  // === CORE DATA STATE ===
+  const [devices, setDevices] = useState([]); // List of unassigned devices from database
+  const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
+  const [form, setForm] = useState({ ...initialForm }); // Form data for adding/editing devices
+  const [employees, setEmployees] = useState([]); // List of all employees for assignment dropdowns
+  const [clients, setClients] = useState([]); // List of all clients for assignment dropdowns
+  const [loading, setLoading] = useState(true); // Main page loading state for initial data fetch
 
-  // Snackbar notifications
-  const { showSuccess, showError, showWarning, showUndoNotification } =
-    useSnackbar();
-  const [tagError, setTagError] = useState("");
-  const [saveError, setSaveError] = useState("");
-  const [useSerial, setUseSerial] = useState(false);
-  const [assigningDevice, setAssigningDevice] = useState(null);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [assignSearch, setAssignSearch] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState({
-    current: 0,
-    total: 0,
-  });
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
-  const [deleteProgress, setDeleteProgress] = useState({
-    current: 0,
-    total: 0,
-  });
-  // Add search state
-  const [deviceSearch, setDeviceSearch] = useState("");
+  // === NOTIFICATION SYSTEM ===
+  const { showSuccess, showError, showWarning, showUndoNotification } = useSnackbar(); // User feedback notifications
   
-  // Header filters state
-  const [headerFilters, setHeaderFilters] = useState({});
+  // === FORM VALIDATION STATE ===
+  const [tagError, setTagError] = useState(""); // Asset tag validation error messages
+  const [saveError, setSaveError] = useState(""); // Form save error messages
+  const [useSerial, setUseSerial] = useState(false); // Toggle for using serial number as asset tag
   
-  // Device history state
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
-    useState(null);
+  // === DEVICE ASSIGNMENT STATE ===
+  const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee/client
+  const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility state
+  const [assignSearch, setAssignSearch] = useState(""); // Search input for employees/clients in assignment modal
+  
+  // === IMPORT/EXPORT STATE ===
+  const [importing, setImporting] = useState(false); // Excel import operation in progress
+  const [importProgress, setImportProgress] = useState({ // Progress tracking for import operations
+    current: 0, // Current number of items processed
+    total: 0, // Total number of items to process
+  });
+  
+  // === BULK OPERATIONS STATE ===
+  const [selectedIds, setSelectedIds] = useState([]); // Device IDs selected for bulk operations
+  const [selectAll, setSelectAll] = useState(false); // Select all checkbox state
+  const [deleteProgress, setDeleteProgress] = useState({ // Progress tracking for bulk delete operations
+    current: 0, // Current number of items deleted
+    total: 0, // Total number of items to delete
+  });
+  
+  // === SEARCH AND FILTERING STATE ===
+  const [deviceSearch, setDeviceSearch] = useState(""); // Global search input across all device fields
+  const [headerFilters, setHeaderFilters] = useState({}); // Advanced filtering system for table columns
+  
+  // === DEVICE HISTORY STATE ===
+  const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
 
-  // Delete confirmation state
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [deviceToDelete, setDeviceToDelete] = useState(null);
+  // === DELETE CONFIRMATION STATE ===
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Single device delete confirmation modal
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false); // Bulk delete confirmation modal
+  const [deviceToDelete, setDeviceToDelete] = useState(null); // Device selected for deletion
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [devicesPerPage, setDevicesPerPage] = useState(50);
+  // === PAGINATION STATE ===
+  const [currentPage, setCurrentPage] = useState(1); // Current page number for device table
+  const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
 
-  // Assign modal state
-  const [assignStep, setAssignStep] = useState(0);
-  const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null);
-  const [issueChecks, setIssueChecks] = useState({
-    newIssueNew: false,
-    newIssueStock: false,
-    wfhNew: false,
-    wfhStock: false,
+  // === ASSIGNMENT WORKFLOW STATE ===
+  const [assignStep, setAssignStep] = useState(0); // Current step in assignment workflow (0: employee select, 1: form options)
+  const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null); // Employee selected for device assignment
+  const [issueChecks, setIssueChecks] = useState({ // Assignment form type checkboxes
+    newIssueNew: false, // New issue for brand new device
+    newIssueStock: false, // New issue from stock
+    wfhNew: false, // Work from home new device
+    wfhStock: false, // Work from home from stock
   });
   const [showGenerateBtn, setShowGenerateBtn] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -1034,6 +1052,21 @@ function Inventory() {
   useEffect(() => {
     setCurrentPage(1);
   }, [devicesPerPage]);
+
+  // Update selectAll state when selectedIds or current page changes
+  useEffect(() => {
+    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+    const startIndex = (currentPage - 1) * devicesPerPage;
+    const endIndex = startIndex + devicesPerPage;
+    const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
+    const currentPageIds = currentPageDevices.map(d => d.id);
+    
+    // Check if all current page items are selected
+    const allCurrentPageSelected = currentPageIds.length > 0 && 
+      currentPageIds.every(id => selectedIds.includes(id));
+    
+    setSelectAll(allCurrentPageSelected);
+  }, [selectedIds, currentPage, devicesPerPage, deviceSearch, headerFilters, devices]);
 
   // Focus management for modal accessibility
   useEffect(() => {
@@ -1447,8 +1480,8 @@ function Inventory() {
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
 
-    // Filter devices based on search AND exclude assigned devices
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch);
+    // Filter devices based on search AND exclude assigned devices AND apply header filters
+    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
 
     // Get current page devices
     const startIndex = (currentPage - 1) * devicesPerPage;
@@ -3314,7 +3347,7 @@ function Inventory() {
             <table
               style={{
                 width: "100%",
-                minWidth: "860px", // Further reduced after shrinking Actions column from 120px to 80px
+                minWidth: "845px", // Further reduced after shrinking Number column from 50px to 35px
                 borderCollapse: "collapse",
                 background: "#fff",
                 fontSize: "14px",
@@ -3341,22 +3374,19 @@ function Inventory() {
                   >
                     <input
                       type="checkbox"
-                      checked={
-                        getUnassignedDevices(devices, deviceSearch, headerFilters).length > 0 &&
-                        selectedIds.length === getUnassignedDevices(devices, deviceSearch, headerFilters).length
-                      }
+                      checked={selectAll}
                       onChange={handleSelectAll}
                       style={{ width: 16, height: 16, margin: 0 }}
                     />
                   </th>
                   <th
                     style={{
-                      width: "50px", // Reduced index column
+                      width: "35px", // Further reduced to match Assets table
                       padding: "8px 12px", // Reduced padding
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center", // Center align the # symbol
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3373,7 +3403,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3390,7 +3420,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3407,7 +3437,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3424,7 +3454,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3441,7 +3471,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3458,7 +3488,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3475,7 +3505,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3492,7 +3522,7 @@ function Inventory() {
                       fontSize: "12px",
                       fontWeight: "600",
                       color: "#374151",
-                      textAlign: "left",
+                      textAlign: "center",
                       border: "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
@@ -3540,7 +3570,7 @@ function Inventory() {
                   </th>
                   <th
                     style={{
-                      width: "50px",
+                      width: "35px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
                       borderBottom: "2px solid #000000", // Add solid black line under filter row
@@ -3806,11 +3836,12 @@ function Inventory() {
                       </td>
                       <td
                         style={{
-                          width: "50px",
+                          width: "35px", // Match header width
                           padding: "8px 12px",
                           fontSize: "14px",
                           color: "rgb(55, 65, 81)",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align the numbers
                         }}
                       >
                         {(currentPage - 1) * devicesPerPage + index + 1}
@@ -3822,6 +3853,7 @@ function Inventory() {
                           fontSize: "14px",
                           color: "#374151",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                           wordWrap: "break-word", // Enable text wrapping
                           whiteSpace: "normal", // Allow text to wrap
                           lineHeight: "1.4", // Improve readability
@@ -3862,6 +3894,7 @@ function Inventory() {
                           color: "#374151",
                           overflow: "hidden",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         <TruncatedText
@@ -3877,6 +3910,7 @@ function Inventory() {
                           color: "#374151",
                           overflow: "hidden",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         <TruncatedText text={device.brand} maxLength={10} />
@@ -3888,6 +3922,7 @@ function Inventory() {
                           fontSize: "14px",
                           color: "#374151",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                           wordWrap: "break-word", // Enable text wrapping
                           whiteSpace: "normal", // Allow text to wrap
                           lineHeight: "1.4", // Improve readability
@@ -3903,6 +3938,7 @@ function Inventory() {
                           color: "#374151",
                           overflow: "hidden",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         <TruncatedText
@@ -3918,6 +3954,7 @@ function Inventory() {
                           color: "#374151",
                           overflow: "hidden",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         <div
@@ -3926,7 +3963,7 @@ function Inventory() {
                             background: getConditionColor(device.condition),
                             color: getConditionTextColor(device.condition),
                             padding: "4px 8px",
-                            borderRadius: "4px",
+                            borderRadius: "4px", // Rounded border style
                             fontSize: "12px",
                             fontWeight: "600",
                             textAlign: "center",
@@ -3947,6 +3984,7 @@ function Inventory() {
                           fontSize: "14px",
                           color: "#374151",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                           wordWrap: "break-word", // Enable text wrapping
                           whiteSpace: "normal", // Allow text to wrap
                           lineHeight: "1.4", // Improve readability
@@ -3961,6 +3999,7 @@ function Inventory() {
                           fontSize: "14px",
                           color: "#374151",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         {device.acquisitionDate ? (
@@ -3981,6 +4020,7 @@ function Inventory() {
                           fontSize: "14px",
                           color: "#374151",
                           border: "1px solid #d1d5db",
+                          textAlign: "center", // Center align content
                         }}
                       >
                         <div
@@ -4135,42 +4175,40 @@ function Inventory() {
             return (
               <div
                 style={{
-                  position: "sticky",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: "#fff",
-                  borderTop: "1px solid #e0e7ef",
-                  padding: "16px 24px",
                   display: "flex",
-                  alignItems: "center",
                   justifyContent: "space-between",
-                  zIndex: 100,
-                  minHeight: "60px",
-                  boxShadow: "0 -1px 3px rgba(0, 0, 0, 0.1)",
+                  alignItems: "center",
+                  padding: "12px 20px", // Reduced padding for fixed layout
+                  background: "#fff",
+                  borderRadius: "0",
+                  boxShadow: "none",
+                  border: "none",
+                  borderTop: "1px solid #e5e7eb",
+                  position: "sticky",
+                  bottom: "0",
+                  zIndex: "10",
+                  flexShrink: 0,
                 }}
               >
                 {/* Left side - Device count and per page selector */}
                 <div
                   style={{
+                    color: "#445F6D",
+                    fontSize: "14px",
+                    fontWeight: "600",
                     display: "flex",
                     alignItems: "center",
-                    gap: "16px",
-                    fontSize: "14px",
-                    color: "#445F6D",
-                    fontWeight: "500",
+                    gap: "12px",
                   }}
                 >
                   <span>
                     {filteredDevices.length === 0
-                      ? "No devices"
+                      ? "Showing 0 - 0 of 0 devices"
                       : `Showing ${startIndex} - ${endIndex} of ${filteredDevices.length} devices`}
                   </span>
                   
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "14px", color: "#445F6D" }}>
-                      Per page:
-                    </span>
+                    <span style={{ fontSize: "13px" }}>Show:</span>
                     <select
                       value={devicesPerPage}
                       onChange={(e) => {
@@ -4178,14 +4216,12 @@ function Inventory() {
                         setCurrentPage(1);
                       }}
                       style={{
-                        padding: "6px 10px",
-                        borderRadius: "6px",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
                         border: "1px solid #e0e7ef",
+                        fontSize: "13px",
                         background: "#fff",
                         color: "#445F6D",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        cursor: "pointer",
                       }}
                     >
                       <option value={10}>10</option>

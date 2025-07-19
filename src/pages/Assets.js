@@ -1,18 +1,23 @@
+// === ASSETS PAGE MAIN COMPONENT ===
+// This file handles the display and management of assigned assets (devices that are assigned to employees)
+// Main features: View assigned devices, bulk reassign/unassign, search/filter, device history
+
+// === IMPORTS ===
 import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
   updateDevice,
   addDevice,
-} from "../services/deviceService";
-import { getAllEmployees } from "../services/employeeService";
-import { logDeviceHistory } from "../services/deviceHistoryService";
+} from "../services/deviceService"; // Database operations for devices
+import { getAllEmployees } from "../services/employeeService"; // Employee data operations
+import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
 import LoadingSpinner, {
   TableLoadingSpinner,
-} from "../components/LoadingSpinner";
-import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
-import { useSnackbar } from "../components/Snackbar";
-import DeviceHistory from "../components/DeviceHistory";
+} from "../components/LoadingSpinner"; // Loading indicators
+import PizZip from "pizzip"; // For DOCX file generation
+import Docxtemplater from "docxtemplater"; // For DOCX template processing
+import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
+import DeviceHistory from "../components/DeviceHistory"; // Device history modal
 import {
   TextFilter,
   DropdownFilter,
@@ -20,27 +25,29 @@ import {
   FilterContainer,
   useTableFilters,
   applyFilters,
-} from "../components/TableHeaderFilters";
+} from "../components/TableHeaderFilters"; // Table filtering components
 
-// Function to get background color based on condition
+// === CONDITION STYLING FUNCTIONS ===
+// Function to get background color based on device condition
 const getConditionColor = (condition) => {
   const colorMap = {
-    GOOD: "#007BFF", // Blue
-    BRANDNEW: "#28A745", // Green
-    DEFECTIVE: "#DC3545", // Red
-    "NEEDS REPAIR": "#FFC107", // Yellow
-    RETIRED: "#6C757D", // Gray
+    GOOD: "#007BFF", // Blue for good condition
+    BRANDNEW: "#28A745", // Green for brand new
+    DEFECTIVE: "#DC3545", // Red for defective
+    "NEEDS REPAIR": "#FFC107", // Yellow for needs repair
+    RETIRED: "#6C757D", // Gray for retired
   };
-  return colorMap[condition] || "#6C757D"; // Default to gray
+  return colorMap[condition] || "#6C757D"; // Default to gray for unknown conditions
 };
 
-// Function to get text color for better contrast
+// Function to get text color for better contrast on condition badges
 const getConditionTextColor = (condition) => {
-  // Yellow background needs dark text for better contrast
+  // Yellow background needs dark text for better contrast, others use white text
   return condition === "NEEDS REPAIR" ? "#000" : "#fff";
 };
 
-// Utility function to render cell content with text wrapping and tooltips
+// === CELL CONTENT UTILITY FUNCTION ===
+// Utility function to render cell content with text wrapping and tooltips for long text
 const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
   if (!content) return <span>-</span>;
 
@@ -66,43 +73,53 @@ const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
   );
 };
 
+// === DEVICE FORM MODAL COMPONENT ===
+// Modal component for adding/editing device information
+// Features: Device type selection, tag generation, employee assignment, validation
 function DeviceFormModal({
-  data,
-  onChange,
-  onSave,
-  onCancel,
-  onGenerateTag,
-  employees,
-  tagError,
-  saveError,
-  isValid,
-  useSerial,
-  setUseSerial,
-  setTagError,
-  onSerialToggle,
-  editingDevice,
+  data, // Device data object being edited/created
+  onChange, // Function to handle form field changes
+  onSave, // Function to save device data
+  onCancel, // Function to close modal without saving
+  onGenerateTag, // Function to generate automatic asset tags
+  employees, // List of employees for assignment dropdown
+  tagError, // Error message for tag validation
+  saveError, // Error message for save operation
+  isValid, // Boolean indicating if form data is valid
+  useSerial, // Boolean for using serial number as tag
+  setUseSerial, // Function to toggle serial number usage
+  setTagError, // Function to set tag error messages
+  onSerialToggle, // Function to handle serial number toggle
+  editingDevice, // Boolean indicating if editing existing device
 }) {
+  // === DEVICE TYPE CONFIGURATION ===
+  // Array of device types with display labels and asset tag codes
   const deviceTypes = [
-    { label: "Headset", code: "HS" },
-    { label: "Keyboard", code: "KB" },
-    { label: "Laptop", code: "LPT" },
-    { label: "Monitor", code: "MN" },
-    { label: "Mouse", code: "M" },
-    { label: "PC", code: "PC" },
-    { label: "PSU", code: "PSU" },
-    { label: "RAM", code: "RAM" },
-    { label: "SSD", code: "SSD" },
-    { label: "Webcam", code: "W" },
+    { label: "Headset", code: "HS" }, // Audio equipment
+    { label: "Keyboard", code: "KB" }, // Input devices
+    { label: "Laptop", code: "LPT" }, // Portable computers
+    { label: "Monitor", code: "MN" }, // Display devices
+    { label: "Mouse", code: "M" }, // Pointing devices
+    { label: "PC", code: "PC" }, // Desktop computers
+    { label: "PSU", code: "PSU" }, // Power supply units
+    { label: "RAM", code: "RAM" }, // Memory modules
+    { label: "SSD", code: "SSD" }, // Storage devices
+    { label: "Webcam", code: "W" }, // Camera devices
   ];
+  
+  // === DEVICE CONDITION OPTIONS ===
+  // Available condition states for devices
   const conditions = [
-    "BRANDNEW",
-    "GOOD",
-    "DEFECTIVE",
-    "NEEDS REPAIR",
-    "RETIRED",
+    "BRANDNEW", // New devices never used
+    "GOOD", // Devices in working condition
+    "DEFECTIVE", // Broken/non-functioning devices
+    "NEEDS REPAIR", // Devices requiring maintenance
+    "RETIRED", // Devices removed from service
   ];
 
+  // === MODAL RENDER ===
   return (
+    // Modal overlay - covers entire screen with semi-transparent background
     <div
       style={{
         position: "fixed",
@@ -110,13 +127,14 @@ function DeviceFormModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: "rgba(34, 46, 58, 0.18)",
+        backgroundColor: "rgba(34, 46, 58, 0.18)", // Semi-transparent overlay
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 2000,
+        zIndex: 2000, // High z-index to appear above other content
       }}
     >
+      {/* Modal content container */}
       <div
         style={{
           background: "#fff",
@@ -124,14 +142,15 @@ function DeviceFormModal({
           borderRadius: 14,
           minWidth: 260,
           maxWidth: 340,
-          boxShadow: "0 4px 16px rgba(68,95,109,0.14)",
+          boxShadow: "0 4px 16px rgba(68,95,109,0.14)", // Subtle shadow
           display: "flex",
           flexDirection: "column",
-          alignItems: "center", // Center all children
+          alignItems: "center", // Center all form elements
           position: "relative",
-          border: "2px solid #70C1B3",
+          border: "2px solid #70C1B3", // Brand color border
         }}
       >
+        {/* Modal title */}
         <h3
           style={{
             fontSize: 18,
@@ -473,94 +492,119 @@ function DeviceFormModal({
   );
 }
 
+// === MAIN ASSETS PAGE COMPONENT ===
+// This component manages the display and operations for assigned devices
 function Assets() {
-  const { showSuccess, showError, showWarning, showInfo } = useSnackbar();
-  const [devices, setDevices] = useState([]);
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({});
-  const [tagError, setTagError] = useState("");
-  const [saveError, setSaveError] = useState("");
-  const [useSerial, setUseSerial] = useState(false);
-  const [assigningDevice, setAssigningDevice] = useState(null);
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [assignSearch, setAssignSearch] = useState("");
-  const [showUnassignModal, setShowUnassignModal] = useState(false);
-  const [unassignDevice, setUnassignDevice] = useState(null);
-  const [unassignReason, setUnassignReason] = useState(""); // No default
-  const [search, setSearch] = useState("");
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-  const [bulkReassignModalOpen, setBulkReassignModalOpen] = useState(false);
-  const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false);
-  const [bulkAssignSearch, setBulkAssignSearch] = useState("");
-  const [bulkUnassignReason, setBulkUnassignReason] = useState(""); // No default
+  // === NOTIFICATION HOOKS ===
+  const { showSuccess, showError, showWarning, showInfo } = useSnackbar(); // User feedback notifications
+  
+  // === CORE DATA STATE ===
+  const [devices, setDevices] = useState([]); // List of assigned devices from database
+  const [employees, setEmployees] = useState([]); // List of all employees for reassignment
+  const [loading, setLoading] = useState(true); // Main page loading state
+  const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
+  
+  // === DEVICE FORM STATE ===
+  const [form, setForm] = useState({}); // Form data for device operations
+  const [tagError, setTagError] = useState(""); // Asset tag validation errors
+  const [saveError, setSaveError] = useState(""); // Form save error messages
+  const [useSerial, setUseSerial] = useState(false); // Toggle for using serial as asset tag
+  
+  // === DEVICE ASSIGNMENT STATE ===
+  const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee
+  const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility
+  const [assignSearch, setAssignSearch] = useState(""); // Search for employees in assignment modal
+  const [showUnassignModal, setShowUnassignModal] = useState(false); // Unassignment modal visibility
+  const [unassignDevice, setUnassignDevice] = useState(null); // Device being unassigned
+  const [unassignReason, setUnassignReason] = useState(""); // Reason for device unassignment
+  
+  // === SEARCH AND SELECTION STATE ===
+  const [search, setSearch] = useState(""); // Global search across all device fields
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]); // Device IDs selected for bulk operations
+  
+  // === BULK OPERATIONS STATE ===
+  const [bulkReassignModalOpen, setBulkReassignModalOpen] = useState(false); // Bulk reassignment modal
+  const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false); // Bulk unassignment modal
+  const [bulkAssignSearch, setBulkAssignSearch] = useState(""); // Employee search in bulk assign modal
+  const [bulkUnassignReason, setBulkUnassignReason] = useState(""); // Reason for bulk unassignment
 
-  // Header filters state
+  // === TABLE FILTERING SYSTEM ===
+  // Advanced filtering system for table headers with multiple filter types
   const {
-    filters: headerFilters,
-    updateFilter: updateHeaderFilter,
-    clearAllFilters: clearAllHeaderFilters,
-    hasActiveFilters: hasActiveHeaderFilters,
+    filters: headerFilters, // Object containing all active filter values
+    updateFilter: updateHeaderFilter, // Function to update specific filter
+    clearAllFilters: clearAllHeaderFilters, // Function to reset all filters
+    hasActiveFilters: hasActiveHeaderFilters, // Boolean indicating if any filters are active
   } = useTableFilters();
-  const [showTransferPrompt, setShowTransferPrompt] = useState(false);
+  const [showTransferPrompt, setShowTransferPrompt] = useState(false); // Transfer confirmation dialog
 
-  // Constants for filters
+  // === DEVICE TYPE CONFIGURATION ===
+  // Available device types with display labels and asset tag codes
   const deviceTypes = [
-    { label: "Headset", code: "HS" },
-    { label: "Keyboard", code: "KB" },
-    { label: "Laptop", code: "LPT" },
-    { label: "Monitor", code: "MN" },
-    { label: "Mouse", code: "M" },
-    { label: "PC", code: "PC" },
-    { label: "PSU", code: "PSU" },
-    { label: "RAM", code: "RAM" },
-    { label: "SSD", code: "SSD" },
-    { label: "UPS", code: "UPS" },
-    { label: "Webcam", code: "W" },
+    { label: "Headset", code: "HS" }, // Audio equipment
+    { label: "Keyboard", code: "KB" }, // Input devices
+    { label: "Laptop", code: "LPT" }, // Portable computers
+    { label: "Monitor", code: "MN" }, // Display devices
+    { label: "Mouse", code: "M" }, // Pointing devices
+    { label: "PC", code: "PC" }, // Desktop computers
+    { label: "PSU", code: "PSU" }, // Power supply units
+    { label: "RAM", code: "RAM" }, // Memory modules
+    { label: "SSD", code: "SSD" }, // Storage devices
+    { label: "UPS", code: "UPS" }, // Uninterruptible power supplies
+    { label: "Webcam", code: "W" }, // Camera devices
   ];
+  
+  // === DEVICE CONDITION OPTIONS ===
+  // Available condition states for asset tracking
   const conditions = [
-    "BRANDNEW",
-    "GOOD",
-    "DEFECTIVE",
-    "NEEDS REPAIR",
-    "RETIRED",
+    "BRANDNEW", // Never used devices
+    "GOOD", // Working condition devices
+    "DEFECTIVE", // Non-functional devices
+    "NEEDS REPAIR", // Devices requiring maintenance
+    "RETIRED", // Devices removed from service
   ];
-  const [selectedTransferEmployee, setSelectedTransferEmployee] =
-    useState(null);
-  const [progress, setProgress] = useState(0); // Progress bar state
-  const [generatingForm, setGeneratingForm] = useState(false); // Show/hide progress
-  const [unassignGenerating, setUnassignGenerating] = useState(false);
-  const [unassignProgress, setUnassignProgress] = useState(0);
-  const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning state for bulk unassign
-  const [currentPage, setCurrentPage] = useState(1);
-  const [devicesPerPage, setDevicesPerPage] = useState(50);
+  
+  // === TRANSFER AND PROGRESS STATE ===
+  const [selectedTransferEmployee, setSelectedTransferEmployee] = useState(null); // Employee selected for device transfer
+  const [progress, setProgress] = useState(0); // Progress tracking for bulk operations
+  const [generatingForm, setGeneratingForm] = useState(false); // Progress indicator visibility
+  const [unassignGenerating, setUnassignGenerating] = useState(false); // Unassign operation in progress
+  const [unassignProgress, setUnassignProgress] = useState(0); // Unassign progress percentage
+  const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
+  
+  // === PAGINATION STATE ===
+  const [currentPage, setCurrentPage] = useState(1); // Current page number for device table
+  const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
 
-  // Device history state
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false);
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
-    useState(null);
+  // === DEVICE HISTORY STATE ===
+  const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
 
+  // === COMPONENT INITIALIZATION ===
+  // Load devices and employees data when component mounts
   useEffect(() => {
     loadDevicesAndEmployees();
   }, []);
 
-  // Reset to first page when search changes
+  // === PAGINATION RESET EFFECTS ===
+  // Reset to first page when search term changes
   useEffect(() => {
     setCurrentPage(1);
   }, [search]);
 
-  // Reset to first page when devices per page changes
+  // Reset to first page when items per page changes
   useEffect(() => {
     setCurrentPage(1);
   }, [devicesPerPage]);
 
+  // === DATA LOADING FUNCTIONS ===
+  // Main function to fetch devices and employees from database
   const loadDevicesAndEmployees = async () => {
     setLoading(true);
     try {
       const [allDevices, allEmployees] = await Promise.all([
-        getAllDevices(),
-        getAllEmployees(),
+        getAllDevices(), // Fetch all devices from database
+        getAllEmployees(), // Fetch all employees for assignment dropdowns
       ]);
       // Filter to only show assigned devices (devices with assignedTo value)
       const assignedDevices = allDevices.filter(
@@ -577,6 +621,8 @@ function Assets() {
     }
   };
 
+  // === UTILITY FUNCTIONS ===
+  // Get employee display name from ID
   const getEmployeeName = (id) => {
     const emp = employees.find((e) => e.id === id);
     return emp ? emp.fullName : id || "";
@@ -1709,7 +1755,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1723,7 +1769,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1740,7 +1786,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1757,7 +1803,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1774,7 +1820,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1791,7 +1837,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1808,7 +1854,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1825,13 +1871,13 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       width: "120px",
                       maxWidth: "120px",
-                      minWidth: "100px",
+                      minWidth: "70px",
                     }}
                   >
                     Condition
@@ -1842,7 +1888,7 @@ function Assets() {
                       fontWeight: 500,
                       padding: "8px 16px",
                       border: "1px solid #d1d5db",
-                      textAlign: "left",
+                      textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
@@ -1918,6 +1964,7 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       border: "1px solid #d1d5db",
+                      textAlign: "center",
                     }}
                   >
                     {/* No filter for row number */}
@@ -1929,6 +1976,7 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      textAlign: "center",
                     }}
                   >
                     <TextFilter
@@ -1946,6 +1994,7 @@ function Assets() {
                       width: "130px",
                       maxWidth: "130px",
                       minWidth: "110px",
+                      textAlign: "center",
                     }}
                   >
                     <DropdownFilter
@@ -1964,6 +2013,7 @@ function Assets() {
                       width: "150px",
                       maxWidth: "150px",
                       minWidth: "120px",
+                      textAlign: "center",
                     }}
                   >
                     <TextFilter
@@ -1979,6 +2029,7 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      textAlign: "center",
                     }}
                   >
                     <TextFilter
@@ -1994,6 +2045,7 @@ function Assets() {
                       width: "200px",
                       maxWidth: "200px",
                       minWidth: "180px",
+                      textAlign: "center",
                     }}
                   >
                     <TextFilter
@@ -2011,6 +2063,7 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      textAlign: "center",
                     }}
                   >
                     <DateFilter
@@ -2027,7 +2080,8 @@ function Assets() {
                       border: "1px solid #d1d5db",
                       width: "120px",
                       maxWidth: "120px",
-                      minWidth: "100px",
+                      minWidth: "70px",
+                      textAlign: "center",
                     }}
                   >
                     <DropdownFilter
@@ -2046,6 +2100,7 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      textAlign: "center",
                     }}
                   >
                     <TextFilter
@@ -2158,6 +2213,7 @@ function Assets() {
                             fontSize: "14px",
                             fontWeight: "500",
                             border: "1px solid #d1d5db",
+                            textAlign: "center",
                           }}
                         >
                           {rowIndex}
@@ -2170,6 +2226,7 @@ function Assets() {
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(device.deviceTag, 15, (e) => {
@@ -2185,6 +2242,7 @@ function Assets() {
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(device.deviceType, 18)}
@@ -2197,6 +2255,7 @@ function Assets() {
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(device.brand, 20)}
@@ -2209,6 +2268,7 @@ function Assets() {
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(device.model, 25)}
@@ -2221,6 +2281,7 @@ function Assets() {
                             fontSize: "14px",
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(
@@ -2238,6 +2299,7 @@ function Assets() {
                             verticalAlign: "top",
                             maxWidth: "120px",
                             minWidth: "100px",
+                            textAlign: "center",
                           }}
                         >
                           <span style={{ display: "block", lineHeight: "1.4" }}>
@@ -2258,14 +2320,15 @@ function Assets() {
                             border: "1px solid #d1d5db",
                             verticalAlign: "top",
                             maxWidth: "120px",
-                            minWidth: "100px",
+                            minWidth: "70px",
+                            textAlign: "center",
                           }}
                         >
                           <span
                             style={{
                               display: "inline-block",
                               padding: "4px 8px",
-                              borderRadius: "12px",
+                              borderRadius: "4px", // Rounded border style instead of oval
                               fontSize: "12px",
                               fontWeight: "600",
                               color: getConditionTextColor(device.condition),
@@ -2274,6 +2337,8 @@ function Assets() {
                               ),
                               lineHeight: "1.2",
                               whiteSpace: "nowrap",
+                              minWidth: "70px",
+                              textAlign: "center",
                             }}
                           >
                             {device.condition || "UNKNOWN"}
@@ -2289,6 +2354,7 @@ function Assets() {
                             verticalAlign: "top",
                             maxWidth: "180px",
                             minWidth: "150px",
+                            textAlign: "center",
                           }}
                         >
                           {renderCellWithTooltip(device.remarks, 25)}
