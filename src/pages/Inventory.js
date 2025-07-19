@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
 import { TableLoadingSpinner } from "../components/LoadingSpinner";
+import { TextFilter, DropdownFilter, DateFilter } from "../components/TableHeaderFilters";
 import {
   addDevice,
   updateDevice,
@@ -779,6 +780,10 @@ function Inventory() {
   });
   // Add search state
   const [deviceSearch, setDeviceSearch] = useState("");
+  
+  // Header filters state
+  const [headerFilters, setHeaderFilters] = useState({});
+  
   // Device history state
   const [showDeviceHistory, setShowDeviceHistory] = useState(false);
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
@@ -876,7 +881,7 @@ function Inventory() {
   // --- HANDLERS ---
 
   // Helper function to get unassigned devices (for inventory display)
-  const getUnassignedDevices = (devicesArray, searchQuery = "") => {
+  const getUnassignedDevices = (devicesArray, searchQuery = "", headerFilters = {}) => {
     return devicesArray
       .filter((device) => {
         // First filter: Only show devices that are NOT assigned
@@ -886,15 +891,53 @@ function Inventory() {
         // Second filter: Search functionality
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          return (
+          const matchesSearch = 
             device.deviceType?.toLowerCase().includes(q) ||
             device.deviceTag?.toLowerCase().includes(q) ||
             device.brand?.toLowerCase().includes(q) ||
             device.model?.toLowerCase().includes(q) ||
             device.condition?.toLowerCase().includes(q) ||
-            device.remarks?.toLowerCase().includes(q)
-          );
+            device.remarks?.toLowerCase().includes(q) ||
+            device.client?.toLowerCase().includes(q);
+          
+          if (!matchesSearch) return false;
         }
+
+        // Third filter: Header filters
+        if (headerFilters && Object.keys(headerFilters).length > 0) {
+          const matchesHeaderFilters = Object.entries(headerFilters).every(
+            ([key, filterValue]) => {
+              if (!filterValue) return true;
+
+              const itemValue = device[key];
+              if (itemValue === undefined || itemValue === null) return false;
+
+              // For date filtering on acquisitionDate
+              if (key === 'acquisitionDate' && filterValue) {
+                const deviceDate = device.acquisitionDate;
+                if (!deviceDate) return false;
+                
+                // Convert both dates to comparable format
+                const filterDate = new Date(filterValue).toDateString();
+                const deviceDateObj = new Date(deviceDate);
+                return deviceDateObj.toDateString() === filterDate;
+              }
+
+              // For string comparisons (case-insensitive)
+              if (typeof filterValue === "string") {
+                return String(itemValue)
+                  .toLowerCase()
+                  .includes(filterValue.toLowerCase());
+              }
+
+              // For exact matches (numbers, etc.)
+              return itemValue === filterValue;
+            }
+          );
+
+          if (!matchesHeaderFilters) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
@@ -1736,6 +1779,22 @@ function Inventory() {
       showError("Failed to export inventory data. Please try again.");
     }
   };
+
+  // --- Header Filter Functions ---
+  const updateHeaderFilter = (key, value) => {
+    setHeaderFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  const clearAllHeaderFilters = () => {
+    setHeaderFilters({});
+    setCurrentPage(1);
+  };
+
+  const hasActiveHeaderFilters = Object.values(headerFilters).some(Boolean);
 
   // --- New Acquisitions Functionality ---
   const handleNewAcquisitions = async () => {
@@ -3089,107 +3148,6 @@ function Inventory() {
             )}
           </div>
         </div>
-
-        {/* Table Header - Fixed with search bar */}
-        <div
-          style={{
-            padding: "0",
-            background: "rgb(255, 255, 255)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              minWidth: "1200px",
-              background: "#fff",
-              padding: "0",
-            }}
-          >
-            <div
-              style={{
-                ...styles.th,
-                flex: "0 0 50px",
-                textAlign: "center",
-                overflow: "hidden",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={(() => {
-                  // Filter devices based on search AND exclude assigned devices
-                  const filteredDevices = getUnassignedDevices(
-                    devices,
-                    deviceSearch
-                  );
-
-                  // Get current page devices
-                  const startIndex = (currentPage - 1) * devicesPerPage;
-                  const endIndex = startIndex + devicesPerPage;
-                  const currentPageDevices = filteredDevices.slice(
-                    startIndex,
-                    endIndex
-                  );
-
-                  return (
-                    currentPageDevices.length > 0 &&
-                    currentPageDevices.every((device) =>
-                      selectedIds.includes(device.id)
-                    )
-                  );
-                })()}
-                onChange={handleSelectAll}
-                style={{ width: 16, height: 16, margin: 0 }}
-              />
-            </div>
-            <div style={{ ...styles.th, flex: "0 0 60px", overflow: "hidden" }}>
-              #
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 150px", overflow: "hidden" }}
-            >
-              {fieldLabels.deviceTag}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.deviceType}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.brand}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
-            >
-              {fieldLabels.model}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.client}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 100px", overflow: "hidden" }}
-            >
-              {fieldLabels.condition}
-            </div>
-            <div style={{ ...styles.th, flex: "1 1 auto", overflow: "hidden" }}>
-              {fieldLabels.remarks}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 140px", overflow: "hidden" }}
-            >
-              {fieldLabels.acquisitionDate}
-            </div>
-            <div
-              style={{ ...styles.th, flex: "0 0 120px", overflow: "hidden" }}
-            >
-              Actions
-            </div>
-          </div>
-        </div>
       </div>
 
       {showForm && (
@@ -3212,45 +3170,558 @@ function Inventory() {
         />
       )}
 
+      {/* Filter Status Display */}
+      {hasActiveHeaderFilters && (
+        <div
+          style={{
+            background: "#f0f9ff",
+            border: "1px solid #0ea5e9",
+            borderRadius: "6px",
+            padding: "12px 16px",
+            margin: "0 24px 16px 24px",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            fontSize: "14px",
+            fontFamily:
+              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "#0369a1",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+            </svg>
+            <span style={{ fontWeight: 500 }}>
+              {Object.values(headerFilters).filter(Boolean).length} active
+              filter(s)
+            </span>
+          </div>
+
+          <div style={{ flex: 1 }}>
+            {Object.entries(headerFilters)
+              .filter(([key, value]) => value)
+              .map(([key, value]) => (
+                <span
+                  key={key}
+                  style={{
+                    display: "inline-block",
+                    background: "#ffffff",
+                    border: "1px solid #0ea5e9",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    margin: "0 4px 4px 0",
+                    fontSize: "12px",
+                    color: "#0369a1",
+                  }}
+                >
+                  {key}: {value}
+                </span>
+              ))}
+          </div>
+
+          <button
+            onClick={clearAllHeaderFilters}
+            style={{
+              padding: "6px 12px",
+              fontSize: "12px",
+              border: "1px solid #0ea5e9",
+              borderRadius: "4px",
+              background: "#ffffff",
+              color: "#0369a1",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "#0ea5e9";
+              e.target.style.color = "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "#ffffff";
+              e.target.style.color = "#0369a1";
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <path d="M18 6L6 18" />
+              <path d="M6 6l12 12" />
+            </svg>
+            Clear All Filters
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <TableLoadingSpinner text="Loading inventory..." />
       ) : (
         <div
           style={{
             flex: 1,
-            overflow: "auto",
+            overflow: "hidden", // Prevent outer container overflow
             background: "#fff",
-            border: "1px solid #e5e7eb",
+            border: "1px solid #d1d5db",
             boxShadow:
               "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            WebkitScrollbar: { display: "none" },
+            borderRadius: "8px", // Add border radius for better appearance
+            position: "relative", // Enable positioning for sticky elements
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <div
             style={{
+              flex: 1,
               overflowX: "auto",
               overflowY: "auto",
               maxHeight: "100%",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              WebkitScrollbar: { display: "none" },
+              scrollbarWidth: "thin", // Show thin scrollbar for better UX
+              scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
+              // Custom webkit scrollbar styling
+              WebkitScrollbar: { width: "8px", height: "8px" },
+              WebkitScrollbarTrack: { background: "#f1f5f9" },
+              WebkitScrollbarThumb: { background: "#cbd5e1", borderRadius: "4px" },
             }}
           >
-            <div
+            <table
               style={{
                 width: "100%",
-                minWidth: "1200px",
+                minWidth: "860px", // Further reduced after shrinking Actions column from 120px to 80px
+                borderCollapse: "collapse",
                 background: "#fff",
+                fontSize: "14px",
+                border: "1px solid #d1d5db",
               }}
             >
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <thead>
+                {/* Header Row */}
+                <tr style={{ background: "#f9fafb" }}>
+                  <th
+                    style={{
+                      width: "40px", // Reduced checkbox column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        getUnassignedDevices(devices, deviceSearch, headerFilters).length > 0 &&
+                        selectedIds.length === getUnassignedDevices(devices, deviceSearch, headerFilters).length
+                      }
+                      onChange={handleSelectAll}
+                      style={{ width: 16, height: 16, margin: 0 }}
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "50px", // Reduced index column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    #
+                  </th>
+                  <th
+                    style={{
+                      width: "120px", // Reduced device tag column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    DEVICE TAG
+                  </th>
+                  <th
+                    style={{
+                      width: "100px", // Optimized type column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    TYPE
+                  </th>
+                  <th
+                    style={{
+                      width: "90px", // Reduced brand column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    BRAND
+                  </th>
+                  <th
+                    style={{
+                      width: "90px", // Reduced model column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    MODEL
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Reduced client column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    CLIENT
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Reduced condition column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    CONDITION
+                  </th>
+                  <th
+                    style={{
+                      minWidth: "120px", // Reduced remarks column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    REMARKS
+                  </th>
+                  <th
+                    style={{
+                      width: "110px", // Reduced acquisition date column
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "left",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    ACQUISITION DATE
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Reduced from 120px to fit only Edit/Delete buttons
+                      minWidth: "80px", // Ensure minimum width is maintained
+                      padding: "8px 12px", // Reduced padding
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    ACTIONS
+                  </th>
+                </tr>
+                
+                {/* Filter Row */}
+                <tr style={{ background: "#ffffff" }}>
+                  <th
+                    style={{
+                      width: "40px",
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    {/* Empty cell for checkbox column */}
+                  </th>
+                  <th
+                    style={{
+                      width: "50px",
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    {/* Empty cell for # column */}
+                  </th>
+                  <th
+                    style={{
+                      width: "120px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.deviceTag || ""}
+                      onChange={(value) => updateHeaderFilter("deviceTag", value)}
+                      placeholder="Filter by tag..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "100px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.deviceType || ""}
+                      onChange={(value) => updateHeaderFilter("deviceType", value)}
+                      options={[...new Set(devices.map(d => d.deviceType).filter(Boolean))]}
+                      placeholder="All Types"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "90px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.brand || ""}
+                      onChange={(value) => updateHeaderFilter("brand", value)}
+                      placeholder="Filter by brand..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "90px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.model || ""}
+                      onChange={(value) => updateHeaderFilter("model", value)}
+                      placeholder="Filter by model..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={[...new Set(devices.map(d => d.client).filter(Boolean))]}
+                      placeholder="All Clients"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.condition || ""}
+                      onChange={(value) => updateHeaderFilter("condition", value)}
+                      options={["BRANDNEW", "GOOD", "DEFECTIVE", "FOR REPAIR", "DISPOSED"]}
+                      placeholder="All Conditions"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "120px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <TextFilter
+                      value={headerFilters.remarks || ""}
+                      onChange={(value) => updateHeaderFilter("remarks", value)}
+                      placeholder="Filter by remarks..."
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "110px", // Match header width
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DateFilter
+                      value={headerFilters.acquisitionDate || ""}
+                      onChange={(value) => updateHeaderFilter("acquisitionDate", value)}
+                    />
+                  </th>
+                  <th
+                    style={{
+                      width: "80px", // Match header width for consistency
+                      minWidth: "80px", // Ensure minimum width is maintained
+                      padding: "6px 8px",
+                      border: "1px solid #d1d5db",
+                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
+                  >
+                    {/* Empty cell for actions column */}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
                   const filteredDevices = getUnassignedDevices(
                     devices,
-                    deviceSearch
+                    deviceSearch,
+                    headerFilters
                   );
 
                   // Calculate pagination
@@ -3264,14 +3735,33 @@ function Inventory() {
                     endIndex
                   );
 
+                  if (currentDevices.length === 0) {
+                    return (
+                      <tr>
+                        <td 
+                          colSpan="11" 
+                          style={{
+                            padding: "40px 20px",
+                            textAlign: "center",
+                            color: "#9ca3af",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            border: "1px solid #d1d5db",
+                          }}
+                        >
+                          {deviceSearch || hasActiveHeaderFilters
+                            ? "No inventory devices found matching your criteria."
+                            : "No inventory devices to display."}
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return currentDevices.map((device, index) => (
-                    <div
+                    <tr
                       key={device.id}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        minWidth: "1200px",
-                        borderBottom: "1px solid #f3f4f6",
+                        borderBottom: "1px solid #d1d5db",
                         background:
                           index % 2 === 0
                             ? "rgb(250, 250, 252)"
@@ -3296,11 +3786,12 @@ function Inventory() {
                             : "rgb(240, 240, 243)";
                       }}
                     >
-                      <div
+                      <td
                         style={{
-                          flex: "0 0 50px",
-                          padding: "12px 16px",
+                          width: "40px",
+                          padding: "8px 12px",
                           textAlign: "center",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         <input
@@ -3312,24 +3803,28 @@ function Inventory() {
                           }}
                           style={{ width: 16, height: 16, margin: 0 }}
                         />
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 60px",
-                          padding: "12px 16px",
+                          width: "50px",
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "rgb(55, 65, 81)",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         {(currentPage - 1) * devicesPerPage + index + 1}
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 150px",
-                          padding: "12px 16px",
+                          width: "120px", // Match header width
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
-                          overflow: "hidden",
+                          border: "1px solid #d1d5db",
+                          wordWrap: "break-word", // Enable text wrapping
+                          whiteSpace: "normal", // Allow text to wrap
+                          lineHeight: "1.4", // Improve readability
                         }}
                       >
                         <span
@@ -3345,6 +3840,8 @@ function Inventory() {
                             transition: "color 0.2s",
                             display: "block",
                             width: "100%",
+                            wordWrap: "break-word", // Enable text wrapping
+                            whiteSpace: "normal", // Allow text to wrap
                           }}
                           onMouseEnter={(e) =>
                             (e.currentTarget.style.color = "rgb(75, 85, 99)")
@@ -3354,70 +3851,73 @@ function Inventory() {
                           }
                           title={`Click to view device history: ${device.deviceTag}`}
                         >
-                          <TruncatedText
-                            text={device.deviceTag}
-                            maxLength={18}
-                            style={{ cursor: "pointer" }}
-                          />
+                          {device.deviceTag} {/* Display full text without truncation */}
                         </span>
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 100px",
-                          padding: "12px 16px",
+                          width: "100px", // Match header width
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
                           overflow: "hidden",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         <TruncatedText
                           text={device.deviceType}
                           maxLength={12}
                         />
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 100px",
-                          padding: "12px 16px",
+                          width: "90px", // Match header width
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
                           overflow: "hidden",
+                          border: "1px solid #d1d5db",
                         }}
                       >
-                        <TruncatedText text={device.brand} maxLength={12} />
-                      </div>
-                      <div
+                        <TruncatedText text={device.brand} maxLength={10} />
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 120px",
-                          padding: "12px 16px",
+                          width: "90px", // Match header width
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
-                          overflow: "hidden",
+                          border: "1px solid #d1d5db",
+                          wordWrap: "break-word", // Enable text wrapping
+                          whiteSpace: "normal", // Allow text to wrap
+                          lineHeight: "1.4", // Improve readability
                         }}
                       >
-                        <TruncatedText text={device.model} maxLength={14} />
-                      </div>
-                      <div
+                        {device.model || ""} {/* Display full text without truncation */}
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 100px",
-                          padding: "12px 16px",
+                          width: "80px",
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
                           overflow: "hidden",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         <TruncatedText
                           text={device.client || "-"}
-                          maxLength={12}
+                          maxLength={8}
                         />
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 100px",
-                          padding: "12px 16px",
+                          width: "80px",
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
                           overflow: "hidden",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         <div
@@ -3439,24 +3939,28 @@ function Inventory() {
                             maxLength={12}
                           />
                         </div>
-                      </div>
-                      <div
+                      </td>
+                      <td
                         style={{
-                          flex: "1 1 auto",
-                          padding: "12px 16px",
+                          width: "120px",
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
-                          overflow: "hidden",
+                          border: "1px solid #d1d5db",
+                          wordWrap: "break-word", // Enable text wrapping
+                          whiteSpace: "normal", // Allow text to wrap
+                          lineHeight: "1.4", // Improve readability
                         }}
                       >
-                        <TruncatedText text={device.remarks} maxLength={50} />
-                      </div>
-                      <div
+                        {device.remarks || ""} {/* Display full text without truncation */}
+                      </td>
+                      <td
                         style={{
-                          flex: "0 0 140px",
-                          padding: "12px 16px",
+                          width: "110px", // Match header width for consistency
+                          padding: "8px 12px",
                           fontSize: "14px",
                           color: "#374151",
+                          border: "1px solid #d1d5db",
                         }}
                       >
                         {device.acquisitionDate ? (
@@ -3468,14 +3972,25 @@ function Inventory() {
                             Not recorded
                           </span>
                         )}
-                      </div>
-                      <div style={{ flex: "0 0 120px", padding: "12px 16px" }}>
+                      </td>
+                      <td
+                        style={{
+                          width: "80px", // Reduced width to fit only Edit/Delete buttons
+                          minWidth: "80px", // Ensure minimum width is maintained
+                          padding: "4px 8px", // Further reduced padding
+                          fontSize: "14px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                        }}
+                      >
                         <div
                           style={{
                             display: "flex",
-                            gap: 8,
+                            gap: "2px", // Further reduced gap for smaller action column
                             alignItems: "center",
                             justifyContent: "center",
+                            flexWrap: "nowrap", // Prevent wrapping to maintain single row
+                            minWidth: "fit-content", // Ensure container fits content
                           }}
                         >
                           <button
@@ -3485,11 +4000,13 @@ function Inventory() {
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 6,
+                              borderRadius: 4, // Slightly smaller border radius
                               background: "transparent",
                               cursor: "pointer",
                               transition: "all 0.2s ease",
-                              padding: "8px",
+                              padding: "4px", // Further reduced padding for smaller action column
+                              minWidth: "28px", // Smaller minimum clickable area
+                              minHeight: "28px", // Smaller minimum clickable area
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#3b82f6";
@@ -3538,11 +4055,13 @@ function Inventory() {
                               justifyContent: "center",
                               border: "none",
                               outline: "none",
-                              borderRadius: 6,
+                              borderRadius: 4, // Slightly smaller border radius
                               background: "transparent",
                               cursor: "pointer",
                               transition: "all 0.2s ease",
-                              padding: "8px",
+                              padding: "4px", // Further reduced padding to match edit button
+                              minWidth: "28px", // Smaller minimum clickable area
+                              minHeight: "28px", // Smaller minimum clickable area
                             }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#ef4444";
@@ -3587,16 +4106,23 @@ function Inventory() {
                             </svg>
                           </button>
                         </div>
-                      </div>
-                    </div>
+                      </td>
+                    </tr>
                   ));
                 })()}
-              </div>
-            </div>
+              </tbody>
+            </table>
           </div>
-
+          
           {/* Fixed Pagination Footer */}
           {(() => {
+            // Filter devices based on search AND exclude assigned devices
+            const filteredDevices = getUnassignedDevices(
+              devices,
+              deviceSearch,
+              headerFilters
+            );
+            
             const totalPages = Math.ceil(
               filteredDevices.length / devicesPerPage
             );
@@ -3609,44 +4135,42 @@ function Inventory() {
             return (
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "12px 20px", // Reduced padding
-                  background: "rgb(255, 255, 255)",
-                  borderRadius: "0",
-                  boxShadow: "none",
-                  border: "none",
-                  borderTop: "1px solid #e5e7eb",
                   position: "sticky",
-                  bottom: "0",
-                  zIndex: "10",
-                  flexShrink: 0,
-                  marginTop: "0",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: "#fff",
+                  borderTop: "1px solid #e0e7ef",
+                  padding: "16px 24px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  zIndex: 100,
+                  minHeight: "60px",
+                  boxShadow: "0 -1px 3px rgba(0, 0, 0, 0.1)",
                 }}
               >
+                {/* Left side - Device count and per page selector */}
                 <div
                   style={{
-                    color: "#445F6D",
-                    fontSize: "14px",
-                    fontWeight: "600",
                     display: "flex",
                     alignItems: "center",
-                    gap: "12px",
+                    gap: "16px",
+                    fontSize: "14px",
+                    color: "#445F6D",
+                    fontWeight: "500",
                   }}
                 >
                   <span>
-                    Showing {startIndex} - {endIndex} of{" "}
-                    {filteredDevices.length} devices
+                    {filteredDevices.length === 0
+                      ? "No devices"
+                      : `Showing ${startIndex} - ${endIndex} of ${filteredDevices.length} devices`}
                   </span>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <span style={{ fontSize: "13px" }}>Show:</span>
+                  
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "14px", color: "#445F6D" }}>
+                      Per page:
+                    </span>
                     <select
                       value={devicesPerPage}
                       onChange={(e) => {
@@ -3654,14 +4178,17 @@ function Inventory() {
                         setCurrentPage(1);
                       }}
                       style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        borderRadius: "6px",
                         border: "1px solid #e0e7ef",
-                        fontSize: "13px",
                         background: "#fff",
                         color: "#445F6D",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        cursor: "pointer",
                       }}
                     >
+                      <option value={10}>10</option>
                       <option value={25}>25</option>
                       <option value={50}>50</option>
                       <option value={100}>100</option>
@@ -3670,123 +4197,186 @@ function Inventory() {
                   </div>
                 </div>
 
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
-                >
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    First
-                  </button>
+                {/* Right side - Pagination controls */}
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e7ef",
+                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                      >
+                        <polyline points="11,17 6,12 11,7" />
+                        <polyline points="18,17 13,12 18,7" />
+                      </svg>
+                      First
+                    </button>
 
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                      cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Previous
-                  </button>
+                    <button
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e7ef",
+                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
+                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                      >
+                        <polyline points="15,18 9,12 15,6" />
+                      </svg>
+                      Previous
+                    </button>
 
-                  {/* Page Numbers */}
-                  {(() => {
-                    const pageNumbers = [];
-                    const maxVisiblePages = 5;
-                    let startPage = Math.max(
-                      1,
-                      currentPage - Math.floor(maxVisiblePages / 2)
-                    );
-                    let endPage = Math.min(
-                      totalPages,
-                      startPage + maxVisiblePages - 1
-                    );
-
-                    if (endPage - startPage + 1 < maxVisiblePages) {
-                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                    }
-
-                    for (let i = startPage; i <= endPage; i++) {
-                      pageNumbers.push(
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPage(i)}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: "6px",
-                            border: "1px solid #e0e7ef",
-                            background: i === currentPage ? "#70C1B3" : "#fff",
-                            color: i === currentPage ? "#fff" : "#445F6D",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                            minWidth: "40px",
-                          }}
-                        >
-                          {i}
-                        </button>
+                    {/* Page Numbers */}
+                    {(() => {
+                      const pageNumbers = [];
+                      const maxVisiblePages = 5;
+                      let startPage = Math.max(
+                        1,
+                        currentPage - Math.floor(maxVisiblePages / 2)
                       );
-                    }
+                      let endPage = Math.min(
+                        totalPages,
+                        startPage + maxVisiblePages - 1
+                      );
 
-                    return pageNumbers;
-                  })()}
+                      if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                      }
 
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                      cursor:
-                        currentPage === totalPages ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Next
-                  </button>
+                      for (let i = startPage; i <= endPage; i++) {
+                        pageNumbers.push(
+                          <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #e0e7ef",
+                              background: i === currentPage ? "#70C1B3" : "#fff",
+                              color: i === currentPage ? "#fff" : "#445F6D",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              fontWeight: "500",
+                              minWidth: "40px",
+                            }}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
 
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    style={{
-                      padding: "8px 12px",
-                      borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                      cursor:
-                        currentPage === totalPages ? "not-allowed" : "pointer",
-                      fontSize: "14px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    Last
-                  </button>
-                </div>
+                      return pageNumbers;
+                    })()}
+
+                    <button
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e7ef",
+                        background:
+                          currentPage === totalPages ? "#f5f7fa" : "#fff",
+                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        cursor:
+                          currentPage === totalPages ? "not-allowed" : "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Next
+                      <svg
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                      >
+                        <polyline points="9,18 15,12 9,6" />
+                      </svg>
+                    </button>
+
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e7ef",
+                        background:
+                          currentPage === totalPages ? "#f5f7fa" : "#fff",
+                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        cursor:
+                          currentPage === totalPages ? "not-allowed" : "pointer",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Last
+                      <svg
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                      >
+                        <polyline points="13,17 18,12 13,7" />
+                        <polyline points="6,17 11,12 6,7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })()}
