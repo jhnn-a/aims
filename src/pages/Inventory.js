@@ -2,16 +2,12 @@ import React, { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
-import LoadingSpinner, {
-  TableLoadingSpinner,
-} from "../components/LoadingSpinner";
+import { TableLoadingSpinner } from "../components/LoadingSpinner";
 import {
   addDevice,
   updateDevice,
   deleteDevice,
   getAllDevices,
-  addMultipleDevices,
-  getNextDevId,
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService";
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel";
@@ -22,135 +18,23 @@ import Docxtemplater from "docxtemplater";
 import { saveAs } from "file-saver";
 import DeviceHistory from "../components/DeviceHistory";
 import { useSnackbar } from "../components/Snackbar";
-import undoManager from "../utils/undoManager";
-
-const initialForm = {
-  deviceType: "",
-  deviceTag: "",
-  brand: "",
-  model: "",
-  client: "",
-  condition: "",
-  remarks: "",
-  acquisitionDate: "", // Added acquisitionDate
-};
-
-const fieldLabels = {
-  deviceType: "Device Type",
-  deviceTag: "Device Tag",
-  brand: "Brand",
-  model: "Model",
-  client: "Client",
-  condition: "Condition",
-  remarks: "Remarks",
-  acquisitionDate: "Acquisition Date", // Added label
-};
-
-const deviceTypes = [
-  { label: "Headset", code: "HS" },
-  { label: "Keyboard", code: "KB" },
-  { label: "Laptop", code: "LPT" },
-  { label: "Monitor", code: "MN" },
-  { label: "Mouse", code: "M" },
-  { label: "PC", code: "PC" },
-  { label: "PSU", code: "PSU" },
-  { label: "RAM", code: "RAM" },
-  { label: "SSD", code: "SSD" },
-  { label: "UPS", code: "UPS" },
-  { label: "Webcam", code: "W" },
-];
-
-const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE", "NEEDS REPAIR", "RETIRED"];
-
-// Function to get background color based on condition
-const getConditionColor = (condition) => {
-  const colorMap = {
-    GOOD: "#007BFF", // Blue
-    BRANDNEW: "#28A745", // Green
-    DEFECTIVE: "#DC3545", // Red
-    "NEEDS REPAIR": "#FFC107", // Yellow
-    RETIRED: "#6C757D", // Gray
-  };
-  return colorMap[condition] || "#6C757D"; // Default to gray
-};
-
-// Function to get text color for better contrast
-const getConditionTextColor = (condition) => {
-  // Yellow background needs dark text for better contrast
-  return condition === "NEEDS REPAIR" ? "#000" : "#fff";
-};
-
-// Utility function to format dates as "January 23, 2025"
-const formatDateToFullWord = (dateString) => {
-  if (!dateString) return "";
-
-  let date;
-  if (typeof dateString === "number") {
-    // Excel serial date
-    date = new Date(Math.round((dateString - 25569) * 86400 * 1000));
-  } else if (typeof dateString === "string") {
-    date = new Date(dateString);
-  } else {
-    return "";
-  }
-
-  if (isNaN(date)) return "";
-
-  // Format as "January 23, 2025"
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "2-digit",
-  });
-};
-
-// Utility function to format dates consistently as MM/DD/YYYY
-const formatDateToMMDDYYYY = (dateString) => {
-  if (!dateString) return "";
-
-  // Handle different date formats
-  let date;
-  if (typeof dateString === "number") {
-    // Excel serial date
-    date = new Date(Math.round((dateString - 25569) * 86400 * 1000));
-  } else if (typeof dateString === "string") {
-    date = new Date(dateString);
-  } else {
-    return "";
-  }
-
-  if (isNaN(date)) return "";
-
-  // Format as MM/DD/YYYY
-  return (
-    (date.getMonth() + 1).toString().padStart(2, "0") +
-    "/" +
-    date.getDate().toString().padStart(2, "0") +
-    "/" +
-    date.getFullYear()
-  );
-};
-
-// Utility function to convert MM/DD/YYYY to YYYY-MM-DD for date input
-const formatDateToYYYYMMDD = (dateString) => {
-  if (!dateString) return "";
-
-  // If already in YYYY-MM-DD format, return as is
-  if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return dateString;
-  }
-
-  // Convert MM/DD/YYYY to YYYY-MM-DD
-  const parts = dateString.split("/");
-  if (parts.length === 3) {
-    const month = parts[0].padStart(2, "0");
-    const day = parts[1].padStart(2, "0");
-    const year = parts[2];
-    return `${year}-${month}-${day}`;
-  }
-
-  return "";
-};
+import {
+  initialForm,
+  fieldLabels,
+  deviceTypes,
+  conditions,
+  getConditionColor,
+  getConditionTextColor,
+} from "./InventoryConstants";
+import {
+  formatDateToFullWord,
+  formatDateToMMDDYYYY,
+  formatDateToInputValue,
+  formatDateToYYYYMMDD,
+  validateTagUniqueness,
+  getUnassignedDevices,
+  generateNextDeviceTag,
+} from "./InventoryUtils";
 
 function DeviceFormModal({
   data,
@@ -874,13 +758,8 @@ function Inventory() {
   const [loading, setLoading] = useState(true);
 
   // Snackbar notifications
-  const {
-    showSuccess,
-    showError,
-    showWarning,
-    showInfo,
-    showUndoNotification,
-  } = useSnackbar();
+  const { showSuccess, showError, showWarning, showUndoNotification } =
+    useSnackbar();
   const [tagError, setTagError] = useState("");
   const [saveError, setSaveError] = useState("");
   const [useSerial, setUseSerial] = useState(false);
@@ -1342,9 +1221,9 @@ function Inventory() {
   };
 
   const handleShowDeviceHistory = (device) => {
-    console.log("Opening device history for device:", device);
-    console.log("Device tag:", device.deviceTag);
-    console.log("Device ID:", device.id);
+    // console.log("Opening device history for device:", device);
+    // console.log("Device tag:", device.deviceTag);
+    // console.log("Device ID:", device.id);
     setSelectedDeviceForHistory(device);
     setShowDeviceHistory(true);
   };
@@ -1884,7 +1763,7 @@ function Inventory() {
     quantity,
     client,
   }) => {
-    console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
+    // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
     if (!deviceType || !brand || !condition || !quantity) {
       throw new Error("Please fill in all required fields.");
@@ -1955,7 +1834,7 @@ function Inventory() {
           formatDateToMMDDYYYY(new Date().toISOString().split("T")[0]),
       };
 
-      console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
+      // console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
       try {
         const newDevice = await addDevice(payload);
         // Log device creation
@@ -1973,9 +1852,9 @@ function Inventory() {
       }
     }
     await loadDevicesAndEmployees();
-    console.log(
-      `addDevicesInBulk completed: added ${added} devices of type "${deviceType}"`
-    );
+    // console.log(
+    //   `addDevicesInBulk completed: added ${added} devices of type "${deviceType}"`
+    // );
     return added;
   };
 
@@ -2491,12 +2370,12 @@ function Inventory() {
       for (let i = 0; i < rangeTabs.length; i++) {
         const tabData = rangeTabs[i].data;
 
-        console.log(
-          `Processing range-based tab ${i + 1} (${
-            rangeTabs[i].label
-          }) with device type:`,
-          tabData.deviceType
-        );
+        // console.log(
+        //   `Processing range-based tab ${i + 1} (${
+        //     rangeTabs[i].label
+        //   }) with device type:`,
+        //   tabData.deviceType
+        // );
 
         const quantity = parseInt(tabData.quantity, 10);
 
@@ -2568,19 +2447,19 @@ function Inventory() {
         allDeviceList = [...allDeviceList, ...tabDeviceList];
 
         // Add devices to database for this tab
-        console.log(
-          `Adding ${quantity} devices of type "${
-            tabData.deviceType
-          }" from tab ${i + 1}`
-        );
+        // console.log(
+        //   `Adding ${quantity} devices of type "${
+        //     tabData.deviceType
+        //   }" from tab ${i + 1}`
+        // );
         const addedCount = await addDevicesInBulk({
           ...tabData,
           quantity: quantity,
         });
         totalAdded += addedCount;
-        console.log(
-          `Successfully added ${addedCount} devices from tab ${i + 1}`
-        );
+        // console.log(
+        //   `Successfully added ${addedCount} devices from tab ${i + 1}`
+        // );
 
         setProgress(30 + (i + 1) * (40 / rangeTabs.length));
       }
@@ -2640,10 +2519,10 @@ function Inventory() {
   // Generate New Asset Acquisition Record Form document with multiple tables
   const generateAcquisitionDocument = async (devices, acquisitionData) => {
     try {
-      console.log("Starting document generation...", {
-        devicesCount: devices.length,
-        acquisitionData,
-      });
+      // console.log("Starting document generation...", {
+      //   devicesCount: devices.length,
+      //   acquisitionData,
+      // });
 
       // Load the template
       const templatePath =
@@ -2656,7 +2535,7 @@ function Inventory() {
         );
       }
 
-      console.log("Template loaded successfully");
+      // console.log("Template loaded successfully");
 
       const arrayBuffer = await response.arrayBuffer();
 
@@ -2664,7 +2543,7 @@ function Inventory() {
         throw new Error("Template file is empty or corrupted");
       }
 
-      console.log("Template file size:", arrayBuffer.byteLength, "bytes");
+      // console.log("Template file size:", arrayBuffer.byteLength, "bytes");
 
       let zip, doc;
       try {
@@ -2697,11 +2576,11 @@ function Inventory() {
         remarks: device.remarks || acquisitionData.remarks || "",
       }));
 
-      console.log("Formatted devices:", formattedDevices.length);
-      console.log(
-        "Device clients:",
-        formattedDevices.map((d) => ({ tag: d.deviceTag, client: d.client }))
-      );
+      // console.log("Formatted devices:", formattedDevices.length);
+      // console.log(
+      //   "Device clients:",
+      //   formattedDevices.map((d) => ({ tag: d.deviceTag, client: d.client }))
+      // );
 
       // Determine the global client for the document
       const uniqueClients = [
@@ -2714,8 +2593,8 @@ function Inventory() {
           ? "Multiple Clients"
           : acquisitionData.client || "Not specified";
 
-      console.log("Unique clients found:", uniqueClients);
-      console.log("Global client for document:", globalClient);
+      // console.log("Unique clients found:", uniqueClients);
+      // console.log("Global client for document:", globalClient);
 
       // Split devices across multiple tables (28 rows per page)
       const devicesPage1 = formattedDevices.slice(0, ROWS_PER_TABLE);
@@ -2760,21 +2639,21 @@ function Inventory() {
         page4Count: devicesPage4.length,
       };
 
-      console.log("Template data structure:", {
-        totalDevices: templateData.totalDevices,
-        page1Count: templateData.page1Count,
-        page2Count: templateData.page2Count,
-        page3Count: templateData.page3Count,
-        page4Count: templateData.page4Count,
-      });
+      // console.log("Template data structure:", {
+      //   totalDevices: templateData.totalDevices,
+      //   page1Count: templateData.page1Count,
+      //   page2Count: templateData.page2Count,
+      //   page3Count: templateData.page3Count,
+      //   page4Count: templateData.page4Count,
+      // });
 
       // Render the document
       try {
         doc.render(templateData);
-        console.log("Document rendered successfully");
+        // console.log("Document rendered successfully");
       } catch (renderError) {
         console.error("Error rendering template:", renderError);
-        console.log("Template data being used:", templateData);
+        // console.log("Template data being used:", templateData);
 
         // If rendering fails, provide helpful error message
         if (renderError.message.includes("tag")) {
@@ -2802,7 +2681,7 @@ function Inventory() {
         currentDate.getFullYear();
       const fileName = `${formattedDate} - NEW ASSET ACQUISITION FORM.docx`;
 
-      console.log("Downloading document:", fileName);
+      // console.log("Downloading document:", fileName);
       saveAs(output, fileName);
 
       return true;
