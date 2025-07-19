@@ -3559,7 +3559,7 @@ function Inventory() {
                       width: "40px",
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+ // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3573,7 +3573,7 @@ function Inventory() {
                       width: "35px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+// Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3587,7 +3587,7 @@ function Inventory() {
                       width: "120px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                       // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3605,7 +3605,7 @@ function Inventory() {
                       width: "100px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3624,7 +3624,7 @@ function Inventory() {
                       width: "90px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                    // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3642,7 +3642,7 @@ function Inventory() {
                       width: "90px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                      // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3660,7 +3660,7 @@ function Inventory() {
                       width: "80px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                   // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3679,7 +3679,7 @@ function Inventory() {
                       width: "80px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+                     // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3698,7 +3698,7 @@ function Inventory() {
                       width: "120px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+               // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3716,7 +3716,7 @@ function Inventory() {
                       width: "110px", // Match header width
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+   // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
@@ -3734,7 +3734,7 @@ function Inventory() {
                       minWidth: "80px", // Ensure minimum width is maintained
                       padding: "6px 8px",
                       border: "1px solid #d1d5db",
-                      borderBottom: "2px solid #000000", // Add solid black line under filter row
+ // Add solid black line under filter row
                       position: "sticky",
                       top: "37px",
                       background: "#ffffff",
