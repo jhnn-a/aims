@@ -12,94 +12,9 @@ import LoadingSpinner, {
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../utils/firebase";
 
-// --- Modal Components ---
-const modalOverlayStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100vw",
-  height: "100vh",
-  background: "rgba(0,0,0,0.1)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-};
-const modalBoxStyle = {
-  background: "#fff",
-  minWidth: 300,
-  padding: 16,
-  maxWidth: "90vw",
-  borderRadius: 0, // No corner rounding
-  boxShadow: "none", // Remove shadow
-  fontWeight: "normal", // Ensure normal text
-  fontStyle: "normal",
-  fontSize: "inherit",
-  color: "inherit",
-};
+// Styles moved to Clients.css
 
-// Employee Database modal styles for consistent design
-const employeeModalStyles = {
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.18)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  },
-  modalContent: {
-    background: "#fff",
-    padding: "36px 40px",
-    borderRadius: 18,
-    minWidth: "min(400px, 90vw)",
-    maxWidth: "min(500px, 95vw)",
-    width: "auto",
-    boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
-    position: "relative",
-    margin: "20px",
-    boxSizing: "border-box",
-    fontFamily: "Maax, sans-serif",
-  },
-  deleteBtn: {
-    background: "#e11d48",
-    color: "#fff",
-    border: "none",
-    borderRadius: 7,
-    padding: "7px 16px",
-    fontWeight: 700,
-    fontSize: 13,
-    cursor: "pointer",
-    marginLeft: 0,
-    transition: "all 0.3s ease",
-    minWidth: 36,
-    minHeight: 28,
-    display: "inline-block",
-    boxShadow: "0 2px 8px rgba(225,29,72,0.10)",
-    outline: "none",
-    opacity: 1,
-    transform: "translateY(0) scale(1)",
-    fontFamily: "Maax, sans-serif",
-  },
-  cancelBtn: {
-    background: "#e0e7ef",
-    color: "#233037",
-    border: "none",
-    borderRadius: 8,
-    padding: "8px 18px",
-    fontWeight: 700,
-    fontSize: 14,
-    marginLeft: 8,
-    cursor: "pointer",
-    fontFamily: "Maax, sans-serif",
-  },
-};
-
-const ClientFormModal = ({ data, onChange, onSave, onCancel }) => {
+function ClientFormModal({ data, onChange, onSave, onCancel }) {
   const [showError, setShowError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -115,8 +30,8 @@ const ClientFormModal = ({ data, onChange, onSave, onCancel }) => {
   };
 
   return (
-    <div style={modalOverlayStyle}>
-      <div style={modalBoxStyle}>
+    <div className="modal-overlay">
+      <div className="modal-box">
         <div>{data.id ? "Edit Client Details" : "Add New Client"}</div>
         <div>
           <label>
@@ -143,39 +58,41 @@ const ClientFormModal = ({ data, onChange, onSave, onCancel }) => {
       </div>
     </div>
   );
-};
+}
 
-const DeleteConfirmationModal = ({ onConfirm, onCancel, isDeleting }) => (
-  <div style={employeeModalStyles.modalOverlay}>
-    <div style={employeeModalStyles.modalContent}>
-      <h2 style={{ color: "#e11d48", marginBottom: 12 }}>Confirm Deletion</h2>
-      <p>Are you sure you want to permanently delete this client?</p>
-      <p style={{ color: "#666", fontSize: "14px", marginTop: 8 }}>
-        This action will be reversible for 5 seconds using the undo notification.
-      </p>
-      <div style={{ marginTop: 24, textAlign: "right" }}>
-        <button 
-          onClick={onConfirm} 
-          disabled={isDeleting}
-          style={employeeModalStyles.deleteBtn}
-        >
-          {isDeleting ? "Deleting..." : "Delete"}
-        </button>
-        <button 
-          onClick={onCancel} 
-          disabled={isDeleting}
-          style={employeeModalStyles.cancelBtn}
-        >
-          Cancel
-        </button>
+function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h2 className="modal-delete-title">Confirm Deletion</h2>
+        <p>Are you sure you want to permanently delete this client?</p>
+        <p className="modal-delete-desc">
+          This action will be reversible for 5 seconds using the undo
+          notification.
+        </p>
+        <div className="modal-delete-actions">
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting}
+            className="modal-delete-btn"
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            onClick={onCancel}
+            disabled={isDeleting}
+            className="modal-cancel-btn"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+}
 
-const Clients = () => {
-  const { showSuccess, showError, showWarning, showInfo, showUndoNotification } = useSnackbar();
-
+function Clients() {
+  const { showSuccess, showError, showUndoNotification } = useSnackbar();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -191,9 +108,8 @@ const Clients = () => {
   });
   const actionMenuRef = useRef();
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(20); // Now adjustable
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
-  // Fetch clients on mount
   useEffect(() => {
     fetchClients();
   }, []);
@@ -238,97 +154,64 @@ const Clients = () => {
 
   const handleConfirmDelete = useCallback(async () => {
     if (!selectedId) return;
-
     try {
-      // Store the client data before deletion for undo
-      const clientToDelete = clients.find(c => c.id === selectedId);
+      const clientToDelete = clients.find((c) => c.id === selectedId);
       if (!clientToDelete) return;
-
       const clientBackup = { ...clientToDelete };
-      
-      // Delete the client
       await deleteClient(selectedId);
-      
-      // Remove from UI immediately
-      setClients(prev => prev.filter(c => c.id !== selectedId));
-      
-      // Show undo notification
+      setClients((prev) => prev.filter((c) => c.id !== selectedId));
       showUndoNotification(
         `Client "${clientBackup.name}" deleted successfully`,
         async () => {
-          // Undo function - restore the client
           try {
-            // Restore client with original ID using setDoc
             const { id: originalId, ...clientDataToRestore } = clientBackup;
             await setDoc(doc(db, "clients", originalId), clientDataToRestore);
-            
-            // Refresh the clients list
             const updatedClients = await getAllClients();
             setClients(updatedClients);
-            
             showSuccess(`Client "${clientBackup.name}" restored successfully`);
           } catch (error) {
-            console.error("Error restoring client:", error);
             showError("Failed to restore client. Please try again.");
           }
         },
-        5000 // 5 seconds to undo
+        5000
       );
-      
       setSelectedId(null);
       setShowConfirm(false);
-      
     } catch (error) {
-      console.error("Error deleting client:", error);
       showError("Failed to delete client. Please try again.");
     }
   }, [selectedId, clients, showUndoNotification, showSuccess, showError]);
 
   const handleBulkDelete = useCallback(async () => {
     if (checkedRows.length === 0) return;
-
     try {
-      // Store the clients data before deletion for undo
-      const clientsToDelete = clients.filter(c => checkedRows.includes(c.id));
-      
-      // Delete all selected clients
+      const clientsToDelete = clients.filter((c) => checkedRows.includes(c.id));
       for (const id of checkedRows) {
         await deleteClient(id);
       }
-      
-      // Remove from UI immediately
-      setClients(prev => prev.filter(c => !checkedRows.includes(c.id)));
-      
-      // Show undo notification
+      setClients((prev) => prev.filter((c) => !checkedRows.includes(c.id)));
       showUndoNotification(
         `${checkedRows.length} client(s) deleted successfully`,
         async () => {
-          // Undo function - restore all clients
           try {
             for (const clientData of clientsToDelete) {
-              // Restore client with original ID using setDoc
               const { id: originalId, ...clientDataToRestore } = clientData;
               await setDoc(doc(db, "clients", originalId), clientDataToRestore);
             }
-            
-            // Refresh the clients list
             const updatedClients = await getAllClients();
             setClients(updatedClients);
-            
-            showSuccess(`${clientsToDelete.length} client(s) restored successfully`);
+            showSuccess(
+              `${clientsToDelete.length} client(s) restored successfully`
+            );
           } catch (error) {
-            console.error("Error restoring clients:", error);
             showError("Failed to restore clients. Please try again.");
           }
         },
-        5000 // 5 seconds to undo
+        5000
       );
-      
       setCheckedRows([]);
       setShowConfirm(false);
-      
     } catch (error) {
-      console.error("Error deleting clients:", error);
       showError("Failed to delete clients. Please try again.");
     }
   }, [checkedRows, clients, showUndoNotification, showSuccess, showError]);
@@ -338,7 +221,6 @@ const Clients = () => {
     setShowForm(false);
   }, []);
 
-  // Filtered clients (no pagination)
   const filteredClients = useMemo(
     () =>
       clients.filter(
@@ -349,21 +231,21 @@ const Clients = () => {
     [clients, search]
   );
 
-  // Pagination logic
-  const totalPages = Math.max(1, Math.ceil(filteredClients.length / rowsPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredClients.length / rowsPerPage)
+  );
   const paginatedClients = useMemo(() => {
     const startIdx = (currentPage - 1) * rowsPerPage;
     return filteredClients.slice(startIdx, startIdx + rowsPerPage);
   }, [filteredClients, currentPage, rowsPerPage]);
 
-  // Calculate summary
-  const startIdx = filteredClients.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const startIdx =
+    filteredClients.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
   const endIdx = Math.min(currentPage * rowsPerPage, filteredClients.length);
 
-  // Page numbers for navigation
   const getPageNumbers = () => {
     const pages = [];
-    // Show up to 5 pages, center around current
     let start = Math.max(1, currentPage - 2);
     let end = Math.min(totalPages, start + 4);
     if (end - start < 4) start = Math.max(1, end - 4);
@@ -372,10 +254,8 @@ const Clients = () => {
   };
 
   useEffect(() => {
-    // Reset checkedRows if page changes and checkedRows are not visible
     const validIds = new Set(filteredClients.map((client) => client.id));
     setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
-    // If current page is out of bounds, reset to last page
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages);
     }
@@ -398,7 +278,6 @@ const Clients = () => {
     [filteredClients]
   );
 
-  // Close menu on click outside
   useEffect(() => {
     if (!actionMenu.open) return;
     function handleClick(e) {
@@ -411,191 +290,55 @@ const Clients = () => {
   }, [actionMenu.open]);
 
   return (
-    <main style={{ background: "#FAFAFC", minHeight: "100vh" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          minHeight: "100vh",
-          background: "#FAFAFC",
-          width: "100%",
-        }}
-      >
+    <main className="clients-main">
+      <div className="clients-container">
         <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 16,
-            }}
-          >
-            {/* Header with title and Add New Client button */}
-            <div style={{ display: "flex", alignItems: "center", width: "100%", justifyContent: "space-between" }}>
-              <span
-                style={{
-                  fontFamily: "Maax, sans-serif",
-                  fontSize: 28,
-                  lineHeight: "37.24px",
-                  fontWeight: 400,
-                  letterSpacing: "normal",
-                  color: "#2B2C3B",
-                }}
-              >
-                Client Database
-              </span>
+          <div className="clients-header">
+            <div className="clients-header-inner">
+              <span className="clients-title">Client Database</span>
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                style={{
-                  fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: 14,
-                  lineHeight: "20.0004px",
-                  fontWeight: 500,
-                  letterSpacing: "normal",
-                  color: "#3B3B4A",
-                  background: "#f2f2f2",
-                  minWidth: 120,
-                  height: 36,
-                  borderRadius: 8,
-                  border: "none",
-                  outline: "none",
-                  cursor: "pointer",
-                  transition: "background 0.2s, color 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  userSelect: "none",
-                  boxShadow: "none",
-                  padding: "0 20px",
-                  whiteSpace: "nowrap",
-                  marginLeft: 16,
-                }}
-                onMouseOver={e => {
-                  e.currentTarget.style.background = "#E5E5E5";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.background = "#f2f2f2";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseDown={e => {
-                  e.currentTarget.style.background = "#E5E5E5";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseUp={e => {
-                  e.currentTarget.style.background = "#f2f2f2";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
+                className="clients-add-btn"
               >
                 Add New Client
               </button>
             </div>
           </div>
-          {/* Table Toolbar with search bar and action buttons */}
-          <div
-            style={{
-              width: 1614,
-              height: 40,
-              background: "#fff",
-              border: "1px solid #d7d7e0",
-              borderBottom: "none",
-              borderRadius: 0,
-              margin: 0,
-              boxSizing: "border-box",
-              display: "flex",
-              alignItems: "center",
-              padding: 8,
-              gap: 12,
-              justifyContent: "space-between",
-            }}
-          >
-            {/* Left: Search bar */}
-            <div
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                minWidth: 320,
-                maxWidth: 400,
-                width: 320,
-              }}
-            >
+          <div className="clients-toolbar">
+            <div className="clients-search">
               <input
                 type="text"
                 placeholder="Search assigned assets..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  fontFamily: "Maax, sans-serif",
-                  fontSize: 15,
-                  fontWeight: 400,
-                  color: "#233037",
-                  background: "#F8F9FB",
-                  border: "1px solid #E0E7EF",
-                  borderRadius: 8,
-                  padding: "8px 12px 8px 38px",
-                  width: "100%",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  transition: "border 0.2s",
-                }}
+                className="clients-search-input"
               />
-              {/* Magnifier icon (left) */}
-              <span
-                style={{
-                  position: "absolute",
-                  left: 14,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  pointerEvents: "none",
-                  color: "#A0AEC0",
-                  fontSize: 18,
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
+              <span className="clients-search-icon">
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <circle cx="8" cy="8" r="6.5" stroke="#A0AEC0" strokeWidth="1.5"/>
-                  <line x1="13.3536" y1="13.6464" x2="17" y2="17.2929" stroke="#A0AEC0" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle
+                    cx="8"
+                    cy="8"
+                    r="6.5"
+                    stroke="#A0AEC0"
+                    strokeWidth="1.5"
+                  />
+                  <line
+                    x1="13.3536"
+                    y1="13.6464"
+                    x2="17"
+                    y2="17.2929"
+                    stroke="#A0AEC0"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </span>
             </div>
           </div>
-          {/* Secondary toolbar for row selection actions */}
           {checkedRows.length > 0 && (
-            <div
-              style={{
-                width: 1614,
-                height: 32, // lowered from 40 to 32 for a tighter fit
-                background: "#fff",
-                border: "1px solid #d7d7e0",
-                borderTop: "none",
-                borderBottom: "none", // remove bottom border
-                borderRadius: 0,
-                margin: 0,
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                padding: "0 8px",
-                gap: 12,
-                justifyContent: "flex-start",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "IBM Plex Sans",
-                  fontSize: 12,
-                  lineHeight: "17.04px",
-                  fontWeight: 400,
-                  letterSpacing: "normal",
-                  color: "#3B3B4A",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "0 0",
-                }}
-              >
+            <div className="clients-selected-toolbar">
+              <span className="clients-selected-count">
                 <span style={{ fontWeight: 700, marginRight: 2 }}>
                   {checkedRows.length}
                 </span>
@@ -603,7 +346,6 @@ const Clients = () => {
               </span>
             </div>
           )}
-          {/* Modals */}
           {showForm && (
             <div>
               <div>
@@ -631,7 +373,6 @@ const Clients = () => {
               </div>
             </div>
           )}
-          {/* Table Header */}
           <table
             border="1"
             style={{
@@ -654,10 +395,10 @@ const Clients = () => {
               <tr>
                 <th
                   style={{
-                    textAlign: "center", // Center align for checkbox
+                    textAlign: "center",
                     verticalAlign: "middle",
                     fontWeight: 400,
-                    width: 40, // Fixed width for checkbox column
+                    width: 40,
                     minWidth: 40,
                     maxWidth: 40,
                     whiteSpace: "nowrap",
@@ -792,15 +533,14 @@ const Clients = () => {
               </tr>
             </thead>
           </table>
-          {/* Table Body */}
           <div
             style={{
               width: "100%",
-              height: 706, // Fixed height for the table area
-              maxHeight: 706, // Prevents growing beyond 706px
-              overflowY: "scroll", // Always allow scrolling
-              scrollbarWidth: "none", // Firefox
-              msOverflowStyle: "none", // IE and Edge
+              height: 706,
+              maxHeight: 706,
+              overflowY: "scroll",
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
               position: "relative",
               display: "flex",
               flexDirection: "column",
@@ -815,7 +555,7 @@ const Clients = () => {
                   tableLayout: "fixed",
                   boxShadow: "none",
                   border: "1px solid #d7d7e0",
-                  borderTop: "none", // Remove double border with sticky footer
+                  borderTop: "none",
                   fontFamily:
                     'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: 14,
@@ -835,7 +575,6 @@ const Clients = () => {
                   ) : (
                     paginatedClients.map((client, idx) => {
                       const isChecked = checkedRows.includes(client.id);
-                      // Alternating highlight colors for selected rows
                       let rowBg;
                       if (isChecked) {
                         rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
@@ -844,11 +583,10 @@ const Clients = () => {
                       }
                       const isFirstRow = idx === 0;
                       const isLastRow = idx === paginatedClients.length - 1;
-                      // Remove top and bottom borders for all table body cells, and remove bottom border for last row
                       const getCellBorderStyle = (cellIdx) => ({
                         width:
                           cellIdx === 0
-                            ? 40 // Fixed width for checkbox column
+                            ? 40
                             : cellIdx === 1
                             ? "1%"
                             : cellIdx === 2
@@ -866,7 +604,7 @@ const Clients = () => {
                         borderLeft: "1px solid #d7d7e0",
                         borderRight: "1px solid #d7d7e0",
                         borderTop: "none",
-                        borderBottom: isLastRow ? "none" : "none", // Remove bottom border for last row
+                        borderBottom: isLastRow ? "none" : "none",
                         padding: cellIdx === 0 ? 0 : "8px 12px",
                         color: "rgb(59, 59, 74)",
                       });
@@ -945,7 +683,6 @@ const Clients = () => {
                                 });
                               }}
                             >
-                              {/* Triple dot icon */}
                               <svg
                                 width="18"
                                 height="18"
@@ -978,14 +715,14 @@ const Clients = () => {
                                   transform: "translateX(-50%)",
                                   background: "#fff",
                                   border: "1px solid #d7d7e0",
-                                  borderRadius: 0, // No rounded corners
+                                  borderRadius: 0,
                                   boxShadow: "0 4px 16px 0 #00000014",
                                   zIndex: 10,
                                   minWidth: 120,
                                   padding: 0,
                                   display: "flex",
                                   flexDirection: "column",
-                                  alignItems: "center", // Center content horizontally
+                                  alignItems: "center",
                                 }}
                               >
                                 <button
@@ -1065,7 +802,6 @@ const Clients = () => {
                 </tbody>
               </table>
             </div>
-            {/* Pagination Controls */}
             <div
               style={{
                 display: "flex",
@@ -1080,16 +816,16 @@ const Clients = () => {
                 gap: 16,
               }}
             >
-              {/* Left: Showing summary and rows per page */}
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <span style={{ color: "#233037", fontWeight: 500 }}>
-                  Showing {startIdx} - {endIdx} of {filteredClients.length} clients
+                  Showing {startIdx} - {endIdx} of {filteredClients.length}{" "}
+                  clients
                 </span>
                 <span style={{ color: "#233037", fontWeight: 500 }}>
                   Show:
                   <select
                     value={rowsPerPage}
-                    onChange={e => {
+                    onChange={(e) => {
                       setRowsPerPage(Number(e.target.value));
                       setCurrentPage(1);
                     }}
@@ -1106,13 +842,14 @@ const Clients = () => {
                       cursor: "pointer",
                     }}
                   >
-                    {[10, 20, 50, 100].map(n => (
-                      <option key={n} value={n}>{n}</option>
+                    {[10, 20, 50, 100].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
                     ))}
                   </select>
                 </span>
               </div>
-              {/* Right: Pagination buttons */}
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <button
                   onClick={() => setCurrentPage(1)}
@@ -1132,7 +869,7 @@ const Clients = () => {
                   First
                 </button>
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   style={{
                     minWidth: 48,
@@ -1148,7 +885,7 @@ const Clients = () => {
                 >
                   Previous
                 </button>
-                {getPageNumbers().map(page => (
+                {getPageNumbers().map((page) => (
                   <button
                     key={page}
                     onClick={() => setCurrentPage(page)}
@@ -1162,7 +899,10 @@ const Clients = () => {
                       fontWeight: page === currentPage ? 700 : 500,
                       fontFamily: "Maax, sans-serif",
                       cursor: page === currentPage ? "default" : "pointer",
-                      boxShadow: page === currentPage ? "0 2px 8px rgba(94,198,184,0.10)" : "none",
+                      boxShadow:
+                        page === currentPage
+                          ? "0 2px 8px rgba(94,198,184,0.10)"
+                          : "none",
                       outline: "none",
                     }}
                     disabled={page === currentPage}
@@ -1171,7 +911,9 @@ const Clients = () => {
                   </button>
                 ))}
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   style={{
                     minWidth: 48,
@@ -1180,7 +922,8 @@ const Clients = () => {
                     border: "1px solid #d7d7e0",
                     background: currentPage === totalPages ? "#F3F4F6" : "#fff",
                     color: "#233037",
-                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
                     fontWeight: 500,
                     fontFamily: "Maax, sans-serif",
                   }}
@@ -1197,7 +940,8 @@ const Clients = () => {
                     border: "1px solid #d7d7e0",
                     background: currentPage === totalPages ? "#F3F4F6" : "#fff",
                     color: "#233037",
-                    cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                    cursor:
+                      currentPage === totalPages ? "not-allowed" : "pointer",
                     fontWeight: 500,
                     fontFamily: "Maax, sans-serif",
                   }}
@@ -1206,7 +950,6 @@ const Clients = () => {
                 </button>
               </div>
             </div>
-            {/* Sticky Footer Table */}
             <div
               style={{
                 position: "sticky",
@@ -1215,7 +958,7 @@ const Clients = () => {
                 width: "100%",
                 background: "#fff",
                 zIndex: 2,
-                borderTop: "none", // Ensure only 1px border
+                borderTop: "none",
                 flexShrink: 0,
               }}
             >
@@ -1324,6 +1067,6 @@ const Clients = () => {
       </div>
     </main>
   );
-};
+}
 
 export default Clients;
