@@ -1,0 +1,324 @@
+.clients-main {
+  background: #fafafc;
+  min-height: 100vh;
+}
+
+.clients-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  background: #fafafc;
+  width: 100%;
+}
+
+.clients-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.clients-title {
+  font-family: Maax, sans-serif;
+  font-size: 28px;
+  line-height: 37.24px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: #2b2c3b;
+}
+
+.clients-add-btn {
+  font-family: Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 20.0004px;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: #3b3b4a;
+  background: #f2f2f2;
+  min-width: 120px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  box-shadow: none;
+  padding: 0 20px;
+  white-space: nowrap;
+  margin-left: 16px;
+}
+
+.clients-toolbar {
+  width: 1614px;
+  height: 40px;
+  background: #fff;
+  border: 1px solid #d7d7e0;
+  border-bottom: none;
+  border-radius: 0;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.clients-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 320px;
+  max-width: 400px;
+  width: 320px;
+}
+
+.clients-search-input {
+  font-family: Maax, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: #233037;
+  background: #f8f9fb;
+  border: 1px solid #e0e7ef;
+  border-radius: 8px;
+  padding: 8px 12px 8px 38px;
+  width: 100%;
+  outline: none;
+  box-sizing: border-box;
+  transition: border 0.2s;
+}
+
+.clients-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #a0aec0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+}
+
+.clients-selected-toolbar {
+  width: 1614px;
+  height: 32px;
+  background: #fff;
+  border: 1px solid #d7d7e0;
+  border-top: none;
+  border-bottom: none;
+  border-radius: 0;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.clients-selected-count {
+  font-family: IBM Plex Sans;
+  font-size: 12px;
+  line-height: 17.04px;
+  font-weight: 400;
+  letter-spacing: normal;
+  color: #3b3b4a;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.clients-table {
+  border-collapse: collapse;
+  width: 1614px;
+  table-layout: fixed;
+  box-shadow: none;
+  border: 1px solid #d7d7e0;
+  background: #ffffff;
+  font-family: Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 20.0004px;
+  color: rgb(59, 59, 74);
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.clients-table thead th {
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 400;
+  background: #ffffff;
+  padding: 8px 12px;
+  border: 1px solid #d7d7e0;
+}
+
+.clients-table thead th:first-child {
+  text-align: center;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  white-space: nowrap;
+  padding: 0;
+}
+
+.clients-table-body {
+  width: 100%;
+  height: 706px;
+  max-height: 706px;
+  overflow-y: scroll;
+  scrollbar-width: none;
+  ms-overflow-style: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.clients-table-body::-webkit-scrollbar {
+  display: none;
+}
+
+.clients-table-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clients-table-row.selected {
+  background: #f1c9bf;
+}
+
+.clients-table-row.selected-alt {
+  background: #eac2b8;
+}
+
+.clients-table-row.unselected {
+  background: #fafafc;
+}
+
+.clients-table-row.unselected-alt {
+  background: #f0f0f3;
+}
+
+.clients-table-actions-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.clients-table-actions-menu {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #d7d7e0;
+  border-radius: 0;
+  box-shadow: 0 4px 16px 0 #00000014;
+  z-index: 10;
+  min-width: 120px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.clients-table-actions-menu button {
+  font-family: Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+  transition: background 0.2s;
+}
+
+.clients-table-actions-menu button:first-child {
+  color: #3b3b4a;
+  border-bottom: 1px solid #eee;
+}
+
+.clients-table-actions-menu button:last-child {
+  color: #d32f2f;
+}
+
+.clients-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0 12px 0;
+  background: #fff;
+  border-top: 1px solid #d7d7e0;
+  font-family: Maax, sans-serif;
+  font-size: 14px;
+  min-height: 48px;
+  gap: 16px;
+}
+
+.clients-pagination-summary {
+  color: #233037;
+  font-weight: 500;
+}
+
+.clients-pagination-select {
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #d7d7e0;
+  font-family: Maax, sans-serif;
+  font-size: 14px;
+  background: #fff;
+  color: #233037;
+  outline: none;
+  cursor: pointer;
+}
+
+.clients-pagination-btn {
+  min-width: 48px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #d7d7e0;
+  background: #fff;
+  color: #233037;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: Maax, sans-serif;
+}
+
+.clients-pagination-btn:disabled {
+  background: #f3f4f6;
+  color: #233037;
+  cursor: not-allowed;
+}
+
+.clients-pagination-btn.selected {
+  background: #5ec6b8;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(94, 198, 184, 0.1);
+}
+
+.clients-sticky-footer {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  z-index: 2;
+  border-top: none;
+  flex-shrink: 0;
+}
