@@ -657,6 +657,12 @@ function Inventory() {
       * {
         -ms-overflow-style: none;
       }
+      
+      /* Spinner animation for auto-refresh indicator */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
     `;
     document.head.appendChild(style);
 
@@ -770,6 +776,7 @@ function Inventory() {
   const [employees, setEmployees] = useState([]); // List of all employees for assignment dropdowns
   const [clients, setClients] = useState([]); // List of all clients for assignment dropdowns
   const [loading, setLoading] = useState(true); // Main page loading state for initial data fetch
+  const [autoRefreshing, setAutoRefreshing] = useState(false); // Auto-refresh indicator for page focus/visibility changes
 
   // === NOTIFICATION SYSTEM ===
   const { showSuccess, showError, showWarning, showUndoNotification } = useSnackbar(); // User feedback notifications
@@ -1043,6 +1050,33 @@ function Inventory() {
     loadDevicesAndEmployees();
   }, []);
 
+  // === DATA REFRESH ON PAGE FOCUS ===
+  // Automatically refresh data when user navigates back to this page or when page becomes visible
+  // This ensures that newly unassigned devices from Assets page appear immediately in Inventory
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh data when window gets focus (user switched back to tab/app)
+      loadDevicesAndEmployees(true); // true = auto-refresh mode
+    };
+
+    const handleVisibilityChange = () => {
+      // Refresh data when page becomes visible (user switched tabs)
+      if (!document.hidden) {
+        loadDevicesAndEmployees(true); // true = auto-refresh mode
+      }
+    };
+
+    // Add event listeners for focus and visibility changes
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Reset pagination when search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -1096,17 +1130,30 @@ function Inventory() {
     }
   }, [showForm]);
 
-  const loadDevicesAndEmployees = async () => {
-    setLoading(true);
-    const [deviceData, employeeData, clientData] = await Promise.all([
-      getAllDevices(),
-      getAllEmployees(),
-      getAllClients(),
-    ]);
-    setDevices(deviceData);
-    setEmployees(employeeData);
-    setClients(clientData);
-    setLoading(false);
+  const loadDevicesAndEmployees = async (isAutoRefresh = false) => {
+    // Set appropriate loading state based on refresh type
+    if (isAutoRefresh) {
+      setAutoRefreshing(true); // Show subtle refresh indicator
+    } else {
+      setLoading(true); // Show main loading spinner
+    }
+    
+    try {
+      const [deviceData, employeeData, clientData] = await Promise.all([
+        getAllDevices(),
+        getAllEmployees(),
+        getAllClients(),
+      ]);
+      setDevices(deviceData);
+      setEmployees(employeeData);
+      setClients(clientData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      // Clear loading states
+      setLoading(false);
+      setAutoRefreshing(false);
+    }
   };
 
   const isFormValid = () =>
@@ -1475,7 +1522,7 @@ function Inventory() {
   };
 
   // --- FILTERED DEVICES ---
-  const filteredDevices = getUnassignedDevices(devices, deviceSearch);
+  const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
@@ -2871,6 +2918,36 @@ function Inventory() {
               }}
             />
           </div>
+
+          {/* Auto-refresh indicator */}
+          {autoRefreshing && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "#f0f9ff",
+                borderRadius: "6px",
+                border: "1px solid #0ea5e9",
+                fontSize: "12px",
+                color: "#0369a1",
+                fontWeight: 500,
+              }}
+            >
+              <div
+                style={{
+                  width: "12px",
+                  height: "12px",
+                  border: "2px solid #0ea5e9",
+                  borderTop: "2px solid transparent",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite",
+                }}
+              ></div>
+              Refreshing...
+            </div>
+          )}
 
           <div
             style={{

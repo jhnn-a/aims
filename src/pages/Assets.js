@@ -586,6 +586,33 @@ function Assets() {
     loadDevicesAndEmployees();
   }, []);
 
+  // === DATA REFRESH ON PAGE FOCUS ===
+  // Automatically refresh data when user navigates back to this page or when page becomes visible
+  // This ensures that newly assigned devices from Inventory page appear immediately in Assets
+  useEffect(() => {
+    const handleFocus = () => {
+      // Refresh data when window gets focus (user switched back to tab/app)
+      loadDevicesAndEmployees(true); // true = auto-refresh mode
+    };
+
+    const handleVisibilityChange = () => {
+      // Refresh data when page becomes visible (user switched tabs)
+      if (!document.hidden) {
+        loadDevicesAndEmployees(true); // true = auto-refresh mode
+      }
+    };
+
+    // Add event listeners for focus and visibility changes
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // === PAGINATION RESET EFFECTS ===
   // Reset to first page when search term changes
   useEffect(() => {
@@ -599,8 +626,12 @@ function Assets() {
 
   // === DATA LOADING FUNCTIONS ===
   // Main function to fetch devices and employees from database
-  const loadDevicesAndEmployees = async () => {
-    setLoading(true);
+  const loadDevicesAndEmployees = async (isAutoRefresh = false) => {
+    // Set appropriate loading state - don't show main spinner for auto-refresh
+    if (!isAutoRefresh) {
+      setLoading(true);
+    }
+    
     try {
       const [allDevices, allEmployees] = await Promise.all([
         getAllDevices(), // Fetch all devices from database
@@ -658,9 +689,6 @@ function Assets() {
   };
 
   const handleShowDeviceHistory = (device) => {
-    console.log("Opening device history for device:", device);
-    console.log("Device tag:", device.deviceTag);
-    console.log("Device ID:", device.id);
     setSelectedDeviceForHistory(device);
     setShowDeviceHistory(true);
   };
@@ -3436,15 +3464,27 @@ function Assets() {
                 <button
                   onClick={confirmUnassign}
                   style={{
-                    background: "#70C1B3",
-                    color: "#233037",
+                    background: "#ef4444",
+                    color: "#fff",
                     border: "none",
                     borderRadius: 8,
                     padding: "10px 22px",
                     fontWeight: 700,
                     fontSize: 16,
-                    cursor: "pointer",
+                    cursor: !unassignReason ? "not-allowed" : "pointer",
                     marginRight: 8,
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                    transition: "background 0.2s, box-shadow 0.2s",
+                    opacity: !unassignReason ? 0.7 : 1,
+                  }}
+                  disabled={!unassignReason}
+                >
+                  Unassign Device
+                </button>
+                <button
+                  onClick={() => setShowUnassignModal(false)}
+                  style={{
+                    background: "#6b7280",
                     color: "#fff",
                     border: "none",
                     borderRadius: 8,
