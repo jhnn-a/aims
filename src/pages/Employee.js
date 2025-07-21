@@ -830,18 +830,18 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
             fontSize: 11,
             fontWeight: 500,
             background: 
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "New" ? "#dcfce7" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Good" ? "#dbeafe" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Fair" ? "#fef3c7" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "BRANDNEW" ? "rgb(40, 167, 69)" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "GOOD" ? "rgb(0, 123, 255)" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "DEFECTIVE" ? "rgb(220, 53, 69)" :
               (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "#fee2e2" : "#f3f4f6",
             color:
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "New" ? "#166534" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Good" ? "#1e40af" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Fair" ? "#92400e" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "#dc2626" : "#374151",
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "BRANDNEW" ? "rgb(255, 255, 255)" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "GOOD" ? "rgb(255, 255, 255)" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "DEFECTIVE" ? "rgb(255, 255, 255)" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "rgb(255, 255, 255)" : "#374151",
           }}
         >
-          {(isReturned ? device.returnCondition || device.condition : device.condition) || "Unknown"}
+          {(isReturned ? device.returnCondition || device.condition : device.condition) || "Unknown"}   
         </span>
       </td>
       <td
@@ -1204,6 +1204,9 @@ export default function Employee() {
   const [currentPage, setCurrentPage] = useState(1);
   const [employeesPerPage, setEmployeesPerPage] = useState(50);
   
+  // Search state
+  const [searchTerm, setSearchTerm] = useState("");
+  
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkResignModal, setShowBulkResignModal] = useState(false);
@@ -1249,6 +1252,11 @@ export default function Employee() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab]);
+
+  // Reset pagination when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Load device history for a specific employee
   const loadEmployeeDeviceHistory = async (employeeId) => {
@@ -1400,6 +1408,7 @@ export default function Employee() {
     setActiveTab(tab);
     setSelectedIds([]); // Clear selection when switching tabs
     setSortBy("default"); // Reset sort when switching tabs
+    setSearchTerm(""); // Clear search when switching tabs
   };
 
   // Bulk resign with undo capability
@@ -1606,9 +1615,32 @@ export default function Employee() {
     });
   };
 
-  const allEmployees = activeTab === "active" 
-    ? sortEmployees(employees) 
-    : sortEmployees(resignedEmployees);
+  // Search function
+  const searchEmployees = (employeeList, searchTerm) => {
+    if (!searchTerm.trim()) return employeeList;
+    
+    const term = searchTerm.toLowerCase().trim();
+    return employeeList.filter(employee => {
+      const fullName = (employee.fullName || "").toLowerCase();
+      const position = (employee.position || "").toLowerCase();
+      const department = (employee.department || "").toLowerCase();
+      const corporateEmail = (employee.corporateEmail || "").toLowerCase();
+      const personalEmail = (employee.personalEmail || "").toLowerCase();
+      const clientName = getClientName(employee.clientId).toLowerCase();
+      
+      return fullName.includes(term) ||
+             position.includes(term) ||
+             department.includes(term) ||
+             corporateEmail.includes(term) ||
+             personalEmail.includes(term) ||
+             clientName.includes(term);
+    });
+  };
+
+  // Apply search and sort
+  const baseEmployees = activeTab === "active" ? employees : resignedEmployees;
+  const searchedEmployees = searchEmployees(baseEmployees, searchTerm);
+  const allEmployees = sortEmployees(searchedEmployees);
   
   // Calculate pagination
   const totalPages = Math.ceil(allEmployees.length / employeesPerPage);
@@ -1693,6 +1725,66 @@ export default function Employee() {
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          {/* Search Bar */}
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Search employees..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setSearchTerm("");
+                }
+              }}
+              style={{
+                padding: "8px 12px 8px 36px",
+                paddingRight: searchTerm ? "36px" : "12px",
+                border: "1px solid #d1d5db",
+                borderRadius: 6,
+                fontSize: 14,
+                fontFamily: 'inherit',
+                outline: "none",
+                width: 200,
+                backgroundColor: "white",
+              }}
+            />
+            <div style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#6b7280",
+              fontSize: 16,
+            }}>
+              🔍
+            </div>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "#6b7280",
+                  fontSize: 16,
+                  cursor: "pointer",
+                  padding: "2px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -1895,7 +1987,30 @@ export default function Employee() {
               ) : currentEmployees.length === 0 ? (
                 <tr>
                   <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
-                    {activeTab === "active" ? "No active employees found" : "No resigned employees found"}
+                    {searchTerm ? (
+                      <>
+                        No {activeTab} employees found matching "{searchTerm}"
+                        <br />
+                        <button
+                          onClick={() => setSearchTerm("")}
+                          style={{
+                            marginTop: 8,
+                            padding: "4px 8px",
+                            border: "1px solid #d1d5db",
+                            borderRadius: 4,
+                            background: "white",
+                            color: "#374151",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          Clear search
+                        </button>
+                      </>
+                    ) : (
+                      activeTab === "active" ? "No active employees found" : "No resigned employees found"
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -2038,6 +2153,11 @@ export default function Employee() {
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <span style={{ fontSize: "14px", color: "#6b7280" }}>
               Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} {activeTab} employees
+              {searchTerm && (
+                <span style={{ fontStyle: "italic", marginLeft: "8px" }}>
+                  (filtered by "{searchTerm}")
+                </span>
+              )}
             </span>
             
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
