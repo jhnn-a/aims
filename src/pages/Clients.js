@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { getAllEmployees } from "../services/employeeService";
 import {
   addClient,
   getAllClients,
@@ -6,11 +7,7 @@ import {
   deleteClient,
 } from "../services/clientService";
 import { useSnackbar } from "../components/Snackbar";
-import LoadingSpinner, {
-  TableLoadingSpinner,
-} from "../components/LoadingSpinner";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../utils/firebase";
+import { TableLoadingSpinner } from "../components/LoadingSpinner";
 import "./Clients.css";
 
 function ClientFormModal({
@@ -37,7 +34,7 @@ function ClientFormModal({
         </h3>
         <div className="clients-modal-form">
           <label className="clients-modal-label">
-            Client Name: <span style={{ color: "#e11d48" }}>*</span>
+            Client Name: <span className="clients-required">*</span>
           </label>
           <input
             className="clients-modal-input"
@@ -76,42 +73,13 @@ function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
   return (
     <div className="clients-modal-overlay">
       <div className="clients-delete-modal">
-        <h2
-          style={{
-            fontSize: 22,
-            color: "#233037",
-            fontWeight: 700,
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            marginBottom: 16,
-            textAlign: "center",
-          }}
-        >
-          Confirm Deletion
-        </h2>
-        <div
-          style={{
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            fontSize: 15,
-            lineHeight: 1.5,
-            color: "#445F6D",
-            textAlign: "center",
-            marginBottom: 8,
-          }}
-        >
+        <h2 className="clients-delete-title">Confirm Deletion</h2>
+        <div className="clients-delete-desc">
           Are you sure you want to permanently delete this client?
-          <div
-            style={{
-              fontSize: 13,
-              color: "#6B7280",
-              marginTop: 8,
-              fontStyle: "italic",
-            }}
-          >
-            This action will be reversible for 5 seconds using the undo
-            notification.
-          </div>
+        </div>
+        <div className="clients-delete-warning">
+          This action will be reversible for 5 seconds using the undo
+          notification.
         </div>
         <div className="clients-delete-actions">
           <button
@@ -134,7 +102,6 @@ function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
   );
 }
 
-// Bulk delete confirmation modal
 function BulkDeleteConfirmationModal({
   count,
   onConfirm,
@@ -144,42 +111,13 @@ function BulkDeleteConfirmationModal({
   return (
     <div className="clients-modal-overlay">
       <div className="clients-delete-modal">
-        <h2
-          style={{
-            fontSize: 22,
-            color: "#233037",
-            fontWeight: 700,
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            marginBottom: 16,
-            textAlign: "center",
-          }}
-        >
-          Confirm Deletion
-        </h2>
-        <div
-          style={{
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            fontSize: 15,
-            lineHeight: 1.5,
-            color: "#445F6D",
-            textAlign: "center",
-            marginBottom: 8,
-          }}
-        >
+        <h2 className="clients-delete-title">Confirm Deletion</h2>
+        <div className="clients-delete-desc">
           Are you sure you want to delete the selected {count} client
           {count > 1 ? "s" : ""}?
-          <div
-            style={{
-              fontSize: 13,
-              color: "#6B7280",
-              marginTop: 8,
-              fontStyle: "italic",
-            }}
-          >
-            This action cannot be undone.
-          </div>
+        </div>
+        <div className="clients-delete-warning">
+          This action cannot be undone.
         </div>
         <div className="clients-delete-actions">
           <button
@@ -195,6 +133,56 @@ function BulkDeleteConfirmationModal({
             disabled={isDeleting}
           >
             Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeesModal({ open, onClose, employees, clientId }) {
+  if (!open) return null;
+  return (
+    <div className="clients-modal-overlay">
+      <div className="clients-modal-box employees-modal-box">
+        <button
+          className="clients-modal-close"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+        >
+          ×
+        </button>
+        <h3 className="clients-modal-title">
+          Employees for {typeof clientId === "string" ? clientId : ""}
+        </h3>
+        <div className="employees-modal-list">
+          {employees.length === 0 ? (
+            <div className="employees-modal-empty">No employees found.</div>
+          ) : (
+            <table className="employees-table-modal">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Employee ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>
+                      {emp.firstName || ""} {emp.lastName || ""}
+                    </td>
+                    <td>{emp.id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="clients-modal-actions">
+          <button className="clients-modal-cancel" onClick={onClose}>
+            Close
           </button>
         </div>
       </div>
@@ -207,6 +195,22 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showEmployeesModal, setShowEmployeesModal] = useState(false);
+  const [employeesCLI1, setEmployeesCLI1] = useState([]);
+  const [employeesModalClientId, setEmployeesModalClientId] =
+    useState("CLI0001");
+
+  const handleShowEmployees = async (clientId = "CLI0001") => {
+    setEmployeesModalClientId(clientId);
+    const allEmployees = await getAllEmployees();
+    const filtered = allEmployees.filter(
+      (e) =>
+        (e.clientId && e.clientId === clientId) ||
+        (e.clientID && e.clientID === clientId)
+    );
+    setEmployeesCLI1(filtered);
+    setShowEmployeesModal(true);
+  };
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState({ id: null, clientName: "" });
@@ -256,6 +260,7 @@ function Clients() {
     setShowErrorMsg(false);
     setIsSaving(true);
     const payload = { clientName: form.clientName.trim() };
+
     if (form.id) {
       await updateClient(form.id, payload);
     } else {
@@ -265,51 +270,6 @@ function Clients() {
     fetchClients();
     setIsSaving(false);
   }, [form, isFormValid, fetchClients]);
-
-  const handleEdit = useCallback((client) => {
-    setForm(client);
-    setShowForm(true);
-  }, []);
-
-  const handleDelete = useCallback((id) => {
-    setSelectedId(id);
-    setShowConfirm(true);
-  }, []);
-
-  // Bulk delete handler
-  const handleBulkDelete = useCallback(() => {
-    setShowBulkDelete(true);
-  }, []);
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!selectedId) return;
-    try {
-      const clientToDelete = clients.find((c) => c.id === selectedId);
-      if (!clientToDelete) return;
-      const clientBackup = { ...clientToDelete };
-      await deleteClient(selectedId);
-      setClients((prev) => prev.filter((c) => c.id !== selectedId));
-      showUndoNotification(
-        `Client "${clientBackup.name}" deleted successfully`,
-        async () => {
-          try {
-            const { id: originalId, ...clientDataToRestore } = clientBackup;
-            await setDoc(doc(db, "clients", originalId), clientDataToRestore);
-            const updatedClients = await getAllClients();
-            setClients(updatedClients);
-            showSuccess(`Client "${clientBackup.name}" restored successfully`);
-          } catch (error) {
-            showError("Failed to restore client. Please try again.");
-          }
-        },
-        5000
-      );
-      setSelectedId(null);
-      setShowConfirm(false);
-    } catch (error) {
-      showError("Failed to delete client. Please try again.");
-    }
-  }, [selectedId, clients, showUndoNotification, showSuccess, showError]);
 
   const handleConfirmBulkDelete = useCallback(async () => {
     setIsBulkDeleting(true);
@@ -388,6 +348,10 @@ function Clients() {
     [filteredClients]
   );
 
+  const handleBulkDelete = useCallback(() => {
+    setShowBulkDelete(true);
+  }, []);
+
   useEffect(() => {
     if (!actionMenu.open) return;
     function handleClick(e) {
@@ -401,7 +365,6 @@ function Clients() {
 
   return (
     <div className="clients-page">
-      {/* Header */}
       <div className="clients-header">
         <h1 className="clients-title">Client Database</h1>
         <div className="clients-header-actions">
@@ -415,9 +378,8 @@ function Clients() {
           )}
         </div>
       </div>
-      {/* Search Bar */}
       <div className="clients-search-bar">
-        <div style={{ position: "relative", maxWidth: 400, width: "100%" }}>
+        <div className="clients-search-input-wrapper">
           <input
             type="text"
             placeholder="Search clients..."
@@ -447,18 +409,20 @@ function Clients() {
           </span>
         </div>
       </div>
-      {/* Bulk selection toolbar */}
       {checkedRows.length > 0 && (
         <div className="clients-bulk-toolbar">
-          <span style={{ fontWeight: 700, marginRight: 2 }}>
-            {checkedRows.length}
-          </span>
-          <span style={{ color: "#3b3b4a" }}>
+          <span className="clients-bulk-count">{checkedRows.length}</span>
+          <span className="clients-bulk-label">
             {checkedRows.length === 1 ? "client" : "clients"} selected.
           </span>
         </div>
       )}
-      {/* Add/Edit Modal */}
+      <EmployeesModal
+        open={showEmployeesModal}
+        onClose={() => setShowEmployeesModal(false)}
+        employees={employeesCLI1}
+        clientId={employeesModalClientId}
+      />
       {showForm && (
         <ClientFormModal
           data={form}
@@ -469,15 +433,6 @@ function Clients() {
           isSaving={isSaving}
         />
       )}
-      {/* Delete Confirmation Modal */}
-      {showConfirm && (
-        <DeleteConfirmationModal
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setShowConfirm(false)}
-          isDeleting={false}
-        />
-      )}
-      {/* Bulk Delete Confirmation Modal */}
       {showBulkDelete && (
         <BulkDeleteConfirmationModal
           count={checkedRows.length}
@@ -486,170 +441,153 @@ function Clients() {
           isDeleting={isBulkDeleting}
         />
       )}
-      {/* Main Table Content */}
-      <div className="clients-table-container">
-        <div className="clients-table-wrapper">
-          <table className="clients-table">
-            <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    checked={
-                      checkedRows.length > 0 &&
-                      checkedRows.length === clients.length &&
-                      clients.length > 0
-                    }
-                    onChange={handleCheckAll}
-                    className="clients-checkbox"
-                  />
-                </th>
-                <th>#</th>
-                <th>Client ID</th>
-                <th>Client Name</th>
-                <th>Employee Count</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="6" style={{ padding: "0", border: "none" }}>
-                    <TableLoadingSpinner text="Loading clients..." />
-                  </td>
+      <div className="clients-content">
+        {loading && <TableLoadingSpinner />}
+        {!loading && (
+          <div className="clients-table-container">
+            <table className="clients-table">
+              <thead>
+                <tr className="clients-table-header">
+                  <th className="clients-table-checkbox">
+                    <input
+                      type="checkbox"
+                      onChange={handleCheckAll}
+                      className="clients-checkbox"
+                    />
+                  </th>
+                  <th className="clients-table-no">No.</th>
+                  <th className="clients-table-id">Client ID</th>
+                  <th className="clients-table-name">Client Name</th>
+                  <th className="clients-table-employees">Employees</th>
+                  <th className="clients-table-actions">Actions</th>
                 </tr>
-              ) : (
-                paginatedClients.map((client, idx) => {
-                  const isChecked = checkedRows.includes(client.id);
-                  // Find the index of this client in the selected rows array for alternating colors
-                  const selectedIndex = checkedRows.indexOf(client.id);
-                  const rowClass = isChecked
-                    ? selectedIndex % 2 === 0
-                      ? "clients-table-row selected"
-                      : "clients-table-row selected-alt"
-                    : idx % 2 === 0
-                    ? "clients-table-row unselected"
-                    : "clients-table-row unselected-alt";
-                  return (
-                    <tr
-                      key={client.id || idx}
-                      className={rowClass}
-                      onMouseEnter={(e) =>
-                        !isChecked && e.currentTarget.classList.add("hover")
-                      }
-                      onMouseLeave={(e) =>
-                        !isChecked && e.currentTarget.classList.remove("hover")
-                      }
-                    >
-                      <td
-                        style={{
-                          textAlign: "center",
-                          padding: 0,
-                          border: "none",
-                        }}
+              </thead>
+              <tbody>
+                {filteredClients.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="clients-table-empty">
+                      No clients found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedClients.map((client, idx) => {
+                    const isChecked = checkedRows.includes(client.id);
+                    const selectedIndex = checkedRows.indexOf(client.id);
+                    const rowClass = isChecked
+                      ? selectedIndex % 2 === 0
+                        ? "clients-table-row selected"
+                        : "clients-table-row selected-alt"
+                      : idx % 2 === 0
+                      ? "clients-table-row unselected"
+                      : "clients-table-row unselected-alt";
+                    return (
+                      <tr
+                        key={client.id || idx}
+                        className={rowClass}
+                        onMouseEnter={(e) =>
+                          !isChecked && e.currentTarget.classList.add("hover")
+                        }
+                        onMouseLeave={(e) =>
+                          !isChecked &&
+                          e.currentTarget.classList.remove("hover")
+                        }
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleCheckboxChange(client.id)}
-                          style={{
-                            width: 16,
-                            height: 16,
-                            accentColor: "#3b82f6",
-                          }}
-                        />
-                      </td>
-                      <td>{idx + 1}</td>
-                      <td>{client.id}</td>
-                      <td>{client.clientName}</td>
-                      <td>{client.employeeCount ?? 0}</td>
-                      <td className="clients-table-actions-cell">
-                        <button
-                          type="button"
-                          className="clients-table-actions-btn"
-                          title="Actions"
-                          onClick={(e) => {
-                            setActionMenu({
-                              open: true,
-                              idx,
-                              anchor: e.currentTarget,
-                            });
-                          }}
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 18 18"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
+                        <td className="clients-table-checkbox-cell">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleCheckboxChange(client.id)}
+                            className="clients-checkbox"
+                          />
+                        </td>
+                        <td>{idx + 1}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="clients-id-btn"
+                            title={`Show employees for ${client.id}`}
+                            onClick={() => handleShowEmployees(client.id)}
                           >
-                            <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
-                            <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
-                            <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
-                          </svg>
-                        </button>
-                        {actionMenu.open && actionMenu.idx === idx && (
-                          <div
-                            ref={actionMenuRef}
-                            className="clients-table-actions-menu"
-                            style={{
-                              left:
-                                actionMenu.anchor?.getBoundingClientRect()
-                                  .left ?? 0,
-                              top:
-                                actionMenu.anchor?.getBoundingClientRect()
-                                  .bottom + 4 ?? 0,
-                            }}
+                            {client.id}
+                          </button>
+                        </td>
+                        <td>{client.clientName}</td>
+                        <td>{client.employeeCount ?? 0}</td>
+                        <td className="clients-table-actions-cell">
+                          <button
+                            type="button"
+                            className="clients-table-actions-btn"
+                            title="Actions"
+                            onClick={(e) =>
+                              setActionMenu({
+                                open: true,
+                                idx,
+                                anchor: e.currentTarget,
+                              })
+                            }
                           >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActionMenu({
-                                  open: false,
-                                  idx: null,
-                                  anchor: null,
-                                });
-                                handleEdit(client);
-                              }}
-                              onMouseOver={(e) =>
-                                (e.currentTarget.style.background = "#F0F0F3")
-                              }
-                              onMouseOut={(e) =>
-                                (e.currentTarget.style.background = "none")
-                              }
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 18 18"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
                             >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActionMenu({
-                                  open: false,
-                                  idx: null,
-                                  anchor: null,
-                                });
-                                handleDelete(client.id);
+                              <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
+                            </svg>
+                          </button>
+                          {actionMenu.open && actionMenu.idx === idx && (
+                            <div
+                              ref={actionMenuRef}
+                              className="clients-table-actions-menu"
+                              style={{
+                                left:
+                                  actionMenu.anchor?.getBoundingClientRect()
+                                    .left ?? 0,
+                                top:
+                                  actionMenu.anchor?.getBoundingClientRect()
+                                    .bottom + 4 ?? 0,
                               }}
-                              onMouseOver={(e) =>
-                                (e.currentTarget.style.background = "#F1C9BF")
-                              }
-                              onMouseOut={(e) =>
-                                (e.currentTarget.style.background = "none")
-                              }
                             >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        {/* Pagination Footer */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenu({
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
+                                  });
+                                  handleEdit(client);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenu({
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
+                                  });
+                                  handleDelete(client.id);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="clients-pagination-footer">
           <button
             className="clients-pagination-btn"
