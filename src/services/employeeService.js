@@ -29,10 +29,13 @@ export async function getNextEmpId() {
 // Helper to update the employee count for a client
 export async function updateClientEmployeeCount(clientId) {
   if (!clientId) return;
-  // Count employees with this clientId
+  // Count active employees (not resigned) with this clientId
   const employeesSnap = await getDocs(collection(db, "employees"));
   const count = employeesSnap.docs.filter(
-    (docSnap) => docSnap.data().clientId === clientId
+    (docSnap) => {
+      const data = docSnap.data();
+      return data.clientId === clientId && !data.isResigned;
+    }
   ).length;
   // Update the client document
   const clientRef = doc(db, "clients", clientId);
@@ -105,6 +108,71 @@ export const updateEmployee = async (id, updatedData) => {
     await updateClientEmployeeCount(updatedData.clientId);
   } else if (updatedData.clientId) {
     await updateClientEmployeeCount(updatedData.clientId);
+  }
+};
+
+export const undoResignation = async (id) => {
+  // Get the employee data first
+  const empRef = doc(db, "employees", id);
+  const empSnap = await getDoc(empRef);
+  
+  if (!empSnap.exists()) {
+    throw new Error("Employee not found");
+  }
+
+  const employeeData = empSnap.data();
+  
+  if (!employeeData.isResigned) {
+    throw new Error("Employee is not resigned");
+  }
+
+  const clientId = employeeData.clientId;
+
+  // Remove resignation fields and restore to active status
+  const restoredData = {
+    ...employeeData,
+    isResigned: false,
+  };
+  
+  // Remove resignation-specific fields
+  delete restoredData.dateResigned;
+  delete restoredData.resignationReason;
+
+  await updateDoc(empRef, restoredData);
+
+  // Update client employee count (now includes this employee again)
+  if (clientId) {
+    await updateClientEmployeeCount(clientId);
+  }
+};
+
+export const resignEmployee = async (id, reason = "") => {
+  // Get the employee data first
+  const empRef = doc(db, "employees", id);
+  const empSnap = await getDoc(empRef);
+  
+  if (!empSnap.exists()) {
+    throw new Error("Employee not found");
+  }
+
+  const employeeData = empSnap.data();
+  const clientId = employeeData.clientId;
+
+  // Update employee with resignation info
+  const now = new Date();
+  const offset = now.getTimezoneOffset();
+  const resignationData = {
+    ...employeeData,
+    isResigned: true,
+    dateResigned: new Date(now.getTime() - offset * 60 * 1000).toISOString(),
+    resignationReason: reason,
+  };
+
+  await updateDoc(empRef, resignationData);
+
+  // Update client employee count (only count active employees)
+  if (clientId) {
+    await updateClientEmployeeCount(clientId);
   }
 };
 
