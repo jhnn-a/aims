@@ -4,7 +4,7 @@ import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import CompanyAssets from "./pages/CompanyAssets";
-import Employees from "./pages/Employees";
+import Employee from "./pages/Employee";
 import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
 import UserManagement from "./pages/UserManagement";
@@ -123,7 +123,7 @@ function App() {
               path="/company-assets"
               element={<CompanyAssets user={user} />}
             />
-            <Route path="/employees" element={<Employees user={user} />} />
+            <Route path="/employees" element={<Employee user={user} />} />
             <Route path="/clients" element={<Clients user={user} />} />
             <Route path="/unit-specs" element={<UnitSpecs user={user} />} />
             <Route
