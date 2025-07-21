@@ -560,27 +560,307 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
 }
 
 // Employee Assets Modal
-function EmployeeAssetsModal({ isOpen, onClose, employee, devices }) {
+function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory = [] }) {
   if (!isOpen || !employee) return null;
 
-  // Filter devices assigned to this employee
-  const assignedDevices = devices.filter(device => device.assignedTo === employee.id);
+  // Filter devices currently assigned to this employee (deployed)
+  const deployedAssets = devices.filter(device => device.assignedTo === employee.id);
+
+  // Get returned assets from device history
+  // Find devices that were assigned to this employee but are no longer assigned
+  const returnedAssets = deviceHistory
+    .filter(history => 
+      history.action === 'returned' || 
+      (history.action === 'unassigned' && history.employeeId === employee.id)
+    )
+    .map(history => {
+      // Find the corresponding device
+      const device = devices.find(d => d.id === history.deviceId);
+      if (device) {
+        return {
+          ...device,
+          returnDate: history.date,
+          returnReason: history.reason,
+          returnCondition: history.condition
+        };
+      }
+      // If device not found in current devices, create a basic record from history
+      return {
+        id: history.deviceId,
+        deviceTag: history.deviceTag,
+        deviceType: 'Unknown',
+        brand: 'Unknown',
+        model: 'Unknown',
+        serialNumber: 'Unknown',
+        condition: history.condition || 'Unknown',
+        returnDate: history.date,
+        returnReason: history.reason,
+        returnCondition: history.condition
+      };
+    })
+    // Remove duplicates (keep the most recent return record for each device)
+    .filter((asset, index, self) => 
+      index === self.findIndex(a => a.id === asset.id)
+    );
 
   // Format date helper
   const formatDate = (dateStr) => {
     if (!dateStr) return "-";
     try {
+      // Handle Firestore timestamp object
+      if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
+        const date = new Date(dateStr.seconds * 1000);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+      
+      // Handle Firestore timestamp with nanoseconds
+      if (dateStr && typeof dateStr === "object" && dateStr.toDate) {
+        const date = dateStr.toDate();
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+      
       // Handle different date formats
       const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "-";
+      
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit'
       });
-    } catch {
-      return dateStr;
+    } catch (error) {
+      console.log("Date formatting error:", error, "Input:", dateStr);
+      return dateStr || "-";
     }
   };
+
+  // Common table header component
+  const TableHeader = ({ isReturned = false }) => (
+    <thead>
+      <tr
+        style={{
+          background: "#f9fafb",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Device Tag
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Type
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Brand
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Model
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Serial Number
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          Condition
+        </th>
+        <th
+          style={{
+            padding: "12px 16px",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {isReturned ? "Date Returned" : "Date Assigned"}
+        </th>
+      </tr>
+    </thead>
+  );
+
+  // Common table row component
+  const TableRow = ({ device, isReturned = false }) => (
+    <tr
+      style={{
+        borderBottom: "1px solid #f3f4f6",
+      }}
+    >
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "120px",
+        }}
+      >
+        {device.deviceTag || "-"}
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "100px",
+        }}
+      >
+        {device.deviceType || "-"}
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "100px",
+        }}
+      >
+        {device.brand || "-"}
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "120px",
+        }}
+      >
+        {device.model || "-"}
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "120px",
+        }}
+      >
+        {device.serialNumber || "-"}
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "80px",
+        }}
+      >
+        <span
+          style={{
+            padding: "3px 6px",
+            borderRadius: 3,
+            fontSize: 11,
+            fontWeight: 500,
+            background: 
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "New" ? "#dcfce7" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Good" ? "#dbeafe" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Fair" ? "#fef3c7" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "#fee2e2" : "#f3f4f6",
+            color:
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "New" ? "#166534" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Good" ? "#1e40af" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Fair" ? "#92400e" :
+              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "#dc2626" : "#374151",
+          }}
+        >
+          {(isReturned ? device.returnCondition || device.condition : device.condition) || "Unknown"}
+        </span>
+      </td>
+      <td
+        style={{
+          padding: "12px 16px",
+          fontSize: 14,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: "100px",
+        }}
+      >
+        {isReturned 
+          ? formatDate(device.returnDate) 
+          : formatDate(device.assignmentDate)
+        }
+      </td>
+    </tr>
+  );
 
   return (
     <div
@@ -601,9 +881,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices }) {
         style={{
           backgroundColor: "white",
           borderRadius: 12,
-          width: "90%",
-          maxWidth: 1000,
-          maxHeight: "90vh",
+          width: "95%",
+          maxWidth: 1200,
+          maxHeight: "95vh",
           overflow: "hidden",
           fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
@@ -631,7 +911,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices }) {
                 marginTop: 0,
               }}
             >
-              Assigned Assets
+              Asset History
             </h2>
             <p
               style={{
@@ -640,7 +920,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices }) {
                 margin: 0,
               }}
             >
-              {employee.fullName} • {assignedDevices.length} asset(s)
+              {employee.fullName} • {deployedAssets.length} deployed, {returnedAssets.length} returned
             </p>
           </div>
           <button
@@ -665,223 +945,161 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: assignedDevices.length === 0 ? "40px 32px" : 0,
+            padding: "24px 32px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "32px",
           }}
         >
-          {assignedDevices.length === 0 ? (
+          {/* Deployed Assets Section */}
+          <div>
             <div
               style={{
-                textAlign: "center",
-                color: "#6b7280",
-                fontSize: 16,
+                display: "flex",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
               }}
             >
-              No assets assigned to this employee
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#222e3a",
+                  margin: 0,
+                }}
+              >
+                Deployed Assets
+              </h3>
+              <span
+                style={{
+                  backgroundColor: "#059669",
+                  color: "white",
+                  padding: "2px 8px",
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {deployedAssets.length} active
+              </span>
             </div>
-          ) : (
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 14,
-                color: "#374151",
-              }}
-            >
-              <thead>
-                <tr
+            
+            {deployedAssets.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#6b7280",
+                  fontSize: 14,
+                  padding: "32px 16px",
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 8,
+                  border: "1px dashed #d1d5db",
+                }}
+              >
+                No assets currently deployed to this employee
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                }}
+              >
+                <table
                   style={{
-                    background: "#f9fafb",
-                    borderBottom: "1px solid #e5e7eb",
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 14,
+                    color: "#374151",
                   }}
                 >
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Device Tag
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Device Type
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Brand
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Model
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Serial Number
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Condition
-                  </th>
-                  <th
-                    style={{
-                      padding: "16px 24px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    Date Assigned
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {assignedDevices.map((device) => (
-                  <tr
-                    key={device.id}
-                    style={{
-                      borderBottom: "1px solid #f3f4f6",
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "150px",
-                      }}
-                    >
-                      {device.deviceTag || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "120px",
-                      }}
-                    >
-                      {device.deviceType || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "120px",
-                      }}
-                    >
-                      {device.brand || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "150px",
-                      }}
-                    >
-                      {device.model || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "150px",
-                      }}
-                    >
-                      {device.serialNumber || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "100px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          background: 
-                            device.condition === "New" ? "#dcfce7" :
-                            device.condition === "Good" ? "#dbeafe" :
-                            device.condition === "Fair" ? "#fef3c7" :
-                            device.condition === "Poor" ? "#fee2e2" : "#f3f4f6",
-                          color:
-                            device.condition === "New" ? "#166534" :
-                            device.condition === "Good" ? "#1e40af" :
-                            device.condition === "Fair" ? "#92400e" :
-                            device.condition === "Poor" ? "#dc2626" : "#374151",
-                        }}
-                      >
-                        {device.condition || "Unknown"}
-                      </span>
-                    </td>
-                    <td
-                      style={{
-                        padding: "16px 24px",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: "120px",
-                      }}
-                    >
-                      {formatDate(device.assignmentDate || device.dateAssigned)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                  <TableHeader isReturned={false} />
+                  <tbody>
+                    {deployedAssets.map((device) => (
+                      <TableRow key={`deployed-${device.id}`} device={device} isReturned={false} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Returned Assets Section */}
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                marginBottom: "16px",
+                gap: "12px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "#222e3a",
+                  margin: 0,
+                }}
+              >
+                Returned Assets
+              </h3>
+              <span
+                style={{
+                  backgroundColor: "#6b7280",
+                  color: "white",
+                  padding: "2px 8px",
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                {returnedAssets.length} returned
+              </span>
+            </div>
+            
+            {returnedAssets.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#6b7280",
+                  fontSize: 14,
+                  padding: "32px 16px",
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 8,
+                  border: "1px dashed #d1d5db",
+                }}
+              >
+                No assets have been returned by this employee
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 14,
+                    color: "#374151",
+                  }}
+                >
+                  <TableHeader isReturned={true} />
+                  <tbody>
+                    {returnedAssets.map((device) => (
+                      <TableRow key={`returned-${device.id}`} device={device} isReturned={true} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -980,6 +1198,7 @@ export default function Employee() {
     isOpen: false,
     employee: null,
   });
+  const [employeeDeviceHistory, setEmployeeDeviceHistory] = useState([]);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -1031,10 +1250,22 @@ export default function Employee() {
     setCurrentPage(1);
   }, [activeTab]);
 
-  // Reset pagination when employeesPerPage changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [employeesPerPage]);
+  // Load device history for a specific employee
+  const loadEmployeeDeviceHistory = async (employeeId) => {
+    try {
+      const history = await getDeviceHistoryForEmployee(employeeId);
+      setEmployeeDeviceHistory(history);
+    } catch (error) {
+      console.error("Error loading device history:", error);
+      setEmployeeDeviceHistory([]);
+    }
+  };
+
+  // Handle employee name click to show assets modal
+  const handleEmployeeNameClick = async (employee) => {
+    setAssetsModal({ isOpen: true, employee });
+    await loadEmployeeDeviceHistory(employee.id);
+  };
 
   // Form handlers
   const handleFormChange = (e) => {
@@ -1688,7 +1919,7 @@ export default function Employee() {
                     </td>
                     <td style={{ padding: 16 }}>
                       <span
-                        onClick={() => setAssetsModal({ isOpen: true, employee })}
+                        onClick={() => handleEmployeeNameClick(employee)}
                         style={{
                           color: "#2563eb",
                           cursor: "pointer",
@@ -2084,9 +2315,13 @@ export default function Employee() {
       {/* Employee Assets Modal */}
       <EmployeeAssetsModal
         isOpen={assetsModal.isOpen}
-        onClose={() => setAssetsModal({ isOpen: false, employee: null })}
+        onClose={() => {
+          setAssetsModal({ isOpen: false, employee: null });
+          setEmployeeDeviceHistory([]);
+        }}
         employee={assetsModal.employee}
         devices={devices}
+        deviceHistory={employeeDeviceHistory}
       />
 
       {isLoading && <LoadingSpinner />}
