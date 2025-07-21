@@ -47,28 +47,36 @@ function EmployeeFormModal({
         alignItems: "center",
         justifyContent: "center",
         zIndex: 2000,
+        padding: "clamp(16px, 2vw, 20px)",
+        boxSizing: "border-box",
       }}
     >
       <div
         style={{
           backgroundColor: "white",
           borderRadius: 12,
-          padding: 32,
-          width: "90%",
-          maxWidth: 500,
-          maxHeight: "80vh",
+          padding: "clamp(16px, 2vw, 24px)",
+          width: "100%",
+          maxWidth: "min(480px, 90vw)",
+          maxHeight: "95vh",
           overflow: "auto",
           fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
+          margin: "auto",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <h2
           style={{
-            fontSize: 24,
+            fontSize: "clamp(18px, 2vw, 22px)",
             fontWeight: 700,
             color: "#222e3a",
-            marginBottom: 24,
+            marginBottom: "clamp(16px, 2vw, 20px)",
             marginTop: 0,
+            textAlign: "center",
+            flexShrink: 0,
           }}
         >
           {data.id ? "Edit Employee" : "Add Employee"}
@@ -94,221 +102,250 @@ function EmployeeFormModal({
           style={{ display: "none" }}
         />
         
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Full Name:
-          </label>
-          <input
-            name="fullName"
-            value={data.fullName}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-              "&:focus": {
-                borderColor: "#2563eb",
-                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.1)",
-              },
-            }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Position:
-          </label>
-          <input
-            name="position"
-            value={data.position}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-            }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Department:
-          </label>
-          <input
-            name="department"
-            value={data.department}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-            }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Client:
-          </label>
-          <select
-            name="clientId"
-            value={data.clientId}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-              backgroundColor: "white",
-            }}
-          >
-            <option value="" disabled>
-              Choose Client
-            </option>
-            {clients
-              .slice()
-              .sort((a, b) => a.clientName.localeCompare(b.clientName))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.clientName}
+        {/* Scrollable content area */}
+        <div 
+          style={{ 
+            flex: 1,
+            overflow: "auto",
+            minHeight: 0,
+            paddingRight: "4px",
+            marginRight: "-4px",
+          }}
+        >
+          <div style={{ display: "grid", gap: "clamp(10px, 1.2vw, 14px)" }}>
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: 4,
+              }}>
+                Full Name:
+              </label>
+              <input
+                name="fullName"
+                value={data.fullName}
+                onChange={onChange}
+                style={{
+                  width: "100%",
+                  padding: "clamp(6px, 0.8vw, 10px)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontFamily: 'inherit',
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: 4,
+              }}>
+                Position:
+              </label>
+              <input
+                name="position"
+                value={data.position}
+                onChange={onChange}
+                style={{
+                  width: "100%",
+                  padding: "clamp(6px, 0.8vw, 10px)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontFamily: 'inherit',
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: 4,
+              }}>
+                Department:
+              </label>
+              <input
+                name="department"
+                value={data.department}
+                onChange={onChange}
+                style={{
+                  width: "100%",
+                  padding: "clamp(6px, 0.8vw, 10px)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontFamily: 'inherit',
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+            
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: 4,
+              }}>
+                Client:
+              </label>
+              <select
+                name="clientId"
+                value={data.clientId}
+                onChange={onChange}
+                style={{
+                  width: "100%",
+                  padding: "clamp(6px, 0.8vw, 10px)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontFamily: 'inherit',
+                  outline: "none",
+                  backgroundColor: "white",
+                  boxSizing: "border-box",
+                }}
+              >
+                <option value="" disabled>
+                  Choose Client
                 </option>
-              ))}
-          </select>
+                {clients
+                  .slice()
+                  .sort((a, b) => a.clientName.localeCompare(b.clientName))
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.clientName}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(6px, 0.8vw, 10px)" }}>
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  Corporate Email:
+                </label>
+                <input
+                  type="email"
+                  name="corporateEmail"
+                  value={data.corporateEmail || ""}
+                  onChange={onChange}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  Personal Email:
+                </label>
+                <input
+                  type="email"
+                  name="personalEmail"
+                  value={data.personalEmail || ""}
+                  onChange={onChange}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label style={{ 
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: "#374151",
+                marginBottom: 4,
+              }}>
+                Date Hired:
+              </label>
+              <input
+                type="date"
+                name="dateHired"
+                value={data.dateHired ? data.dateHired : ""}
+                onChange={onChange}
+                style={{
+                  width: "100%",
+                  padding: "clamp(6px, 0.8vw, 10px)",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontFamily: 'inherit',
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
         </div>
         
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Corporate Email:
-          </label>
-          <input
-            type="email"
-            name="corporateEmail"
-            value={data.corporateEmail || ""}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-            }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Personal Email:
-          </label>
-          <input
-            type="email"
-            name="personalEmail"
-            value={data.personalEmail || ""}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-            }}
-          />
-        </div>
-        
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
-            Date Hired:
-          </label>
-          <input
-            type="date"
-            name="dateHired"
-            value={data.dateHired ? data.dateHired : ""}
-            onChange={onChange}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: 'inherit',
-              outline: "none",
-            }}
-          />
-        </div>
-        
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+        {/* Fixed footer with buttons */}
+        <div style={{ 
+          display: "flex", 
+          gap: "clamp(6px, 0.8vw, 10px)", 
+          justifyContent: "flex-end",
+          marginTop: "clamp(12px, 1.5vw, 16px)",
+          flexWrap: "wrap",
+          flexShrink: 0,
+          paddingTop: "clamp(8px, 1vw, 12px)",
+          borderTop: "1px solid #f3f4f6",
+        }}>
           <button 
             onClick={onCancel}
             style={{
-              padding: "8px 16px",
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
               border: "1px solid #d1d5db",
               borderRadius: 6,
               background: "white",
               color: "#374151",
-              fontSize: 14,
+              fontSize: "clamp(12px, 1.1vw, 14px)",
               fontWeight: 500,
               cursor: "pointer",
               fontFamily: 'inherit',
+              minWidth: "70px",
             }}
           >
             Cancel
@@ -317,15 +354,16 @@ function EmployeeFormModal({
             onClick={onSave} 
             disabled={!isValid}
             style={{
-              padding: "8px 16px",
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
               border: "none",
               borderRadius: 6,
               background: isValid ? "#2563eb" : "#9ca3af",
               color: "white",
-              fontSize: 14,
+              fontSize: "clamp(12px, 1.1vw, 14px)",
               fontWeight: 500,
               cursor: isValid ? "pointer" : "not-allowed",
               fontFamily: 'inherit',
+              minWidth: "70px",
             }}
           >
             Save
@@ -714,19 +752,6 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
             letterSpacing: "0.05em",
           }}
         >
-          Serial Number
-        </th>
-        <th
-          style={{
-            padding: "12px 16px",
-            textAlign: "left",
-            fontWeight: 600,
-            color: "#374151",
-            fontSize: 12,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-          }}
-        >
           Condition
         </th>
         <th
@@ -800,18 +825,6 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         }}
       >
         {device.model || "-"}
-      </td>
-      <td
-        style={{
-          padding: "12px 16px",
-          fontSize: 14,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          maxWidth: "120px",
-        }}
-      >
-        {device.serialNumber || "-"}
       </td>
       <td
         style={{
@@ -1953,262 +1966,392 @@ export default function Employee() {
       </div>
 
       {/* Table Container */}
-      <div style={{
-        flex: 1,
-        margin: "0 24px",
-        background: "white",
-        borderRadius: "12px 12px 0 0", // Only top corners rounded
-        border: "1px solid #e5e7eb",
-        borderBottom: "none", // Remove bottom border to connect with pagination
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-      }}>
         <div style={{
           flex: 1,
-          overflow: "auto",
-          minHeight: 0,
+          margin: "0 24px",
+          background: "white",
+          // borderRadius: "12px 12px 0 0", // Only top corners rounded
+          border: "1px solid #e5e7eb",
+          borderBottom: "none", // Remove bottom border to connect with pagination
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
         }}>
-          <table style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 14,
-            color: "#374151",
+          <div style={{
+            flex: 1,
+            overflow: "auto",
+            minHeight: 0,
           }}>
-            <thead>
-              <tr style={{
-                background: "#f9fafb",
-                borderBottom: "1px solid #e5e7eb",
-                position: "sticky",
-                top: 0,
-                zIndex: 10,
+            <table style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: "clamp(12px, 1vw, 14px)",
+          color: "#374151",
+          tableLayout: "fixed", // Fixed layout for better control
+            }}>
+          <thead>
+            <tr style={{
+              background: "#f9fafb",
+              borderBottom: "1px solid #e5e7eb",
+              position: "sticky",
+              top: 0,
+              zIndex: 10,
+            }}>
+              <th style={{
+            padding: "clamp(8px, 1vw, 16px)",
+            textAlign: "left",
+            fontWeight: 600,
+            color: "#374151",
+            width: "4%",
+            minWidth: "40px",
               }}>
-                <th style={{
-                  padding: 16,
-                  textAlign: "left",
-                  fontWeight: 600,
-                  color: "#374151",
-                  width: "40px",
-                }}>
-                  {activeTab === "active" && (
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
-                      }}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      style={{ cursor: "pointer" }}
-                    />
-                  )}
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                  Full Name
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                  Position
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                  Department
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                  Client
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                  Corporate Email
-                </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#9c2b2bff" }}>
-                  {activeTab === "active" ? "Date Hired" : "Date Resigned"}
-                </th>
-                {activeTab === "resigned" && (
-                  <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
-                    Resignation Reason
-                  </th>
-                )}
-                {activeTab === "resigned" && (
-                  <th style={{ padding: 16, textAlign: "center", fontWeight: 600, color: "#374151" }}>
-                    Actions
-                  </th>
-                )}
-                {activeTab === "active" && (
-                  <th style={{ padding: 16, textAlign: "center", fontWeight: 600, color: "#374151" }}>
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {isTableLoading ? (
-                <tr>
-                  <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center" }}>
-                    <TableLoadingSpinner />
-                  </td>
-                </tr>
-              ) : currentEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
-                    {searchTerm ? (
-                      <>
-                        No {activeTab} employees found matching "{searchTerm}"
-                        <br />
-                        <button
-                          onClick={() => setSearchTerm("")}
-                          style={{
-                            marginTop: 8,
-                            padding: "4px 8px",
-                            border: "1px solid #d1d5db",
-                            borderRadius: 4,
-                            background: "white",
-                            color: "#374151",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          Clear search
-                        </button>
-                      </>
-                    ) : (
-                      activeTab === "active" ? "No active employees found" : "No resigned employees found"
-                    )}
-                  </td>
-                </tr>
-              ) : (
-                currentEmployees.map((employee) => (
-                  <tr
-                    key={employee.id}
-                    style={{
-                      borderBottom: "1px solid #f3f4f6",
-                      ":hover": { backgroundColor: "#f9fafb" },
-                    }}
-                  >
-                    <td style={{ padding: 16 }}>
-                      {activeTab === "active" && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(employee.id)}
-                          onChange={(e) => handleSelectEmployee(employee.id, e.target.checked)}
-                          style={{ cursor: "pointer" }}
-                        />
-                      )}
-                    </td>
-                    <td style={{ padding: 16 }}>
-                      <span
-                        onClick={() => handleEmployeeNameClick(employee)}
-                        style={{
-                          color: "#2563eb",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                          textDecorationColor: "transparent",
-                          transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.textDecorationColor = "#2563eb";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.textDecorationColor = "transparent";
-                        }}
-                      >
-                        {employee.fullName}
-                      </span>
-                    </td>
-                    <td style={{ padding: 16 }}>{employee.position}</td>
-                    <td style={{ padding: 16 }}>{employee.department}</td>
-                    <td style={{ padding: 16 }}>{getClientName(employee.clientId)}</td>
-                    <td style={{ padding: 16 }}>{employee.corporateEmail || "-"}</td>
-                    <td style={{ padding: 16 }}>
-                      {activeTab === "active" 
-                        ? formatDisplayDate(employee.dateHired)
-                        : formatDisplayDate(employee.dateResigned || employee.dateHired)
-                      }
-                    </td>
-                    {activeTab === "resigned" && (
-                      <td style={{ padding: 16 }}>
-                        {employee.resignationReason || "-"}
-                      </td>
-                    )}
-                    {activeTab === "resigned" && (
-                      <td style={{ padding: 16, textAlign: "center" }}>
-                        <button
-                          onClick={() => handleUndoResignation(employee.id)}
-                          style={{
-                            padding: "4px 8px",
-                            border: "1px solid #059669",
-                            borderRadius: 4,
-                            background: "white",
-                            color: "#059669",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          Undo Resignation
-                        </button>
-                      </td>
-                    )}
-                    {activeTab === "active" && (
-                      <td style={{ padding: 16, textAlign: "center" }}>
-                        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                          <button
-                            onClick={() => {
-                              console.log("Edit button clicked for employee:", employee);
-                              
-                              // Properly format the employee data for editing
-                              const formattedEmployee = {
-                                ...employee,
-                                dateHired: formatDateForInput(employee.dateHired),
-                                // Ensure required fields have default values
-                                department: employee.department || "",
-                                clientId: employee.clientId || "",
-                                fullName: employee.fullName || "",
-                                position: employee.position || "",
-                              };
-                              
-                              console.log("Formatted employee data for form:", formattedEmployee);
-                              setForm(formattedEmployee);
-                              setShowForm(true);
-                            }}
-                            style={{
-                              padding: "4px 8px",
-                              border: "1px solid #d1d5db",
-                              borderRadius: 4,
-                              background: "white",
-                              color: "#374151",
-                              fontSize: 12,
-                              cursor: "pointer",
-                              fontFamily: 'inherit',
-                            }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleResignEmployee(employee.id)}
-                            style={{
-                              padding: "4px 8px",
-                              border: "1px solid #dc2626",
-                              borderRadius: 4,
-                              background: "white",
-                              color: "#dc2626",
-                              fontSize: 12,
-                              cursor: "pointer",
-                              fontFamily: 'inherit',
-                            }}
-                          >
-                            Resign
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))
+            {activeTab === "active" && (
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => {
+              if (el) el.indeterminate = isIndeterminate;
+                }}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+            )}
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#374151",
+            width: activeTab === "active" ? "18%" : "16%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            Full Name
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#374151",
+            width: activeTab === "active" ? "15%" : "14%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            Position
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#374151",
+            width: activeTab === "active" ? "12%" : "11%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            Department
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#374151",
+            width: activeTab === "active" ? "13%" : "12%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            Client
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#374151",
+            width: activeTab === "active" ? "18%" : "16%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            Corporate Email
+              </th>
+              <th style={{ 
+            padding: "clamp(8px, 1vw, 16px)", 
+            textAlign: "left", 
+            fontWeight: 600, 
+            color: "#9c2b2bff",
+            width: activeTab === "active" ? "10%" : "9%",
+            fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+            {activeTab === "active" ? "Date Hired" : "Date Resigned"}
+              </th>
+              {activeTab === "resigned" && (
+            <th style={{ 
+              padding: "clamp(8px, 1vw, 16px)", 
+              textAlign: "left", 
+              fontWeight: 600, 
+              color: "#374151",
+              width: "12%",
+              fontSize: "clamp(11px, 0.9vw, 14px)",
+            }}>
+              Resignation Reason
+            </th>
               )}
-            </tbody>
-          </table>
+              {activeTab === "resigned" && (
+            <th style={{ 
+              padding: "clamp(8px, 1vw, 16px)", 
+              textAlign: "center", 
+              fontWeight: 600, 
+              color: "#374151",
+              width: "10%",
+              fontSize: "clamp(11px, 0.9vw, 14px)",
+            }}>
+              Actions
+            </th>
+              )}
+              {activeTab === "active" && (
+            <th style={{ 
+              padding: "clamp(8px, 1vw, 16px)", 
+              textAlign: "center", 
+              fontWeight: 600, 
+              color: "#374151",
+              width: "10%",
+              fontSize: "clamp(11px, 0.9vw, 14px)",
+            }}>
+              Actions
+            </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {isTableLoading ? (
+              <tr>
+            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center" }}>
+              <TableLoadingSpinner />
+            </td>
+              </tr>
+            ) : currentEmployees.length === 0 ? (
+              <tr>
+            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
+              {searchTerm ? (
+                <>
+              No {activeTab} employees found matching "{searchTerm}"
+              <br />
+              <button
+                onClick={() => setSearchTerm("")}
+                style={{
+                  marginTop: 8,
+                  padding: "4px 8px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 4,
+                  background: "white",
+                  color: "#374151",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: 'inherit',
+                }}
+              >
+                Clear search
+              </button>
+                </>
+              ) : (
+                activeTab === "active" ? "No active employees found" : "No resigned employees found"
+              )}
+            </td>
+              </tr>
+            ) : (
+              currentEmployees.map((employee) => (
+            <tr
+              key={employee.id}
+              style={{
+                borderBottom: "1px solid #f3f4f6",
+                ":hover": { backgroundColor: "#f9fafb" },
+              }}
+            >
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+              }}>
+                {activeTab === "active" && (
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(employee.id)}
+                onChange={(e) => handleSelectEmployee(employee.id, e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+                )}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                <span
+              onClick={() => handleEmployeeNameClick(employee)}
+              style={{
+                color: "#2563eb",
+                cursor: "pointer",
+                textDecoration: "underline",
+                textDecorationColor: "transparent",
+                transition: "all 0.2s ease",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.textDecorationColor = "#2563eb";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.textDecorationColor = "transparent";
+              }}
+              title={employee.fullName} // Show full name on hover
+                >
+              {employee.fullName}
+                </span>
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }} title={employee.position}>
+                {employee.position}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }} title={employee.department}>
+                {employee.department}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }} title={getClientName(employee.clientId)}>
+                {getClientName(employee.clientId)}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }} title={employee.corporateEmail || "-"}>
+                {employee.corporateEmail || "-"}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+              }}>
+                {activeTab === "active" 
+              ? formatDisplayDate(employee.dateHired)
+              : formatDisplayDate(employee.dateResigned || employee.dateHired)
+                }
+              </td>
+              {activeTab === "resigned" && (
+                <td style={{ 
+              padding: "clamp(8px, 1vw, 16px)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              fontSize: "clamp(12px, 1vw, 14px)",
+                }} title={employee.resignationReason || "-"}>
+              {employee.resignationReason || "-"}
+                </td>
+              )}
+              {activeTab === "resigned" && (
+                <td style={{ 
+              padding: "clamp(8px, 1vw, 16px)", 
+              textAlign: "center",
+              overflow: "hidden",
+                }}>
+              <button
+                onClick={() => handleUndoResignation(employee.id)}
+                style={{
+                  padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                  border: "1px solid #059669",
+                  borderRadius: 4,
+                  background: "white",
+                  color: "#059669",
+                  fontSize: "clamp(10px, 0.8vw, 12px)",
+                  cursor: "pointer",
+                  fontFamily: 'inherit',
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Undo
+              </button>
+                </td>
+              )}
+              {activeTab === "active" && (
+                <td style={{ 
+              padding: "clamp(8px, 1vw, 16px)", 
+              textAlign: "center",
+              overflow: "hidden",
+                }}>
+              <div style={{ display: "flex", gap: "clamp(4px, 0.5vw, 8px)", justifyContent: "center" }}>
+                <button
+                  onClick={() => {
+                console.log("Edit button clicked for employee:", employee);
+                
+                // Properly format the employee data for editing
+                const formattedEmployee = {
+                  ...employee,
+                  dateHired: formatDateForInput(employee.dateHired),
+                  // Ensure required fields have default values
+                  department: employee.department || "",
+                  clientId: employee.clientId || "",
+                  fullName: employee.fullName || "",
+                  position: employee.position || "",
+                };
+                
+                console.log("Formatted employee data for form:", formattedEmployee);
+                setForm(formattedEmployee);
+                setShowForm(true);
+                  }}
+                  style={{
+                padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                border: "1px solid #d1d5db",
+                borderRadius: 4,
+                background: "white",
+                color: "#374151",
+                fontSize: "clamp(10px, 0.8vw, 12px)",
+                cursor: "pointer",
+                fontFamily: 'inherit',
+                whiteSpace: "nowrap",
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleResignEmployee(employee.id)}
+                  style={{
+                padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                border: "1px solid #dc2626",
+                borderRadius: 4,
+                background: "white",
+                color: "#dc2626",
+                fontSize: "clamp(10px, 0.8vw, 12px)",
+                cursor: "pointer",
+                fontFamily: 'inherit',
+                whiteSpace: "nowrap",
+                  }}
+                >
+                  Resign
+                </button>
+              </div>
+                </td>
+              )}
+            </tr>
+              ))
+            )}
+          </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* Pagination Footer */}
+        {/* Pagination Footer */}
       {allEmployees.length > 0 && (
         <div
           style={{
