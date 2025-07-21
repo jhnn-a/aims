@@ -1278,26 +1278,39 @@ export default function Employee() {
   // Form handlers
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    console.log("Form field changed:", { name, value });
+    setForm((prev) => {
+      const newForm = { ...prev, [name]: value };
+      console.log("Updated form state:", newForm);
+      return newForm;
+    });
   };
 
   const handleSave = async () => {
+    console.log("handleSave called with form:", form);
+    console.log("Is form valid?", isFormValid());
+    
+    // Close modal immediately
+    setForm({});
+    setShowForm(false);
+    
     try {
       setIsTableLoading(true);
       const dataToSave = { ...form };
 
       if (form.id) {
+        console.log("Updating employee with ID:", form.id, "Data:", dataToSave);
         await updateEmployee(form.id, dataToSave);
         showSuccess("Employee updated successfully!");
       } else {
+        console.log("Adding new employee with data:", dataToSave);
         await addEmployee(dataToSave);
         showSuccess("Employee added successfully!");
       }
 
-      setForm({});
-      setShowForm(false);
       loadClientsAndEmployees();
     } catch (error) {
+      console.error("Error in handleSave:", error);
       showError("Error saving employee: " + error.message);
     } finally {
       setIsTableLoading(false);
@@ -1315,6 +1328,10 @@ export default function Employee() {
     if (!employeeToResign) return;
     
     const { id, reason, employee } = employeeToResign;
+    
+    // Close modal immediately
+    setShowResignConfirm(false);
+    setEmployeeToResign(null);
     
     try {
       setIsTableLoading(true);
@@ -1350,9 +1367,6 @@ export default function Employee() {
           undoManager.restoreItem(id);
         }
       );
-      
-      setShowResignConfirm(false);
-      setEmployeeToResign(null);
     } catch (error) {
       showError("Error resigning employee: " + error.message);
     } finally {
@@ -1372,13 +1386,15 @@ export default function Employee() {
     
     const { id } = employeeToUndo;
     
+    // Close modal immediately
+    setShowUndoConfirm(false);
+    setEmployeeToUndo(null);
+    
     try {
       setIsTableLoading(true);
       await undoResignation(id);
       showSuccess("Employee restored to active status successfully!");
       loadClientsAndEmployees();
-      setShowUndoConfirm(false);
-      setEmployeeToUndo(null);
     } catch (error) {
       showError("Error restoring employee: " + error.message);
     } finally {
@@ -1413,6 +1429,10 @@ export default function Employee() {
 
   // Bulk resign with undo capability
   const handleBulkResign = async () => {
+    // Close modal immediately
+    setShowBulkResignModal(false);
+    setBulkResignReason("");
+    
     try {
       setIsTableLoading(true);
       
@@ -1420,6 +1440,9 @@ export default function Employee() {
       const employeesToResign = employees.filter(emp => selectedIds.includes(emp.id));
       const originalStates = employeesToResign.map(emp => ({ ...emp }));
       const resignedIds = [...selectedIds]; // Copy the array before clearing
+      
+      // Clear selection immediately after copying
+      setSelectedIds([]);
       
       // Add each employee to undo manager
       resignedIds.forEach((id, index) => {
@@ -1443,10 +1466,7 @@ export default function Employee() {
         await resignEmployee(id, bulkResignReason);
       }
       
-      setShowBulkResignModal(false);
-      setBulkResignReason("");
       const resignedCount = resignedIds.length;
-      setSelectedIds([]);
       loadClientsAndEmployees();
       
       // Show undo notification for bulk operation
@@ -1591,6 +1611,37 @@ export default function Employee() {
     showSuccess(`Excel file exported successfully! (${exportData.length} ${activeTab} employees)`);
   };
 
+  // Helper to format date for input field (YYYY-MM-DD format)
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return "";
+    
+    // Handle Firestore timestamp object
+    if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
+      const date = new Date(dateValue.seconds * 1000);
+      return date.toISOString().slice(0, 10);
+    }
+    
+    // Handle Date object
+    if (dateValue instanceof Date) {
+      return dateValue.toISOString().slice(0, 10);
+    }
+    
+    // Handle date string
+    if (typeof dateValue === "string") {
+      // If it's already in YYYY-MM-DD format, return as is
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+        return dateValue;
+      }
+      // Try to parse other formats
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().slice(0, 10);
+      }
+    }
+    
+    return "";
+  };
+
   // Utility functions
   const getClientName = (clientId) => {
     const client = clients.find((c) => c.id === clientId);
@@ -1598,7 +1649,17 @@ export default function Employee() {
   };
 
   const isFormValid = () => {
-    return form.fullName && form.position && form.department && form.clientId;
+    console.log("Form validation check:", {
+      fullName: form.fullName,
+      position: form.position,
+      department: form.department,
+      clientId: form.clientId,
+      allFormData: form,
+      isValid: form.fullName && form.position && form.clientId
+    });
+    // Only require fullName, position, and clientId for now
+    // Department can be optional to allow editing existing employees
+    return form.fullName && form.position && form.clientId;
   };
 
   // Sort employees
@@ -1957,7 +2018,7 @@ export default function Employee() {
                 <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
                   Corporate Email
                 </th>
-                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#374151" }}>
+                <th style={{ padding: 16, textAlign: "left", fontWeight: 600, color: "#9c2b2bff" }}>
                   {activeTab === "active" ? "Date Hired" : "Date Resigned"}
                 </th>
                 {activeTab === "resigned" && (
@@ -2091,7 +2152,21 @@ export default function Employee() {
                         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                           <button
                             onClick={() => {
-                              setForm(employee);
+                              console.log("Edit button clicked for employee:", employee);
+                              
+                              // Properly format the employee data for editing
+                              const formattedEmployee = {
+                                ...employee,
+                                dateHired: formatDateForInput(employee.dateHired),
+                                // Ensure required fields have default values
+                                department: employee.department || "",
+                                clientId: employee.clientId || "",
+                                fullName: employee.fullName || "",
+                                position: employee.position || "",
+                              };
+                              
+                              console.log("Formatted employee data for form:", formattedEmployee);
+                              setForm(formattedEmployee);
                               setShowForm(true);
                             }}
                             style={{
