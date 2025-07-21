@@ -192,6 +192,16 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 
 function Clients() {
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
+  // Add missing handleEdit and handleDelete functions
+  const handleEdit = (client) => {
+    setForm({ id: client.id, clientName: client.clientName });
+    setShowForm(true);
+  };
+
+  const handleDelete = (clientId) => {
+    setSelectedId(clientId);
+    setShowConfirm(true);
+  };
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
