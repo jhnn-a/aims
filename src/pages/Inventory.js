@@ -3415,823 +3415,818 @@ function Inventory() {
               maxHeight: "100%",
               scrollbarWidth: "thin", // Show thin scrollbar for better UX
               scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
-              // Custom webkit scrollbar styling
-              WebkitScrollbar: { width: "8px", height: "8px" },
-              WebkitScrollbarTrack: { background: "#f1f5f9" },
-              WebkitScrollbarThumb: { background: "#cbd5e1", borderRadius: "4px" },
-            }}
-          >
-            <table
-              style={{
+                // Custom webkit scrollbar styling
+                WebkitScrollbar: { width: "8px", height: "8px" },
+                WebkitScrollbarTrack: { background: "#f1f5f9" },
+                WebkitScrollbarThumb: { background: "#cbd5e1", borderRadius: "4px" },
+                }}
+                >
+                <table
+                style={{
                 width: "100%",
-                minWidth: "845px", // Further reduced after shrinking Number column from 50px to 35px
+                minWidth: "900px", // Increased for better laptop/desktop display
                 borderCollapse: "collapse",
                 background: "#fff",
                 fontSize: "14px",
                 border: "1px solid #d1d5db",
-              }}
-            >
-              <thead>
+                tableLayout: "fixed", // Fixed layout for better column control
+                }}
+                >
+                <thead>
                 {/* Header Row */}
                 <tr style={{ background: "#f9fafb" }}>
                   <th
-                    style={{
-                      width: "40px", // Reduced checkbox column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "4%", // Percentage-based for responsiveness
+                  padding: "8px 4px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={selectAll}
-                      onChange={handleSelectAll}
-                      style={{ width: 16, height: 16, margin: 0 }}
-                    />
+                  <input
+                  type="checkbox"
+                  checked={selectAll}
+                  onChange={handleSelectAll}
+                  style={{ width: 16, height: 16, margin: 0 }}
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "35px", // Further reduced to match Assets table
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center", // Center align the # symbol
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "3%", // Percentage-based for responsiveness
+                  padding: "8px 4px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    #
+                  #
                   </th>
                   <th
-                    style={{
-                      width: "120px", // Reduced device tag column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "13%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    DEVICE TAG
+                  DEVICE TAG
                   </th>
                   <th
-                    style={{
-                      width: "100px", // Optimized type column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "11%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    TYPE
+                  TYPE
                   </th>
                   <th
-                    style={{
-                      width: "90px", // Reduced brand column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "10%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    BRAND
+                  BRAND
                   </th>
                   <th
-                    style={{
-                      width: "90px", // Reduced model column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "10%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    MODEL
+                  MODEL
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Reduced client column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "9%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    CLIENT
+                  CLIENT
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Reduced condition column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "9%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    CONDITION
+                  CONDITION
                   </th>
                   <th
-                    style={{
-                      minWidth: "120px", // Reduced remarks column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "15%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    REMARKS
+                  REMARKS
                   </th>
                   <th
-                    style={{
-                      width: "110px", // Reduced acquisition date column
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "12%", // Percentage-based for responsiveness
+                  padding: "8px 6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    ACQUISITION DATE
+                  ACQUISITION DATE
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Reduced from 120px to fit only Edit/Delete buttons
-                      minWidth: "80px", // Ensure minimum width is maintained
-                      padding: "8px 12px", // Reduced padding
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: "#f9fafb",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "8%", // Percentage-based for responsiveness
+                  padding: "8px 4px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#374151",
+                  textAlign: "center",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: 0,
+                  background: "#f9fafb",
+                  zIndex: 10,
+                  }}
                   >
-                    ACTIONS
+                  ACTIONS
                   </th>
                 </tr>
                 
                 {/* Filter Row */}
                 <tr style={{ background: "#ffffff" }}>
                   <th
-                    style={{
-                      width: "40px",
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
- // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "4%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    {/* Empty cell for checkbox column */}
+                  {/* Empty cell for checkbox column */}
                   </th>
                   <th
-                    style={{
-                      width: "35px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-// Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "3%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    {/* Empty cell for # column */}
+                  {/* Empty cell for # column */}
                   </th>
                   <th
-                    style={{
-                      width: "120px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                       // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "13%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <TextFilter
-                      value={headerFilters.deviceTag || ""}
-                      onChange={(value) => updateHeaderFilter("deviceTag", value)}
-                      placeholder="Filter by tag..."
-                    />
+                  <TextFilter
+                  value={headerFilters.deviceTag || ""}
+                  onChange={(value) => updateHeaderFilter("deviceTag", value)}
+                  placeholder="Filter by tag..."
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "100px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                      // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "11%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <DropdownFilter
-                      value={headerFilters.deviceType || ""}
-                      onChange={(value) => updateHeaderFilter("deviceType", value)}
-                      options={[...new Set(devices.map(d => d.deviceType).filter(Boolean))]}
-                      placeholder="All Types"
-                    />
+                  <DropdownFilter
+                  value={headerFilters.deviceType || ""}
+                  onChange={(value) => updateHeaderFilter("deviceType", value)}
+                  options={[...new Set(devices.map(d => d.deviceType).filter(Boolean))]}
+                  placeholder="All Types"
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "90px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                    // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "10%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <TextFilter
-                      value={headerFilters.brand || ""}
-                      onChange={(value) => updateHeaderFilter("brand", value)}
-                      placeholder="Filter by brand..."
-                    />
+                  <TextFilter
+                  value={headerFilters.brand || ""}
+                  onChange={(value) => updateHeaderFilter("brand", value)}
+                  placeholder="Filter by brand..."
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "90px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                      // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "10%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <TextFilter
-                      value={headerFilters.model || ""}
-                      onChange={(value) => updateHeaderFilter("model", value)}
-                      placeholder="Filter by model..."
-                    />
+                  <TextFilter
+                  value={headerFilters.model || ""}
+                  onChange={(value) => updateHeaderFilter("model", value)}
+                  placeholder="Filter by model..."
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                   // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "9%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <DropdownFilter
-                      value={headerFilters.client || ""}
-                      onChange={(value) => updateHeaderFilter("client", value)}
-                      options={[...new Set(devices.map(d => d.client).filter(Boolean))]}
-                      placeholder="All Clients"
-                    />
+                  <DropdownFilter
+                  value={headerFilters.client || ""}
+                  onChange={(value) => updateHeaderFilter("client", value)}
+                  options={[...new Set(devices.map(d => d.client).filter(Boolean))]}
+                  placeholder="All Clients"
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-                     // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "9%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <DropdownFilter
-                      value={headerFilters.condition || ""}
-                      onChange={(value) => updateHeaderFilter("condition", value)}
-                      options={["BRANDNEW", "GOOD", "DEFECTIVE", "FOR REPAIR", "DISPOSED"]}
-                      placeholder="All Conditions"
-                    />
+                  <DropdownFilter
+                  value={headerFilters.condition || ""}
+                  onChange={(value) => updateHeaderFilter("condition", value)}
+                  options={["BRANDNEW", "GOOD", "DEFECTIVE"]}
+                  placeholder="All Conditions"
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "120px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-               // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "15%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <TextFilter
-                      value={headerFilters.remarks || ""}
-                      onChange={(value) => updateHeaderFilter("remarks", value)}
-                      placeholder="Filter by remarks..."
-                    />
+                  <TextFilter
+                  value={headerFilters.remarks || ""}
+                  onChange={(value) => updateHeaderFilter("remarks", value)}
+                  placeholder="Filter by remarks..."
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "110px", // Match header width
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
-   // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "12%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    <DateFilter
-                      value={headerFilters.acquisitionDate || ""}
-                      onChange={(value) => updateHeaderFilter("acquisitionDate", value)}
-                    />
+                  <DateFilter
+                  value={headerFilters.acquisitionDate || ""}
+                  onChange={(value) => updateHeaderFilter("acquisitionDate", value)}
+                  />
                   </th>
                   <th
-                    style={{
-                      width: "80px", // Match header width for consistency
-                      minWidth: "80px", // Ensure minimum width is maintained
-                      padding: "6px 8px",
-                      border: "1px solid #d1d5db",
- // Add solid black line under filter row
-                      position: "sticky",
-                      top: "37px",
-                      background: "#ffffff",
-                      zIndex: 10,
-                    }}
+                  style={{
+                  width: "8%",
+                  padding: "6px 4px",
+                  border: "1px solid #d1d5db",
+                  position: "sticky",
+                  top: "37px",
+                  background: "#ffffff",
+                  zIndex: 10,
+                  }}
                   >
-                    {/* Empty cell for actions column */}
+                  {/* Empty cell for actions column */}
                   </th>
                 </tr>
-              </thead>
-              <tbody>
+                </thead>
+                <tbody>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
                   const filteredDevices = getUnassignedDevices(
-                    devices,
-                    deviceSearch,
-                    headerFilters
+                  devices,
+                  deviceSearch,
+                  headerFilters
                   );
 
                   // Calculate pagination
                   const totalPages = Math.ceil(
-                    filteredDevices.length / devicesPerPage
+                  filteredDevices.length / devicesPerPage
                   );
                   const startIndex = (currentPage - 1) * devicesPerPage;
                   const endIndex = startIndex + devicesPerPage;
                   const currentDevices = filteredDevices.slice(
-                    startIndex,
-                    endIndex
+                  startIndex,
+                  endIndex
                   );
 
                   if (currentDevices.length === 0) {
-                    return (
-                      <tr>
-                        <td 
-                          colSpan="11" 
-                          style={{
-                            padding: "40px 20px",
-                            textAlign: "center",
-                            color: "#9ca3af",
-                            fontSize: "14px",
-                            fontWeight: "400",
-                            border: "1px solid #d1d5db",
-                          }}
-                        >
-                          {deviceSearch || hasActiveHeaderFilters
-                            ? "No inventory devices found matching your criteria."
-                            : "No inventory devices to display."}
-                        </td>
-                      </tr>
-                    );
+                  return (
+                    <tr>
+                    <td 
+                      colSpan="11" 
+                      style={{
+                      padding: "40px 20px",
+                      textAlign: "center",
+                      color: "#9ca3af",
+                      fontSize: "14px",
+                      fontWeight: "400",
+                      border: "1px solid #d1d5db",
+                      }}
+                    >
+                      {deviceSearch || hasActiveHeaderFilters
+                      ? "No inventory devices found matching your criteria."
+                      : "No inventory devices to display."}
+                    </td>
+                    </tr>
+                  );
                   }
 
                   return currentDevices.map((device, index) => (
-                    <tr
-                      key={device.id}
+                  <tr
+                    key={device.id}
+                    style={{
+                    borderBottom: "1px solid #d1d5db",
+                    background:
+                      index % 2 === 0
+                      ? "rgb(250, 250, 252)"
+                      : "rgb(240, 240, 243)",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    }}
+                    onClick={() => handleSelectOne(device.id)}
+                    onMouseEnter={(e) => {
+                    if (index % 2 === 0) {
+                      e.currentTarget.style.background =
+                      "rgb(235, 235, 240)";
+                    } else {
+                      e.currentTarget.style.background =
+                      "rgb(225, 225, 235)";
+                    }
+                    }}
+                    onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      index % 2 === 0
+                      ? "rgb(250, 250, 252)"
+                      : "rgb(240, 240, 243)";
+                    }}
+                  >
+                    <td
+                    style={{
+                      width: "4%",
+                      padding: "8px 4px",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                    }}
+                    >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(device.id)}
+                      onChange={(e) => {
+                      e.stopPropagation();
+                      handleSelectOne(device.id);
+                      }}
+                      style={{ width: 16, height: 16, margin: 0 }}
+                    />
+                    </td>
+                    <td
+                    style={{
+                      width: "3%",
+                      padding: "8px 4px",
+                      fontSize: "14px",
+                      color: "rgb(55, 65, 81)",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                    }}
+                    >
+                    {(currentPage - 1) * devicesPerPage + index + 1}
+                    </td>
+                    <td
+                    style={{
+                      width: "13%",
+                      padding: "8px 6px",
+                      fontSize: "14px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    <span
+                      onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowDeviceHistory(device);
+                      }}
                       style={{
-                        borderBottom: "1px solid #d1d5db",
-                        background:
-                          index % 2 === 0
-                            ? "rgb(250, 250, 252)"
-                            : "rgb(240, 240, 243)",
-                        cursor: "pointer",
-                        transition: "background 0.15s",
+                      cursor: "pointer",
+                      color: "rgb(107, 114, 128)",
+                      textDecoration: "none",
+                      fontWeight: 400,
+                      transition: "color 0.2s",
+                      display: "block",
+                      width: "100%",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      fontSize: "13px", // Slightly smaller to fit better
                       }}
-                      onClick={() => handleSelectOne(device.id)}
-                      onMouseEnter={(e) => {
-                        if (index % 2 === 0) {
-                          e.currentTarget.style.background =
-                            "rgb(235, 235, 240)";
-                        } else {
-                          e.currentTarget.style.background =
-                            "rgb(225, 225, 235)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background =
-                          index % 2 === 0
-                            ? "rgb(250, 250, 252)"
-                            : "rgb(240, 240, 243)";
+                      onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                      }
+                      onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                      }
+                      title={`Click to view device history: ${device.deviceTag}`}
+                    >
+                      {device.deviceTag}
+                    </span>
+                    </td>
+                    <td
+                    style={{
+                      width: "11%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.deviceType}
+                    </td>
+                    <td
+                    style={{
+                      width: "10%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.brand}
+                    </td>
+                    <td
+                    style={{
+                      width: "10%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.model || ""}
+                    </td>
+                    <td
+                    style={{
+                      width: "9%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.client || "-"}
+                    </td>
+                    <td
+                    style={{
+                      width: "9%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      overflow: "hidden",
+                    }}
+                    >
+                    <div
+                      style={{
+                      display: "inline-block",
+                      background: getConditionColor(device.condition),
+                      color: getConditionTextColor(device.condition),
+                      padding: "4px 6px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      textAlign: "center",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      <td
-                        style={{
-                          width: "40px",
-                          padding: "8px 12px",
-                          textAlign: "center",
-                          border: "1px solid #d1d5db",
-                        }}
+                      {device.condition}
+                    </div>
+                    </td>
+                    <td
+                    style={{
+                      width: "15%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.remarks || ""}
+                    </td>
+                    <td
+                    style={{
+                      width: "12%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                    }}
+                    >
+                    {device.acquisitionDate ? (
+                      formatDateToMMDDYYYY(device.acquisitionDate)
+                    ) : (
+                      <span
+                      style={{ color: "#9ca3af", fontStyle: "italic" }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(device.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleSelectOne(device.id);
-                          }}
-                          style={{ width: 16, height: 16, margin: 0 }}
-                        />
-                      </td>
-                      <td
-                        style={{
-                          width: "35px", // Match header width
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "rgb(55, 65, 81)",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align the numbers
-                        }}
+                      Not recorded
+                      </span>
+                    )}
+                    </td>
+                    <td
+                    style={{
+                      width: "8%",
+                      padding: "4px 2px",
+                      fontSize: "14px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                    }}
+                    >
+                    <div
+                      style={{
+                      display: "flex",
+                      gap: "1px",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexWrap: "nowrap",
+                      minWidth: "fit-content",
+                      }}
+                    >
+                      <button
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "none",
+                        outline: "none",
+                        borderRadius: 4,
+                        background: "transparent",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        padding: "3px",
+                        minWidth: "24px",
+                        minHeight: "24px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#3b82f6";
+                        e.currentTarget.style.transform = "scale(1.1)";
+                        e.currentTarget.style.boxShadow =
+                        "0 4px 12px rgba(59, 130, 246, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(device);
+                      }}
+                      title="Edit"
                       >
-                        {(currentPage - 1) * devicesPerPage + index + 1}
-                      </td>
-                      <td
+                      <svg
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="#6b7280"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
                         style={{
-                          width: "120px", // Match header width
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                          wordWrap: "break-word", // Enable text wrapping
-                          whiteSpace: "normal", // Allow text to wrap
-                          lineHeight: "1.4", // Improve readability
+                        transition: "stroke 0.2s ease",
                         }}
+                        onMouseEnter={(e) =>
+                        (e.currentTarget.style.stroke = "#ffffff")
+                        }
+                        onMouseLeave={(e) =>
+                        (e.currentTarget.style.stroke = "#6b7280")
+                        }
                       >
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleShowDeviceHistory(device);
-                          }}
-                          style={{
-                            cursor: "pointer",
-                            color: "rgb(107, 114, 128)",
-                            textDecoration: "none",
-                            fontWeight: 400,
-                            transition: "color 0.2s",
-                            display: "block",
-                            width: "100%",
-                            wordWrap: "break-word", // Enable text wrapping
-                            whiteSpace: "normal", // Allow text to wrap
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
-                          }
-                          title={`Click to view device history: ${device.deviceTag}`}
-                        >
-                          {device.deviceTag} {/* Display full text without truncation */}
-                        </span>
-                      </td>
-                      <td
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                      </button>
+                      <button
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "none",
+                        outline: "none",
+                        borderRadius: 4,
+                        background: "transparent",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        padding: "3px",
+                        minWidth: "24px",
+                        minHeight: "24px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#ef4444";
+                        e.currentTarget.style.transform = "scale(1.1)";
+                        e.currentTarget.style.boxShadow =
+                        "0 4px 12px rgba(239, 68, 68, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(device.id);
+                      }}
+                      title="Delete"
+                      >
+                      <svg
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="#6b7280"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
                         style={{
-                          width: "100px", // Match header width
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          overflow: "hidden",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
+                        transition: "stroke 0.2s ease",
                         }}
+                        onMouseEnter={(e) =>
+                        (e.currentTarget.style.stroke = "#ffffff")
+                        }
+                        onMouseLeave={(e) =>
+                        (e.currentTarget.style.stroke = "#6b7280")
+                        }
                       >
-                        <TruncatedText
-                          text={device.deviceType}
-                          maxLength={12}
-                        />
-                      </td>
-                      <td
-                        style={{
-                          width: "90px", // Match header width
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          overflow: "hidden",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                        }}
-                      >
-                        <TruncatedText text={device.brand} maxLength={10} />
-                      </td>
-                      <td
-                        style={{
-                          width: "90px", // Match header width
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                          wordWrap: "break-word", // Enable text wrapping
-                          whiteSpace: "normal", // Allow text to wrap
-                          lineHeight: "1.4", // Improve readability
-                        }}
-                      >
-                        {device.model || ""} {/* Display full text without truncation */}
-                      </td>
-                      <td
-                        style={{
-                          width: "80px",
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          overflow: "hidden",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                        }}
-                      >
-                        <TruncatedText
-                          text={device.client || "-"}
-                          maxLength={8}
-                        />
-                      </td>
-                      <td
-                        style={{
-                          width: "80px",
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          overflow: "hidden",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "inline-block",
-                            background: getConditionColor(device.condition),
-                            color: getConditionTextColor(device.condition),
-                            padding: "4px 8px",
-                            borderRadius: "4px", // Rounded border style
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            textAlign: "center",
-                            minWidth: "70px",
-                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          <TruncatedText
-                            text={device.condition}
-                            maxLength={12}
-                          />
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          width: "120px",
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                          wordWrap: "break-word", // Enable text wrapping
-                          whiteSpace: "normal", // Allow text to wrap
-                          lineHeight: "1.4", // Improve readability
-                        }}
-                      >
-                        {device.remarks || ""} {/* Display full text without truncation */}
-                      </td>
-                      <td
-                        style={{
-                          width: "110px", // Match header width for consistency
-                          padding: "8px 12px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                        }}
-                      >
-                        {device.acquisitionDate ? (
-                          formatDateToMMDDYYYY(device.acquisitionDate)
-                        ) : (
-                          <span
-                            style={{ color: "#9ca3af", fontStyle: "italic" }}
-                          >
-                            Not recorded
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          width: "80px", // Reduced width to fit only Edit/Delete buttons
-                          minWidth: "80px", // Ensure minimum width is maintained
-                          padding: "4px 8px", // Further reduced padding
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center", // Center align content
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "2px", // Further reduced gap for smaller action column
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexWrap: "nowrap", // Prevent wrapping to maintain single row
-                            minWidth: "fit-content", // Ensure container fits content
-                          }}
-                        >
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4, // Slightly smaller border radius
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "4px", // Further reduced padding for smaller action column
-                              minWidth: "28px", // Smaller minimum clickable area
-                              minHeight: "28px", // Smaller minimum clickable area
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#3b82f6";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(59, 130, 246, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(device);
-                            }}
-                            title="Edit"
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                            </svg>
-                          </button>
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4, // Slightly smaller border radius
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "4px", // Further reduced padding to match edit button
-                              minWidth: "28px", // Smaller minimum clickable area
-                              minHeight: "28px", // Smaller minimum clickable area
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#ef4444";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(239, 68, 68, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(device.id);
-                            }}
-                            title="Delete"
-                          >
-                            <svg
-                              width="16"
-                              height="16"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                              <line x1="10" y1="11" x2="10" y2="17" />
-                              <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                      </button>
+                    </div>
+                    </td>
+                  </tr>
                   ));
                 })()}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Fixed Pagination Footer */}
+                </tbody>
+              </table>
+              </div>
+              
+              {/* Fixed Pagination Footer */}
           {(() => {
             // Filter devices based on search AND exclude assigned devices
             const filteredDevices = getUnassignedDevices(
