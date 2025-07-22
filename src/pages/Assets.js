@@ -670,16 +670,17 @@ function Assets() {
   };
 
   const handleSave = async () => {
+    setShowForm(false); // Close modal immediately to prevent multiple clicks
     setSaveError("");
     if (!form.deviceType || !form.deviceTag || !form.brand || !form.condition) {
       setSaveError("Please fill in all required fields.");
       showError("Please fill in all required fields.");
+      setShowForm(true); // Reopen modal if validation fails
       return;
     }
     try {
       const { id, ...payloadWithoutId } = form;
       await updateDevice(form._editDeviceId, payloadWithoutId);
-      setShowForm(false);
       setForm({});
       loadDevicesAndEmployees();
       showSuccess("Device updated successfully!");
@@ -705,6 +706,7 @@ function Assets() {
   };
 
   const confirmUnassign = async () => {
+    setShowUnassignModal(false); // Close modal immediately to prevent multiple clicks
     if (!unassignDevice) return;
     let condition = "GOOD";
     let reason = "Normal unassign (still working)";
@@ -735,7 +737,6 @@ function Assets() {
         condition,
         date: new Date().toISOString(),
       });
-      setShowUnassignModal(false);
       setUnassignDevice(null);
       loadDevicesAndEmployees();
       showSuccess(
@@ -992,6 +993,7 @@ function Assets() {
   };
 
   const confirmBulkUnassign = async () => {
+    setBulkUnassignModalOpen(false); // Close modal immediately to prevent multiple clicks
     // Only allow if all selected devices have the same assignedTo
     const selected = devices.filter((d) => selectedDeviceIds.includes(d.id));
     const assignedToSet = new Set(selected.map((d) => d.assignedTo));
@@ -999,6 +1001,7 @@ function Assets() {
       setBulkUnassignWarning(
         "You can only unassign devices assigned to the same employee."
       );
+      setBulkUnassignModalOpen(true); // Reopen modal if validation fails
       return;
     }
     let condition = "GOOD";
@@ -1044,7 +1047,6 @@ function Assets() {
       devices: selected,
       reason: bulkUnassignReason,
     });
-    setBulkUnassignModalOpen(false);
     setSelectedDeviceIds([]);
     showSuccess(
       `Successfully unassigned ${selected.length} device(s) from ${

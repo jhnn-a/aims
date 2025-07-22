@@ -1196,10 +1196,12 @@ function Inventory() {
   };
 
   const handleSave = async () => {
+    setShowForm(false); // Close modal immediately to prevent multiple clicks
     setSaveError("");
     if (!isFormValid()) {
       setSaveError("Please fill in all required fields.");
       showError("Please fill in all required fields.");
+      setShowForm(true); // Reopen modal if validation fails
       return;
     }
 
@@ -1304,7 +1306,11 @@ function Inventory() {
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
       }
-      resetForm();
+      // Reset form state but keep modal closed
+      setForm({ ...initialForm });
+      setUseSerial(false);
+      setSaveError("");
+      setTagError("");
       loadDevicesAndEmployees();
     } catch (error) {
       console.error("Error saving device:", error);
@@ -1564,6 +1570,7 @@ function Inventory() {
   };
 
   const confirmBulkDelete = async () => {
+    setShowBulkDeleteConfirm(false); // Close modal immediately to prevent multiple clicks
     try {
       // Store selected devices data for undo
       const devicesToDelete = devices.filter((d) => selectedIds.includes(d.id));
@@ -1619,8 +1626,6 @@ function Inventory() {
       console.error("Error deleting devices:", error);
       showError("Failed to delete devices. Please try again.");
       setDeleteProgress({ current: 0, total: 0 });
-    } finally {
-      setShowBulkDeleteConfirm(false);
     }
   };
 
