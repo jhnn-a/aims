@@ -1271,6 +1271,11 @@ export default function Employee() {
     setCurrentPage(1);
   }, [searchTerm]);
 
+  // Reset pagination when employeesPerPage changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [employeesPerPage]);
+
   // Load device history for a specific employee
   const loadEmployeeDeviceHistory = async (employeeId) => {
     try {
@@ -1602,10 +1607,12 @@ export default function Employee() {
 
   // Excel export
   const exportToExcel = () => {
-    const exportData = currentEmployees.map((emp, index) => {
+    // Use allEmployees (filtered/searched data) instead of currentEmployees (paginated data)
+    // This ensures we export all data that matches current filters, not just the visible page
+    const exportData = allEmployees.map((emp, index) => {
       const { firstName, lastName } = extractNames(emp.fullName);
       return {
-        "Employee ID": index + 1, // Simple sequential ID
+        "Employee ID": emp.id || `EMP-${index + 1}`, // Use actual employee ID
         "DATE HIRED": formatDisplayDate(emp.dateHired),
         "CLIENT": getClientName(emp.clientId),
         "LAST NAME": lastName,
@@ -1620,8 +1627,15 @@ export default function Employee() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employees");
-    XLSX.writeFile(wb, `employees_${activeTab}.xlsx`);
-    showSuccess(`Excel file exported successfully! (${exportData.length} ${activeTab} employees)`);
+    
+    // Update filename and success message to reflect what was actually exported
+    const filterInfo = searchTerm ? `filtered_${searchTerm.replace(/[^\w]/g, '_')}_` : '';
+    XLSX.writeFile(wb, `employees_${activeTab}_${filterInfo}${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    const message = searchTerm 
+      ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")` 
+      : `Excel file exported successfully! (${exportData.length} ${activeTab} employees)`;
+    showSuccess(message);
   };
 
   // Helper to format date for input field (YYYY-MM-DD format)
@@ -1718,7 +1732,15 @@ export default function Employee() {
   
   // Calculate pagination
   const totalPages = Math.ceil(allEmployees.length / employeesPerPage);
-  const startIndex = (currentPage - 1) * employeesPerPage;
+  
+  // Ensure current page is within valid bounds to prevent empty states
+  // when changing items per page or when filters reduce the total count
+  const validCurrentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+  if (validCurrentPage !== currentPage && allEmployees.length > 0) {
+    setCurrentPage(validCurrentPage);
+  }
+  
+  const startIndex = (validCurrentPage - 1) * employeesPerPage;
   const endIndex = startIndex + employeesPerPage;
   const currentEmployees = allEmployees.slice(startIndex, endIndex);
   
@@ -1999,12 +2021,12 @@ export default function Employee() {
               zIndex: 10,
             }}>
               <th style={{
-            padding: "clamp(8px, 1vw, 16px)",
-            textAlign: "left",
-            fontWeight: 600,
-            color: "#374151",
-            width: "4%",
-            minWidth: "40px",
+                padding: "clamp(8px, 1vw, 16px)",
+                textAlign: "left",
+                fontWeight: 600,
+                color: "#374151",
+                width: "3%",
+                minWidth: "40px",
               }}>
             {activeTab === "active" && (
               <input
@@ -2019,54 +2041,64 @@ export default function Employee() {
             )}
               </th>
               <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#374151",
-            width: activeTab === "active" ? "18%" : "16%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "8%" : "8%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
               }}>
-            Full Name
+                Employee ID
               </th>
               <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#374151",
-            width: activeTab === "active" ? "15%" : "14%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "16%" : "15%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
               }}>
-            Position
+                Full Name
               </th>
               <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#374151",
-            width: activeTab === "active" ? "12%" : "11%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "13%" : "12%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
               }}>
-            Department
+                Position
               </th>
               <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#374151",
-            width: activeTab === "active" ? "13%" : "12%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "10%" : "9%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
               }}>
-            Client
+                Department
               </th>
               <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#374151",
-            width: activeTab === "active" ? "18%" : "16%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "11%" : "10%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
               }}>
-            Corporate Email
+                Client
+              </th>
+              <th style={{ 
+                padding: "clamp(8px, 1vw, 16px)", 
+                textAlign: "left", 
+                fontWeight: 600, 
+                color: "#374151",
+                width: activeTab === "active" ? "16%" : "15%",
+                fontSize: "clamp(11px, 0.9vw, 14px)",
+              }}>
+                Corporate Email
               </th>
               <th style={{ 
             padding: "clamp(8px, 1vw, 16px)", 
@@ -2179,26 +2211,37 @@ export default function Employee() {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                fontSize: "clamp(12px, 1vw, 14px)",
+                color: "#6b7280",
+                fontFamily: "monospace",
+              }} title={employee.id}>
+                {employee.id ? employee.id.substring(0, 8) : 'Record Not Found'}
+              </td>
+              <td style={{ 
+                padding: "clamp(8px, 1vw, 16px)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}>
                 <span
-              onClick={() => handleEmployeeNameClick(employee)}
-              style={{
-                color: "#2563eb",
-                cursor: "pointer",
-                textDecoration: "underline",
-                textDecorationColor: "transparent",
-                transition: "all 0.2s ease",
-                fontSize: "clamp(12px, 1vw, 14px)",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.textDecorationColor = "#2563eb";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.textDecorationColor = "transparent";
-              }}
-              title={employee.fullName} // Show full name on hover
+                  onClick={() => handleEmployeeNameClick(employee)}
+                  style={{
+                    color: "#2563eb",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    textDecorationColor: "transparent",
+                    transition: "all 0.2s ease",
+                    fontSize: "clamp(12px, 1vw, 14px)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.textDecorationColor = "#2563eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.textDecorationColor = "transparent";
+                  }}
+                  title={employee.fullName} // Show full name on hover
                 >
-              {employee.fullName}
+                  {employee.fullName}
                 </span>
               </td>
               <td style={{ 
@@ -2408,14 +2451,14 @@ export default function Employee() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <button
                 onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
+                disabled={validCurrentPage === 1}
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  background: validCurrentPage === 1 ? "#f5f7fa" : "#fff",
+                  color: validCurrentPage === 1 ? "#9ca3af" : "#445F6D",
+                  cursor: validCurrentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
@@ -2441,15 +2484,15 @@ export default function Employee() {
               </button>
 
               <button
-                onClick={() => setCurrentPage(currentPage - 1)}
-                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(validCurrentPage - 1)}
+                disabled={validCurrentPage === 1}
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                  background: validCurrentPage === 1 ? "#f5f7fa" : "#fff",
+                  color: validCurrentPage === 1 ? "#9ca3af" : "#445F6D",
+                  cursor: validCurrentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
@@ -2479,7 +2522,7 @@ export default function Employee() {
                 const maxVisiblePages = 5;
                 let startPage = Math.max(
                   1,
-                  currentPage - Math.floor(maxVisiblePages / 2)
+                  validCurrentPage - Math.floor(maxVisiblePages / 2)
                 );
                 let endPage = Math.min(
                   totalPages,
@@ -2499,8 +2542,8 @@ export default function Employee() {
                         padding: "8px 12px",
                         borderRadius: "6px",
                         border: "1px solid #e0e7ef",
-                        background: i === currentPage ? "#2563eb" : "#fff",
-                        color: i === currentPage ? "#fff" : "#445F6D",
+                        background: i === validCurrentPage ? "#2563eb" : "#fff",
+                        color: i === validCurrentPage ? "#fff" : "#445F6D",
                         cursor: "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -2517,15 +2560,15 @@ export default function Employee() {
               })()}
 
               <button
-                onClick={() => setCurrentPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(validCurrentPage + 1)}
+                disabled={validCurrentPage === totalPages}
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  background: validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color: validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor: validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
@@ -2551,14 +2594,14 @@ export default function Employee() {
 
               <button
                 onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages}
+                disabled={validCurrentPage === totalPages}
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  background: validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color: validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor: validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
