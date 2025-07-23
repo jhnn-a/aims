@@ -181,7 +181,7 @@
   width: 100%;
   outline: none;
   box-sizing: border-box;
-  transition: border 0.2s;
+  transition: z border 0.2s;
 }
 .clients-search-icon {
   position: absolute;
