@@ -9,7 +9,7 @@ import {
   undoResignation,
 } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
-import { getAllDevices, updateDevice } from "../services/deviceService";
+import { getAllDevices, updateDevice, addDevice } from "../services/deviceService";
 import {
   getDeviceHistoryForEmployee,
   logDeviceHistory,
@@ -1532,10 +1532,11 @@ export default function Employee() {
 
         for (const row of rows) {
           try {
-            // Build full name from first and last name (excluding middle name)
+            // Build full name from first, middle, and last name
             const firstName = row["FIRST NAME"] || "";
+            const middleName = row["MIDDLE NAME"] || "";
             const lastName = row["LAST NAME"] || "";
-            const fullName = `${firstName} ${lastName}`.trim();
+            const fullName = [firstName, middleName, lastName].filter(name => name.trim()).join(' ');
 
             const employeeData = {
               fullName: fullName,
@@ -1547,7 +1548,7 @@ export default function Employee() {
               dateHired: row["DATE HIRED"] || "",
               firstName: firstName,
               lastName: lastName,
-              middleName: "", // Intentionally left empty as requested
+              middleName: middleName,
             };
 
             console.log("Processing employee:", employeeData); // Debug log
@@ -1589,6 +1590,229 @@ export default function Employee() {
     e.target.value = ""; // Reset file input
   };
 
+  // Asset import handler
+  const handleImportDeployedAssets = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsTableLoading(true);
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log("Parsed Asset Excel rows:", rows); // Debug log
+
+        if (rows.length === 0) {
+          showError("Excel file is empty or has no valid data");
+          setIsTableLoading(false);
+          return;
+        }
+
+        let successCount = 0;
+        let errorCount = 0;
+        let skippedCount = 0;
+        const errors = [];
+
+        // Get all existing devices to check for duplicate device tags
+        const existingDevices = await getAllDevices();
+        const existingTags = new Set(existingDevices.map(d => d.deviceTag?.toLowerCase()));
+
+        // Device type mapping for tag generation (matches Assets.js deviceTypes)
+        const deviceTypeMap = {
+          'headset': 'HS',
+          'keyboard': 'KB', 
+          'laptop': 'LPT',
+          'monitor': 'MN',
+          'mouse': 'M',
+          'pc': 'PC',
+          'psu': 'PSU',
+          'ram': 'RAM',
+          'ssd': 'SSD',
+          'ups': 'UPS',
+          'webcam': 'W'
+        };
+
+        // Helper function to generate unique device tag
+        const generateDeviceTag = (deviceType) => {
+          const normalizedType = deviceType?.toLowerCase() || 'dev';
+          const prefix = deviceTypeMap[normalizedType] || 'DEV';
+          
+          // Find highest existing number for this prefix (including in-memory additions)
+          let maxNum = 0;
+          existingDevices.forEach(device => {
+            if (device.deviceTag && device.deviceTag.startsWith(prefix)) {
+              const num = parseInt(device.deviceTag.replace(prefix, ''), 10);
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+          
+          // Also check tags that have been generated in this import session
+          existingTags.forEach(tag => {
+            if (tag.startsWith(prefix.toLowerCase())) {
+              const num = parseInt(tag.replace(prefix.toLowerCase(), ''), 10);
+              if (!isNaN(num) && num > maxNum) maxNum = num;
+            }
+          });
+          
+          const newTag = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+          return newTag;
+        };
+
+        for (const row of rows) {
+          try {
+            // Extract data from Excel columns
+            const employeeName = (row["Employee"] || "").toString().trim();
+            const deviceType = (row["TYPE"] || "").toString().trim();
+            const brand = (row["BRAND"] || "").toString().trim();
+            let deviceTag = (row["DEVICE TAG"] || "").toString().trim();
+            const dateDeployed = row["DATE DEPLOYED"];
+            const employeeId = (row["EMPLOYEE ID"] || "").toString().trim();
+
+            console.log("Processing asset row:", { employeeName, deviceType, brand, deviceTag, dateDeployed, employeeId });
+
+            // Validate required fields
+            if (!deviceType || !brand) {
+              errorCount++;
+              errors.push(`Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`);
+              continue;
+            }
+
+            // Find employee by Employee ID (primary) or name (fallback)
+            let employee = null;
+            if (employeeId) {
+              employee = employees.find(emp => emp.id === employeeId);
+            }
+            
+            if (!employee && employeeName) {
+              employee = employees.find(emp => 
+                emp.fullName?.toLowerCase() === employeeName.toLowerCase()
+              );
+            }
+
+            if (!employee) {
+              skippedCount++;
+              errors.push(`Row with Employee "${employeeName}" (ID: ${employeeId}): Employee not found in system`);
+              continue;
+            }
+
+            // Generate device tag if blank or if duplicate exists
+            if (!deviceTag || existingTags.has(deviceTag.toLowerCase())) {
+              const originalTag = deviceTag;
+              deviceTag = generateDeviceTag(deviceType);
+              if (originalTag) {
+                console.log(`Duplicate device tag "${originalTag}" found, generated new tag: ${deviceTag}`);
+              } else {
+                console.log(`Generated device tag for ${deviceType}: ${deviceTag}`);
+              }
+            }
+
+            // Handle date deployed
+            let assignmentDate = "";
+            if (dateDeployed) {
+              try {
+                const date = new Date(dateDeployed);
+                if (!isNaN(date.getTime())) {
+                  assignmentDate = date.toISOString().slice(0, 10);
+                } else {
+                  assignmentDate = "-"; // Placeholder for invalid date
+                }
+              } catch (error) {
+                assignmentDate = "-"; // Placeholder for date parsing errors
+              }
+            } else {
+              assignmentDate = "-"; // Placeholder for missing date
+            }
+
+            // Create device data
+            const deviceData = {
+              deviceType: deviceType,
+              brand: brand,
+              model: row["MODEL"] || "",
+              serialNumber: row["SERIAL NUMBER"] || "",
+              deviceTag: deviceTag,
+              condition: "GOOD", // Default condition for deployed assets
+              status: "GOOD", // Status set to GOOD since asset is deployed to employee
+              assignedTo: employee.id,
+              assignmentDate: assignmentDate,
+              remarks: `Imported deployed asset for ${employee.fullName}`,
+              specifications: row["SPECIFICATIONS"] || "",
+              warranty: row["WARRANTY"] || "",
+              purchaseDate: row["PURCHASE DATE"] || "",
+              supplier: row["SUPPLIER"] || ""
+            };
+
+            console.log("Creating device:", deviceData);
+
+            // Add device to database
+            const createdDevice = await addDevice(deviceData);
+
+            // Log device history for assignment
+            await logDeviceHistory({
+              employeeId: employee.id,
+              employeeName: employee.fullName,
+              deviceId: createdDevice.id,
+              deviceTag: deviceTag,
+              action: 'assigned',
+              date: assignmentDate === "-" ? new Date().toISOString() : new Date(assignmentDate).toISOString(),
+              reason: 'Bulk import of deployed assets'
+            });
+
+            // Add to existing tags set to prevent duplicates in this import
+            existingTags.add(deviceTag.toLowerCase());
+            
+            successCount++;
+
+          } catch (error) {
+            console.error("Error processing asset row:", error);
+            errorCount++;
+            errors.push(`Row with Employee "${row["Employee"] || 'Unknown'}": ${error.message}`);
+          }
+        }
+
+        // Show results
+        const totalProcessed = successCount + errorCount + skippedCount;
+        let message = `Asset import completed: ${successCount} successful`;
+        if (errorCount > 0) message += `, ${errorCount} errors`;
+        if (skippedCount > 0) message += `, ${skippedCount} skipped`;
+        
+        if (successCount > 0) {
+          showSuccess(message);
+          await loadClientsAndEmployees(); // Refresh data
+        } else {
+          showError(`No assets were imported. ${message}`);
+        }
+
+        // Log errors for debugging
+        if (errors.length > 0) {
+          console.log("Asset import errors:", errors);
+          if (errors.length <= 5) {
+            // Show first few errors in UI
+            showError(`Import issues: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+          }
+        }
+
+      } catch (error) {
+        console.error("Error importing assets:", error);
+        showError("Error importing assets: " + error.message);
+      } finally {
+        setIsTableLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
+      showError("Error reading the asset Excel file");
+      setIsTableLoading(false);
+    };
+
+    reader.readAsArrayBuffer(file);
+    e.target.value = ""; // Reset file input
+  };
+
   // Helper function to find client ID by name
   const findClientIdByName = (clientName) => {
     if (!clientName) return "";
@@ -1596,13 +1820,21 @@ export default function Employee() {
     return client ? client.id : "";
   };
 
-  // Helper function to extract first and last names from fullName
+  // Helper function to extract first, middle, and last names from fullName
   const extractNames = (fullName) => {
-    if (!fullName) return { firstName: "", lastName: "" };
-    const nameParts = fullName.trim().split(' ');
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(' ') || "";
-    return { firstName, lastName };
+    if (!fullName) return { firstName: "", middleName: "", lastName: "" };
+    const nameParts = fullName.trim().split(' ').filter(part => part.length > 0);
+    
+    if (nameParts.length === 0) return { firstName: "", middleName: "", lastName: "" };
+    if (nameParts.length === 1) return { firstName: nameParts[0], middleName: "", lastName: "" };
+    if (nameParts.length === 2) return { firstName: nameParts[0], middleName: "", lastName: nameParts[1] };
+    
+    // For 3+ parts: first name, middle name(s), last name
+    const firstName = nameParts[0];
+    const lastName = nameParts[nameParts.length - 1]; // Last part is the last name
+    const middleName = nameParts.slice(1, -1).join(' '); // Everything between first and last
+    
+    return { firstName, middleName, lastName };
   };
 
   // Excel export
@@ -1610,14 +1842,14 @@ export default function Employee() {
     // Use allEmployees (filtered/searched data) instead of currentEmployees (paginated data)
     // This ensures we export all data that matches current filters, not just the visible page
     const exportData = allEmployees.map((emp, index) => {
-      const { firstName, lastName } = extractNames(emp.fullName);
+      const { firstName, middleName, lastName } = extractNames(emp.fullName);
       return {
         "Employee ID": emp.id || `EMP-${index + 1}`, // Use actual employee ID
         "DATE HIRED": formatDisplayDate(emp.dateHired),
         "CLIENT": getClientName(emp.clientId),
         "LAST NAME": lastName,
         "FIRST NAME": firstName,
-        "MIDDLE NAME": "", // Intentionally left empty as requested
+        "MIDDLE NAME": middleName, // Now properly extracted middle name
         "POSITION": emp.position,
         "CORPORATE EMAIL": emp.corporateEmail || "",
         "PERSONAL EMAIL": emp.personalEmail || "",
@@ -1708,6 +1940,8 @@ export default function Employee() {
     if (!searchTerm.trim()) return employeeList;
     
     const term = searchTerm.toLowerCase().trim();
+    console.log("Searching for term:", term); // Debug log
+    
     return employeeList.filter(employee => {
       const fullName = (employee.fullName || "").toLowerCase();
       const position = (employee.position || "").toLowerCase();
@@ -1715,13 +1949,22 @@ export default function Employee() {
       const corporateEmail = (employee.corporateEmail || "").toLowerCase();
       const personalEmail = (employee.personalEmail || "").toLowerCase();
       const clientName = getClientName(employee.clientId).toLowerCase();
+      const employeeId = (employee.id || "").toLowerCase();
       
-      return fullName.includes(term) ||
+      // Debug logging for employee ID search
+      if (term.length > 0) {
+        console.log("Employee:", employee.fullName, "ID:", employee.id, "Searching for:", term, "Match:", employeeId.includes(term));
+      }
+      
+      const matches = fullName.includes(term) ||
              position.includes(term) ||
              department.includes(term) ||
              corporateEmail.includes(term) ||
              personalEmail.includes(term) ||
-             clientName.includes(term);
+             clientName.includes(term) ||
+             employeeId.includes(term);
+             
+      return matches;
     });
   };
 
@@ -1942,6 +2185,31 @@ export default function Employee() {
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleImportExcel}
+                style={{ display: "none" }}
+              />
+            </label>
+          )}
+          {/* Asset Import Button */}
+          {activeTab === "active" && (
+            <label
+              style={{
+                padding: "8px 16px",
+                border: "1px solid #10b981",
+                borderRadius: 6,
+                background: "#10b981",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: 'inherit',
+                display: "inline-block",
+              }}
+            >
+              Import Deployed Assets
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleImportDeployedAssets}
                 style={{ display: "none" }}
               />
             </label>
