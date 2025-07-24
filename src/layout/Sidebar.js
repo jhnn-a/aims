@@ -75,15 +75,14 @@ function Sidebar({ user }) {
           onMouseEnter={() => setShowCredits(true)}
           onMouseLeave={() => setShowCredits(false)}
         >
-          Copyright &copy; AIMS 2025.
-          <br />
-          All rights reserved.
+          <span className="sidebar-brand" style={{ color: "inherit" }}>
+            AIMS
+          </span>{" "}
+          &copy; {new Date().getFullYear()}
           {showCredits && (
             <div className="sidebar-credits-tooltip">
               <div className="sidebar-credits-title">Developed by</div>
               <div className="sidebar-credits-names">
-                Albert Lago
-                <br />
                 Ryan Bumalic
                 <br />
                 John Mungcal

@@ -28,7 +28,11 @@ function UserManagement({ currentUser }) {
   });
   const actionMenuRef = useRef();
 
-  // Filtered users (no pagination)
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+
+  // Filtered users
   const filteredUsers = useMemo(
     () =>
       users.filter(
@@ -39,10 +43,33 @@ function UserManagement({ currentUser }) {
     [users, search]
   );
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage));
+  const paginatedUsers = useMemo(() => {
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    return filteredUsers.slice(startIdx, startIdx + rowsPerPage);
+  }, [filteredUsers, currentPage, rowsPerPage]);
+
+  const startIdx =
+    filteredUsers.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const endIdx = Math.min(currentPage * rowsPerPage, filteredUsers.length);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
   useEffect(() => {
     const validIds = new Set(filteredUsers.map((u) => u.uid));
     setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
-  }, [filteredUsers]);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredUsers, currentPage, totalPages]);
 
   const handleCheckboxChange = useCallback((uid) => {
     setCheckedRows((prev) =>
@@ -101,8 +128,13 @@ function UserManagement({ currentUser }) {
   // Only show if current user is admin
   if (!currentUser || currentUser.role !== "admin") {
     return (
-      <div style={{ padding: 32, color: "#e11d48", fontWeight: 700 }}>
-        Access denied. Admins only.
+      <div className="clients-page">
+        <div className="clients-header">
+          <h1 className="clients-title">User Management</h1>
+        </div>
+        <div style={{ padding: 32, color: "#e11d48", fontWeight: 700 }}>
+          Access denied. Admins only.
+        </div>
       </div>
     );
   }
@@ -223,951 +255,299 @@ function UserManagement({ currentUser }) {
   };
 
   return (
-    <main
-      style={{
-        background: "#FAFAFC",
-        minHeight: "100vh",
-        width: "100vw",
-        boxSizing: "border-box",
-        display: "block",
-        paddingLeft: 0, // Remove sidebar offset
-        paddingTop: 32,
-        paddingRight: 0,
-        paddingBottom: 32,
-        overflowX: "auto",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 1700,
-          margin: "0 auto",
-          background: "#FAFAFC",
-          boxSizing: "border-box",
-          padding: "0 32px 32px 32px",
-          borderRadius: 0,
-          boxShadow: "none",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "stretch", // Fix: allow table to fill container
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 1614,
-            margin: "0 auto",
-            paddingRight: 16,
-            paddingLeft: 16,
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 16,
-              }}
+    <div className="clients-page">
+      <div className="clients-header">
+        <h1 className="clients-title">User Management</h1>
+        <div className="clients-header-actions">
+          <button
+            className="clients-add-btn"
+            onClick={() => setShowModal(true)}
+          >
+            + Create New User
+          </button>
+          {checkedRows.length > 0 && (
+            <button
+              className="clients-delete-btn"
+              onClick={() => alert("Bulk actions coming soon")}
             >
-              <div
-                style={{
-                  fontFamily: "IBM Plex Sans",
-                  fontSize: 28,
-                  lineHeight: "37.24px",
-                  fontWeight: 400,
-                  letterSpacing: "normal",
-                  color: "#2B2C3B",
-                }}
-              >
-                User Management
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {checkedRows.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => alert("Bulk actions coming soon")}
-                    style={{
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      fontWeight: 500,
-                      letterSpacing: "normal",  
-                      color: "#D32F2F",
-                      background: "#f2f2f2",
-                      minWidth: 87.625,
-                      height: 30.6667,
-                      borderRadius: 6,
-                      border: "none",
-                      outline: "none",
-                      cursor: "pointer",
-                      transition: "background 0.2s, color 0.2s",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      userSelect: "none",
-                      boxShadow: "none",
-                      padding: "0 16px",
-                      whiteSpace: "nowrap",
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = "#F1C9BF";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = "#f2f2f2";
-                    }}
-                    onMouseDown={(e) => {
-                      e.currentTarget.style.background = "#F1C9BF";
-                    }}
-                    onMouseUp={(e) => {
-                      e.currentTarget.style.background = "#f2f2f2";
-                    }}
-                  >
-                    Delete Selected
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowModal(true)}
-                  style={{
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    fontWeight: 500,
-                    letterSpacing: "normal",
-                    color: "#3B3B4A",
-                    background: "#f2f2f2",
-                    minWidth: 87.625,
-                    height: 30.6667,
-                    borderRadius: 6,
-                    border: "none",
-                    outline: "none",
-                    cursor: "pointer",
-                    transition: "background 0.2s, color 0.2s",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    userSelect: "none",
-                    boxShadow: "none",
-                    padding: "0 16px",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = "#E5E5E5";
-                    e.currentTarget.style.color = "#3B3B4A";
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = "#f2f2f2";
-                    e.currentTarget.style.color = "#3B3B4A";
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.background = "#E5E5E5";
-                    e.currentTarget.style.color = "#3B3B4A";
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.background = "#f2f2f2";
-                    e.currentTarget.style.color = "#3B3B4A";
-                  }}
-                >
-                  + Create New User
-                </button>
-              </div>
-            </div>
-            {/* Table Toolbar with search bar and action buttons */}
-            <div
-              style={{
-                width: "100%",
-                maxWidth: 1614,
-                height: 40,
-                background: "#fff",
-                border: "1px solid #d7d7e0",
-                borderBottom: "none",
-                borderRadius: 0,
-                margin: "0 auto",
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                padding: 8,
-                gap: 12,
-                justifyContent: "space-between",
-              }}
-            >
-              {/* Left: Search bar */}
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    left: 4,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    display: "flex",
-                    alignItems: "center",
-                    pointerEvents: "none",
-                    color: "#1D2536",
-                    fontSize: 16,
-                    paddingLeft: 0,
-                    paddingRight: 4,
-                    height: 20,
-                  }}
-                >
-                  {/* Simple magnifier glass SVG icon */}
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="7"
-                      cy="7"
-                      r="5.5"
-                      stroke="#1D2536"
-                      strokeWidth="1.5"
-                    />
-                    <line
-                      x1="11.3536"
-                      y1="11.6464"
-                      x2="15"
-                      y2="15.2929"
-                      stroke="#1D2536"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="Search by Email or UID..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    fontWeight: 400,
-                    letterSpacing: "normal",
-                    color: "#2B2C3B",
-                    background: "#F8F8F8",
-                    width: 270,
-                    height: 28,
-                    borderRadius: 6,
-                    border: "1px solid #d7d7e0",
-                    outline: "none",
-                    marginRight: 16,
-                    padding: "4px 8px 4px 28px",
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-            </div>
-            {/* Secondary toolbar for row selection actions */}
-            {checkedRows.length > 0 && (
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: 1614,
-                  height: 32,
-                  background: "#fff",
-                  border: "1px solid #d7d7e0",
-                  borderTop: "none",
-                  borderBottom: "none",
-                  borderRadius: 0,
-                  margin: "0 auto",
-                  boxSizing: "border-box",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "0 8px",
-                  gap: 12,
-                  justifyContent: "flex-start",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "IBM Plex Sans",
-                    fontSize: 12,
-                    lineHeight: "17.04px",
-                    fontWeight: 400,
-                    letterSpacing: "normal",
-                    color: "#3B3B4A",
-                    display: "flex",
-                    alignItems: "center",
-                    padding: "0 0",
-                  }}
-                >
-                  <span style={{ fontWeight: 700, marginRight: 2 }}>
-                    {checkedRows.length}
-                  </span>
-                  {checkedRows.length === 1 ? "user" : "users"} selected.
-                </span>
-              </div>
-            )}
-            {/* Table Header */}
-            <table
-              border="1"
-              style={{
-                borderCollapse: "collapse",
-                width: "100%",
-                maxWidth: 1614,
-                tableLayout: "fixed",
-                boxShadow: "none",
-                border: "1px solid #d7d7e0",
-                background: "#FFFFFF",
-                fontFamily:
-                  'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                fontSize: 14,
-                lineHeight: "20.0004px",
-                color: "rgb(59, 59, 74)",
-                letterSpacing: "normal",
-                fontWeight: 400,
-                margin: "0 auto",
-              }}
-            >
-              <thead>
+              Delete Selected
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="clients-search-bar">
+        <div className="clients-search-input-wrapper">
+          <input
+            type="text"
+            placeholder="Search by Email or UID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="clients-search-input"
+          />
+          <span className="clients-search-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle
+                cx="8"
+                cy="8"
+                r="6.5"
+                stroke="#A0AEC0"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="13.3536"
+                y1="13.6464"
+                x2="17"
+                y2="17.2929"
+                stroke="#A0AEC0"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+        </div>
+      </div>
+      {checkedRows.length > 0 && (
+        <div className="clients-bulk-toolbar">
+          <span className="clients-bulk-count">{checkedRows.length}</span>
+          <span className="clients-bulk-label">
+            {checkedRows.length === 1 ? "user" : "users"} selected.
+          </span>
+        </div>
+      )}
+      <div className="clients-content">
+        <div className="clients-table-container">
+          <table className="clients-table">
+            <thead>
+              <tr className="clients-table-header">
+                <th className="clients-table-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={
+                      checkedRows.length > 0 &&
+                      checkedRows.length === filteredUsers.length &&
+                      filteredUsers.length > 0
+                    }
+                    onChange={handleCheckAll}
+                    className="clients-checkbox"
+                  />
+                </th>
+                <th className="clients-table-no">No.</th>
+                <th className="clients-table-id">Email</th>
+                <th className="clients-table-name">Role</th>
+                <th className="clients-table-employees">User UID</th>
+                <th className="clients-table-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usersLoading ? (
                 <tr>
-                  <th
-                    style={{
-                      textAlign: "center",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: 40,
-                      minWidth: 40,
-                      maxWidth: 40,
-                      whiteSpace: "nowrap",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: 0,
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={
-                        checkedRows.length > 0 &&
-                        checkedRows.length === filteredUsers.length &&
-                        filteredUsers.length > 0
-                      }
-                      onChange={handleCheckAll}
-                      style={{
-                        border: "1px solid #d7d7e0",
-                        boxSizing: "border-box",
-                        width: 16,
-                        height: 16,
-                        margin: 0,
-                        display: "block",
-                        position: "relative",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                      }}
-                    />
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: "1%",
-                      whiteSpace: "nowrap",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: "8px 12px",
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    #
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: "32%",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: "8px 12px",
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    Email
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: "18%",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: "8px 12px",
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    Role
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: "32%",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: "8px 12px",
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    User UID
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      verticalAlign: "middle",
-                      fontWeight: 400,
-                      width: "17%",
-                      background: "#FFFFFF",
-                      fontFamily:
-                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                      fontSize: 14,
-                      lineHeight: "20.0004px",
-                      color: "rgb(59, 59, 74)",
-                      letterSpacing: "normal",
-                      padding: "8px 12px",
-                      border: "1px solid #d7d7e0",
-                    }}
-                  >
-                    Actions
-                  </th>
+                  <td colSpan={6} className="clients-table-empty">
+                    <TableLoadingSpinner />
+                  </td>
                 </tr>
-              </thead>
-            </table>
-            {/* Table Body */}
-            <div
-              style={{
-                width: "100%",
-                maxWidth: 1614,
-                height: 706,
-                maxHeight: 706,
-                overflowY: "scroll",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                margin: "0 auto",
-                background: "#fff",
-                borderRadius: 0,
-                boxShadow: "none",
-              }}
-            >
-              <div
-                style={{
-                  flex: 1,
-                  overflow: "auto",
-                  width: "100%",
-                  maxWidth: 1614,
-                  margin: "0 auto",
-                }}
-              >
-                <table
-                  border="1"
-                  style={{
-                    borderCollapse: "collapse",
-                    width: "100%",
-                    maxWidth: 1614,
-                    tableLayout: "fixed",
-                    boxShadow: "none",
-                    border: "1px solid #d7d7e0",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    fontWeight: 400,
-                    margin: "0 auto",
-                  }}
-                >
-                  <tbody>
-                    {usersLoading ? (
-                      <tr>
-                        <td
-                          colSpan="6"
-                          style={{ textAlign: "center", padding: "40px 0" }}
+              ) : (
+                paginatedUsers.map((u, idx) => {
+                  const isChecked = checkedRows.includes(u.uid);
+                  const selectedIndex = checkedRows.indexOf(u.uid);
+                  const rowClass = isChecked
+                    ? selectedIndex % 2 === 0
+                      ? "clients-table-row selected"
+                      : "clients-table-row selected-alt"
+                    : idx % 2 === 0
+                    ? "clients-table-row unselected"
+                    : "clients-table-row unselected-alt";
+                  return (
+                    <tr
+                      key={u.uid}
+                      className={rowClass}
+                      onMouseEnter={(e) =>
+                        !isChecked && e.currentTarget.classList.add("hover")
+                      }
+                      onMouseLeave={(e) =>
+                        !isChecked && e.currentTarget.classList.remove("hover")
+                      }
+                    >
+                      <td className="clients-table-checkbox-cell">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleCheckboxChange(u.uid)}
+                          className="clients-checkbox"
+                        />
+                      </td>
+                      <td>{startIdx + idx}</td>
+                      <td>{u.email}</td>
+                      <td>{u.role || "unknown"}</td>
+                      <td>{u.uid}</td>
+                      <td className="clients-table-actions-cell">
+                        <button
+                          type="button"
+                          className="clients-table-actions-btn"
+                          title="Actions"
+                          onClick={(e) =>
+                            setActionMenu({
+                              open: true,
+                              idx,
+                              anchor: e.currentTarget,
+                            })
+                          }
                         >
-                          <TableLoadingSpinner />
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredUsers.map((u, idx) => {
-                        const isChecked = checkedRows.includes(u.uid);
-                        let rowBg;
-                        if (isChecked) {
-                          rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
-                        } else {
-                          rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
-                        }
-                        const isLastRow = idx === filteredUsers.length - 1;
-                        const getCellBorderStyle = (cellIdx) => ({
-                          width:
-                            cellIdx === 0
-                              ? 40
-                              : cellIdx === 1
-                              ? "1%"
-                              : cellIdx === 2
-                              ? "32%"
-                              : cellIdx === 3
-                              ? "18%"
-                              : cellIdx === 4
-                              ? "32%"
-                              : "17%",
-                          minWidth: cellIdx === 0 ? 40 : undefined,
-                          maxWidth: cellIdx === 0 ? 40 : undefined,
-                          textAlign: cellIdx === 0 ? "center" : "left",
-                          verticalAlign: "middle",
-                          whiteSpace: cellIdx <= 1 ? "nowrap" : undefined,
-                          borderLeft: "1px solid #d7d7e0",
-                          borderRight: "1px solid #d7d7e0",
-                          borderTop: "none",
-                          borderBottom: isLastRow ? "none" : "none",
-                          padding: cellIdx === 0 ? 0 : "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                        });
-                        return (
-                          <tr
-                            key={u.uid}
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
+                            <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
+                            <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
+                          </svg>
+                        </button>
+                        {actionMenu.open && actionMenu.idx === idx && (
+                          <div
+                            ref={actionMenuRef}
+                            className="clients-table-actions-menu"
                             style={{
-                              background: rowBg,
-                              cursor: "pointer",
-                              transition: "background 0.2s",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isChecked)
-                                e.currentTarget.style.background = "#E5E5E8";
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isChecked)
-                                e.currentTarget.style.background = rowBg;
+                              left:
+                                actionMenu.anchor?.getBoundingClientRect()
+                                  .left ?? 0,
+                              top:
+                                actionMenu.anchor?.getBoundingClientRect()
+                                  .bottom + 4 ?? 0,
                             }}
                           >
-                            <td style={getCellBorderStyle(0)}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleCheckboxChange(u.uid)}
-                                style={{
-                                  border: "1px solid #d7d7e0",
-                                  boxSizing: "border-box",
-                                  width: 16,
-                                  height: 16,
-                                  margin: 0,
-                                  display: "block",
-                                  position: "relative",
-                                  left: "50%",
-                                  transform: "translateX(-50%)",
-                                }}
-                              />
-                            </td>
-                            <td style={getCellBorderStyle(1)}>{idx + 1}</td>
-                            <td style={getCellBorderStyle(2)}>{u.email}</td>
-                            <td style={getCellBorderStyle(3)}>
-                              {u.role || "unknown"}
-                            </td>
-                            <td style={getCellBorderStyle(4)}>{u.uid}</td>
-                            <td style={getCellBorderStyle(5)}>
-                              {/* Actions: Edit/Delete buttons, similar to Clients */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionMenu({
+                                  open: false,
+                                  idx: null,
+                                  anchor: null,
+                                });
+                                handleEditRole(u);
+                              }}
+                            >
+                              Edit
+                            </button>
+                            {currentUser.uid !== u.uid && (
                               <button
                                 type="button"
-                                style={{
-                                  background: "none",
-                                  border: "none",
-                                  padding: 0,
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  width: 28,
-                                  height: 28,
-                                  borderRadius: 4,
-                                  transition:
-                                    "background 0.2s, box-shadow 0.2s",
-                                }}
-                                title="Actions"
-                                onClick={(e) => {
+                                onClick={() => {
                                   setActionMenu({
-                                    open: true,
-                                    idx,
-                                    anchor: e.currentTarget,
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
                                   });
+                                  handleDeleteUser(u.uid);
                                 }}
                               >
-                                {/* Triple dot icon */}
-                                <svg
-                                  width="18"
-                                  height="18"
-                                  viewBox="0 0 18 18"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <circle
-                                    cx="4.5"
-                                    cy="9"
-                                    r="1.2"
-                                    fill="#1D2536"
-                                  />
-                                  <circle
-                                    cx="9"
-                                    cy="9"
-                                    r="1.2"
-                                    fill="#1D2536"
-                                  />
-                                  <circle
-                                    cx="13.5"
-                                    cy="9"
-                                    r="1.2"
-                                    fill="#1D2536"
-                                  />
-                                </svg>
+                                Delete
                               </button>
-                              {actionMenu.open && actionMenu.idx === idx && (
-                                <div
-                                  ref={actionMenuRef}
-                                  style={{
-                                    position: "absolute",
-                                    top: 36,
-                                    left: "50%",
-                                    transform: "translateX(-50%)",
-                                    background: "#fff",
-                                    border: "1px solid #d7d7e0",
-                                    borderRadius: 0,
-                                    boxShadow: "0 4px 16px 0 #00000014",
-                                    zIndex: 10,
-                                    minWidth: 120,
-                                    padding: 0,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActionMenu({
-                                        open: false,
-                                        idx: null,
-                                        anchor: null,
-                                      });
-                                      handleEditRole(u);
-                                    }}
-                                    style={{
-                                      fontFamily:
-                                        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                                      fontSize: 14,
-                                      color: "#3B3B4A",
-                                      background: "none",
-                                      border: "none",
-                                      borderBottom: "1px solid #eee",
-                                      padding: "12px 20px",
-                                      cursor: "pointer",
-                                      textAlign: "center",
-                                      width: "100%",
-                                      transition: "background 0.2s",
-                                    }}
-                                    onMouseOver={(e) =>
-                                      (e.currentTarget.style.background =
-                                        "#F0F0F3")
-                                    }
-                                    onMouseOut={(e) =>
-                                      (e.currentTarget.style.background =
-                                        "none")
-                                    }
-                                  >
-                                    Edit
-                                  </button>
-                                  {currentUser.uid !== u.uid && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setActionMenu({
-                                          open: false,
-                                          idx: null,
-                                          anchor: null,
-                                        });
-                                        handleDeleteUser(u.uid);
-                                      }}
-                                      style={{
-                                        fontFamily:
-                                          'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                                        fontSize: 14,
-                                        color: "#D32F2F",
-                                        background: "none",
-                                        border: "none",
-                                        padding: "12px 20px",
-                                        cursor: "pointer",
-                                        textAlign: "center",
-                                        width: "100%",
-                                        transition: "background 0.2s",
-                                      }}
-                                      onMouseOver={(e) =>
-                                        (e.currentTarget.style.background =
-                                          "#F1C9BF")
-                                      }
-                                      onMouseOut={(e) =>
-                                        (e.currentTarget.style.background =
-                                          "none")
-                                      }
-                                    >
-                                      Delete
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {/* Sticky Footer Table */}
-              <div
-                style={{
-                  position: "sticky",
-                  bottom: 0,
-                  left: 0,
-                  width: "100%",
-                  maxWidth: 1614,
-                  background: "#fff",
-                  zIndex: 2,
-                  borderTop: "1px solid #d7d7e0",
-                  flexShrink: 0,
-                  margin: "0 auto",
-                }}
-              >
-                <table
-                  border="1"
-                  style={{
-                    borderCollapse: "collapse",
-                    width: "100%",
-                    maxWidth: 1614,
-                    tableLayout: "fixed",
-                    boxShadow: "none",
-                    border: "1px solid #d7d7e0",
-                    borderTop: "none",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    fontWeight: 400,
-                    margin: "0 auto",
-                  }}
-                >
-                  <tfoot>
-                    <tr style={{ height: 40 }}>
-                      <td
-                        style={{
-                          width: "1%",
-                          whiteSpace: "nowrap",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "1px solid #d7d7e0",
-                          borderRight: "none",
-                          height: 40,
-                        }}
-                      ></td>
-                      <td
-                        style={{
-                          width: "1%",
-                          whiteSpace: "nowrap",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "none",
-                          borderRight: "none",
-                          height: 40,
-                        }}
-                      ></td>
-                      <td
-                        style={{
-                          width: "32%",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "none",
-                          borderRight: "none",
-                          height: 40,
-                        }}
-                      ></td>
-                      <td
-                        style={{
-                          width: "18%",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "none",
-                          borderRight: "none",
-                          height: 40,
-                        }}
-                      ></td>
-                      <td
-                        style={{
-                          width: "32%",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "none",
-                          borderRight: "none",
-                          height: 40,
-                        }}
-                      ></td>
-                      <td
-                        style={{
-                          width: "17%",
-                          padding: "8px 12px",
-                          color: "rgb(59, 59, 74)",
-                          background: "#FFFFFF",
-                          borderColor: "#d7d7e0",
-                          borderLeft: "none",
-                          borderRight: "1px solid #d7d7e0",
-                          height: 40,
-                        }}
-                      ></td>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <style>{`
-                div[style*='overflowY: scroll']::-webkit-scrollbar { display: none; }
-              `}</style>
-            </div>
-          </div>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination Footer */}
+        <div className="clients-pagination-footer">
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            First
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              className={`clients-pagination-btn${
+                page === currentPage ? " selected" : ""
+              }`}
+              onClick={() => setCurrentPage(page)}
+              disabled={page === currentPage}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            Last
+          </button>
+          <span className="clients-pagination-info">
+            Showing {startIdx} - {endIdx} of {filteredUsers.length} users
+          </span>
+          <span className="clients-pagination-select">
+            Show:
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="clients-rows-select"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </span>
         </div>
       </div>
       {/* Modals */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.25)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: 0,
-              boxShadow: "none",
-              padding: 32,
-              minWidth: 340,
-              maxWidth: 420,
-              position: "relative",
-            }}
-          >
+        <div className="clients-modal-overlay">
+          <div className="clients-modal-box">
             <button
+              className="clients-modal-close"
               onClick={() => setShowModal(false)}
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 16,
-                background: "none",
-                border: "none",
-                fontSize: 22,
-                color: "#888",
-                cursor: "pointer",
-              }}
               aria-label="Close"
+              title="Close"
             >
               ×
             </button>
-            <h2
-              style={{
-                color: "#233037",
-                fontWeight: 800,
-                fontSize: 22,
-                marginBottom: 18,
-                textAlign: "center",
-              }}
-            >
-              Create New User
-            </h2>
-            <form
-              onSubmit={handleCreateUser}
-              style={{ display: "flex", flexDirection: "column", gap: 16 }}
-            >
+            <h3 className="clients-modal-title">Create New User</h3>
+            <form onSubmit={handleCreateUser} className="clients-modal-form">
               <input
+                className="clients-modal-input"
                 type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 6,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 16,
-                }}
               />
               <input
+                className="clients-modal-input"
                 type="password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 6,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 16,
-                }}
               />
               <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                 <label style={{ fontSize: 15, color: "#333" }}>
@@ -1193,53 +573,35 @@ function UserManagement({ currentUser }) {
                   Admin
                 </label>
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  background: "#f2f2f2",
-                  color: "#3B3B4A",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  marginTop: 2,
-                  fontFamily:
-                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  transition: "background 0.2s, color 0.2s",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = "#E5E5E5";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = "#f2f2f2";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseDown={(e) => {
-                  e.currentTarget.style.background = "#E5E5E5";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-                onMouseUp={(e) => {
-                  e.currentTarget.style.background = "#f2f2f2";
-                  e.currentTarget.style.color = "#3B3B4A";
-                }}
-              >
-                {loading ? (
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    <LoadingSpinner size="small" color="#3B3B4A" />
-                    Creating...
-                  </div>
-                ) : (
-                  "Create User"
-                )}
-              </button>
+              <div className="clients-modal-actions">
+                <button
+                  className="clients-modal-save"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <LoadingSpinner size="small" color="#3B3B4A" />
+                      Creating...
+                    </div>
+                  ) : (
+                    "Create User"
+                  )}
+                </button>
+                <button
+                  className="clients-modal-cancel"
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+              </div>
               {status && (
                 <div
+                  className="clients-modal-error"
                   style={{
                     color: status.includes("success") ? "#38a169" : "#e11d48",
                     textAlign: "center",
@@ -1253,7 +615,7 @@ function UserManagement({ currentUser }) {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
 
