@@ -152,7 +152,7 @@ const deleteIcon = (
 const UnitSpecs = () => {
   // Initialize snackbar hook
   const { showSuccess, showError, showInfo } = useSnackbar();
-  
+
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -785,13 +785,28 @@ const UnitSpecs = () => {
     };
 
     return (
-      <div style={{ background: "#fff", border: "none", flex: "1", overflow: "auto", minHeight: "0" }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "none",
+          flex: "1",
+          overflow: "auto",
+          minHeight: "0",
+        }}
+      >
         <div style={{ overflowX: "auto", width: "100%", height: "100%" }}>
           <table style={tableStyle}>
             <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
-              <tr style={{ background: "rgb(255, 255, 255)", borderBottom: "1px solid #e5e7eb" }}>
+              <tr
+                style={{
+                  background: "rgb(255, 255, 255)",
+                  borderBottom: "1px solid #e5e7eb",
+                }}
+              >
                 {deleteMode.active && deleteMode.table === collectionName && (
-                  <th style={{ ...thStyle, width: "40px", textAlign: "center" }}>
+                  <th
+                    style={{ ...thStyle, width: "40px", textAlign: "center" }}
+                  >
                     <input
                       type="checkbox"
                       style={{ width: 16, height: 16, accentColor: "#3b82f6" }}
@@ -810,15 +825,24 @@ const UnitSpecs = () => {
                 ].map((col) => (
                   <th key={col} style={{ ...thStyle, position: "relative" }}>
                     <span
-                      onClick={col !== "Tag" ? (e) => handleFilterClick(e, col, collectionName) : undefined}
+                      onClick={
+                        col !== "Tag"
+                          ? (e) => handleFilterClick(e, col, collectionName)
+                          : undefined
+                      }
                       style={{
                         marginRight: 8,
-                        textDecoration: col !== "Tag" ? "underline dotted" : undefined,
+                        textDecoration:
+                          col !== "Tag" ? "underline dotted" : undefined,
                         cursor: col !== "Tag" ? "pointer" : undefined,
                         display: "inline-block",
                       }}
                     >
-                      {col === "CPU" ? "CPU Gen" : col === "Drive" ? "Main Drive" : col}
+                      {col === "CPU"
+                        ? "CPU Gen"
+                        : col === "Drive"
+                        ? "Main Drive"
+                        : col}
                     </span>
                     <span
                       onClick={() => handleSort(col)}
@@ -842,7 +866,11 @@ const UnitSpecs = () => {
               {paginatedData.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={deleteMode.active && deleteMode.table === collectionName ? 10 : 9}
+                    colSpan={
+                      deleteMode.active && deleteMode.table === collectionName
+                        ? 10
+                        : 9
+                    }
                     style={{
                       padding: "40px 20px",
                       textAlign: "center",
@@ -852,7 +880,11 @@ const UnitSpecs = () => {
                       borderBottom: "1px solid #f3f4f6",
                     }}
                   >
-                    No {collectionName === "InventoryUnits" ? "inventory" : "deployed"} units found.
+                    No{" "}
+                    {collectionName === "InventoryUnits"
+                      ? "inventory"
+                      : "deployed"}{" "}
+                    units found.
                   </td>
                 </tr>
               ) : (
@@ -861,27 +893,38 @@ const UnitSpecs = () => {
                     key={unit.id}
                     style={{
                       ...trStyle(index),
-                      ...(hoveredRow.id === unit.id && hoveredRow.collection === collectionName
+                      ...(hoveredRow.id === unit.id &&
+                      hoveredRow.collection === collectionName
                         ? trHoverStyle(index)
                         : {}),
                     }}
-                    onMouseEnter={() => setHoveredRow({ id: unit.id, collection: collectionName })}
-                    onMouseLeave={() => setHoveredRow({ id: null, collection: "" })}
+                    onMouseEnter={() =>
+                      setHoveredRow({ id: unit.id, collection: collectionName })
+                    }
+                    onMouseLeave={() =>
+                      setHoveredRow({ id: null, collection: "" })
+                    }
                   >
-                    {deleteMode.active && deleteMode.table === collectionName && (
-                      <td style={{ ...tdStyle, textAlign: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedToDelete.includes(unit.id)}
-                          onChange={() => handleSelectToDelete(unit.id)}
-                          style={{ width: 16, height: 16, accentColor: "#3b82f6" }}
-                        />
-                      </td>
-                    )}
+                    {deleteMode.active &&
+                      deleteMode.table === collectionName && (
+                        <td style={{ ...tdStyle, textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedToDelete.includes(unit.id)}
+                            onChange={() => handleSelectToDelete(unit.id)}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              accentColor: "#3b82f6",
+                            }}
+                          />
+                        </td>
+                      )}
                     <td style={tdStyle}>{unit.Tag}</td>
                     <td style={tdStyle}>{unit.CPU}</td>
                     <td style={tdStyle}>
-                      {unit.RAM && `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
+                      {unit.RAM &&
+                        `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
                     </td>
                     <td style={tdStyle}>{unit.Drive}</td>
                     <td style={tdStyle}>{unit.GPU}</td>
@@ -890,16 +933,33 @@ const UnitSpecs = () => {
                     <td style={tdStyle}>{unit.Remarks}</td>
                     <td style={{ ...tdStyle, textAlign: "center" }}>
                       {!deleteMode.active && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "4px",
+                          }}
+                        >
                           <button
                             style={moveButtonStyle}
                             onClick={() =>
                               collectionName === "InventoryUnits"
-                                ? handleMove(unit, "InventoryUnits", "DeployedUnits")
-                                : handleMove(unit, "DeployedUnits", "InventoryUnits")
+                                ? handleMove(
+                                    unit,
+                                    "InventoryUnits",
+                                    "DeployedUnits"
+                                  )
+                                : handleMove(
+                                    unit,
+                                    "DeployedUnits",
+                                    "InventoryUnits"
+                                  )
                             }
                           >
-                            {collectionName === "InventoryUnits" ? "Deploy" : "Return"}
+                            {collectionName === "InventoryUnits"
+                              ? "Deploy"
+                              : "Return"}
                           </button>
                           <button
                             style={actionButtonStyle}
@@ -909,7 +969,8 @@ const UnitSpecs = () => {
                               e.currentTarget.style.background = "#3b82f6";
                               e.currentTarget.style.color = "#ffffff";
                               e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(59, 130, 246, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
@@ -922,13 +983,16 @@ const UnitSpecs = () => {
                           </button>
                           <button
                             style={actionButtonStyle}
-                            onClick={() => setConfirmSingleDelete({ unit, collectionName })}
+                            onClick={() =>
+                              setConfirmSingleDelete({ unit, collectionName })
+                            }
                             title="Delete"
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#ef4444";
                               e.currentTarget.style.color = "#ffffff";
                               e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(239, 68, 68, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
@@ -948,7 +1012,7 @@ const UnitSpecs = () => {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination Footer */}
         {totalPages > 1 && (
           <div
@@ -981,7 +1045,14 @@ const UnitSpecs = () => {
               >
                 Previous
               </button>
-              <span style={{ margin: "0 12px", color: "#374151", fontWeight: 500, fontSize: 14 }}>
+              <span
+                style={{
+                  margin: "0 12px",
+                  color: "#374151",
+                  fontWeight: 500,
+                  fontSize: 14,
+                }}
+              >
                 Page {currentPage} of {totalPages}
               </span>
               <button
@@ -993,7 +1064,8 @@ const UnitSpecs = () => {
                   border: "1px solid #e0e7ef",
                   background: currentPage === totalPages ? "#f5f7fa" : "#fff",
                   color: currentPage === totalPages ? "#9ca3af" : "#374151",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                 }}
@@ -1069,8 +1141,25 @@ const UnitSpecs = () => {
         </h3>
         <form onSubmit={handleSubmit}>
           {!editId && (
-            <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+            <div
+              style={{
+                marginBottom: 10,
+                width: "90%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <label
+                style={{
+                  color: "#445F6D",
+                  fontWeight: 600,
+                  display: "block",
+                  marginBottom: 4,
+                  fontSize: 13,
+                  alignSelf: "flex-start",
+                }}
+              >
                 Add to:
               </label>
               <select
@@ -1094,8 +1183,25 @@ const UnitSpecs = () => {
               </select>
             </div>
           )}
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               TAG:
             </label>
             <input
@@ -1119,8 +1225,25 @@ const UnitSpecs = () => {
             />
           </div>
           {/* CPU Gen and Model fields */}
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               CPU:
             </label>
             <div style={{ display: "flex", gap: 6, width: "100%" }}>
@@ -1165,8 +1288,25 @@ const UnitSpecs = () => {
               />
             </div>
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               RAM (GB):
             </label>
             <select
@@ -1194,8 +1334,25 @@ const UnitSpecs = () => {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               Drive:
             </label>
             <input
@@ -1217,8 +1374,25 @@ const UnitSpecs = () => {
               }}
             />
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               GPU:
             </label>
             <input
@@ -1240,8 +1414,25 @@ const UnitSpecs = () => {
               }}
             />
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               Status:
             </label>
             <select
@@ -1270,8 +1461,25 @@ const UnitSpecs = () => {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               OS:
             </label>
             <select
@@ -1300,8 +1508,25 @@ const UnitSpecs = () => {
               ))}
             </select>
           </div>
-          <div style={{ marginBottom: 10, width: "90%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <label style={{ color: "#445F6D", fontWeight: 600, display: "block", marginBottom: 4, fontSize: 13, alignSelf: "flex-start" }}>
+          <div
+            style={{
+              marginBottom: 10,
+              width: "90%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <label
+              style={{
+                color: "#445F6D",
+                fontWeight: 600,
+                display: "block",
+                marginBottom: 4,
+                fontSize: 13,
+                alignSelf: "flex-start",
+              }}
+            >
               Remarks:
             </label>
             <input
@@ -1323,7 +1548,14 @@ const UnitSpecs = () => {
               }}
             />
           </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 16 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+              marginTop: 16,
+            }}
+          >
             <button
               type="submit"
               style={{
@@ -1382,7 +1614,8 @@ const UnitSpecs = () => {
         display: "flex",
         flexDirection: "column",
         background: "transparent",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
         boxSizing: "border-box",
         margin: "20px",
@@ -1410,7 +1643,14 @@ const UnitSpecs = () => {
             gap: "12px",
           }}
         >
-          <h1 style={{ color: "#1e293b", margin: 0, fontWeight: 700, fontSize: "24px" }}>
+          <h1
+            style={{
+              color: "#1e293b",
+              margin: 0,
+              fontWeight: 700,
+              fontSize: "24px",
+            }}
+          >
             Unit Specifications
           </h1>
           <button
@@ -1438,14 +1678,19 @@ const UnitSpecs = () => {
         </div>
 
         {/* Tab Bar */}
-        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e5e7eb" }}>
+        <div
+          style={{ display: "flex", gap: 0, borderBottom: "1px solid #e5e7eb" }}
+        >
           <button
             onClick={() => setActiveTab("InventoryUnits")}
             style={{
               background: activeTab === "InventoryUnits" ? "#fff" : "#f1f5f9",
               color: activeTab === "InventoryUnits" ? "#374151" : "#64748b",
               border: "none",
-              borderBottom: activeTab === "InventoryUnits" ? "2px solid #3b82f6" : "2px solid transparent",
+              borderBottom:
+                activeTab === "InventoryUnits"
+                  ? "2px solid #3b82f6"
+                  : "2px solid transparent",
               fontWeight: 500,
               fontSize: "14px",
               padding: "12px 24px",
@@ -1464,7 +1709,10 @@ const UnitSpecs = () => {
               background: activeTab === "DeployedUnits" ? "#fff" : "#f1f5f9",
               color: activeTab === "DeployedUnits" ? "#374151" : "#64748b",
               border: "none",
-              borderBottom: activeTab === "DeployedUnits" ? "2px solid #3b82f6" : "2px solid transparent",
+              borderBottom:
+                activeTab === "DeployedUnits"
+                  ? "2px solid #3b82f6"
+                  : "2px solid transparent",
               fontWeight: 500,
               fontSize: "14px",
               padding: "12px 24px",
@@ -1484,7 +1732,15 @@ const UnitSpecs = () => {
       {showModal && renderModal()}
 
       {/* Main Content: Tabbed Tables */}
-      <div style={{ background: "#fff", border: "none", flex: "1", overflow: "auto", minHeight: "0" }}>
+      <div
+        style={{
+          background: "#fff",
+          border: "none",
+          flex: "1",
+          overflow: "auto",
+          minHeight: "0",
+        }}
+      >
         {activeTab === "InventoryUnits" && (
           <>
             {loading ? (
@@ -1492,7 +1748,12 @@ const UnitSpecs = () => {
                 <TableLoadingSpinner text="Loading inventory units..." />
               </div>
             ) : (
-              renderTable(inventory, "InventoryUnits", inventoryPage, setInventoryPage)
+              renderTable(
+                inventory,
+                "InventoryUnits",
+                inventoryPage,
+                setInventoryPage
+              )
             )}
           </>
         )}
@@ -1503,7 +1764,12 @@ const UnitSpecs = () => {
                 <TableLoadingSpinner text="Loading deployed units..." />
               </div>
             ) : (
-              renderTable(deployed, "DeployedUnits", deployedPage, setDeployedPage)
+              renderTable(
+                deployed,
+                "DeployedUnits",
+                deployedPage,
+                setDeployedPage
+              )
             )}
           </>
         )}

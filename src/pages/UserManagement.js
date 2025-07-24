@@ -1,6 +1,7 @@
 // UserManagement.js
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getAuth } from "firebase/auth";
+import { getFirestore, collection, getDocs } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
@@ -107,16 +108,14 @@ function UserManagement({ currentUser }) {
     const fetchUsers = async () => {
       setUsersLoading(true);
       try {
-        const auth = getAuth();
-        const user = auth.currentUser;
-        if (!user) return;
-        const idToken = await user.getIdToken();
-        const res = await fetch("http://localhost:5001/api/list-users", {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        const data = await res.json();
-        if (res.ok) setUsers(data.users);
-        else setUsers([]);
+        const db = getFirestore();
+        const usersCol = collection(db, "users");
+        const snapshot = await getDocs(usersCol);
+        const usersList = snapshot.docs.map((doc) => ({
+          uid: doc.id,
+          ...doc.data(),
+        }));
+        setUsers(usersList);
       } catch (e) {
         setUsers([]);
       }
