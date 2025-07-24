@@ -216,7 +216,9 @@ function UserManagement() {
     try {
       const db = getFirestore();
       const userRef = doc(db, "users", editModal.user.uid);
-      await userRef.update({
+      // Use updateDoc from Firestore
+      const { updateDoc } = await import("firebase/firestore");
+      await updateDoc(userRef, {
         username: editUsername,
         email: editEmail,
         ...(editPassword !== "" ? { password: editPassword } : {}),
@@ -674,20 +676,7 @@ function UserManagement() {
                     disabled={loading}
                     style={{ flex: 1, minWidth: 0 }}
                   >
-                    {loading ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        <LoadingSpinner size="small" color="#3B3B4A" />
-                        Saving...
-                      </div>
-                    ) : (
-                      "Save Changes"
-                    )}
+                    Save Changes
                   </button>
                   <button
                     className="clients-modal-cancel"
