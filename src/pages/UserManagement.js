@@ -28,7 +28,11 @@ function UserManagement({ currentUser }) {
   });
   const actionMenuRef = useRef();
 
-  // Filtered users (no pagination)
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+
+  // Filtered users
   const filteredUsers = useMemo(
     () =>
       users.filter(
@@ -39,10 +43,33 @@ function UserManagement({ currentUser }) {
     [users, search]
   );
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / rowsPerPage));
+  const paginatedUsers = useMemo(() => {
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    return filteredUsers.slice(startIdx, startIdx + rowsPerPage);
+  }, [filteredUsers, currentPage, rowsPerPage]);
+
+  const startIdx =
+    filteredUsers.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const endIdx = Math.min(currentPage * rowsPerPage, filteredUsers.length);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + 4);
+    if (end - start < 4) start = Math.max(1, end - 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
+
   useEffect(() => {
     const validIds = new Set(filteredUsers.map((u) => u.uid));
     setCheckedRows((prev) => prev.filter((id) => validIds.has(id)));
-  }, [filteredUsers]);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [filteredUsers, currentPage, totalPages]);
 
   const handleCheckboxChange = useCallback((uid) => {
     setCheckedRows((prev) =>
@@ -232,6 +259,12 @@ function UserManagement({ currentUser }) {
       <div className="clients-header">
         <h1 className="clients-title">User Management</h1>
         <div className="clients-header-actions">
+          <button
+            className="clients-add-btn"
+            onClick={() => setShowModal(true)}
+          >
+            + Create New User
+          </button>
           {checkedRows.length > 0 && (
             <button
               className="clients-delete-btn"
@@ -240,12 +273,6 @@ function UserManagement({ currentUser }) {
               Delete Selected
             </button>
           )}
-          <button
-            className="clients-add-btn"
-            onClick={() => setShowModal(true)}
-          >
-            + Create New User
-          </button>
         </div>
       </div>
       <div className="clients-search-bar">
@@ -304,7 +331,7 @@ function UserManagement({ currentUser }) {
                     className="clients-checkbox"
                   />
                 </th>
-                <th className="clients-table-no">#</th>
+                <th className="clients-table-no">No.</th>
                 <th className="clients-table-id">Email</th>
                 <th className="clients-table-name">Role</th>
                 <th className="clients-table-employees">User UID</th>
@@ -319,7 +346,7 @@ function UserManagement({ currentUser }) {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u, idx) => {
+                paginatedUsers.map((u, idx) => {
                   const isChecked = checkedRows.includes(u.uid);
                   const selectedIndex = checkedRows.indexOf(u.uid);
                   const rowClass = isChecked
@@ -348,7 +375,7 @@ function UserManagement({ currentUser }) {
                           className="clients-checkbox"
                         />
                       </td>
-                      <td>{idx + 1}</td>
+                      <td>{startIdx + idx}</td>
                       <td>{u.email}</td>
                       <td>{u.role || "unknown"}</td>
                       <td>{u.uid}</td>
@@ -427,6 +454,69 @@ function UserManagement({ currentUser }) {
               )}
             </tbody>
           </table>
+        </div>
+        {/* Pagination Footer */}
+        <div className="clients-pagination-footer">
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            First
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              className={`clients-pagination-btn${
+                page === currentPage ? " selected" : ""
+              }`}
+              onClick={() => setCurrentPage(page)}
+              disabled={page === currentPage}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            Last
+          </button>
+          <span className="clients-pagination-info">
+            Showing {startIdx} - {endIdx} of {filteredUsers.length} users
+          </span>
+          <span className="clients-pagination-select">
+            Show:
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="clients-rows-select"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </span>
         </div>
       </div>
       {/* Modals */}
