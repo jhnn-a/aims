@@ -1622,27 +1622,27 @@ export default function Employee() {
         const existingDevices = await getAllDevices();
         const existingTags = new Set(existingDevices.map(d => d.deviceTag?.toLowerCase()));
 
-        // Device type mapping for tag generation (matches Assets.js deviceTypes)
+        // Device type mapping for tag generation with JOII prefix for generated tags
         const deviceTypeMap = {
-          'headset': 'HS',
-          'keyboard': 'KB', 
-          'laptop': 'LPT',
-          'monitor': 'MN',
-          'mouse': 'M',
-          'pc': 'PC',
-          'psu': 'PSU',
-          'ram': 'RAM',
-          'ssd': 'SSD',
-          'ups': 'UPS',
-          'webcam': 'W'
+          'headset': 'JOIIHS',
+          'keyboard': 'JOIIKB', 
+          'laptop': 'JOIILPT',
+          'monitor': 'JOIIMN',
+          'mouse': 'JOIIM',
+          'pc': 'JOIIPC',
+          'psu': 'JOIIPSU',
+          'ram': 'JOIIRAM',
+          'ssd': 'JOIISSD',
+          'ups': 'JOIIUPS',
+          'webcam': 'JOIIW'
         };
 
-        // Helper function to generate unique device tag
+        // Helper function to generate unique device tag with JOII prefix
         const generateDeviceTag = (deviceType) => {
           const normalizedType = deviceType?.toLowerCase() || 'dev';
-          const prefix = deviceTypeMap[normalizedType] || 'DEV';
+          const prefix = deviceTypeMap[normalizedType] || 'JOIIDEV';
           
-          // Find highest existing number for this prefix (including in-memory additions)
+          // Find highest existing number for this JOII prefix (including in-memory additions)
           let maxNum = 0;
           existingDevices.forEach(device => {
             if (device.deviceTag && device.deviceTag.startsWith(prefix)) {
