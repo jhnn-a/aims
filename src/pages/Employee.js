@@ -22,6 +22,9 @@ import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
 import undoManager from "../utils/undoManager";
+import PizZip from "pizzip"; // For DOCX file generation
+import Docxtemplater from "docxtemplater"; // For DOCX template processing
+import { saveAs } from "file-saver"; // File download functionality
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
@@ -598,7 +601,574 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
 }
 
 // Employee Assets Modal
-function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory = [] }) {
+function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory = [], onDeviceUpdate }) {
+  const { showSuccess, showError } = useSnackbar();
+  
+  // Modal states for action confirmations
+  const [actionModal, setActionModal] = useState({
+    isOpen: false,
+    type: '', // 'unassign' or 'reassign'
+    device: null,
+    devices: [], // for bulk actions
+    newEmployee: null, // for reassign
+    isGenerating: false,
+    progress: 0,
+    docxBlob: null,
+    isBulk: false,
+    selectedCondition: '', // 'GOOD' or 'DEFECTIVE' for single unassign operations
+    deviceConditions: {} // Object to store individual device conditions for bulk operations: {deviceId: 'GOOD'|'DEFECTIVE'}
+  });
+  
+  // State for reassign employee selection
+  const [allEmployees, setAllEmployees] = useState([]);
+  
+  // Bulk selection state
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  
+  // Load employees for reassignment
+  useEffect(() => {
+    if (isOpen) {
+      const loadEmployees = async () => {
+        try {
+          const employeeList = await getAllEmployees();
+          setAllEmployees(employeeList.filter(emp => !emp.isResigned && emp.id !== employee?.id));
+        } catch (error) {
+          console.error("Error loading employees:", error);
+        }
+      };
+      loadEmployees();
+      // Reset bulk selection when modal opens
+      setSelectedDeviceIds([]);
+      setShowBulkActions(false);
+    }
+  }, [isOpen, employee?.id]);
+
+  // Bulk selection handlers
+  const handleSelectAllDevices = (checked) => {
+    if (checked) {
+      setSelectedDeviceIds(deployedAssets.map(device => device.id));
+    } else {
+      setSelectedDeviceIds([]);
+    }
+    setShowBulkActions(checked && deployedAssets.length > 0);
+  };
+
+  const handleSelectDevice = (deviceId, checked) => {
+    let newSelection;
+    if (checked) {
+      newSelection = [...selectedDeviceIds, deviceId];
+    } else {
+      newSelection = selectedDeviceIds.filter(id => id !== deviceId);
+    }
+    setSelectedDeviceIds(newSelection);
+    setShowBulkActions(newSelection.length > 0);
+  };
+
+  // Bulk action handlers
+  const handleBulkUnassign = () => {
+    const selectedDevices = deployedAssets.filter(device => selectedDeviceIds.includes(device.id));
+    setActionModal({
+      isOpen: true,
+      type: 'unassign',
+      device: null,
+      devices: selectedDevices,
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: true,
+      selectedCondition: '',
+      deviceConditions: {} // Initialize empty - user will select for each device
+    });
+  };
+
+  const handleBulkReassign = () => {
+    const selectedDevices = deployedAssets.filter(device => selectedDeviceIds.includes(device.id));
+    setActionModal({
+      isOpen: true,
+      type: 'reassign',
+      device: null,
+      devices: selectedDevices,
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: true,
+      selectedCondition: '',
+      deviceConditions: {}
+    });
+  };
+
+  // Action handlers
+  const handleUnassign = (device) => {
+    setActionModal({
+      isOpen: true,
+      type: 'unassign',
+      device,
+      devices: [device],
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: false,
+      selectedCondition: '',
+      deviceConditions: {}
+    });
+  };
+
+  const handleReassign = (device) => {
+    setActionModal({
+      isOpen: true,
+      type: 'reassign',
+      device,
+      devices: [device],
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: false,
+      selectedCondition: '',
+      deviceConditions: {}
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const { type, devices, newEmployee, isBulk, selectedCondition, deviceConditions } = actionModal;
+    
+    try {
+      setActionModal(prev => ({ ...prev, isGenerating: true, progress: 10 }));
+      
+      const progressStep = 70 / devices.length; // Distribute progress across devices
+      let currentProgress = 10;
+      
+      for (let i = 0; i < devices.length; i++) {
+        const device = devices[i];
+        
+        if (type === 'unassign') {
+          // Get condition for this specific device (bulk) or use single condition
+          const deviceCondition = isBulk ? deviceConditions[device.id] : selectedCondition;
+          
+          // Debug: Check device data before update
+          console.log("=== UNASSIGN DEBUG ===");
+          console.log("Original device:", device);
+          console.log("Device ID:", device.id);
+          console.log("Device Type:", device.deviceType);
+          console.log("Device Tag:", device.deviceTag);
+          
+          // Unassign device with updated condition - preserve all other device data
+          const updateData = {
+            assignedTo: null,
+            assignmentDate: null,
+            status: "AVAILABLE",
+            condition: deviceCondition // Update condition based on user selection
+          };
+          
+          console.log("Update data being sent:", updateData);
+          
+          await updateDevice(device.id, updateData);
+          
+          // Log device history
+          await logDeviceHistory({
+            employeeId: employee.id,
+            employeeName: employee.fullName,
+            deviceId: device.id,
+            deviceTag: device.deviceTag,
+            action: 'unassigned',
+            date: new Date().toISOString(),
+            reason: isBulk ? 'Bulk unassignment from Employee page' : 'Manual unassignment from Employee page',
+            condition: deviceCondition
+          });
+          
+        } else if (type === 'reassign' && newEmployee) {
+          // Reassign device - automatically change BRANDNEW to GOOD when reassigning
+          const newCondition = device.condition === 'BRANDNEW' ? 'GOOD' : device.condition;
+          
+          await updateDevice(device.id, {
+            assignedTo: newEmployee.id,
+            assignmentDate: new Date().toISOString().slice(0, 10),
+            status: "DEPLOYED",
+            condition: newCondition
+          });
+          
+          // Log device history for unassignment from current employee
+          await logDeviceHistory({
+            employeeId: employee.id,
+            employeeName: employee.fullName,
+            deviceId: device.id,
+            deviceTag: device.deviceTag,
+            action: 'unassigned',
+            date: new Date().toISOString(),
+            reason: isBulk ? `Bulk reassigned to ${newEmployee.fullName}` : `Reassigned to ${newEmployee.fullName}`,
+            condition: device.condition // Original condition before reassignment
+          });
+          
+          // Log device history for assignment to new employee
+          await logDeviceHistory({
+            employeeId: newEmployee.id,
+            employeeName: newEmployee.fullName,
+            deviceId: device.id,
+            deviceTag: device.deviceTag,
+            action: 'assigned',
+            date: new Date().toISOString(),
+            reason: isBulk ? `Bulk reassigned from ${employee.fullName}` : `Reassigned from ${employee.fullName}`,
+            condition: newCondition // New condition after reassignment
+          });
+        }
+        
+        currentProgress += progressStep;
+        setActionModal(prev => ({ ...prev, progress: Math.min(currentProgress, 80) }));
+      }
+      
+      setActionModal(prev => ({ ...prev, progress: 85 }));
+      await generateBulkDocx(type, devices, employee, newEmployee);
+      
+      // Clear bulk selection
+      setSelectedDeviceIds([]);
+      setShowBulkActions(false);
+      
+      // Refresh device data
+      if (onDeviceUpdate) {
+        onDeviceUpdate();
+      }
+      
+      const deviceCount = devices.length;
+      const actionText = type === 'unassign' ? 'unassigned' : 'reassigned';
+      showSuccess(`${deviceCount} device${deviceCount > 1 ? 's' : ''} ${actionText} successfully!`);
+      
+    } catch (error) {
+      console.error(`Error ${type}ing devices:`, error);
+      showError(`Error ${type}ing devices: ${error.message}`);
+      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+    }
+  };
+
+  const generateDocx = async (actionType, device, fromEmployee, toEmployee = null) => {
+    try {
+      setActionModal(prev => ({ ...prev, progress: 40 }));
+      
+      const templatePath = actionType === 'unassign' 
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      
+      const response = await fetch(templatePath);
+      setActionModal(prev => ({ ...prev, progress: 50 }));
+      
+      const content = await response.arrayBuffer();
+      setActionModal(prev => ({ ...prev, progress: 60 }));
+      
+      const zip = new PizZip(content);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        nullGetter() {
+          return "";
+        },
+      });
+      setActionModal(prev => ({ ...prev, progress: 70 }));
+
+      // Format date helper to match Assets.js implementation
+      const formatTransferDate = (dateStr) => {
+        if (!dateStr) return "";
+        try {
+          // Handle Firestore timestamp object
+          if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
+            return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "2-digit",
+            });
+          }
+          
+          // Handle regular date
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return "";
+          
+          return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+          });
+        } catch (error) {
+          console.error("Error formatting date:", error);
+          return "";
+        }
+      };
+
+      let templateData;
+
+      if (actionType === 'unassign') {
+        // For return forms - match Assets.js structure
+        const { selectedCondition } = actionModal;
+        const isWorking = selectedCondition === 'GOOD';
+        const isDefective = selectedCondition === 'DEFECTIVE';
+        
+        templateData = {
+          name: fromEmployee.fullName || "",
+          department: fromEmployee.department || "",
+          position: fromEmployee.position || "",
+          dateHired: formatTransferDate(fromEmployee.dateHired) || "",
+          devices: [
+            {
+              assignmentDate: formatTransferDate(device.assignmentDate) || "",
+              deviceType: device.deviceType || "",
+              brand: device.brand || "",
+              model: device.model || "",
+              deviceTag: device.deviceTag || "",
+              condition: selectedCondition || device.condition || "",
+            }
+          ],
+          checkBox1Checked: isWorking ? "◼" : "",
+          checkBox1Unchecked: isWorking ? "" : "☐",
+          checkBox2Checked: isDefective ? "◼" : "",
+          checkBox2Unchecked: isDefective ? "" : "☐",
+          checkBox3Checked: isWorking ? "◼" : "",
+          checkBox3Unchecked: isWorking ? "" : "☐",
+          checkBox4Checked: isDefective ? "◼" : "",
+          checkBox4Unchecked: isDefective ? "" : "☐",
+          remarks: device.remarks || "",
+          model: device.model || "",
+        };
+      } else {
+        // For transfer forms - match Assets.js structure
+        templateData = {
+          transferor_name: fromEmployee.fullName || "",
+          transferor_department: fromEmployee.department || "",
+          transferor_date_hired: formatTransferDate(fromEmployee.dateHired) || "",
+          transferor_position: fromEmployee.position || "",
+          transferee_name: toEmployee ? toEmployee.fullName || "" : "",
+          transferee_department: toEmployee ? toEmployee.department || "" : "",
+          transferee_date_hired: toEmployee ? formatTransferDate(toEmployee.dateHired) || "" : "",
+          transferee_position: toEmployee ? toEmployee.position || "" : "",
+          devices: [
+            {
+              TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+              deviceType: device.deviceType || "",
+              brand: device.brand || "",
+              model: device.model || "",
+              deviceTag: device.deviceTag || "",
+              condition: device.condition === 'BRANDNEW' ? 'GOOD' : (device.condition || ""), // Auto-change BRANDNEW to GOOD for reassignment
+            }
+          ],
+        };
+      }
+
+      doc.setData(templateData);
+      setActionModal(prev => ({ ...prev, progress: 80 }));
+      
+      doc.render();
+      setActionModal(prev => ({ ...prev, progress: 90 }));
+      
+      const out = doc.getZip().generate({ 
+        type: "blob",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      setActionModal(prev => ({ 
+        ...prev, 
+        progress: 100,
+        isGenerating: false,
+        docxBlob: out 
+      }));
+      
+    } catch (error) {
+      console.error("Error generating docx:", error);
+      showError("Error generating document: " + error.message);
+      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+    }
+  };
+
+  const generateBulkDocx = async (actionType, devices, fromEmployee, toEmployee = null) => {
+    try {
+      setActionModal(prev => ({ ...prev, progress: 85 }));
+      
+      const templatePath = actionType === 'unassign' 
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      
+      const response = await fetch(templatePath);
+      setActionModal(prev => ({ ...prev, progress: 87 }));
+      
+      const content = await response.arrayBuffer();
+      setActionModal(prev => ({ ...prev, progress: 90 }));
+      
+      const zip = new PizZip(content);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        nullGetter() {
+          return "";
+        },
+      });
+      setActionModal(prev => ({ ...prev, progress: 92 }));
+
+      // Format date helper to match Assets.js implementation
+      const formatTransferDate = (dateStr) => {
+        if (!dateStr) return "";
+        try {
+          // Handle Firestore timestamp object
+          if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
+            return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "2-digit",
+            });
+          }
+          
+          // Handle regular date
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return "";
+          
+          return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+          });
+        } catch (error) {
+          console.error("Error formatting date:", error);
+          return "";
+        }
+      };
+
+      let templateData;
+
+      if (actionType === 'unassign') {
+        // For return forms - match Assets.js structure
+        const { selectedCondition, deviceConditions, isBulk } = actionModal;
+        
+        // For bulk operations, determine overall condition for checkboxes
+        // If all devices have the same condition, use that; otherwise default to working
+        let overallCondition = 'GOOD';
+        if (isBulk) {
+          const conditions = devices.map(device => deviceConditions[device.id]).filter(Boolean);
+          const allSame = conditions.length > 0 && conditions.every(c => c === conditions[0]);
+          overallCondition = allSame ? conditions[0] : 'GOOD';
+        } else {
+          overallCondition = selectedCondition;
+        }
+        
+        const isWorking = overallCondition === 'GOOD';
+        const isDefective = overallCondition === 'DEFECTIVE';
+        
+        templateData = {
+          name: fromEmployee.fullName || "",
+          department: fromEmployee.department || "",
+          position: fromEmployee.position || "",
+          dateHired: formatTransferDate(fromEmployee.dateHired) || "",
+          devices: devices.map(device => ({
+            assignmentDate: formatTransferDate(device.assignmentDate) || "",
+            deviceType: device.deviceType || "",
+            brand: device.brand || "",
+            model: device.model || "",
+            deviceTag: device.deviceTag || "",
+            condition: isBulk ? (deviceConditions[device.id] || device.condition || "") : (selectedCondition || device.condition || ""),
+          })),
+          checkBox1Checked: isWorking ? "◼" : "",
+          checkBox1Unchecked: isWorking ? "" : "☐",
+          checkBox2Checked: isDefective ? "◼" : "",
+          checkBox2Unchecked: isDefective ? "" : "☐",
+          checkBox3Checked: isWorking ? "◼" : "",
+          checkBox3Unchecked: isWorking ? "" : "☐",
+          checkBox4Checked: isDefective ? "◼" : "",
+          checkBox4Unchecked: isDefective ? "" : "☐",
+          remarks: devices[0]?.remarks || "",
+        };
+      } else {
+        // For transfer forms - match Assets.js structure
+        templateData = {
+          transferor_name: fromEmployee.fullName || "",
+          transferor_department: fromEmployee.department || "",
+          transferor_date_hired: formatTransferDate(fromEmployee.dateHired) || "",
+          transferor_position: fromEmployee.position || "",
+          transferee_name: toEmployee ? toEmployee.fullName || "" : "",
+          transferee_department: toEmployee ? toEmployee.department || "" : "",
+          transferee_date_hired: toEmployee ? formatTransferDate(toEmployee.dateHired) || "" : "",
+          transferee_position: toEmployee ? toEmployee.position || "" : "",
+          devices: devices.map(device => ({
+            TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+            deviceType: device.deviceType || "",
+            brand: device.brand || "",
+            model: device.model || "",
+            deviceTag: device.deviceTag || "",
+            condition: device.condition === 'BRANDNEW' ? 'GOOD' : (device.condition || ""), // Auto-change BRANDNEW to GOOD for reassignment
+          })),
+        };
+      }
+
+      doc.setData(templateData);
+      setActionModal(prev => ({ ...prev, progress: 95 }));
+      
+      doc.render();
+      setActionModal(prev => ({ ...prev, progress: 98 }));
+      
+      const out = doc.getZip().generate({ 
+        type: "blob",
+        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      setActionModal(prev => ({ 
+        ...prev, 
+        progress: 100,
+        isGenerating: false,
+        docxBlob: out 
+      }));
+      
+    } catch (error) {
+      console.error("Error generating bulk docx:", error);
+      showError("Error generating bulk document: " + error.message);
+      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+    }
+  };
+
+  const handleDownloadDocx = () => {
+    if (!actionModal.docxBlob) return;
+    
+    const { type, device, devices, isBulk } = actionModal;
+    const employeeName = employee.fullName
+      ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+      : "Employee";
+    
+    let fileName;
+    if (isBulk) {
+      const deviceCount = devices.length;
+      const actionText = type === 'unassign' ? 'RETURN' : 'TRANSFER';
+      fileName = `${employeeName}_BULK_${deviceCount}_DEVICES_${actionText}.docx`;
+    } else {
+      const deviceTag = device.deviceTag || "Device";
+      const actionText = type === 'unassign' ? 'RETURN' : 'TRANSFER';
+      fileName = `${employeeName}_${deviceTag}_${actionText}.docx`;
+    }
+    
+    saveAs(actionModal.docxBlob, fileName);
+    
+    // Close modal after download
+    setActionModal({
+      isOpen: false,
+      type: '',
+      device: null,
+      devices: [],
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: false
+    });
+  };
+
+  const closeActionModal = () => {
+    setActionModal({
+      isOpen: false,
+      type: '',
+      device: null,
+      devices: [],
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: false,
+      selectedCondition: '',
+      deviceConditions: {}
+    });
+  };
+
   if (!isOpen || !employee) return null;
 
   // Filter devices currently assigned to this employee (deployed)
@@ -689,6 +1259,28 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           borderBottom: "1px solid #e5e7eb",
         }}
       >
+        {!isReturned && (
+          <th
+            style={{
+              padding: "12px 16px",
+              textAlign: "center",
+              fontWeight: 600,
+              color: "#374151",
+              fontSize: 12,
+              width: "40px",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={deployedAssets.length > 0 && selectedDeviceIds.length === deployedAssets.length}
+              ref={(el) => {
+                if (el) el.indeterminate = selectedDeviceIds.length > 0 && selectedDeviceIds.length < deployedAssets.length;
+              }}
+              onChange={(e) => handleSelectAllDevices(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+          </th>
+        )}
         <th
           style={{
             padding: "12px 16px",
@@ -767,17 +1359,47 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         >
           {isReturned ? "Date Returned" : "Date Assigned"}
         </th>
+        {!isReturned && (
+          <th
+            style={{
+              padding: "12px 16px",
+              textAlign: "center",
+              fontWeight: 600,
+              color: "#374151",
+              fontSize: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            Actions
+          </th>
+        )}
       </tr>
     </thead>
   );
 
   // Common table row component
-  const TableRow = ({ device, isReturned = false }) => (
+  const TableRow = ({ device, isReturned = false, onUnassign, onReassign }) => (
     <tr
       style={{
         borderBottom: "1px solid #f3f4f6",
       }}
     >
+      {!isReturned && (
+        <td
+          style={{
+            padding: "12px 16px",
+            textAlign: "center",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={selectedDeviceIds.includes(device.id)}
+            onChange={(e) => handleSelectDevice(device.id, e.target.checked)}
+            style={{ cursor: "pointer" }}
+          />
+        </td>
+      )}
       <td
         style={{
           padding: "12px 16px",
@@ -872,6 +1494,51 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           : formatDate(device.assignmentDate)
         }
       </td>
+      {!isReturned && (
+        <td
+          style={{
+            padding: "12px 16px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+            <button
+              onClick={() => onUnassign(device)}
+              style={{
+                padding: "4px 8px",
+                border: "1px solid #dc2626",
+                borderRadius: 4,
+                background: "white",
+                color: "#dc2626",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: 'inherit',
+                whiteSpace: "nowrap",
+              }}
+            >
+              Unassign
+            </button>
+            <button
+              onClick={() => onReassign(device)}
+              style={{
+                padding: "4px 8px",
+                border: "1px solid #2563eb",
+                borderRadius: 4,
+                background: "white",
+                color: "#2563eb",
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: 'inherit',
+                whiteSpace: "nowrap",
+              }}
+            >
+              Reassign
+            </button>
+          </div>
+        </td>
+      )}
     </tr>
   );
 
@@ -970,32 +1637,88 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "space-between",
                 marginBottom: "16px",
-                gap: "12px",
               }}
             >
-              <h3
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  color: "#222e3a",
-                  margin: 0,
-                }}
-              >
-                Deployed Assets
-              </h3>
-              <span
-                style={{
-                  backgroundColor: "#059669",
-                  color: "white",
-                  padding: "2px 8px",
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
-              >
-                {deployedAssets.length} active
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: "#222e3a",
+                    margin: 0,
+                  }}
+                >
+                  Deployed Assets
+                </h3>
+                <span
+                  style={{
+                    backgroundColor: "#059669",
+                    color: "white",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                >
+                  {deployedAssets.length} active
+                </span>
+                {selectedDeviceIds.length > 0 && (
+                  <span
+                    style={{
+                      backgroundColor: "#2563eb",
+                      color: "white",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {selectedDeviceIds.length} selected
+                  </span>
+                )}
+              </div>
+              
+              {/* Bulk Action Buttons */}
+              {showBulkActions && selectedDeviceIds.length > 0 && (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={handleBulkUnassign}
+                    style={{
+                      padding: "6px 12px",
+                      border: "1px solid #dc2626",
+                      borderRadius: 6,
+                      background: "white",
+                      color: "#dc2626",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: 'inherit',
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Bulk Unassign ({selectedDeviceIds.length})
+                  </button>
+                  <button
+                    onClick={handleBulkReassign}
+                    style={{
+                      padding: "6px 12px",
+                      border: "1px solid #2563eb",
+                      borderRadius: 6,
+                      background: "white",
+                      color: "#2563eb",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: 'inherit',
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Bulk Reassign ({selectedDeviceIds.length})
+                  </button>
+                </div>
+              )}
             </div>
             
             {deployedAssets.length === 0 ? (
@@ -1031,7 +1754,13 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   <TableHeader isReturned={false} />
                   <tbody>
                     {deployedAssets.map((device) => (
-                      <TableRow key={`deployed-${device.id}`} device={device} isReturned={false} />
+                      <TableRow 
+                        key={`deployed-${device.id}`} 
+                        device={device} 
+                        isReturned={false}
+                        onUnassign={handleUnassign}
+                        onReassign={handleReassign}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -1141,6 +1870,529 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           </button>
         </div>
       </div>
+
+      {/* Action Confirmation Modal */}
+      {actionModal.isOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(34, 46, 58, 0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2100,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              borderRadius: 12,
+              width: "100%",
+              maxWidth: 480,
+              fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              boxShadow: "0 20px 32px rgba(34, 46, 58, 0.3)",
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "24px 32px 20px 32px",
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "#222e3a",
+                  margin: 0,
+                  marginBottom: 8,
+                }}
+              >
+                {actionModal.isBulk 
+                  ? `Bulk ${actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'} Devices`
+                  : `${actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'} Device`
+                }
+              </h2>
+              <p
+                style={{
+                  fontSize: 14,
+                  color: "#6b7280",
+                  margin: 0,
+                }}
+              >
+                {actionModal.isBulk 
+                  ? `This will ${actionModal.type} ${actionModal.devices.length} devices and generate a ${actionModal.type === 'unassign' ? 'bulk return' : 'bulk transfer'} form.`
+                  : `This will ${actionModal.type} the device and generate a ${actionModal.type === 'unassign' ? 'return' : 'transfer'} form.`
+                }
+              </p>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ padding: "24px 32px" }}>
+              {/* Device Information */}
+              <div
+                style={{
+                  padding: "16px",
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 8,
+                  marginBottom: 20,
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#374151",
+                    margin: 0,
+                    marginBottom: 8,
+                  }}
+                >
+                  {actionModal.isBulk ? 'Selected Devices' : 'Device Information'}
+                </h4>
+                {actionModal.isBulk ? (
+                  <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+                    <div><strong>Count:</strong> {actionModal.devices.length} devices</div>
+                    <div style={{ maxHeight: "120px", overflowY: "auto", marginTop: 8 }}>
+                      {actionModal.devices.map((device, index) => (
+                        <div key={device.id} style={{ 
+                          padding: "4px 8px", 
+                          backgroundColor: "#fff", 
+                          borderRadius: 4, 
+                          marginBottom: 4,
+                          border: "1px solid #e5e7eb"
+                        }}>
+                          <strong>{device.deviceTag}</strong> - {device.deviceType} ({device.brand})
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+                    <div><strong>Tag:</strong> {actionModal.device?.deviceTag}</div>
+                    <div><strong>Type:</strong> {actionModal.device?.deviceType}</div>
+                    <div><strong>Brand:</strong> {actionModal.device?.brand}</div>
+                    <div><strong>Model:</strong> {actionModal.device?.model}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Employee Information */}
+              <div
+                style={{
+                  padding: "16px",
+                  backgroundColor: "#fef3c7",
+                  borderRadius: 8,
+                  marginBottom: actionModal.type === 'reassign' ? 20 : 0,
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#374151",
+                    margin: 0,
+                    marginBottom: 8,
+                  }}
+                >
+                  {actionModal.type === 'unassign' ? 'Returning from' : 'Transferring from'}
+                </h4>
+                <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+                  <div><strong>Name:</strong> {employee.fullName}</div>
+                  <div><strong>Position:</strong> {employee.position}</div>
+                  <div><strong>Department:</strong> {employee.department}</div>
+                </div>
+              </div>
+
+              {/* Condition Selection for Unassign */}
+              {actionModal.type === 'unassign' && (
+                <div
+                  style={{
+                    padding: "16px",
+                    backgroundColor: "#fef3c7",
+                    borderRadius: 8,
+                    marginTop: 20,
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#374151",
+                      margin: 0,
+                      marginBottom: 12,
+                    }}
+                  >
+                    Device Condition After Return
+                  </h4>
+                  
+                  {!actionModal.isBulk ? (
+                    /* Single Device Condition Selection */
+                    <>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          margin: "0 0 12px 0",
+                        }}
+                      >
+                        Please select the condition of the device being returned:
+                      </p>
+                      <div style={{ display: "flex", gap: 16 }}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                            fontSize: 14,
+                            fontWeight: 500,
+                            color: "#374151",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={actionModal.selectedCondition === 'GOOD'}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setActionModal(prev => ({ ...prev, selectedCondition: 'GOOD' }));
+                              } else {
+                                setActionModal(prev => ({ ...prev, selectedCondition: '' }));
+                              }
+                            }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              cursor: "pointer",
+                            }}
+                          />
+                          <span style={{ color: "#059669" }}>GOOD Condition</span>
+                        </label>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            cursor: "pointer",
+                            fontSize: 14,
+                            fontWeight: 500,
+                            color: "#374151",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={actionModal.selectedCondition === 'DEFECTIVE'}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setActionModal(prev => ({ ...prev, selectedCondition: 'DEFECTIVE' }));
+                              } else {
+                                setActionModal(prev => ({ ...prev, selectedCondition: '' }));
+                              }
+                            }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              cursor: "pointer",
+                            }}
+                          />
+                          <span style={{ color: "#dc2626" }}>DEFECTIVE Condition</span>
+                        </label>
+                      </div>
+                    </>
+                  ) : (
+                    /* Bulk Device Condition Selection */
+                    <>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#6b7280",
+                          margin: "0 0 12px 0",
+                        }}
+                      >
+                        Please select the condition for each device being returned:
+                      </p>
+                      <div 
+                        style={{ 
+                          maxHeight: "300px", 
+                          overflowY: "auto",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: 6,
+                          backgroundColor: "#fff"
+                        }}
+                      >
+                        {actionModal.devices.map((device, index) => (
+                          <div 
+                            key={device.id} 
+                            style={{ 
+                              padding: "12px 16px",
+                              borderBottom: index < actionModal.devices.length - 1 ? "1px solid #f3f4f6" : "none",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center"
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: 13, color: "#374151" }}>
+                                {device.deviceTag}
+                              </div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                {device.deviceType} - {device.brand}
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                              <label
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  color: "#374151",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={actionModal.deviceConditions[device.id] === 'GOOD'}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setActionModal(prev => ({ 
+                                        ...prev, 
+                                        deviceConditions: {
+                                          ...prev.deviceConditions,
+                                          [device.id]: 'GOOD'
+                                        }
+                                      }));
+                                    } else {
+                                      setActionModal(prev => ({ 
+                                        ...prev, 
+                                        deviceConditions: {
+                                          ...prev.deviceConditions,
+                                          [device.id]: ''
+                                        }
+                                      }));
+                                    }
+                                  }}
+                                  style={{
+                                    width: 14,
+                                    height: 14,
+                                    cursor: "pointer",
+                                  }}
+                                />
+                                <span style={{ color: "#059669" }}>GOOD</span>
+                              </label>
+                              <label
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  cursor: "pointer",
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  color: "#374151",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={actionModal.deviceConditions[device.id] === 'DEFECTIVE'}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setActionModal(prev => ({ 
+                                        ...prev, 
+                                        deviceConditions: {
+                                          ...prev.deviceConditions,
+                                          [device.id]: 'DEFECTIVE'
+                                        }
+                                      }));
+                                    } else {
+                                      setActionModal(prev => ({ 
+                                        ...prev, 
+                                        deviceConditions: {
+                                          ...prev.deviceConditions,
+                                          [device.id]: ''
+                                        }
+                                      }));
+                                    }
+                                  }}
+                                  style={{
+                                    width: 14,
+                                    height: 14,
+                                    cursor: "pointer",
+                                  }}
+                                />
+                                <span style={{ color: "#dc2626" }}>DEFECTIVE</span>
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Reassign Employee Selection */}
+              {actionModal.type === 'reassign' && (
+                <div
+                  style={{
+                    padding: "16px",
+                    backgroundColor: "#dcfce7",
+                    borderRadius: 8,
+                  }}
+                >
+                  <h4
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#374151",
+                      margin: 0,
+                      marginBottom: 12,
+                    }}
+                  >
+                    Assign to Employee
+                  </h4>
+                  <select
+                    value={actionModal.newEmployee?.id || ''}
+                    onChange={(e) => {
+                      const selectedEmployee = allEmployees.find(emp => emp.id === e.target.value);
+                      setActionModal(prev => ({ ...prev, newEmployee: selectedEmployee }));
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: 14,
+                      fontFamily: 'inherit',
+                      outline: "none",
+                      backgroundColor: "white",
+                    }}
+                  >
+                    <option value="">Select employee...</option>
+                    {allEmployees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.fullName} - {emp.position}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "16px 32px 24px 32px",
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 12,
+              }}
+            >
+              {!actionModal.isGenerating && !actionModal.docxBlob && (
+                <>
+                  <button
+                    onClick={closeActionModal}
+                    style={{
+                      padding: "8px 16px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 6,
+                      background: "white",
+                      color: "#374151",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmAction}
+                    disabled={
+                      (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
+                      (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
+                      (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
+                    }
+                    style={{
+                      padding: "8px 16px",
+                      border: "none",
+                      borderRadius: 6,
+                      background: (
+                        (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
+                        (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
+                        (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
+                      ) 
+                        ? "#9ca3af" 
+                        : (actionModal.type === 'unassign' ? "#dc2626" : "#2563eb"),
+                      color: "white",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: (
+                        (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
+                        (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
+                        (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
+                      ) ? "not-allowed" : "pointer",
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Confirm {actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'}
+                  </button>
+                </>
+              )}
+              
+              {actionModal.isGenerating && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div
+                    style={{
+                      width: 200,
+                      height: 4,
+                      backgroundColor: "#e5e7eb",
+                      borderRadius: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${actionModal.progress}%`,
+                        height: "100%",
+                        backgroundColor: "#2563eb",
+                        transition: "width 0.3s ease",
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: 14, color: "#6b7280" }}>
+                    Generating document...
+                  </span>
+                </div>
+              )}
+              
+              {actionModal.docxBlob && (
+                <button
+                  onClick={handleDownloadDocx}
+                  style={{
+                    padding: "8px 16px",
+                    border: "none",
+                    borderRadius: 6,
+                    background: "#059669",
+                    color: "white",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Download {actionModal.isBulk ? 'Bulk ' : ''}{actionModal.type === 'unassign' ? 'Return' : 'Transfer'} Form
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2971,6 +4223,13 @@ export default function Employee() {
         employee={assetsModal.employee}
         devices={devices}
         deviceHistory={employeeDeviceHistory}
+        onDeviceUpdate={async () => {
+          // Refresh devices and employee device history
+          await loadClientsAndEmployees();
+          if (assetsModal.employee) {
+            await loadEmployeeDeviceHistory(assetsModal.employee.id);
+          }
+        }}
       />
 
       {isLoading && <LoadingSpinner />}
