@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { getAllEmployees } from "../services/employeeService";
 import {
   addClient,
   getAllClients,
@@ -6,82 +7,59 @@ import {
   deleteClient,
 } from "../services/clientService";
 import { useSnackbar } from "../components/Snackbar";
-import LoadingSpinner, {
-  TableLoadingSpinner,
-} from "../components/LoadingSpinner";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../utils/firebase";
+import { TableLoadingSpinner } from "../components/LoadingSpinner";
+import "./Clients.css";
 
-// Styles moved to Clients.css
-
-function ClientFormModal({ data, onChange, onSave, onCancel }) {
-  const [showError, setShowError] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (!data.clientName.trim()) {
-      setShowError(true);
-      return;
-    }
-    setShowError(false);
-    setIsSaving(true);
-    await onSave();
-    setIsSaving(false);
-  };
-
+function ClientFormModal({
+  data,
+  onChange,
+  onSave,
+  onCancel,
+  showError,
+  isSaving,
+}) {
   return (
-    <div className="modal-overlay">
-      <div className="modal-box">
-        <div>{data.id ? "Edit Client Details" : "Add New Client"}</div>
-        <div>
-          <label>
-            Client Name: <span>*</span>
+    <div className="clients-modal-overlay">
+      <div className="clients-modal-box">
+        <button
+          className="clients-modal-close"
+          onClick={onCancel}
+          aria-label="Close"
+          title="Close"
+        >
+          ×
+        </button>
+        <h3 className="clients-modal-title">
+          {data.id ? "Edit Client Details" : "Add New Client"}
+        </h3>
+        <div className="clients-modal-form">
+          <label className="clients-modal-label">
+            Client Name: <span className="clients-required">*</span>
           </label>
           <input
+            className="clients-modal-input"
             name="clientName"
             value={data.clientName}
-            onChange={(e) => {
-              onChange(e);
-              if (showError) setShowError(false);
-            }}
+            onChange={onChange}
             placeholder="Enter client name (e.g. ABC Holdings, Inc.)"
             disabled={isSaving}
           />
-          {showError && <div>* Client Name is required</div>}
+          {showError && (
+            <div className="clients-modal-error">* Client Name is required</div>
+          )}
         </div>
-        <button onClick={handleSave} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save"}
-        </button>
-        <button onClick={onCancel} disabled={isSaving}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h2 className="modal-delete-title">Confirm Deletion</h2>
-        <p>Are you sure you want to permanently delete this client?</p>
-        <p className="modal-delete-desc">
-          This action will be reversible for 5 seconds using the undo
-          notification.
-        </p>
-        <div className="modal-delete-actions">
+        <div className="clients-modal-actions">
           <button
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="modal-delete-btn"
+            className="clients-modal-save"
+            onClick={onSave}
+            disabled={isSaving}
           >
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isSaving ? "Saving..." : "Save"}
           </button>
           <button
+            className="clients-modal-cancel"
             onClick={onCancel}
-            disabled={isDeleting}
-            className="modal-cancel-btn"
+            disabled={isSaving}
           >
             Cancel
           </button>
@@ -91,11 +69,158 @@ function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
   );
 }
 
+function DeleteConfirmationModal({ onConfirm, onCancel, isDeleting }) {
+  return (
+    <div className="clients-modal-overlay">
+      <div className="clients-delete-modal">
+        <h2 className="clients-delete-title">Confirm Deletion</h2>
+        <div className="clients-delete-desc">
+          Are you sure you want to permanently delete this client?
+        </div>
+        <div className="clients-delete-warning">
+          This action will be reversible for 5 seconds using the undo
+          notification.
+        </div>
+        <div className="clients-delete-actions">
+          <button
+            className="clients-delete-btn"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            className="clients-cancel-btn"
+            onClick={onCancel}
+            disabled={isDeleting}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BulkDeleteConfirmationModal({
+  count,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}) {
+  return (
+    <div className="clients-modal-overlay">
+      <div className="clients-delete-modal">
+        <h2 className="clients-delete-title">Confirm Deletion</h2>
+        <div className="clients-delete-desc">
+          Are you sure you want to delete the selected {count} client
+          {count > 1 ? "s" : ""}?
+        </div>
+        <div className="clients-delete-warning">
+          This action cannot be undone.
+        </div>
+        <div className="clients-delete-actions">
+          <button
+            className="clients-delete-btn"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <button
+            className="clients-cancel-btn"
+            onClick={onCancel}
+            disabled={isDeleting}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmployeesModal({ open, onClose, employees, clientId }) {
+  if (!open) return null;
+  return (
+    <div className="clients-modal-overlay">
+      <div className="clients-modal-box employees-modal-box">
+        <button
+          className="clients-modal-close"
+          onClick={onClose}
+          aria-label="Close"
+          title="Close"
+        >
+          ×
+        </button>
+        <h3 className="clients-modal-title">
+          Employees for {typeof clientId === "string" ? clientId : ""}
+        </h3>
+        <div className="employees-modal-list">
+          {employees.length === 0 ? (
+            <div className="employees-modal-empty">No employees found.</div>
+          ) : (
+            <table className="employees-table-modal">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Employee ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp) => (
+                  <tr key={emp.id}>
+                    <td>
+                      {emp.firstName || ""} {emp.lastName || ""}
+                    </td>
+                    <td>{emp.id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="clients-modal-actions">
+          <button className="clients-modal-cancel" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Clients() {
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
+  // Add missing handleEdit and handleDelete functions
+  const handleEdit = (client) => {
+    setForm({ id: client.id, clientName: client.clientName });
+    setShowForm(true);
+  };
+
+  const handleDelete = (clientId) => {
+    setSelectedId(clientId);
+    setShowConfirm(true);
+  };
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showEmployeesModal, setShowEmployeesModal] = useState(false);
+  const [employeesCLI1, setEmployeesCLI1] = useState([]);
+  const [employeesModalClientId, setEmployeesModalClientId] =
+    useState("CLI0001");
+
+  const handleShowEmployees = async (clientId = "CLI0001") => {
+    setEmployeesModalClientId(clientId);
+    const allEmployees = await getAllEmployees();
+    const filtered = allEmployees.filter(
+      (e) =>
+        (e.clientId && e.clientId === clientId) ||
+        (e.clientID && e.clientID === clientId)
+    );
+    setEmployeesCLI1(filtered);
+    setShowEmployeesModal(true);
+  };
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState({ id: null, clientName: "" });
@@ -109,11 +234,14 @@ function Clients() {
   const actionMenuRef = useRef();
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [showErrorMsg, setShowErrorMsg] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   useEffect(() => {
     fetchClients();
   }, []);
-
   const fetchClients = useCallback(async () => {
     setLoading(true);
     const [clientData] = await Promise.all([getAllClients()]);
@@ -121,9 +249,13 @@ function Clients() {
     setLoading(false);
   }, []);
 
-  const handleInputChange = useCallback(({ target: { name, value } }) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
-  }, []);
+  const handleInputChange = useCallback(
+    ({ target: { name, value } }) => {
+      setForm((prev) => ({ ...prev, [name]: value }));
+      if (showErrorMsg) setShowErrorMsg(false);
+    },
+    [showErrorMsg]
+  );
 
   const isFormValid = useCallback(
     () => form.clientName.trim().length > 0,
@@ -131,8 +263,14 @@ function Clients() {
   );
 
   const handleSave = useCallback(async () => {
-    if (!isFormValid()) return;
+    if (!isFormValid()) {
+      setShowErrorMsg(true);
+      return;
+    }
+    setShowErrorMsg(false);
+    setIsSaving(true);
     const payload = { clientName: form.clientName.trim() };
+
     if (form.id) {
       await updateClient(form.id, payload);
     } else {
@@ -140,85 +278,27 @@ function Clients() {
     }
     handleResetForm();
     fetchClients();
+    setIsSaving(false);
   }, [form, isFormValid, fetchClients]);
 
-  const handleEdit = useCallback((client) => {
-    setForm(client);
-    setShowForm(true);
-  }, []);
-
-  const handleDelete = useCallback((id) => {
-    setSelectedId(id);
-    setShowConfirm(true);
-  }, []);
-
-  const handleConfirmDelete = useCallback(async () => {
-    if (!selectedId) return;
+  const handleConfirmBulkDelete = useCallback(async () => {
+    setIsBulkDeleting(true);
     try {
-      const clientToDelete = clients.find((c) => c.id === selectedId);
-      if (!clientToDelete) return;
-      const clientBackup = { ...clientToDelete };
-      await deleteClient(selectedId);
-      setClients((prev) => prev.filter((c) => c.id !== selectedId));
-      showUndoNotification(
-        `Client "${clientBackup.name}" deleted successfully`,
-        async () => {
-          try {
-            const { id: originalId, ...clientDataToRestore } = clientBackup;
-            await setDoc(doc(db, "clients", originalId), clientDataToRestore);
-            const updatedClients = await getAllClients();
-            setClients(updatedClients);
-            showSuccess(`Client "${clientBackup.name}" restored successfully`);
-          } catch (error) {
-            showError("Failed to restore client. Please try again.");
-          }
-        },
-        5000
-      );
-      setSelectedId(null);
-      setShowConfirm(false);
-    } catch (error) {
-      showError("Failed to delete client. Please try again.");
-    }
-  }, [selectedId, clients, showUndoNotification, showSuccess, showError]);
-
-  const handleBulkDelete = useCallback(async () => {
-    if (checkedRows.length === 0) return;
-    try {
-      const clientsToDelete = clients.filter((c) => checkedRows.includes(c.id));
-      for (const id of checkedRows) {
-        await deleteClient(id);
-      }
+      // Delete all selected clients
+      await Promise.all(checkedRows.map((id) => deleteClient(id)));
       setClients((prev) => prev.filter((c) => !checkedRows.includes(c.id)));
-      showUndoNotification(
-        `${checkedRows.length} client(s) deleted successfully`,
-        async () => {
-          try {
-            for (const clientData of clientsToDelete) {
-              const { id: originalId, ...clientDataToRestore } = clientData;
-              await setDoc(doc(db, "clients", originalId), clientDataToRestore);
-            }
-            const updatedClients = await getAllClients();
-            setClients(updatedClients);
-            showSuccess(
-              `${clientsToDelete.length} client(s) restored successfully`
-            );
-          } catch (error) {
-            showError("Failed to restore clients. Please try again.");
-          }
-        },
-        5000
-      );
       setCheckedRows([]);
-      setShowConfirm(false);
+      setShowBulkDelete(false);
     } catch (error) {
-      showError("Failed to delete clients. Please try again.");
+      showError("Failed to delete selected clients. Please try again.");
     }
-  }, [checkedRows, clients, showUndoNotification, showSuccess, showError]);
+    setIsBulkDeleting(false);
+  }, [checkedRows, deleteClient, showError]);
 
   const handleResetForm = useCallback(() => {
     setForm({ id: null, clientName: "" });
     setShowForm(false);
+    setShowErrorMsg(false);
   }, []);
 
   const filteredClients = useMemo(
@@ -278,6 +358,10 @@ function Clients() {
     [filteredClients]
   );
 
+  const handleBulkDelete = useCallback(() => {
+    setShowBulkDelete(true);
+  }, []);
+
   useEffect(() => {
     if (!actionMenu.open) return;
     function handleClick(e) {
@@ -290,782 +374,294 @@ function Clients() {
   }, [actionMenu.open]);
 
   return (
-    <main className="clients-main">
-      <div className="clients-container">
-        <div>
-          <div className="clients-header">
-            <div className="clients-header-inner">
-              <span className="clients-title">Client Database</span>
-              <button
-                type="button"
-                onClick={() => setShowForm(true)}
-                className="clients-add-btn"
-              >
-                Add New Client
-              </button>
-            </div>
-          </div>
-          <div className="clients-toolbar">
-            <div className="clients-search">
-              <input
-                type="text"
-                placeholder="Search assigned assets..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="clients-search-input"
-              />
-              <span className="clients-search-icon">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <circle
-                    cx="8"
-                    cy="8"
-                    r="6.5"
-                    stroke="#A0AEC0"
-                    strokeWidth="1.5"
-                  />
-                  <line
-                    x1="13.3536"
-                    y1="13.6464"
-                    x2="17"
-                    y2="17.2929"
-                    stroke="#A0AEC0"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </span>
-            </div>
-          </div>
+    <div className="clients-page">
+      <div className="clients-header">
+        <h1 className="clients-title">Client Database</h1>
+        <div className="clients-header-actions">
+          <button className="clients-add-btn" onClick={() => setShowForm(true)}>
+            + Add Client
+          </button>
           {checkedRows.length > 0 && (
-            <div className="clients-selected-toolbar">
-              <span className="clients-selected-count">
-                <span style={{ fontWeight: 700, marginRight: 2 }}>
-                  {checkedRows.length}
-                </span>
-                {checkedRows.length === 1 ? "client" : "clients"} selected.
-              </span>
-            </div>
+            <button className="clients-delete-btn" onClick={handleBulkDelete}>
+              Delete
+            </button>
           )}
-          {showForm && (
-            <div>
-              <div>
-                <ClientFormModal
-                  data={form}
-                  onChange={handleInputChange}
-                  onSave={handleSave}
-                  onCancel={handleResetForm}
-                />
-              </div>
-            </div>
-          )}
-          {showConfirm && (
-            <div>
-              <div>
-                <DeleteConfirmationModal
-                  onConfirm={
-                    showConfirm === "bulk"
-                      ? handleBulkDelete
-                      : handleConfirmDelete
-                  }
-                  onCancel={() => setShowConfirm(false)}
-                  isDeleting={false}
-                />
-              </div>
-            </div>
-          )}
-          <table
-            border="1"
-            style={{
-              borderCollapse: "collapse",
-              width: 1614,
-              tableLayout: "fixed",
-              boxShadow: "none",
-              border: "1px solid #d7d7e0",
-              background: "#FFFFFF",
-              fontFamily:
-                'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              fontSize: 14,
-              lineHeight: "20.0004px",
-              color: "rgb(59, 59, 74)",
-              letterSpacing: "normal",
-              fontWeight: 400,
-            }}
-          >
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    textAlign: "center",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: 40,
-                    minWidth: 40,
-                    maxWidth: 40,
-                    whiteSpace: "nowrap",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: 0,
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={
-                      checkedRows.length > 0 &&
-                      checkedRows.length === clients.length &&
-                      clients.length > 0
-                    }
-                    onChange={handleCheckAll}
-                    style={{
-                      border: "1px solid #d7d7e0",
-                      boxSizing: "border-box",
-                      width: 16,
-                      height: 16,
-                      margin: 0,
-                      display: "block",
-                      position: "relative",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                    }}
-                  />
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: "1%",
-                    whiteSpace: "nowrap",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: "8px 12px",
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  #
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: "24.66%",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: "8px 12px",
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  Client ID
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: "24.66%",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: "8px 12px",
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  Client Name
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: "24.66%",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: "8px 12px",
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  Employee Count
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "middle",
-                    fontWeight: 400,
-                    width: "24.66%",
-                    background: "#FFFFFF",
-                    fontFamily:
-                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                    fontSize: 14,
-                    lineHeight: "20.0004px",
-                    color: "rgb(59, 59, 74)",
-                    letterSpacing: "normal",
-                    padding: "8px 12px",
-                    border: "1px solid #d7d7e0",
-                  }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-          </table>
-          <div
-            style={{
-              width: "100%",
-              height: 706,
-              maxHeight: 706,
-              overflowY: "scroll",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div style={{ flex: 1, overflow: "auto", width: "100%" }}>
-              <table
-                border="1"
-                style={{
-                  borderCollapse: "collapse",
-                  width: 1614,
-                  tableLayout: "fixed",
-                  boxShadow: "none",
-                  border: "1px solid #d7d7e0",
-                  borderTop: "none",
-                  fontFamily:
-                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: 14,
-                  lineHeight: "20.0004px",
-                  color: "rgb(59, 59, 74)",
-                  letterSpacing: "normal",
-                  fontWeight: 400,
-                }}
-              >
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="6" style={{ padding: "0", border: "none" }}>
-                        <TableLoadingSpinner text="Loading clients..." />
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedClients.map((client, idx) => {
-                      const isChecked = checkedRows.includes(client.id);
-                      let rowBg;
-                      if (isChecked) {
-                        rowBg = idx % 2 === 0 ? "#F1C9BF" : "#EAC2B8";
-                      } else {
-                        rowBg = idx % 2 === 0 ? "#FAFAFC" : "#F0F0F3";
-                      }
-                      const isFirstRow = idx === 0;
-                      const isLastRow = idx === paginatedClients.length - 1;
-                      const getCellBorderStyle = (cellIdx) => ({
-                        width:
-                          cellIdx === 0
-                            ? 40
-                            : cellIdx === 1
-                            ? "1%"
-                            : cellIdx === 2
-                            ? "24.66%"
-                            : cellIdx === 3
-                            ? "24.66%"
-                            : cellIdx === 4
-                            ? "24.66%"
-                            : "24.66%",
-                        minWidth: cellIdx === 0 ? 40 : undefined,
-                        maxWidth: cellIdx === 0 ? 40 : undefined,
-                        textAlign: cellIdx === 0 ? "center" : "left",
-                        verticalAlign: "middle",
-                        whiteSpace: cellIdx <= 1 ? "nowrap" : undefined,
-                        borderLeft: "1px solid #d7d7e0",
-                        borderRight: "1px solid #d7d7e0",
-                        borderTop: "none",
-                        borderBottom: isLastRow ? "none" : "none",
-                        padding: cellIdx === 0 ? 0 : "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                      });
-                      return (
-                        <tr
-                          key={client.id || idx}
-                          style={{
-                            background: rowBg,
-                            cursor: "pointer",
-                            transition: "background 0.2s",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isChecked)
-                              e.currentTarget.style.background = "#E5E5E8";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isChecked)
-                              e.currentTarget.style.background = rowBg;
-                          }}
-                        >
-                          <td style={getCellBorderStyle(0)}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => handleCheckboxChange(client.id)}
-                              style={{
-                                border: "1px solid #d7d7e0",
-                                boxSizing: "border-box",
-                                width: 16,
-                                height: 16,
-                                margin: 0,
-                                display: "block",
-                                position: "relative",
-                                left: "50%",
-                                transform: "translateX(-50%)",
-                              }}
-                            />
-                          </td>
-                          <td style={getCellBorderStyle(1)}>{idx + 1}</td>
-                          <td style={getCellBorderStyle(2)}>{client.id}</td>
-                          <td style={getCellBorderStyle(3)}>
-                            {client.clientName}
-                          </td>
-                          <td style={getCellBorderStyle(4)}>
-                            {client.employeeCount ?? 0}
-                          </td>
-                          <td
-                            style={{
-                              ...getCellBorderStyle(5),
-                              textAlign: "center",
-                              verticalAlign: "middle",
-                              position: "relative",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              style={{
-                                background: "none",
-                                border: "none",
-                                padding: 0,
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: 28,
-                                height: 28,
-                                borderRadius: 4,
-                                transition: "background 0.2s, box-shadow 0.2s",
-                              }}
-                              title="Actions"
-                              onClick={(e) => {
-                                setActionMenu({
-                                  open: true,
-                                  idx,
-                                  anchor: e.currentTarget,
-                                });
-                              }}
-                            >
-                              <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 18 18"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                              >
-                                <circle
-                                  cx="4.5"
-                                  cy="9"
-                                  r="1.2"
-                                  fill="#1D2536"
-                                />
-                                <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
-                                <circle
-                                  cx="13.5"
-                                  cy="9"
-                                  r="1.2"
-                                  fill="#1D2536"
-                                />
-                              </svg>
-                            </button>
-                            {actionMenu.open && actionMenu.idx === idx && (
-                              <div
-                                ref={actionMenuRef}
-                                style={{
-                                  position: "absolute",
-                                  top: 36,
-                                  left: "50%",
-                                  transform: "translateX(-50%)",
-                                  background: "#fff",
-                                  border: "1px solid #d7d7e0",
-                                  borderRadius: 0,
-                                  boxShadow: "0 4px 16px 0 #00000014",
-                                  zIndex: 10,
-                                  minWidth: 120,
-                                  padding: 0,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActionMenu({
-                                      open: false,
-                                      idx: null,
-                                      anchor: null,
-                                    });
-                                    handleEdit(client);
-                                  }}
-                                  style={{
-                                    fontFamily:
-                                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                                    fontSize: 14,
-                                    color: "#3B3B4A",
-                                    background: "none",
-                                    border: "none",
-                                    borderBottom: "1px solid #eee",
-                                    padding: "12px 20px",
-                                    cursor: "pointer",
-                                    textAlign: "center",
-                                    width: "100%",
-                                    transition: "background 0.2s",
-                                  }}
-                                  onMouseOver={(e) =>
-                                    (e.currentTarget.style.background =
-                                      "#F0F0F3")
-                                  }
-                                  onMouseOut={(e) =>
-                                    (e.currentTarget.style.background = "none")
-                                  }
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setActionMenu({
-                                      open: false,
-                                      idx: null,
-                                      anchor: null,
-                                    });
-                                    handleDelete(client.id);
-                                  }}
-                                  style={{
-                                    fontFamily:
-                                      'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                                    fontSize: 14,
-                                    color: "#D32F2F",
-                                    background: "none",
-                                    border: "none",
-                                    padding: "12px 20px",
-                                    cursor: "pointer",
-                                    textAlign: "center",
-                                    width: "100%",
-                                    transition: "background 0.2s",
-                                  }}
-                                  onMouseOver={(e) =>
-                                    (e.currentTarget.style.background =
-                                      "#F1C9BF")
-                                  }
-                                  onMouseOut={(e) =>
-                                    (e.currentTarget.style.background = "none")
-                                  }
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "18px 0 12px 0",
-                background: "#fff",
-                borderTop: "1px solid #d7d7e0",
-                fontFamily: "Maax, sans-serif",
-                fontSize: 14,
-                minHeight: 48,
-                gap: 16,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <span style={{ color: "#233037", fontWeight: 500 }}>
-                  Showing {startIdx} - {endIdx} of {filteredClients.length}{" "}
-                  clients
-                </span>
-                <span style={{ color: "#233037", fontWeight: 500 }}>
-                  Show:
-                  <select
-                    value={rowsPerPage}
-                    onChange={(e) => {
-                      setRowsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    style={{
-                      marginLeft: 8,
-                      padding: "4px 8px",
-                      borderRadius: 6,
-                      border: "1px solid #d7d7e0",
-                      fontFamily: "Maax, sans-serif",
-                      fontSize: 14,
-                      background: "#fff",
-                      color: "#233037",
-                      outline: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {[10, 20, 50, 100].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <button
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  style={{
-                    minWidth: 48,
-                    height: 32,
-                    borderRadius: 8,
-                    border: "1px solid #d7d7e0",
-                    background: currentPage === 1 ? "#F3F4F6" : "#fff",
-                    color: "#233037",
-                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                    fontWeight: 500,
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  First
-                </button>
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={{
-                    minWidth: 48,
-                    height: 32,
-                    borderRadius: 8,
-                    border: "1px solid #d7d7e0",
-                    background: currentPage === 1 ? "#F3F4F6" : "#fff",
-                    color: "#233037",
-                    cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                    fontWeight: 500,
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  Previous
-                </button>
-                {getPageNumbers().map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    style={{
-                      minWidth: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: "1px solid #d7d7e0",
-                      background: page === currentPage ? "#5EC6B8" : "#fff",
-                      color: page === currentPage ? "#fff" : "#233037",
-                      fontWeight: page === currentPage ? 700 : 500,
-                      fontFamily: "Maax, sans-serif",
-                      cursor: page === currentPage ? "default" : "pointer",
-                      boxShadow:
-                        page === currentPage
-                          ? "0 2px 8px rgba(94,198,184,0.10)"
-                          : "none",
-                      outline: "none",
-                    }}
-                    disabled={page === currentPage}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  style={{
-                    minWidth: 48,
-                    height: 32,
-                    borderRadius: 8,
-                    border: "1px solid #d7d7e0",
-                    background: currentPage === totalPages ? "#F3F4F6" : "#fff",
-                    color: "#233037",
-                    cursor:
-                      currentPage === totalPages ? "not-allowed" : "pointer",
-                    fontWeight: 500,
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  Next
-                </button>
-                <button
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  style={{
-                    minWidth: 48,
-                    height: 32,
-                    borderRadius: 8,
-                    border: "1px solid #d7d7e0",
-                    background: currentPage === totalPages ? "#F3F4F6" : "#fff",
-                    color: "#233037",
-                    cursor:
-                      currentPage === totalPages ? "not-allowed" : "pointer",
-                    fontWeight: 500,
-                    fontFamily: "Maax, sans-serif",
-                  }}
-                >
-                  Last
-                </button>
-              </div>
-            </div>
-            <div
-              style={{
-                position: "sticky",
-                bottom: 0,
-                left: 0,
-                width: "100%",
-                background: "#fff",
-                zIndex: 2,
-                borderTop: "none",
-                flexShrink: 0,
-              }}
-            >
-              <table
-                border="1"
-                style={{
-                  borderCollapse: "collapse",
-                  width: 1614,
-                  tableLayout: "fixed",
-                  boxShadow: "none",
-                  border: "1px solid #d7d7e0",
-                  fontFamily:
-                    'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                  fontSize: 14,
-                  lineHeight: "20.0004px",
-                  color: "rgb(59, 59, 74)",
-                  letterSpacing: "normal",
-                  fontWeight: 400,
-                }}
-              >
-                <tfoot>
-                  <tr style={{ height: 40 }}>
-                    <td
-                      style={{
-                        width: "1%",
-                        whiteSpace: "nowrap",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "1px solid #d7d7e0",
-                        borderRight: "none",
-                        height: 40,
-                      }}
-                    ></td>
-                    <td
-                      style={{
-                        width: "1%",
-                        whiteSpace: "nowrap",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "none",
-                        borderRight: "none",
-                        height: 40,
-                      }}
-                    ></td>
-                    <td
-                      style={{
-                        width: "24.66%",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "none",
-                        borderRight: "none",
-                        height: 40,
-                      }}
-                    ></td>
-                    <td
-                      style={{
-                        width: "24.66%",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "none",
-                        borderRight: "none",
-                        height: 40,
-                      }}
-                    ></td>
-                    <td
-                      style={{
-                        width: "24.66%",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "none",
-                        borderRight: "none",
-                        height: 40,
-                      }}
-                    ></td>
-                    <td
-                      style={{
-                        width: "24.66%",
-                        padding: "8px 12px",
-                        color: "rgb(59, 59, 74)",
-                        background: "#FFFFFF",
-                        borderColor: "#d7d7e0",
-                        borderLeft: "none",
-                        borderRight: "1px solid #d7d7e0",
-                        height: 40,
-                      }}
-                    ></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-            <style>{`
-                div[style*='overflowY: scroll']::-webkit-scrollbar { display: none; }
-              `}</style>
-          </div>
         </div>
       </div>
-    </main>
+      <div className="clients-search-bar">
+        <div className="clients-search-input-wrapper">
+          <input
+            type="text"
+            placeholder="Search clients..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="clients-search-input"
+          />
+          <span className="clients-search-icon">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle
+                cx="8"
+                cy="8"
+                r="6.5"
+                stroke="#A0AEC0"
+                strokeWidth="1.5"
+              />
+              <line
+                x1="13.3536"
+                y1="13.6464"
+                x2="17"
+                y2="17.2929"
+                stroke="#A0AEC0"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+        </div>
+      </div>
+      {checkedRows.length > 0 && (
+        <div className="clients-bulk-toolbar">
+          <span className="clients-bulk-count">{checkedRows.length}</span>
+          <span className="clients-bulk-label">
+            {checkedRows.length === 1 ? "client" : "clients"} selected.
+          </span>
+        </div>
+      )}
+      <EmployeesModal
+        open={showEmployeesModal}
+        onClose={() => setShowEmployeesModal(false)}
+        employees={employeesCLI1}
+        clientId={employeesModalClientId}
+      />
+      {showForm && (
+        <ClientFormModal
+          data={form}
+          onChange={handleInputChange}
+          onSave={handleSave}
+          onCancel={handleResetForm}
+          showError={showErrorMsg}
+          isSaving={isSaving}
+        />
+      )}
+      {showBulkDelete && (
+        <BulkDeleteConfirmationModal
+          count={checkedRows.length}
+          onConfirm={handleConfirmBulkDelete}
+          onCancel={() => setShowBulkDelete(false)}
+          isDeleting={isBulkDeleting}
+        />
+      )}
+      <div className="clients-content">
+        {loading && <TableLoadingSpinner />}
+        {!loading && (
+          <div className="clients-table-container">
+            <table className="clients-table">
+              <thead>
+                <tr className="clients-table-header">
+                  <th className="clients-table-checkbox">
+                    <input
+                      type="checkbox"
+                      onChange={handleCheckAll}
+                      className="clients-checkbox"
+                    />
+                  </th>
+                  <th className="clients-table-no">No.</th>
+                  <th className="clients-table-id">Client ID</th>
+                  <th className="clients-table-name">Client Name</th>
+                  <th className="clients-table-employees">Employees</th>
+                  <th className="clients-table-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredClients.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="clients-table-empty">
+                      No clients found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedClients.map((client, idx) => {
+                    const isChecked = checkedRows.includes(client.id);
+                    const selectedIndex = checkedRows.indexOf(client.id);
+                    const rowClass = isChecked
+                      ? selectedIndex % 2 === 0
+                        ? "clients-table-row selected"
+                        : "clients-table-row selected-alt"
+                      : idx % 2 === 0
+                      ? "clients-table-row unselected"
+                      : "clients-table-row unselected-alt";
+                    return (
+                      <tr
+                        key={client.id || idx}
+                        className={rowClass}
+                        onMouseEnter={(e) =>
+                          !isChecked && e.currentTarget.classList.add("hover")
+                        }
+                        onMouseLeave={(e) =>
+                          !isChecked &&
+                          e.currentTarget.classList.remove("hover")
+                        }
+                      >
+                        <td className="clients-table-checkbox-cell">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleCheckboxChange(client.id)}
+                            className="clients-checkbox"
+                          />
+                        </td>
+                        <td>{idx + 1}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="clients-id-btn"
+                            title={`Show employees for ${client.id}`}
+                            onClick={() => handleShowEmployees(client.id)}
+                          >
+                            {client.id}
+                          </button>
+                        </td>
+                        <td>{client.clientName}</td>
+                        <td>{client.employeeCount ?? 0}</td>
+                        <td className="clients-table-actions-cell">
+                          <button
+                            type="button"
+                            className="clients-table-actions-btn"
+                            title="Actions"
+                            onClick={(e) =>
+                              setActionMenu({
+                                open: true,
+                                idx,
+                                anchor: e.currentTarget,
+                              })
+                            }
+                          >
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 18 18"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <circle cx="4.5" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="9" cy="9" r="1.2" fill="#1D2536" />
+                              <circle cx="13.5" cy="9" r="1.2" fill="#1D2536" />
+                            </svg>
+                          </button>
+                          {actionMenu.open && actionMenu.idx === idx && (
+                            <div
+                              ref={actionMenuRef}
+                              className="clients-table-actions-menu"
+                              style={{
+                                left:
+                                  actionMenu.anchor?.getBoundingClientRect()
+                                    .left ?? 0,
+                                top:
+                                  actionMenu.anchor?.getBoundingClientRect()
+                                    .bottom + 4 ?? 0,
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenu({
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
+                                  });
+                                  handleEdit(client);
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionMenu({
+                                    open: false,
+                                    idx: null,
+                                    anchor: null,
+                                  });
+                                  handleDelete(client.id);
+                                }}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="clients-pagination-footer">
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            First
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </button>
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              className={`clients-pagination-btn${
+                page === currentPage ? " selected" : ""
+              }`}
+              onClick={() => setCurrentPage(page)}
+              disabled={page === currentPage}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </button>
+          <button
+            className="clients-pagination-btn"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            Last
+          </button>
+          <span className="clients-pagination-info">
+            Showing {startIdx} - {endIdx} of {filteredClients.length} clients
+          </span>
+          <span className="clients-pagination-select">
+            Show:
+            <select
+              value={rowsPerPage}
+              onChange={(e) => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="clients-rows-select"
+            >
+              {[10, 20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
 
