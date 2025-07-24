@@ -1,4 +1,11 @@
 import { useState, useEffect } from "react";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import "./LoginPage.css";
 
 function LoginPage({ onLogin, error }) {
@@ -21,9 +28,30 @@ function LoginPage({ onLogin, error }) {
     setLocalError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin(email, password);
+    setLocalError("");
+    try {
+      const db = getFirestore();
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const userDoc = snapshot.docs[0];
+        const userData = userDoc.data();
+        console.log("Fetched user data:", userData); // Debug log
+        if (userData.password === password) {
+          onLogin(userData, userDoc.id);
+        } else {
+          setLocalError("Invalid email or password.");
+        }
+      } else {
+        setLocalError("Invalid email or password.");
+      }
+    } catch (err) {
+      setLocalError("Login error: " + err.message);
+      console.error("Firestore login error:", err);
+    }
   };
 
   return (

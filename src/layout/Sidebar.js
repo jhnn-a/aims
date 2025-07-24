@@ -24,14 +24,12 @@ function Sidebar({ user }) {
     { to: "/employees", label: "Employees", icon: <MdPeople size={22} /> },
     { to: "/clients", label: "Clients", icon: <MdHandshake size={22} /> },
     { to: "/unit-specs", label: "Unit Specs", icon: <MdComputer size={22} /> },
-  ];
-  if (user && user.role === "admin") {
-    links.push({
+    {
       to: "/user-management",
       label: "User Management",
       icon: <MdAdminPanelSettings size={22} />,
-    });
-  }
+    },
+  ];
 
   return (
     <nav className="sidebar-nav">

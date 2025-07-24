@@ -66,13 +66,23 @@
   padding: 16px;
 }
 .clients-id-btn {
+  text-decoration: none;
   background: none;
   border: none;
   color: #2563eb;
-  text-decoration: underline;
   cursor: pointer;
   padding: 0;
   font: inherit;
+  transition: color 0.18s, background 0.18s, font-weight 0.18s, transform 0.12s;
+  border-radius: 4px;
+}
+.clients-id-btn:hover,
+.clients-id-btn:focus {
+  color: #1d4ed8;
+  background: #e0e7ef;
+  font-weight: 600;
+  outline: none;
+  transform: scale(1.04);
 }
 .employees-modal-box {
   max-width: 500px;

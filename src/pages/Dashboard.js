@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
@@ -9,6 +9,7 @@ import LoadingSpinner, {
   TableLoadingSpinner,
   CardLoadingSpinner,
 } from "../components/LoadingSpinner";
+import { useCurrentUser } from "../CurrentUserContext";
 
 // Simple bar component
 function Bar({ label, value, max, color = "#2563eb" }) {
@@ -121,6 +122,15 @@ function Donut({ label, value, total, color = "#2563eb", size = 110 }) {
 }
 
 function Dashboard() {
+  // Use custom hook to get current user, with fallback for missing context
+  let currentUser = undefined;
+  try {
+    const userContext = useCurrentUser?.();
+    currentUser = userContext?.currentUser;
+  } catch (e) {
+    currentUser = undefined;
+  }
+  const username = currentUser?.username || "User";
   const [employeeCount, setEmployeeCount] = useState(0);
   const [deviceCount, setDeviceCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
@@ -247,7 +257,7 @@ function Dashboard() {
   return (
     <div
       style={{
-        padding: "40px 48px 80px 48px", // generous padding, esp. left/right and bottom
+        padding: "40px 48px 80px 48px",
         width: "100%",
         minHeight: "100vh",
         boxSizing: "border-box",
@@ -257,6 +267,23 @@ function Dashboard() {
         background: "#f9f9f9",
       }}
     >
+      {/* Welcome Banner - styled like Device Status card */}
+      <div
+        style={{
+          ...cardStyle,
+          background: "#2563eb",
+          color: "#fff",
+          marginBottom: 32,
+        }}
+      >
+        <div style={{ fontSize: 32, fontWeight: 800, marginBottom: 8 }}>
+          Hello {username}, Welcome Back!
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 500, opacity: 0.92 }}>
+          View device, employee, and client stats at a glance. Quick insights
+          and recent activity below.
+        </div>
+      </div>
       <h2 style={sectionTitleStyle}>Dashboard Overview</h2>
       <div style={{ display: "flex", gap: 24, marginBottom: 32 }}>
         <div style={widgetStyle}>
