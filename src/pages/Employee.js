@@ -749,24 +749,13 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           // Get condition for this specific device (bulk) or use single condition
           const deviceCondition = isBulk ? deviceConditions[device.id] : selectedCondition;
           
-          // Debug: Check device data before update
-          console.log("=== UNASSIGN DEBUG ===");
-          console.log("Original device:", device);
-          console.log("Device ID:", device.id);
-          console.log("Device Type:", device.deviceType);
-          console.log("Device Tag:", device.deviceTag);
-          
-          // Unassign device with updated condition - preserve all other device data
-          const updateData = {
+          // Unassign device with updated condition
+          await updateDevice(device.id, {
             assignedTo: null,
             assignmentDate: null,
             status: "AVAILABLE",
             condition: deviceCondition // Update condition based on user selection
-          };
-          
-          console.log("Update data being sent:", updateData);
-          
-          await updateDevice(device.id, updateData);
+          });
           
           // Log device history
           await logDeviceHistory({
@@ -2927,10 +2916,25 @@ export default function Employee() {
 
             console.log("Processing asset row:", { employeeName, deviceType, brand, deviceTag, dateDeployed, employeeId });
 
-            // Validate required fields
+            // Validate required fields and device type
             if (!deviceType || !brand) {
               errorCount++;
               errors.push(`Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`);
+              continue;
+            }
+
+            // Validate device type against system device types
+            const validDeviceTypes = [
+              "Headset", "Keyboard", "Laptop", "Monitor", "Mouse", "PC", 
+              "PSU", "RAM", "SSD", "UPS", "Webcam"
+            ];
+            const validDeviceType = validDeviceTypes.find(
+              (type) => type.toLowerCase() === deviceType.toLowerCase()
+            );
+            
+            if (!validDeviceType) {
+              errorCount++;
+              errors.push(`Row with Employee "${employeeName}": Invalid device type "${deviceType}". Valid types: ${validDeviceTypes.join(', ')}`);
               continue;
             }
 
@@ -2982,7 +2986,7 @@ export default function Employee() {
 
             // Create device data
             const deviceData = {
-              deviceType: deviceType,
+              deviceType: validDeviceType, // Use validated device type
               brand: brand,
               model: row["MODEL"] || "",
               serialNumber: row["SERIAL NUMBER"] || "",
