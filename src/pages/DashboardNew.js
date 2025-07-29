@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
 import { exportDashboardToExcel } from "../utils/exportDashboardToExcel";
 import { getDeviceHistory } from "../services/deviceHistoryService";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { getUnitSpecsByTag } from "../services/unitSpecsService";
+import LoadingSpinner, {
+  TableLoadingSpinner,
+  CardLoadingSpinner,
+} from "../components/LoadingSpinner";
 import { useCurrentUser } from "../CurrentUserContext";
 import {
   PieChart,
@@ -17,8 +21,120 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  LineChart,
+  Line,
   Legend
 } from 'recharts';
+
+// Simple bar component
+function Bar({ label, value, max, color = "#2563eb" }) {
+  const percent = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div
+        style={{
+          background: "#e5e7eb",
+          borderRadius: 8,
+          height: 22,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            width: `${percent}%`,
+            background: color,
+            height: "100%",
+            borderRadius: 8,
+            transition: "width 0.4s",
+            minWidth: 2,
+          }}
+        />
+        <span
+          style={{
+            position: "absolute",
+            left: 12,
+            top: 0,
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: 14,
+            textShadow: "0 1px 4px #2563eb55",
+          }}
+        >
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Simple circular progress (donut) chart
+function Donut({ label, value, total, color = "#2563eb", size = 110 }) {
+  const percent = total > 0 ? value / total : 0;
+  const stroke = 12;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ * (1 - percent);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        margin: 12,
+      }}
+    >
+      <svg width={size} height={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#e5e7eb"
+          strokeWidth={stroke}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={stroke}
+          fill="none"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.5s" }}
+        />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          dy="0.3em"
+          fontSize="1.5em"
+          fontWeight="bold"
+          fill={color}
+        >
+          {value}
+        </text>
+      </svg>
+      <div
+        style={{
+          fontWeight: 600,
+          color: "#64748b",
+          marginTop: 4,
+          fontSize: 15,
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
 
 // Enhanced Chart Components
 const COLORS = ['#2563eb', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
@@ -139,10 +255,9 @@ function Dashboard() {
   const [employeeCount, setEmployeeCount] = useState(0);
   const [deviceCount, setDeviceCount] = useState(0);
   const [clientCount, setClientCount] = useState(0);
+  const [inUseCount, setInUseCount] = useState(0);
   const [stockCount, setStockCount] = useState(0);
   const [retiredCount, setRetiredCount] = useState(0);
-  const [deployedCount, setDeployedCount] = useState(0);
-  const [inventoryCount, setInventoryCount] = useState(0);
   const [deviceTypes, setDeviceTypes] = useState([]);
   
   // Device condition counts
@@ -157,7 +272,17 @@ function Dashboard() {
   const [utilizationRate, setUtilizationRate] = useState(0);
   const [timeRange, setTimeRange] = useState('30days');
   const [loading, setLoading] = useState(true);
+  
+  // Modal and popup state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(null);
+  const [modalDevices, setModalDevices] = useState([]);
   const [systemHistory, setSystemHistory] = useState([]);
+  const [employeeMap, setEmployeeMap] = useState({});
+  const [hoveredDevice, setHoveredDevice] = useState(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [unitSpecs, setUnitSpecs] = useState(null);
+  const [loadingSpecs, setLoadingSpecs] = useState(false);
   const [allDevices, setAllDevices] = useState([]);
 
   useEffect(() => {
@@ -172,23 +297,9 @@ function Dashboard() {
         setEmployeeCount(employees.length);
         setDeviceCount(devices.length);
         setClientCount(clients.length);
+        setInUseCount(devices.filter((d) => d.status === "In Use").length);
         setStockCount(devices.filter((d) => d.status === "Stock Room").length);
         setRetiredCount(devices.filter((d) => d.status === "Retired").length);
-        
-        // Calculate deployed assets (devices that are assigned/in use)
-        const deployed = devices.filter((d) => 
-          d.status === "In Use" || 
-          d.status === "Deployed" || 
-          (d.assignedTo && d.assignedTo.trim() !== "")
-        ).length;
-        setDeployedCount(deployed);
-        
-        // Calculate inventory total (all active devices excluding retired)
-        const inventory = devices.filter((d) => 
-          d.status !== "Retired" && 
-          d.status !== "Disposed"
-        ).length;
-        setInventoryCount(inventory);
 
         // Build employeeId → employeeName map
         const empMap = {};
@@ -201,6 +312,7 @@ function Dashboard() {
             empMap[docId] = emp.fullName.trim();
           }
         });
+        setEmployeeMap(empMap);
 
         // Count device types
         const typeMap = {};
@@ -442,36 +554,6 @@ function Dashboard() {
             {utilizationRate}%
           </div>
         </div>
-        
-        <div style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 24,
-          border: '1px solid #e0e7ef',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#6b7280', marginBottom: 8 }}>
-            Assets Deployed
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#f59e0b' }}>
-            {deployedCount}
-          </div>
-        </div>
-        
-        <div style={{
-          background: '#fff',
-          borderRadius: 12,
-          padding: 24,
-          border: '1px solid #e0e7ef',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#6b7280', marginBottom: 8 }}>
-            Inventory Total
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: '#8b5cf6' }}>
-            {inventoryCount}
-          </div>
-        </div>
       </div>
 
       {/* Main Charts Grid */}
@@ -630,36 +712,6 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Deployment Summary */}
-          <div style={{
-            background: '#fff',
-            borderRadius: 12,
-            padding: 20,
-            border: '1px solid #e0e7ef'
-          }}>
-            <h4 style={{ margin: '0 0 12px 0', color: '#374151', fontSize: 16, fontWeight: 600 }}>
-              🚀 Deployment Summary
-            </h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>Assets Deployed</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#f59e0b' }}>
-                {deployedCount}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>Inventory Total</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>
-                {inventoryCount}
-              </span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <span style={{ fontSize: 14, color: '#6b7280' }}>Deployment Rate</span>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>
-                {inventoryCount > 0 ? Math.round((deployedCount / inventoryCount) * 100) : 0}%
-              </span>
-            </div>
-          </div>
-
           {/* Export Options */}
           <div style={{
             background: '#fff',
@@ -678,10 +730,6 @@ function Dashboard() {
                     employees: employeeCount,
                     devices: deviceCount,
                     clients: clientCount,
-                    deployed: deployedCount,
-                    inventory: inventoryCount,
-                    stock: stockCount,
-                    retired: retiredCount,
                     deviceTypes,
                     deviceStatus: deviceStatusData,
                     utilizationRate,
