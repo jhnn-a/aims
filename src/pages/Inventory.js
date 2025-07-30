@@ -1321,9 +1321,18 @@ function Inventory() {
   const handleEdit = (device) => {
     const { id, ...deviceData } = device;
 
+    // Find the matching deviceType label (case-insensitive)
+    let matchedType = "";
+    if (deviceData.deviceType) {
+      const foundType = deviceTypes.find(
+        (t) => t.label.toLowerCase() === deviceData.deviceType.toLowerCase()
+      );
+      matchedType = foundType ? foundType.label : deviceData.deviceType;
+    }
+
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
-      deviceType: deviceData.deviceType || "",
+      deviceType: matchedType || "",
       deviceTag: deviceData.deviceTag || "",
       brand: deviceData.brand || "",
       model: deviceData.model || "",
@@ -1340,7 +1349,9 @@ function Inventory() {
     setForm(formData);
 
     // Check if this device uses a serial number format (no JOII prefix)
-    const typeObj = deviceTypes.find((t) => t.label === deviceData.deviceType);
+    const typeObj = deviceTypes.find(
+      (t) => t.label.toLowerCase() === matchedType.toLowerCase()
+    );
     const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
     const isSerialFormat =
       deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
