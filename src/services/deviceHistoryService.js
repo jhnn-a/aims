@@ -42,7 +42,7 @@ export const logDeviceHistory = async ({
     deviceId,
     deviceTag: deviceTag || null, // always store
     action,
-    date: date || new Date(), // Always store as Date object for consistent timestamps
+    date: date || new Date().toISOString(), // Always store current timestamp when action occurs
     reason: reason || null,
     condition: condition || null,
   });
