@@ -8,7 +8,11 @@ import * as XLSX from "xlsx"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
 import { TableLoadingSpinner } from "../components/LoadingSpinner"; // Loading indicators
-import { TextFilter, DropdownFilter, DateFilter } from "../components/TableHeaderFilters"; // Table filtering components
+import {
+  TextFilter,
+  DropdownFilter,
+  DateFilter,
+} from "../components/TableHeaderFilters"; // Table filtering components
 import {
   addDevice, // Create new device
   updateDevice, // Update existing device
@@ -245,95 +249,31 @@ function DeviceFormModal({
                 width: "100%",
               }}
             >
-              {!useSerial ? (
-                <>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: "#2563eb",
-                      minWidth: "fit-content",
-                    }}
-                  >{`JOII${
-                    deviceTypes.find((t) => t.label === data.deviceType)
-                      ?.code || ""
-                  }`}</span>
-                  <input
-                    name="deviceTagDigits"
-                    value={data.deviceTag.replace(
-                      `JOII${
-                        deviceTypes.find((t) => t.label === data.deviceType)
-                          ?.code || ""
-                      }`,
-                      ""
-                    )}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-                      onChange({
-                        target: {
-                          name: "deviceTag",
-                          value: `JOII${
-                            deviceTypes.find((t) => t.label === data.deviceType)
-                              ?.code || ""
-                          }${val}`,
-                        },
-                      });
-                    }}
-                    style={{
-                      width: 70,
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: "1.5px solid #cbd5e1",
-                      background: editingDevice ? "#f5f5f5" : "#f1f5f9",
-                      fontSize: 14,
-                      height: "36px",
-                      boxSizing: "border-box",
-                      cursor: editingDevice ? "not-allowed" : "text",
-                      color: editingDevice ? "#666" : "#000",
-                    }}
-                    maxLength={4}
-                    pattern="\\d{0,4}"
-                    placeholder="0001"
-                    disabled={editingDevice}
-                  />
-                  <button
-                    type="button"
-                    onClick={onGenerateTag}
-                    style={{
-                      ...styles.inventoryModalButtonSmall,
-                      padding: "6px 12px",
-                      fontSize: 13,
-                      opacity: editingDevice ? 0.5 : 1,
-                      cursor: editingDevice ? "not-allowed" : "pointer",
-                    }}
-                    disabled={editingDevice}
-                  >
-                    Generate
-                  </button>
-                </>
-              ) : (
-                <input
-                  key={useSerial ? "serial" : "tag"}
-                  name="deviceTag"
-                  value={data.deviceTag}
-                  onChange={onChange}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: "1.5px solid #cbd5e1",
-                    background: editingDevice ? "#f5f5f5" : "#f1f5f9",
-                    fontSize: 14,
-                    height: "36px",
-                    boxSizing: "border-box",
-                    cursor: editingDevice ? "not-allowed" : "text",
-                    color: editingDevice ? "#666" : "#000",
-                  }}
-                  maxLength={64}
-                  placeholder="Enter Serial Number"
-                  disabled={editingDevice}
-                />
-              )}
+              <input
+                name="deviceTag"
+                value={data.deviceTag}
+                onChange={onChange}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: "1.5px solid #cbd5e1",
+                  background: editingDevice ? "#f5f5f5" : "#f1f5f9",
+                  fontSize: 14,
+                  height: "36px",
+                  boxSizing: "border-box",
+                  cursor: editingDevice ? "not-allowed" : "text",
+                  color: editingDevice ? "#666" : "#000",
+                }}
+                maxLength={64}
+                placeholder={
+                  useSerial
+                    ? "Enter Serial Number"
+                    : "Auto-generated device tag"
+                }
+                disabled={editingDevice}
+                readOnly={!useSerial}
+              />
             </div>
             <label
               style={{
@@ -779,40 +719,44 @@ function Inventory() {
   const [autoRefreshing, setAutoRefreshing] = useState(false); // Auto-refresh indicator for page focus/visibility changes
 
   // === NOTIFICATION SYSTEM ===
-  const { showSuccess, showError, showWarning, showUndoNotification } = useSnackbar(); // User feedback notifications
-  
+  const { showSuccess, showError, showWarning, showUndoNotification } =
+    useSnackbar(); // User feedback notifications
+
   // === FORM VALIDATION STATE ===
   const [tagError, setTagError] = useState(""); // Asset tag validation error messages
   const [saveError, setSaveError] = useState(""); // Form save error messages
   const [useSerial, setUseSerial] = useState(false); // Toggle for using serial number as asset tag
-  
+
   // === DEVICE ASSIGNMENT STATE ===
   const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee/client
   const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility state
   const [assignSearch, setAssignSearch] = useState(""); // Search input for employees/clients in assignment modal
-  
+
   // === IMPORT/EXPORT STATE ===
   const [importing, setImporting] = useState(false); // Excel import operation in progress
-  const [importProgress, setImportProgress] = useState({ // Progress tracking for import operations
+  const [importProgress, setImportProgress] = useState({
+    // Progress tracking for import operations
     current: 0, // Current number of items processed
     total: 0, // Total number of items to process
   });
-  
+
   // === BULK OPERATIONS STATE ===
   const [selectedIds, setSelectedIds] = useState([]); // Device IDs selected for bulk operations
   const [selectAll, setSelectAll] = useState(false); // Select all checkbox state
-  const [deleteProgress, setDeleteProgress] = useState({ // Progress tracking for bulk delete operations
+  const [deleteProgress, setDeleteProgress] = useState({
+    // Progress tracking for bulk delete operations
     current: 0, // Current number of items deleted
     total: 0, // Total number of items to delete
   });
-  
+
   // === SEARCH AND FILTERING STATE ===
   const [deviceSearch, setDeviceSearch] = useState(""); // Global search input across all device fields
   const [headerFilters, setHeaderFilters] = useState({}); // Advanced filtering system for table columns
-  
+
   // === DEVICE HISTORY STATE ===
   const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null); // Device selected for history view
 
   // === DELETE CONFIRMATION STATE ===
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Single device delete confirmation modal
@@ -826,7 +770,8 @@ function Inventory() {
   // === ASSIGNMENT WORKFLOW STATE ===
   const [assignStep, setAssignStep] = useState(0); // Current step in assignment workflow (0: employee select, 1: form options)
   const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null); // Employee selected for device assignment
-  const [issueChecks, setIssueChecks] = useState({ // Assignment form type checkboxes
+  const [issueChecks, setIssueChecks] = useState({
+    // Assignment form type checkboxes
     newIssueNew: false, // New issue for brand new device
     newIssueStock: false, // New issue from stock
     wfhNew: false, // Work from home new device
@@ -906,7 +851,11 @@ function Inventory() {
   // --- HANDLERS ---
 
   // Helper function to get unassigned devices (for inventory display)
-  const getUnassignedDevices = (devicesArray, searchQuery = "", headerFilters = {}) => {
+  const getUnassignedDevices = (
+    devicesArray,
+    searchQuery = "",
+    headerFilters = {}
+  ) => {
     return devicesArray
       .filter((device) => {
         // First filter: Only show devices that are NOT assigned
@@ -916,7 +865,7 @@ function Inventory() {
         // Second filter: Search functionality
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          const matchesSearch = 
+          const matchesSearch =
             device.deviceType?.toLowerCase().includes(q) ||
             device.deviceTag?.toLowerCase().includes(q) ||
             device.brand?.toLowerCase().includes(q) ||
@@ -924,7 +873,7 @@ function Inventory() {
             device.condition?.toLowerCase().includes(q) ||
             device.remarks?.toLowerCase().includes(q) ||
             device.client?.toLowerCase().includes(q);
-          
+
           if (!matchesSearch) return false;
         }
 
@@ -938,10 +887,10 @@ function Inventory() {
               if (itemValue === undefined || itemValue === null) return false;
 
               // For date filtering on acquisitionDate
-              if (key === 'acquisitionDate' && filterValue) {
+              if (key === "acquisitionDate" && filterValue) {
                 const deviceDate = device.acquisitionDate;
                 if (!deviceDate) return false;
-                
+
                 // Convert both dates to comparable format
                 const filterDate = new Date(filterValue).toDateString();
                 const deviceDateObj = new Date(deviceDate);
@@ -975,7 +924,29 @@ function Inventory() {
 
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
-      setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+      // When device type changes, auto-generate device tag
+      const typeObj = deviceTypes.find((t) => t.label === value);
+      let newTag = "";
+      if (typeObj) {
+        const prefix = `JOII${typeObj.code}`;
+        // Find max existing tag for this type
+        getAllDevices().then((allDevices) => {
+          const ids = allDevices
+            .map((d) => d.deviceTag)
+            .filter((tag) => tag && tag.startsWith(prefix))
+            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          setForm((prev) => ({
+            ...prev,
+            deviceType: value,
+            deviceTag: newTag,
+          }));
+        });
+      } else {
+        setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+      }
       setTagError("");
       return;
     }
@@ -995,18 +966,8 @@ function Inventory() {
         }
         return;
       }
-      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
-      if (typeObj) {
-        const prefix = `JOII${typeObj.code}`;
-        const regex = new RegExp(`^${prefix}\\d{0,4}$`);
-        if (!regex.test(value)) {
-          setTagError(
-            `Device tag must be in the format ${prefix}0001 (4 digits, no letters).`
-          );
-          return;
-        }
-      }
-      setTagError("");
+      // For non-serial, deviceTag is auto-generated and read-only
+      return;
     }
     if (name === "assignedTo") {
       setForm((prev) => {
@@ -1067,13 +1028,13 @@ function Inventory() {
     };
 
     // Add event listeners for focus and visibility changes
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup event listeners
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -1089,18 +1050,30 @@ function Inventory() {
 
   // Update selectAll state when selectedIds or current page changes
   useEffect(() => {
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+    const filteredDevices = getUnassignedDevices(
+      devices,
+      deviceSearch,
+      headerFilters
+    );
     const startIndex = (currentPage - 1) * devicesPerPage;
     const endIndex = startIndex + devicesPerPage;
     const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
-    const currentPageIds = currentPageDevices.map(d => d.id);
-    
+    const currentPageIds = currentPageDevices.map((d) => d.id);
+
     // Check if all current page items are selected
-    const allCurrentPageSelected = currentPageIds.length > 0 && 
-      currentPageIds.every(id => selectedIds.includes(id));
-    
+    const allCurrentPageSelected =
+      currentPageIds.length > 0 &&
+      currentPageIds.every((id) => selectedIds.includes(id));
+
     setSelectAll(allCurrentPageSelected);
-  }, [selectedIds, currentPage, devicesPerPage, deviceSearch, headerFilters, devices]);
+  }, [
+    selectedIds,
+    currentPage,
+    devicesPerPage,
+    deviceSearch,
+    headerFilters,
+    devices,
+  ]);
 
   // Focus management for modal accessibility
   useEffect(() => {
@@ -1137,7 +1110,7 @@ function Inventory() {
     } else {
       setLoading(true); // Show main loading spinner
     }
-    
+
     try {
       const [deviceData, employeeData, clientData] = await Promise.all([
         getAllDevices(),
@@ -1148,7 +1121,7 @@ function Inventory() {
       setEmployees(employeeData);
       setClients(clientData);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error("Failed to load data:", error);
     } finally {
       // Clear loading states
       setLoading(false);
@@ -1451,8 +1424,27 @@ function Inventory() {
 
   const handleSerialToggle = (checked) => {
     setUseSerial(checked);
-    setForm((prev) => ({ ...prev, deviceTag: "" }));
-    setTagError("");
+    if (checked) {
+      // Switching to serial: keep deviceTag as is (user can edit)
+      setTagError("");
+    } else {
+      // Switching back to auto-generated: re-generate deviceTag
+      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
+      if (typeObj) {
+        const prefix = `JOII${typeObj.code}`;
+        getAllDevices().then((allDevices) => {
+          const ids = allDevices
+            .map((d) => d.deviceTag)
+            .filter((tag) => tag && tag.startsWith(prefix))
+            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          setForm((prev) => ({ ...prev, deviceTag: newTag }));
+        });
+      }
+      setTagError("");
+    }
   };
 
   const handleImportExcel = async (e) => {
@@ -1539,13 +1531,21 @@ function Inventory() {
   };
 
   // --- FILTERED DEVICES ---
-  const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+  const filteredDevices = getUnassignedDevices(
+    devices,
+    deviceSearch,
+    headerFilters
+  );
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
 
     // Filter devices based on search AND exclude assigned devices AND apply header filters
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+    const filteredDevices = getUnassignedDevices(
+      devices,
+      deviceSearch,
+      headerFilters
+    );
 
     // Get current page devices
     const startIndex = (currentPage - 1) * devicesPerPage;
@@ -1878,9 +1878,9 @@ function Inventory() {
 
   // --- Header Filter Functions ---
   const updateHeaderFilter = (key, value) => {
-    setHeaderFilters(prev => ({
+    setHeaderFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
     setCurrentPage(1); // Reset to first page when filtering
   };
@@ -3431,14 +3431,17 @@ function Inventory() {
               maxHeight: "100%",
               scrollbarWidth: "thin", // Show thin scrollbar for better UX
               scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
-                // Custom webkit scrollbar styling
-                WebkitScrollbar: { width: "8px", height: "8px" },
-                WebkitScrollbarTrack: { background: "#f1f5f9" },
-                WebkitScrollbarThumb: { background: "#cbd5e1", borderRadius: "4px" },
-                }}
-                >
-                <table
-                style={{
+              // Custom webkit scrollbar styling
+              WebkitScrollbar: { width: "8px", height: "8px" },
+              WebkitScrollbarTrack: { background: "#f1f5f9" },
+              WebkitScrollbarThumb: {
+                background: "#cbd5e1",
+                borderRadius: "4px",
+              },
+            }}
+          >
+            <table
+              style={{
                 width: "100%",
                 minWidth: "900px", // Increased for better laptop/desktop display
                 borderCollapse: "collapse",
@@ -3446,803 +3449,819 @@ function Inventory() {
                 fontSize: "14px",
                 border: "1px solid #d1d5db",
                 tableLayout: "fixed", // Fixed layout for better column control
-                }}
-                >
-                <thead>
+              }}
+            >
+              <thead>
                 {/* Header Row */}
                 <tr style={{ background: "#f9fafb" }}>
                   <th
-                  style={{
-                  width: "4%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "4%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                  style={{ width: 16, height: 16, margin: 0 }}
-                  />
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      style={{ width: 16, height: 16, margin: 0 }}
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "3%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "3%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  #
+                    #
                   </th>
                   <th
-                  style={{
-                  width: "13%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "13%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  DEVICE TAG
+                    DEVICE TAG
                   </th>
                   <th
-                  style={{
-                  width: "11%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "11%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  TYPE
+                    TYPE
                   </th>
                   <th
-                  style={{
-                  width: "10%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  BRAND
+                    BRAND
                   </th>
                   <th
-                  style={{
-                  width: "10%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  MODEL
+                    MODEL
                   </th>
                   <th
-                  style={{
-                  width: "9%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  CLIENT
+                    CLIENT
                   </th>
                   <th
-                  style={{
-                  width: "9%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  CONDITION
+                    CONDITION
                   </th>
                   <th
-                  style={{
-                  width: "15%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "15%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  REMARKS
+                    REMARKS
                   </th>
                   <th
-                  style={{
-                  width: "12%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  ACQUISITION DATE
+                    ACQUISITION DATE
                   </th>
                   <th
-                  style={{
-                  width: "8%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "8%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  ACTIONS
+                    ACTIONS
                   </th>
                 </tr>
-                
+
                 {/* Filter Row */}
                 <tr style={{ background: "#ffffff" }}>
                   <th
-                  style={{
-                  width: "4%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "4%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for checkbox column */}
+                    {/* Empty cell for checkbox column */}
                   </th>
                   <th
-                  style={{
-                  width: "3%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "3%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for # column */}
+                    {/* Empty cell for # column */}
                   </th>
                   <th
-                  style={{
-                  width: "13%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "13%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.deviceTag || ""}
-                  onChange={(value) => updateHeaderFilter("deviceTag", value)}
-                  placeholder="Filter by tag..."
-                  />
+                    <TextFilter
+                      value={headerFilters.deviceTag || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceTag", value)
+                      }
+                      placeholder="Filter by tag..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "11%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "11%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.deviceType || ""}
-                  onChange={(value) => updateHeaderFilter("deviceType", value)}
-                  options={[...new Set(devices.map(d => d.deviceType).filter(Boolean))]}
-                  placeholder="All Types"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.deviceType || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceType", value)
+                      }
+                      options={[
+                        ...new Set(
+                          devices.map((d) => d.deviceType).filter(Boolean)
+                        ),
+                      ]}
+                      placeholder="All Types"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "10%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.brand || ""}
-                  onChange={(value) => updateHeaderFilter("brand", value)}
-                  placeholder="Filter by brand..."
-                  />
+                    <TextFilter
+                      value={headerFilters.brand || ""}
+                      onChange={(value) => updateHeaderFilter("brand", value)}
+                      placeholder="Filter by brand..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "10%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.model || ""}
-                  onChange={(value) => updateHeaderFilter("model", value)}
-                  placeholder="Filter by model..."
-                  />
+                    <TextFilter
+                      value={headerFilters.model || ""}
+                      onChange={(value) => updateHeaderFilter("model", value)}
+                      placeholder="Filter by model..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "9%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.client || ""}
-                  onChange={(value) => updateHeaderFilter("client", value)}
-                  options={[...new Set(devices.map(d => d.client).filter(Boolean))]}
-                  placeholder="All Clients"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={[
+                        ...new Set(
+                          devices.map((d) => d.client).filter(Boolean)
+                        ),
+                      ]}
+                      placeholder="All Clients"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "9%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.condition || ""}
-                  onChange={(value) => updateHeaderFilter("condition", value)}
-                  options={["BRANDNEW", "GOOD", "DEFECTIVE"]}
-                  placeholder="All Conditions"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.condition || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("condition", value)
+                      }
+                      options={["BRANDNEW", "GOOD", "DEFECTIVE"]}
+                      placeholder="All Conditions"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "15%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "15%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.remarks || ""}
-                  onChange={(value) => updateHeaderFilter("remarks", value)}
-                  placeholder="Filter by remarks..."
-                  />
+                    <TextFilter
+                      value={headerFilters.remarks || ""}
+                      onChange={(value) => updateHeaderFilter("remarks", value)}
+                      placeholder="Filter by remarks..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "12%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DateFilter
-                  value={headerFilters.acquisitionDate || ""}
-                  onChange={(value) => updateHeaderFilter("acquisitionDate", value)}
-                  />
+                    <DateFilter
+                      value={headerFilters.acquisitionDate || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("acquisitionDate", value)
+                      }
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "8%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "8%",
+                      padding: "6px 4px",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for actions column */}
+                    {/* Empty cell for actions column */}
                   </th>
                 </tr>
-                </thead>
-                <tbody>
+              </thead>
+              <tbody>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
                   const filteredDevices = getUnassignedDevices(
-                  devices,
-                  deviceSearch,
-                  headerFilters
+                    devices,
+                    deviceSearch,
+                    headerFilters
                   );
 
                   // Calculate pagination
                   const totalPages = Math.ceil(
-                  filteredDevices.length / devicesPerPage
+                    filteredDevices.length / devicesPerPage
                   );
                   const startIndex = (currentPage - 1) * devicesPerPage;
                   const endIndex = startIndex + devicesPerPage;
                   const currentDevices = filteredDevices.slice(
-                  startIndex,
-                  endIndex
+                    startIndex,
+                    endIndex
                   );
 
                   if (currentDevices.length === 0) {
-                  return (
-                    <tr>
-                    <td 
-                      colSpan="11" 
-                      style={{
-                      padding: "40px 20px",
-                      textAlign: "center",
-                      color: "#9ca3af",
-                      fontSize: "14px",
-                      fontWeight: "400",
-                      border: "1px solid #d1d5db",
-                      }}
-                    >
-                      {deviceSearch || hasActiveHeaderFilters
-                      ? "No inventory devices found matching your criteria."
-                      : "No inventory devices to display."}
-                    </td>
-                    </tr>
-                  );
+                    return (
+                      <tr>
+                        <td
+                          colSpan="11"
+                          style={{
+                            padding: "40px 20px",
+                            textAlign: "center",
+                            color: "#9ca3af",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            border: "1px solid #d1d5db",
+                          }}
+                        >
+                          {deviceSearch || hasActiveHeaderFilters
+                            ? "No inventory devices found matching your criteria."
+                            : "No inventory devices to display."}
+                        </td>
+                      </tr>
+                    );
                   }
 
                   return currentDevices.map((device, index) => (
-                  <tr
-                    key={device.id}
-                    style={{
-                    borderBottom: "1px solid #d1d5db",
-                    background:
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    }}
-                    onClick={() => handleSelectOne(device.id)}
-                    onMouseEnter={(e) => {
-                    if (index % 2 === 0) {
-                      e.currentTarget.style.background =
-                      "rgb(235, 235, 240)";
-                    } else {
-                      e.currentTarget.style.background =
-                      "rgb(225, 225, 235)";
-                    }
-                    }}
-                    onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)";
-                    }}
-                  >
-                    <td
-                    style={{
-                      width: "4%",
-                      padding: "8px 4px",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                    }}
-                    >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(device.id)}
-                      onChange={(e) => {
-                      e.stopPropagation();
-                      handleSelectOne(device.id);
-                      }}
-                      style={{ width: 16, height: 16, margin: 0 }}
-                    />
-                    </td>
-                    <td
-                    style={{
-                      width: "3%",
-                      padding: "8px 4px",
-                      fontSize: "14px",
-                      color: "rgb(55, 65, 81)",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    {(currentPage - 1) * devicesPerPage + index + 1}
-                    </td>
-                    <td
-                    style={{
-                      width: "13%",
-                      padding: "8px 6px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <span
-                      onClick={(e) => {
-                      e.stopPropagation();
-                      handleShowDeviceHistory(device);
-                      }}
+                    <tr
+                      key={device.id}
                       style={{
-                      cursor: "pointer",
-                      color: "rgb(107, 114, 128)",
-                      textDecoration: "none",
-                      fontWeight: 400,
-                      transition: "color 0.2s",
-                      display: "block",
-                      width: "100%",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      fontSize: "13px", // Slightly smaller to fit better
-                      }}
-                      onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "rgb(75, 85, 99)")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "rgb(107, 114, 128)")
-                      }
-                      title={`Click to view device history: ${device.deviceTag}`}
-                    >
-                      {device.deviceTag}
-                    </span>
-                    </td>
-                    <td
-                    style={{
-                      width: "11%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.deviceType}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.brand}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.model || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.client || "-"}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <div
-                      style={{
-                      display: "inline-block",
-                      background: getConditionColor(device.condition),
-                      color: getConditionTextColor(device.condition),
-                      padding: "4px 6px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      textAlign: "center",
-                      width: "100%",
-                      boxSizing: "border-box",
-                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                      }}
-                    >
-                      {device.condition}
-                    </div>
-                    </td>
-                    <td
-                    style={{
-                      width: "15%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.remarks || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "12%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                    }}
-                    >
-                    {device.acquisitionDate ? (
-                      formatDateToMMDDYYYY(device.acquisitionDate)
-                    ) : (
-                      <span
-                      style={{ color: "#9ca3af", fontStyle: "italic" }}
-                      >
-                      Not recorded
-                      </span>
-                    )}
-                    </td>
-                    <td
-                    style={{
-                      width: "8%",
-                      padding: "4px 2px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    <div
-                      style={{
-                      display: "flex",
-                      gap: "1px",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexWrap: "nowrap",
-                      minWidth: "fit-content",
-                      }}
-                    >
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
+                        borderBottom: "1px solid #d1d5db",
+                        background:
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)",
                         cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
+                        transition: "background 0.15s",
                       }}
+                      onClick={() => handleSelectOne(device.id)}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#3b82f6";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(59, 130, 246, 0.3)";
+                        if (index % 2 === 0) {
+                          e.currentTarget.style.background =
+                            "rgb(235, 235, 240)";
+                        } else {
+                          e.currentTarget.style.background =
+                            "rgb(225, 225, 235)";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
+                        e.currentTarget.style.background =
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)";
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(device);
-                      }}
-                      title="Edit"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                    >
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "4%",
+                          padding: "8px 4px",
+                          textAlign: "center",
+                          border: "1px solid #d1d5db",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                      </button>
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#ef4444";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(239, 68, 68, 0.3)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(device.id);
-                      }}
-                      title="Delete"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(device.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectOne(device.id);
+                          }}
+                          style={{ width: 16, height: 16, margin: 0 }}
+                        />
+                      </td>
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "3%",
+                          padding: "8px 4px",
+                          fontSize: "14px",
+                          color: "rgb(55, 65, 81)",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                      </button>
-                    </div>
-                    </td>
-                  </tr>
+                        {(currentPage - 1) * devicesPerPage + index + 1}
+                      </td>
+                      <td
+                        style={{
+                          width: "13%",
+                          padding: "8px 6px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShowDeviceHistory(device);
+                          }}
+                          style={{
+                            cursor: "pointer",
+                            color: "rgb(107, 114, 128)",
+                            textDecoration: "none",
+                            fontWeight: 400,
+                            transition: "color 0.2s",
+                            display: "block",
+                            width: "100%",
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            fontSize: "13px", // Slightly smaller to fit better
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                          }
+                          title={`Click to view device history: ${device.deviceTag}`}
+                        >
+                          {device.deviceTag}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          width: "11%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.deviceType}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.brand}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.model || ""}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.client || "-"}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "inline-block",
+                            background: getConditionColor(device.condition),
+                            color: getConditionTextColor(device.condition),
+                            padding: "4px 6px",
+                            borderRadius: "4px",
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            textAlign: "center",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          {device.condition}
+                        </div>
+                      </td>
+                      <td
+                        style={{
+                          width: "15%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.remarks || ""}
+                      </td>
+                      <td
+                        style={{
+                          width: "12%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {device.acquisitionDate ? (
+                          formatDateToMMDDYYYY(device.acquisitionDate)
+                        ) : (
+                          <span
+                            style={{ color: "#9ca3af", fontStyle: "italic" }}
+                          >
+                            Not recorded
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          width: "8%",
+                          padding: "4px 2px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "1px",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexWrap: "nowrap",
+                            minWidth: "fit-content",
+                          }}
+                        >
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#3b82f6";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(59, 130, 246, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(device);
+                            }}
+                            title="Edit"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#ef4444";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(239, 68, 68, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(device.id);
+                            }}
+                            title="Delete"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ));
                 })()}
-                </tbody>
-              </table>
-              </div>
-              
-              {/* Fixed Pagination Footer */}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Fixed Pagination Footer */}
           {(() => {
             // Filter devices based on search AND exclude assigned devices
             const filteredDevices = getUnassignedDevices(
@@ -4250,7 +4269,7 @@ function Inventory() {
               deviceSearch,
               headerFilters
             );
-            
+
             const totalPages = Math.ceil(
               filteredDevices.length / devicesPerPage
             );
@@ -4294,8 +4313,14 @@ function Inventory() {
                       ? "Showing 0 - 0 of 0 devices"
                       : `Showing ${startIndex} - ${endIndex} of ${filteredDevices.length} devices`}
                   </span>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <span style={{ fontSize: "13px" }}>Show:</span>
                     <select
                       value={devicesPerPage}
@@ -4323,7 +4348,13 @@ function Inventory() {
 
                 {/* Right side - Pagination controls */}
                 {totalPages > 1 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <button
                       onClick={() => setCurrentPage(1)}
                       disabled={currentPage === 1}
@@ -4415,7 +4446,8 @@ function Inventory() {
                               padding: "8px 12px",
                               borderRadius: "6px",
                               border: "1px solid #e0e7ef",
-                              background: i === currentPage ? "#70C1B3" : "#fff",
+                              background:
+                                i === currentPage ? "#70C1B3" : "#fff",
                               color: i === currentPage ? "#fff" : "#445F6D",
                               cursor: "pointer",
                               fontSize: "14px",
@@ -4440,9 +4472,12 @@ function Inventory() {
                         border: "1px solid #e0e7ef",
                         background:
                           currentPage === totalPages ? "#f5f7fa" : "#fff",
-                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        color:
+                          currentPage === totalPages ? "#9ca3af" : "#445F6D",
                         cursor:
-                          currentPage === totalPages ? "not-allowed" : "pointer",
+                          currentPage === totalPages
+                            ? "not-allowed"
+                            : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
                         display: "flex",
@@ -4474,9 +4509,12 @@ function Inventory() {
                         border: "1px solid #e0e7ef",
                         background:
                           currentPage === totalPages ? "#f5f7fa" : "#fff",
-                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        color:
+                          currentPage === totalPages ? "#9ca3af" : "#445F6D",
                         cursor:
-                          currentPage === totalPages ? "not-allowed" : "pointer",
+                          currentPage === totalPages
+                            ? "not-allowed"
+                            : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
                         display: "flex",
