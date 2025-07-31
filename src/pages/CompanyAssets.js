@@ -66,7 +66,7 @@ function CompanyAssets() {
 
   return (
     <div style={tabStyles.container}>
-      <div style={tabStyles.header}>COMPANY ASSETSSSSSSSSS</div>
+      <div style={tabStyles.header}>COMPANY ASSETSSSSSS</div>
       <div style={tabStyles.tabsBar}>
         <button
           style={tabStyles.tab(activeTab === "assets")}
