@@ -9,50 +9,446 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { useSnackbar } from "../components/Snackbar";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
+import { SnackbarContainer } from "../components/Snackbar";
+
+// Modal Components with Employee-style design
+function UserFormModal({ isOpen, onClose, onSubmit, isLoading = false, error = "", isEdit = false, initialData = null }) {
+  const [formData, setFormData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    rePassword: ""
+  });
+
+  // Update form data when initialData changes (for edit mode)
+  useEffect(() => {
+    if (isEdit && initialData) {
+      setFormData({
+        username: initialData.username || "",
+        email: initialData.email || "",
+        password: "",
+        rePassword: ""
+      });
+    } else if (!isEdit) {
+      setFormData({
+        username: "",
+        email: "",
+        password: "",
+        rePassword: ""
+      });
+    }
+  }, [isEdit, initialData, isOpen]);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.username.trim()) return;
+    if (!formData.email.trim()) return;
+    if (!isEdit && !formData.password) return;
+    if (!isEdit && formData.password !== formData.rePassword) return;
+    if (isEdit && formData.password && formData.password !== formData.rePassword) return;
+    
+    onSubmit(formData);
+  };
+
+  if (!isOpen) return null;
+
+  const isValid = formData.username && formData.email && 
+    (!isEdit ? (formData.password && formData.rePassword && formData.password === formData.rePassword) : 
+     (formData.password === "" || (formData.password && formData.rePassword && formData.password === formData.rePassword)));
+  
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(34, 46, 58, 0.18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+        padding: "clamp(16px, 2vw, 20px)",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "white",
+          borderRadius: 12,
+          padding: "clamp(16px, 2vw, 24px)",
+          width: "100%",
+          maxWidth: "min(480px, 90vw)",
+          maxHeight: "95vh",
+          overflow: "auto",
+          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
+          margin: "auto",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "clamp(18px, 2vw, 22px)",
+            fontWeight: 700,
+            color: "#222e3a",
+            marginBottom: "clamp(16px, 2vw, 20px)",
+            marginTop: 0,
+            textAlign: "center",
+            flexShrink: 0,
+          }}
+        >
+          {isEdit ? "Edit User" : "Create New User"}
+        </h2>
+        
+        <div 
+          style={{ 
+            flex: 1,
+            overflow: "auto",
+            minHeight: 0,
+            paddingRight: "4px",
+            marginRight: "-4px",
+          }}
+        >
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: "grid", gap: "clamp(10px, 1.2vw, 14px)" }}>
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  Username:
+                </label>
+                <input
+                  name="username"
+                  value={formData.username}
+                  onChange={(e) => handleChange('username', e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  Email:
+                </label>
+                <input
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange('email', e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  required
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  {isEdit ? "New Password (leave blank to keep):" : "Password:"}
+                </label>
+                <input
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleChange('password', e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  required={!isEdit}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}>
+                  Re-enter Password:
+                </label>
+                <input
+                  name="rePassword"
+                  type="password"
+                  value={formData.rePassword}
+                  onChange={(e) => handleChange('rePassword', e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: 'inherit',
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  required={!isEdit || formData.password !== ""}
+                />
+              </div>
+              
+              {error && (
+                <div style={{
+                  color: "#dc2626",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  marginTop: "8px",
+                  textAlign: "center",
+                  fontWeight: 500,
+                }}>
+                  {error}
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
+        
+        <div style={{ 
+          display: "flex", 
+          gap: "clamp(6px, 0.8vw, 10px)", 
+          justifyContent: "flex-end",
+          marginTop: "clamp(12px, 1.5vw, 16px)",
+          flexWrap: "wrap",
+          flexShrink: 0,
+          paddingTop: "clamp(8px, 1vw, 12px)",
+          borderTop: "1px solid #f3f4f6",
+        }}>
+          <button 
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            style={{
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              background: "white",
+              color: "#374151",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              fontFamily: 'inherit',
+              minWidth: "70px",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit"
+            onClick={handleSubmit}
+            disabled={!isValid || isLoading}
+            style={{
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
+              border: "none",
+              borderRadius: 6,
+              background: (isValid && !isLoading) ? "#2563eb" : "#9ca3af",
+              color: "white",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: (isValid && !isLoading) ? "pointer" : "not-allowed",
+              fontFamily: 'inherit',
+              minWidth: "70px",
+            }}
+          >
+            {isLoading ? "Saving..." : (isEdit ? "Save Changes" : "Create User")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmationModal({ isOpen, onClose, onConfirm, isLoading = false, itemName = "", itemType = "item" }) {
+  if (!isOpen) return null;
+  
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(34, 46, 58, 0.18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+        padding: "clamp(16px, 2vw, 20px)",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "white",
+          borderRadius: 12,
+          padding: "clamp(16px, 2vw, 24px)",
+          width: "100%",
+          maxWidth: "min(400px, 90vw)",
+          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
+          margin: "auto",
+          boxSizing: "border-box",
+          textAlign: "center",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "clamp(18px, 2vw, 22px)",
+            fontWeight: 700,
+            color: "#dc2626",
+            marginBottom: "clamp(16px, 2vw, 20px)",
+            marginTop: 0,
+          }}
+        >
+          Confirm Delete
+        </h2>
+        
+        <p style={{
+          fontSize: "clamp(14px, 1.1vw, 16px)",
+          color: "#374151",
+          marginBottom: "clamp(16px, 2vw, 20px)",
+          lineHeight: 1.5,
+        }}>
+          Are you sure you want to delete {itemType} "{itemName}"? This action cannot be undone.
+        </p>
+        
+        <div style={{ 
+          display: "flex", 
+          gap: "clamp(6px, 0.8vw, 10px)", 
+          justifyContent: "center",
+          flexWrap: "wrap",
+        }}>
+          <button 
+            onClick={onClose}
+            disabled={isLoading}
+            style={{
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
+              border: "1px solid #d1d5db",
+              borderRadius: 6,
+              background: "white",
+              color: "#374151",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              fontFamily: 'inherit',
+              minWidth: "70px",
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onConfirm}
+            disabled={isLoading}
+            style={{
+              padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
+              border: "none",
+              borderRadius: 6,
+              background: isLoading ? "#9ca3af" : "#dc2626",
+              color: "white",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              fontFamily: 'inherit',
+              minWidth: "70px",
+            }}
+          >
+            {isLoading ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function UserManagement() {
   const { currentUser } = useCurrentUser();
+  const { showSuccess, showError, showWarning } = useSnackbar();
+  
   // Bulk delete handler
   const handleBulkDelete = async () => {
     if (checkedRows.length === 0) return;
-    if (
-      !window.confirm(
-        `Delete ${checkedRows.length} selected user(s)? This cannot be undone.`
-      )
-    )
+    
+    if (!window.confirm(`Are you sure you want to delete ${checkedRows.length} user(s)? This cannot be undone.`)) {
       return;
+    }
+    
     setUsersLoading(true);
     try {
       const db = getFirestore();
-      for (const uid of checkedRows) {
-        await deleteDoc(doc(db, "users", uid));
-      }
-      setUsers((prev) => prev.filter((u) => !checkedRows.includes(u.uid)));
+      await Promise.all(
+        checkedRows.map(uid => deleteDoc(doc(db, "users", uid)))
+      );
+      setUsers(prev => prev.filter(user => !checkedRows.includes(user.uid)));
       setCheckedRows([]);
-      setStatus(`${checkedRows.length} user(s) deleted from Firestore.`);
+      showSuccess(`${checkedRows.length} user(s) deleted successfully`);
     } catch (err) {
-      setStatus("Error deleting users: " + err.message);
-      console.error("Firestore bulk delete error:", err);
+      showError("Failed to delete users: " + err.message);
+      console.error("Bulk delete error:", err);
     }
     setUsersLoading(false);
   };
+  
   const [showModal, setShowModal] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [rePassword, setRePassword] = useState("");
+  const [deleteModal, setDeleteModal] = useState({ open: false, uid: null, username: "" });
   const [editModal, setEditModal] = useState({ open: false, user: null });
-  const [editUsername, setEditUsername] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editPassword, setEditPassword] = useState("");
-  const [editShowPassword, setEditShowPassword] = useState(false);
-  const [status, setStatus] = useState("");
-  const [loading, setLoading] = useState(false);
+  
+  // Modal loading and error states
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -160,32 +556,22 @@ function UserManagement() {
     fetchUsers();
   }, []);
 
-  const handleCreateUser = async (e) => {
-    e.preventDefault();
-    setStatus("");
-    if (!username.trim()) {
-      setStatus("Username is required.");
-      return;
-    }
-    if (password !== rePassword) {
-      setStatus("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
+  const handleCreateUser = async (formData) => {
+    setModalLoading(true);
+    setModalError("");
+    
     try {
       const db = getFirestore();
       await addDoc(collection(db, "users"), {
-        username,
-        email,
-        password,
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
         createdAt: new Date().toISOString(),
       });
-      setUsername("");
-      setEmail("");
-      setPassword("");
-      setRePassword("");
+      
       setShowModal(false);
-      setSnackbar({ open: true, message: "Account created." });
+      showSuccess("User created successfully");
+      
       // Refresh users list
       const usersCol = collection(db, "users");
       const snapshot = await getDocs(usersCol);
@@ -195,36 +581,31 @@ function UserManagement() {
       }));
       setUsers(usersList);
     } catch (err) {
-      setStatus("Error adding user: " + err.message);
+      setModalError("Error creating user: " + err.message);
+      showError("Failed to create user");
       console.error("Firestore add error:", err);
     }
-    setLoading(false);
+    setModalLoading(false);
   };
 
-  const handleEditUser = async (e) => {
-    e.preventDefault();
-    setStatus("");
-    if (!editUsername.trim()) {
-      setStatus("Username is required.");
-      return;
-    }
-    if (editPassword !== "" && editPassword !== rePassword) {
-      setStatus("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
+  const handleEditUser = async (formData) => {
+    setModalLoading(true);
+    setModalError("");
+    
     try {
       const db = getFirestore();
       const userRef = doc(db, "users", editModal.user.uid);
-      // Use updateDoc from Firestore
       const { updateDoc } = await import("firebase/firestore");
+      
       await updateDoc(userRef, {
-        username: editUsername,
-        email: editEmail,
-        ...(editPassword !== "" ? { password: editPassword } : {}),
+        username: formData.username,
+        email: formData.email,
+        ...(formData.password !== "" ? { password: formData.password } : {}),
       });
-      setStatus("User updated.");
+      
       setEditModal({ open: false, user: null });
+      showSuccess("User updated successfully");
+      
       // Refresh users list
       const usersCol = collection(db, "users");
       const snapshot = await getDocs(usersCol);
@@ -234,30 +615,30 @@ function UserManagement() {
       }));
       setUsers(usersList);
     } catch (err) {
-      setStatus("Error updating user: " + err.message);
+      setModalError("Error updating user: " + err.message);
+      showError("Failed to update user");
       console.error("Firestore update error:", err);
     }
-    setLoading(false);
+    setModalLoading(false);
   };
 
   const handleDeleteUser = async (uid) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this user? This cannot be undone."
-      )
-    )
-      return;
-    setUsersLoading(true);
+    setDeleteModal({ open: true, uid, username: users.find(u => u.uid === uid)?.username || "Unknown User" });
+  };
+
+  const confirmDeleteUser = async () => {
+    setDeleteLoading(true);
     try {
       const db = getFirestore();
-      await deleteDoc(doc(db, "users", uid));
-      setUsers((prev) => prev.filter((u) => u.uid !== uid));
-      setStatus("User deleted from Firestore.");
+      await deleteDoc(doc(db, "users", deleteModal.uid));
+      setUsers((prev) => prev.filter((u) => u.uid !== deleteModal.uid));
+      setDeleteModal({ open: false, uid: null, username: "" });
+      showSuccess("User deleted successfully");
     } catch (err) {
-      setStatus("Error deleting user: " + err.message);
+      showError("Failed to delete user: " + err.message);
       console.error("Firestore delete error:", err);
     }
-    setUsersLoading(false);
+    setDeleteLoading(false);
   };
 
   return (
@@ -426,10 +807,6 @@ function UserManagement() {
                             title="Edit User"
                             onClick={() => {
                               setEditModal({ open: true, user: u });
-                              setEditUsername(u.username || "");
-                              setEditEmail(u.email || "");
-                              setEditPassword("");
-                              setEditShowPassword(false);
                             }}
                           >
                             Edit
@@ -517,194 +894,36 @@ function UserManagement() {
           </span>
         </div>
       </div>
-      {/* Modals */}
-      {showModal && (
-        <div className="clients-modal-overlay">
-          <div className="clients-modal-box">
-            <button
-              className="clients-modal-close"
-              onClick={() => setShowModal(false)}
-              aria-label="Close"
-              title="Close"
-            >
-              ×
-            </button>
-            <h3 className="clients-modal-title">Create New User</h3>
-            <form onSubmit={handleCreateUser} className="clients-modal-form">
-              <input
-                className="clients-modal-input"
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-              <input
-                className="clients-modal-input"
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                className="clients-modal-input"
-                type="text"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <input
-                className="clients-modal-input"
-                type="text"
-                placeholder="Re-enter Password"
-                value={rePassword}
-                onChange={(e) => setRePassword(e.target.value)}
-                required
-              />
-              <div className="clients-modal-actions">
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    className="clients-modal-save"
-                    type="submit"
-                    disabled={loading}
-                    style={{ flex: 1, minWidth: 0 }}
-                  >
-                    Create User
-                  </button>
-                  <button
-                    className="clients-modal-cancel"
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    disabled={loading}
-                    style={{ flex: 1, minWidth: 0 }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-              {snackbar.open && (
-                <div
-                  style={{
-                    position: "fixed",
-                    bottom: 32,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    background: "#38a169",
-                    color: "#fff",
-                    padding: "12px 32px",
-                    borderRadius: 8,
-                    fontWeight: 600,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                    zIndex: 9999,
-                  }}
-                  onClick={() => setSnackbar({ open: false, message: "" })}
-                >
-                  {snackbar.message}
-                </div>
-              )}
-              {status && (
-                <div
-                  className="clients-modal-error"
-                  style={{
-                    color: status.includes("success") ? "#38a169" : "#e11d48",
-                    textAlign: "center",
-                    fontWeight: 600,
-                  }}
-                >
-                  {status}
-                </div>
-              )}
-            </form>
-          </div>
-        </div>
-      )}
+      
+      {/* New Modal Components */}
+      <UserFormModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleCreateUser}
+        isLoading={modalLoading}
+        error={modalError}
+      />
 
-      {editModal.open && (
-        <div className="clients-modal-overlay">
-          <div className="clients-modal-box">
-            <button
-              className="clients-modal-close"
-              onClick={() => setEditModal({ open: false, user: null })}
-              aria-label="Close"
-              title="Close"
-            >
-              ×
-            </button>
-            <h3 className="clients-modal-title">Edit User</h3>
-            <form onSubmit={handleEditUser} className="clients-modal-form">
-              <input
-                className="clients-modal-input"
-                type="text"
-                placeholder="Username"
-                value={editUsername}
-                onChange={(e) => setEditUsername(e.target.value)}
-                required
-              />
-              <input
-                className="clients-modal-input"
-                type="email"
-                placeholder="Email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                required
-              />
-              <div style={{ position: "relative" }}>
-                <input
-                  className="clients-modal-input"
-                  type="text"
-                  placeholder="New Password (leave blank to keep)"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                />
-              </div>
-              <input
-                className="clients-modal-input"
-                type={editShowPassword ? "text" : "password"}
-                placeholder="Re-enter New Password"
-                value={rePassword}
-                onChange={(e) => setRePassword(e.target.value)}
-                disabled={editPassword === ""}
-                required={editPassword !== ""}
-              />
-              <div className="clients-modal-actions">
-                <div style={{ display: "flex", gap: 12 }}>
-                  <button
-                    className="clients-modal-save"
-                    type="submit"
-                    disabled={loading}
-                    style={{ flex: 1, minWidth: 0 }}
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    className="clients-modal-cancel"
-                    type="button"
-                    onClick={() => setEditModal({ open: false, user: null })}
-                    disabled={loading}
-                    style={{ flex: 1, minWidth: 0 }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-              {status && status !== "User deleted from Firestore." && (
-                <div
-                  className="clients-modal-error"
-                  style={{
-                    color: status.includes("success") ? "#38a169" : "#e11d48",
-                    textAlign: "center",
-                    fontWeight: 600,
-                  }}
-                >
-                  {status}
-                </div>
-              )}
-            </form>
-          </div>
-        </div>
-      )}
+      <UserFormModal
+        isOpen={editModal.open}
+        onClose={() => setEditModal({ open: false, user: null })}
+        onSubmit={handleEditUser}
+        isLoading={modalLoading}
+        error={modalError}
+        isEdit={true}
+        initialData={editModal.user}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, uid: null, username: "" })}
+        onConfirm={confirmDeleteUser}
+        isLoading={deleteLoading}
+        itemName={deleteModal.username}
+        itemType="user"
+      />
+
+      <SnackbarContainer />
     </div>
   );
 }
