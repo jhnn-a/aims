@@ -91,22 +91,8 @@ function DeviceFormModal({
   setTagError, // Function to set tag error messages
   onSerialToggle, // Function to handle serial number toggle
   editingDevice, // Boolean indicating if editing existing device
+  deviceTypes, // Array of device types passed from parent component
 }) {
-  // === DEVICE TYPE CONFIGURATION ===
-  // Array of device types with display labels and asset tag codes
-  const deviceTypes = [
-    { label: "Headset", code: "HS" }, // Audio equipment
-    { label: "Keyboard", code: "KB" }, // Input devices
-    { label: "Laptop", code: "LPT" }, // Portable computers
-    { label: "Monitor", code: "MN" }, // Display devices
-    { label: "Mouse", code: "M" }, // Pointing devices
-    { label: "PC", code: "PC" }, // Desktop computers
-    { label: "PSU", code: "PSU" }, // Power supply units
-    { label: "RAM", code: "RAM" }, // Memory modules
-    { label: "SSD", code: "SSD" }, // Storage devices
-    { label: "Webcam", code: "W" }, // Camera devices
-  ];
-  
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for devices
   const conditions = [
@@ -240,7 +226,22 @@ function DeviceFormModal({
             </label>
             <select
               name="deviceType"
-              value={data.deviceType || ""}
+              value={(() => {
+                // Find the matching device type from the available options
+                const currentType = data.deviceType;
+                if (!currentType) return "";
+                
+                // Check if it exactly matches any available device type
+                const exactMatch = deviceTypes.find(type => type.label === currentType);
+                if (exactMatch) return currentType;
+                
+                // Try case-insensitive match
+                const matchedType = deviceTypes.find(type => 
+                  type.label.toLowerCase() === currentType.toLowerCase()
+                );
+                
+                return matchedType ? matchedType.label : currentType;
+              })()}
               onChange={onChange}
               style={{
                 width: "100%",
@@ -3062,6 +3063,7 @@ function Assets() {
             setUseSerial={setUseSerial}
             onSerialToggle={() => setUseSerial(!useSerial)}
             editingDevice={form._editDeviceId}
+            deviceTypes={deviceTypes}
           />
         )}
 
