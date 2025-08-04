@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
@@ -242,6 +242,24 @@ function TimeRangeFilter({ value, onChange }) {
 
 function Dashboard() {
   // Use custom hook to get current user, with fallback for missing context
+const scrollContainerRef = useRef(null);
+const [showScrollTop, setShowScrollTop] = useState(false);
+
+useEffect(() => {
+  const handleScroll = () => {
+    console.log("Scroll Top:", window.scrollY);
+    setShowScrollTop(window.scrollY > 300);
+  };
+
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
+
+const handleScrollToTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+
   let currentUser = undefined;
   try {
     const userContext = useCurrentUser?.();
@@ -449,18 +467,20 @@ function Dashboard() {
     count: dt.count
   }));
 
-  return (
-    <div
-      style={{
-        padding: "40px 48px 80px 48px",
-        width: "100%",
-        minHeight: "100vh",
-        boxSizing: "border-box",
-        fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-        overflowY: "auto",
-        background: "#f9f9f9",
-      }}
-    >
+return (
+  <div
+    ref={scrollContainerRef}
+    style={{
+      height: "100vh",              // ✅ makes this container fill screen
+      overflowY: "auto",            // ✅ enables scrolling inside it
+      padding: "40px 48px 80px 48px",
+      boxSizing: "border-box",
+      fontFamily:
+        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      background: "#f9f9f9",
+    }}
+  >
+
       {/* Header with time range filter */}
       <div style={{ 
         display: 'flex', 
@@ -880,6 +900,28 @@ function Dashboard() {
           Data refreshed: {new Date().toLocaleTimeString()}
         </p>
       </div>
+      {showScrollTop && (
+        <button
+          onClick={handleScrollToTop}
+          style={{
+            position: "fixed",
+            bottom: 30,
+            right: 30,
+            backgroundColor: "#2563eb",
+            color: "white",
+            border: "none",
+            padding: "12px 16px",
+            borderRadius: "50%",
+            fontSize: 20,
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            zIndex: 999,
+          }}
+          title="Back to Top"
+        >
+          ↑
+        </button>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect , useRef } from "react";
 import { CurrentUserProvider, useCurrentUser } from "./CurrentUserContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Header from "./layout/Header";
