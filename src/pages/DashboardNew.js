@@ -246,17 +246,23 @@ const scrollContainerRef = useRef(null);
 const [showScrollTop, setShowScrollTop] = useState(false);
 
 useEffect(() => {
+  const scrollElement = scrollContainerRef.current;
+  if (!scrollElement) return;
+
   const handleScroll = () => {
-    console.log("Scroll Top:", window.scrollY);
-    setShowScrollTop(window.scrollY > 300);
+    // Debug log
+    console.log("Scroll Top:", scrollElement.scrollTop);
+    setShowScrollTop(scrollElement.scrollTop > 300);
   };
 
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
+  scrollElement.addEventListener("scroll", handleScroll);
+  return () => scrollElement.removeEventListener("scroll", handleScroll);
 }, []);
 
 const handleScrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (scrollContainerRef.current) {
+    scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }
 };
 
 
