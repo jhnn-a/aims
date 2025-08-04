@@ -6344,7 +6344,7 @@ function Inventory() {
             style={{
               background: "#fff",
               borderRadius: "12px",
-              padding: "24px",
+              padding: "16px",
               maxWidth: "600px",
               width: "90%",
               maxHeight: "70vh",
@@ -6361,9 +6361,9 @@ function Inventory() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "20px",
+                marginBottom: "12px",
                 borderBottom: "2px solid #e5e7eb",
-                paddingBottom: "16px",
+                paddingBottom: "12px",
               }}
             >
               <h3
