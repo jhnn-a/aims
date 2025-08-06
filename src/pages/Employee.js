@@ -3535,6 +3535,7 @@ export default function Employee() {
           fontSize: "clamp(12px, 1vw, 14px)",
           color: "#374151",
           tableLayout: "fixed", // Fixed layout for better control
+          border: "1px solid #e5e7eb", // Add outer border
             }}>
           <thead>
             <tr style={{
@@ -3551,6 +3552,7 @@ export default function Employee() {
                 color: "#374151",
                 width: "3%",
                 minWidth: "40px",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
             {activeTab === "active" && (
               <input
@@ -3571,6 +3573,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "8%" : "8%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Employee ID
               </th>
@@ -3581,6 +3584,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "16%" : "15%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Full Name
               </th>
@@ -3591,6 +3595,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "13%" : "12%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Position
               </th>
@@ -3601,6 +3606,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "10%" : "9%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Department
               </th>
@@ -3611,6 +3617,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "11%" : "10%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Client
               </th>
@@ -3621,6 +3628,7 @@ export default function Employee() {
                 color: "#374151",
                 width: activeTab === "active" ? "16%" : "15%",
                 fontSize: "clamp(11px, 0.9vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 Corporate Email
               </th>
@@ -3631,6 +3639,7 @@ export default function Employee() {
             color: "#9c2b2bff",
             width: activeTab === "active" ? "10%" : "9%",
             fontSize: "clamp(11px, 0.9vw, 14px)",
+            border: "1px solid #e5e7eb", // Add cell borders
               }}>
             {activeTab === "active" ? "Date Hired" : "Date Resigned"}
               </th>
@@ -3642,6 +3651,7 @@ export default function Employee() {
               color: "#374151",
               width: "12%",
               fontSize: "clamp(11px, 0.9vw, 14px)",
+              border: "1px solid #e5e7eb", // Add cell borders
             }}>
               Resignation Reason
             </th>
@@ -3654,6 +3664,7 @@ export default function Employee() {
               color: "#374151",
               width: "10%",
               fontSize: "clamp(11px, 0.9vw, 14px)",
+              border: "1px solid #e5e7eb", // Add cell borders
             }}>
               Actions
             </th>
@@ -3666,6 +3677,7 @@ export default function Employee() {
               color: "#374151",
               width: "10%",
               fontSize: "clamp(11px, 0.9vw, 14px)",
+              border: "1px solid #e5e7eb", // Add cell borders
             }}>
               Actions
             </th>
@@ -3675,13 +3687,13 @@ export default function Employee() {
           <tbody>
             {isTableLoading ? (
               <tr>
-            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center" }}>
+            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", border: "1px solid #e5e7eb" }}>
               <TableLoadingSpinner />
             </td>
               </tr>
             ) : currentEmployees.length === 0 ? (
               <tr>
-            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
+            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280", border: "1px solid #e5e7eb" }}>
               {searchTerm ? (
                 <>
               No {activeTab} employees found matching "{searchTerm}"
@@ -3720,6 +3732,7 @@ export default function Employee() {
               <td style={{ 
                 padding: "clamp(8px, 1vw, 16px)",
                 overflow: "hidden",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 {activeTab === "active" && (
               <input
@@ -3738,6 +3751,7 @@ export default function Employee() {
                 fontSize: "clamp(12px, 1vw, 14px)",
                 color: "#6b7280",
                 fontFamily: "monospace",
+                border: "1px solid #e5e7eb", // Add cell borders
               }} title={employee.id}>
                 {employee.id ? employee.id.substring(0, 8) : 'Record Not Found'}
               </td>
@@ -3746,6 +3760,7 @@ export default function Employee() {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
+                border: "1px solid #e5e7eb", // Add cell borders
               }}>
                 <span
                   onClick={() => handleEmployeeNameClick(employee)}
@@ -3774,6 +3789,7 @@ export default function Employee() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontSize: "clamp(12px, 1vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }} title={employee.position}>
                 {employee.position}
               </td>
@@ -3783,6 +3799,7 @@ export default function Employee() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontSize: "clamp(12px, 1vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }} title={employee.department}>
                 {employee.department}
               </td>
@@ -3792,6 +3809,7 @@ export default function Employee() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontSize: "clamp(12px, 1vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }} title={getClientName(employee.clientId)}>
                 {getClientName(employee.clientId)}
               </td>
@@ -3801,6 +3819,7 @@ export default function Employee() {
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 fontSize: "clamp(12px, 1vw, 14px)",
+                border: "1px solid #e5e7eb", // Add cell borders
               }} title={employee.corporateEmail || "-"}>
                 {employee.corporateEmail || "-"}
               </td>

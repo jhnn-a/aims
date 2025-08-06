@@ -4412,23 +4412,24 @@ function Inventory() {
                       overflow: "hidden",
                     }}
                     >
-                    <div
+                    <span
                       style={{
                       display: "inline-block",
                       background: getConditionColor(device.condition),
                       color: getConditionTextColor(device.condition),
-                      padding: "4px 6px",
+                      padding: "4px 8px",
                       borderRadius: "4px",
-                      fontSize: "11px",
+                      fontSize: "12px",
                       fontWeight: "600",
                       textAlign: "center",
-                      width: "100%",
-                      boxSizing: "border-box",
+                      lineHeight: "1.2",
+                      whiteSpace: "nowrap",
+                      minWidth: "70px",
                       boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                       }}
                     >
                       {device.condition}
-                    </div>
+                    </span>
                     </td>
                     <td
                     style={{
