@@ -35,6 +35,7 @@ const emptyUnit = {
   Status: "",
   OS: "",
   Remarks: "",
+  lifespan: "", // New field for lifespan
 };
 
 const cpuGenOptions = ["i3", "i5", "i7"];
@@ -42,11 +43,9 @@ const ramOptions = [4, 8, 16, 32, 64];
 
 // Category options for devices
 const categoryOptions = [
-  { label: "Entry-level", value: "Entry-level" },
-  { label: "Mid-range", value: "Mid-range" },
-  { label: "High-end", value: "High-end" },
-  { label: "Workstation", value: "Workstation" },
-  { label: "Gaming", value: "Gaming" },
+  { label: "Low-End", value: "Low-End" },
+  { label: "Mid-Range", value: "Mid-Range" },
+  { label: "High-End", value: "High-End" },
 ];
 
 // Device type options (filtered for PC and Laptop only)
@@ -222,6 +221,7 @@ const UnitSpecs = () => {
     OS: [],
     Category: [],
     Remarks: [],
+    Lifespan: [],
   });
   const [deployedFilters, setDeployedFilters] = useState({
     Tag: [],
@@ -233,6 +233,7 @@ const UnitSpecs = () => {
     OS: [],
     Category: [],
     Remarks: [],
+    Lifespan: [],
   });
 
   // Track which table's filter popup is open
@@ -340,6 +341,57 @@ const UnitSpecs = () => {
         newForm.CPU = `${newForm.cpuGen} - ${newForm.cpuModel}`.trim();
       }
 
+      // Auto-fill category based on specs (CPU, RAM, Drive)
+      const autoFillCategory = () => {
+        const cpuGen = newForm.cpuGen.toLowerCase();
+        const ramValue = parseInt(newForm.RAM) || 0;
+        const drive = newForm.Drive.toLowerCase();
+        const hasGPU = newForm.GPU && newForm.GPU.trim() !== "";
+
+        // High-End: i7+, 16GB+ RAM, SSD/NVMe + GPU
+        if (cpuGen === "i7" && ramValue >= 16 && (drive.includes("ssd") || drive.includes("nvme")) && hasGPU) {
+          return "High-End";
+        }
+        // Mid-Range: i5/i7, 8GB+ RAM, SSD
+        else if ((cpuGen === "i5" || cpuGen === "i7") && ramValue >= 8 && (drive.includes("ssd") || drive.includes("nvme"))) {
+          return "Mid-Range";
+        }
+        // Low-End: i3, 4GB RAM, HDD
+        else if (cpuGen === "i3" && ramValue >= 4 && drive.includes("hdd")) {
+          return "Low-End";
+        }
+        // If specs don't match criteria exactly, keep current category
+        return newForm.category;
+      };
+
+      // Auto-fill lifespan based on category
+      const getLifespanFromCategory = (category) => {
+        switch (category) {
+          case "Low-End":
+            return "3 years";
+          case "Mid-Range":
+            return "4 years";
+          case "High-End":
+            return "5 years";
+          default:
+            return "";
+        }
+      };
+
+      // Apply auto-fill when relevant fields change
+      if (["cpuGen", "RAM", "Drive", "GPU"].includes(name)) {
+        const suggestedCategory = autoFillCategory();
+        if (suggestedCategory && suggestedCategory !== newForm.category) {
+          newForm.category = suggestedCategory;
+          newForm.lifespan = getLifespanFromCategory(suggestedCategory);
+        }
+      }
+
+      // Update lifespan when category is manually changed
+      if (name === "category") {
+        newForm.lifespan = getLifespanFromCategory(value);
+      }
+
       return newForm;
     });
   };
@@ -440,6 +492,7 @@ const UnitSpecs = () => {
       Status: unit.Status || "",
       OS: unit.OS || "",
       Remarks: unit.Remarks || "",
+      lifespan: unit.lifespan || "", // Include lifespan for editing
     });
     setEditId(unit.id);
     setEditCollection(collectionName);
@@ -557,6 +610,8 @@ const UnitSpecs = () => {
     // if (key === 'Tag') return Array.from(new Set(data.map(u => u.Tag))).filter(Boolean);
     if (key === "Remarks")
       return Array.from(new Set(data.map((u) => u.Remarks))).filter(Boolean);
+    if (key === "Lifespan")
+      return Array.from(new Set(data.map((u) => u.lifespan))).filter(Boolean);
     return [];
   };
 
@@ -1338,6 +1393,7 @@ const UnitSpecs = () => {
                   "Status",
                   "OS",
                   "Category",
+                  "Lifespan",
                   "Remarks",
                 ].map((col) => (
                   <th
@@ -1345,22 +1401,24 @@ const UnitSpecs = () => {
                     style={{
                       width:
                         col === "Tag"
-                          ? "12%"
+                          ? "11%"
                           : col === "CPU"
-                          ? "12%"
+                          ? "11%"
                           : col === "RAM"
-                          ? "8%"
+                          ? "7%"
                           : col === "Drive"
-                          ? "15%"
+                          ? "13%"
                           : col === "GPU"
-                          ? "12%"
+                          ? "11%"
                           : col === "Status"
-                          ? "10%"
+                          ? "9%"
                           : col === "OS"
-                          ? "8%"
+                          ? "7%"
                           : col === "Category"
-                          ? "10%"
-                          : "13%", // Remarks
+                          ? "9%"
+                          : col === "Lifespan"
+                          ? "8%"
+                          : "11%", // Remarks
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
@@ -1632,7 +1690,7 @@ const UnitSpecs = () => {
                     </td>
                     <td
                       style={{
-                        width: "10%",
+                        width: "9%",
                         padding: "8px 6px",
                         fontSize: "14px",
                         color: "#374151",
@@ -1644,7 +1702,19 @@ const UnitSpecs = () => {
                     </td>
                     <td
                       style={{
-                        width: "13%",
+                        width: "8%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: "#374151",
+                        border: "1px solid #d1d5db",
+                        textAlign: "center",
+                      }}
+                    >
+                      {unit.lifespan || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "11%",
                         padding: "8px 6px",
                         fontSize: "14px",
                         color: "#374151",

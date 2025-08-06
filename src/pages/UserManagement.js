@@ -557,9 +557,7 @@ function UserManagement() {
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span style={{ fontWeight: 600 }}>{checkedRows.length}</span>
-            <span>
-              {checkedRows.length === 1 ? "user" : "users"} selected
-            </span>
+            <span>{checkedRows.length === 1 ? "user" : "users"} selected</span>
           </div>
         )}
 
@@ -730,7 +728,8 @@ function UserManagement() {
                   ) : (
                     paginatedUsers.map((u, idx) => {
                       const isChecked = checkedRows.includes(u.uid);
-                      const isCurrentUser = String(currentUser.uid) === String(u.uid);
+                      const isCurrentUser =
+                        String(currentUser.uid) === String(u.uid);
                       return (
                         <tr
                           key={u.uid}
@@ -767,7 +766,10 @@ function UserManagement() {
                           >
                             {isCurrentUser ? (
                               <span
-                                style={{ color: "#A0AEC0", fontStyle: "italic" }}
+                                style={{
+                                  color: "#A0AEC0",
+                                  fontStyle: "italic",
+                                }}
                               >
                                 —
                               </span>
@@ -1016,7 +1018,9 @@ function UserManagement() {
               ))}
 
               <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage === totalPages}
                 style={{
                   padding: "6px 12px",
@@ -1024,7 +1028,8 @@ function UserManagement() {
                   background: currentPage === totalPages ? "#f9fafb" : "#fff",
                   color: currentPage === totalPages ? "#9ca3af" : "#374151",
                   borderRadius: "6px",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   transition: "all 0.2s",
                 }}
@@ -1040,7 +1045,8 @@ function UserManagement() {
                   background: currentPage === totalPages ? "#f9fafb" : "#fff",
                   color: currentPage === totalPages ? "#9ca3af" : "#374151",
                   borderRadius: "6px",
-                  cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                  cursor:
+                    currentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   transition: "all 0.2s",
                 }}
@@ -1054,8 +1060,12 @@ function UserManagement() {
               <span style={{ color: "#6b7280", fontSize: "14px" }}>
                 Showing {startIdx} - {endIdx} of {filteredUsers.length} users
               </span>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ color: "#6b7280", fontSize: "14px" }}>Show:</span>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <span style={{ color: "#6b7280", fontSize: "14px" }}>
+                  Show:
+                </span>
                 <select
                   value={rowsPerPage}
                   onChange={(e) => {
@@ -1173,7 +1183,13 @@ function UserManagement() {
                   gap: "16px",
                 }}
               >
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1207,7 +1223,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1215,7 +1232,13 @@ function UserManagement() {
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1249,7 +1272,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1257,7 +1281,13 @@ function UserManagement() {
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1291,7 +1321,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1299,7 +1330,13 @@ function UserManagement() {
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1333,7 +1370,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1406,7 +1444,9 @@ function UserManagement() {
                       fontWeight: 600,
                       fontSize: 13,
                       padding: "8px 12px",
-                      background: status.includes("success") ? "#d1fae5" : "#fee2e2",
+                      background: status.includes("success")
+                        ? "#d1fae5"
+                        : "#fee2e2",
                       borderRadius: 6,
                       border: `1px solid ${
                         status.includes("success") ? "#059669" : "#dc2626"
@@ -1511,7 +1551,13 @@ function UserManagement() {
                   gap: "16px",
                 }}
               >
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1550,7 +1596,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1558,7 +1605,13 @@ function UserManagement() {
                     }}
                   />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                  }}
+                >
                   <label
                     style={{
                       fontWeight: 500,
@@ -1597,7 +1650,8 @@ function UserManagement() {
                     }}
                     onFocus={(e) => {
                       e.target.style.borderColor = "#2563eb";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(37, 99, 235, 0.1)";
+                      e.target.style.boxShadow =
+                        "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
                       e.target.style.borderColor = "#cbd5e1";
@@ -1670,7 +1724,9 @@ function UserManagement() {
                       fontWeight: 600,
                       fontSize: 13,
                       padding: "8px 12px",
-                      background: status.includes("success") ? "#d1fae5" : "#fee2e2",
+                      background: status.includes("success")
+                        ? "#d1fae5"
+                        : "#fee2e2",
                       borderRadius: 6,
                       border: `1px solid ${
                         status.includes("success") ? "#059669" : "#dc2626"
@@ -1712,6 +1768,6 @@ function UserManagement() {
       </div>
     </div>
   );
-};
+}
 
 export default UserManagement;
