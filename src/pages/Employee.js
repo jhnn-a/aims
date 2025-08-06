@@ -3266,7 +3266,7 @@ export default function Employee() {
         padding: "20px 24px 0px 24px",
         flexShrink: 0,
       }}>
-        Employee Management
+        EMPLOYEE MANAGEMENT
       </div>
 
       {/* Tab Navigation */}
