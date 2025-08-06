@@ -26,6 +26,10 @@ import {
   useTableFilters,
   applyFilters,
 } from "../components/TableHeaderFilters"; // Table filtering components
+import {
+  formatDateToYYYYMMDD,
+  formatDateToMMDDYYYY,
+} from "../pages/InventoryUtils"; // Date formatting utilities
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -91,80 +95,232 @@ function DeviceFormModal({
   setTagError, // Function to set tag error messages
   onSerialToggle, // Function to handle serial number toggle
   editingDevice, // Boolean indicating if editing existing device
+  deviceTypes, // Array of device types passed from parent component
 }) {
-  // === DEVICE TYPE CONFIGURATION ===
-  // Array of device types with display labels and asset tag codes
-  const deviceTypes = [
-    { label: "Headset", code: "HS" }, // Audio equipment
-    { label: "Keyboard", code: "KB" }, // Input devices
-    { label: "Laptop", code: "LPT" }, // Portable computers
-    { label: "Monitor", code: "MN" }, // Display devices
-    { label: "Mouse", code: "M" }, // Pointing devices
-    { label: "PC", code: "PC" }, // Desktop computers
-    { label: "PSU", code: "PSU" }, // Power supply units
-    { label: "RAM", code: "RAM" }, // Memory modules
-    { label: "SSD", code: "SSD" }, // Storage devices
-    { label: "Webcam", code: "W" }, // Camera devices
-  ];
-  
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for devices
   const conditions = [
     "BRANDNEW", // New devices never used
     "GOOD", // Devices in working condition
     "DEFECTIVE", // Broken/non-functioning devices
-    "NEEDS REPAIR", // Devices requiring maintenance
-    "RETIRED", // Devices removed from service
   ];
+
+  const isEditMode = Boolean(editingDevice);
+
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      background: "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: "1.5px solid #e5e7eb",
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: "1.2px solid #cbd5e1",
+      background: "#f1f5f9",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
+  // Handle keyboard navigation
+  React.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onCancel]);
 
   // === MODAL RENDER ===
   return (
-    // Modal overlay - covers entire screen with semi-transparent background
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(34, 46, 58, 0.18)", // Semi-transparent overlay
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 2000, // High z-index to appear above other content
-      }}
-    >
-      {/* Modal content container */}
+    <div style={styles.modalOverlay}>
       <div
+        className="device-form-modal"
         style={{
-          background: "#fff",
-          padding: 28,
-          borderRadius: 14,
-          minWidth: 260,
-          maxWidth: 340,
-          boxShadow: "0 4px 16px rgba(68,95,109,0.14)", // Subtle shadow
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center", // Center all form elements
-          position: "relative",
-          border: "2px solid #70C1B3", // Brand color border
+          ...styles.inventoryModalContent,
+          border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
+          backgroundColor: isEditMode ? "#fefbff" : "#ffffff",
+          animation: "modalFadeIn 0.2s ease-out",
         }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
       >
-        {/* Modal title */}
-        <h3
+        <style>{`
+          @keyframes modalFadeIn {
+            from {
+              opacity: 0;
+              transform: scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          
+          .device-form-modal input:focus,
+          .device-form-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .device-form-modal input:hover,
+          .device-form-modal select:hover {
+            border-color: #64748b;
+          }
+        `}</style>
+
+        <div
           style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: "#233037",
-            marginBottom: 12,
-            letterSpacing: 0.3,
-            textAlign: "center",
-            textShadow: "0 1px 4px #FFE06622",
-            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
           }}
         >
-          {editingDevice ? "Edit Device" : "Add Device"}
-        </h3>
+          {isEditMode && (
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          )}
+          <h3
+            id="modal-title"
+            style={{
+              ...styles.inventoryModalTitle,
+              color: isEditMode ? "#2563eb" : "#374151",
+            }}
+          >
+            {isEditMode ? "Edit Device" : "Add Device"}
+          </h3>
+        </div>
+
+        {isEditMode && (
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1d4ed8",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editing existing device - modify the fields below to update the
+            device information
+          </div>
+        )}
+
         <form
           style={{
             width: "100%",
@@ -177,280 +333,182 @@ function DeviceFormModal({
             onSave();
           }}
         >
+          {/* Row 1: Device Type and Brand */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Device Tag:
-            </label>
+              <label style={styles.inventoryLabel}>Device Type:</label>
+              <select
+                name="deviceType"
+                value={(() => {
+                  // Find the matching device type from the available options
+                  const currentType = data.deviceType;
+                  if (!currentType) return "";
+
+                  // Check if it exactly matches any available device type
+                  const exactMatch = deviceTypes.find(
+                    (type) => type.label === currentType
+                  );
+                  if (exactMatch) return currentType;
+
+                  // Try case-insensitive match
+                  const matchedType = deviceTypes.find(
+                    (type) =>
+                      type.label.toLowerCase() === currentType.toLowerCase()
+                  );
+
+                  return matchedType ? matchedType.label : currentType;
+                })()}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                disabled
+              >
+                <option value="">Select Device Type</option>
+                {deviceTypes.map((type) => (
+                  <option key={type.label} value={type.label}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
+            >
+              <label style={styles.inventoryLabel}>Brand:</label>
+              <input
+                name="brand"
+                value={data.brand || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Device Tag (disabled for editing) */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Device Tag:</label>
             <input
               name="deviceTag"
               value={data.deviceTag || ""}
               onChange={onChange}
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInput,
+                background: "#f5f5f5",
+                cursor: "not-allowed",
+                color: "#666",
               }}
               disabled
             />
           </div>
+
+          {/* Row 3: Model and Condition */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Device Type:
-            </label>
-            <select
-              name="deviceType"
-              value={data.deviceType || ""}
-              onChange={onChange}
+              <label style={styles.inventoryLabel}>Model:</label>
+              <input
+                name="model"
+                value={data.model || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              />
+            </div>
+
+            <div
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
-              disabled
             >
-              <option value="">Select Device Type</option>
-              {deviceTypes.map((type) => (
-                <option key={type.label} value={type.label}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+              <label style={styles.inventoryLabel}>Condition:</label>
+              <select
+                name="condition"
+                value={data.condition || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select Condition</option>
+                {conditions.map((cond) => (
+                  <option key={cond} value={cond}>
+                    {cond}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Brand:
-            </label>
+
+          {/* Row 4: Acquisition Date */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Acquisition Date:</label>
             <input
-              name="brand"
-              value={data.brand || ""}
+              name="acquisitionDate"
+              type="date"
+              value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
               onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
+              style={styles.inventoryInput}
             />
           </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Model:
-            </label>
-            <input
-              name="model"
-              value={data.model || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-            />
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Condition:
-            </label>
-            <select
-              name="condition"
-              value={data.condition || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-            >
-              <option value="">Select Condition</option>
-              {conditions.map((cond) => (
-                <option key={cond} value={cond}>
-                  {cond}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Remarks:
-            </label>
+
+          {/* Row 5: Remarks */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Remarks:</label>
             <input
               name="remarks"
               value={data.remarks || ""}
               onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
+              style={styles.inventoryInput}
             />
           </div>
+
+          {/* Buttons */}
           <div
             style={{
-              marginTop: 12,
-              width: "90%",
+              marginTop: 16,
               display: "flex",
               justifyContent: "center",
-              gap: 8,
+              gap: 10,
+              width: "100%",
             }}
           >
             <button
               type="submit"
               style={{
-                background: "#70C1B3",
-                color: "#233037",
-                border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: "pointer",
-                marginRight: 0,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
+                ...styles.inventoryModalButton,
+                opacity: isValid ? 1 : 0.6,
+                cursor: isValid ? "pointer" : "not-allowed",
               }}
+              disabled={!isValid}
             >
               Save
             </button>
@@ -458,16 +516,8 @@ function DeviceFormModal({
               type="button"
               onClick={onCancel}
               style={{
-                background: "#445F6D",
-                color: "#fff",
-                border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
+                ...styles.inventoryModalButton,
+                background: "#64748b",
               }}
             >
               Cancel
@@ -476,7 +526,7 @@ function DeviceFormModal({
           {saveError && (
             <div
               style={{
-                color: "#F25F5C",
+                color: "#e57373",
                 marginTop: 8,
                 fontWeight: 600,
                 textAlign: "center",
@@ -497,19 +547,19 @@ function DeviceFormModal({
 function Assets() {
   // === NOTIFICATION HOOKS ===
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar(); // User feedback notifications
-  
+
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of assigned devices from database
   const [employees, setEmployees] = useState([]); // List of all employees for reassignment
   const [loading, setLoading] = useState(true); // Main page loading state
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
-  
+
   // === DEVICE FORM STATE ===
   const [form, setForm] = useState({}); // Form data for device operations
   const [tagError, setTagError] = useState(""); // Asset tag validation errors
   const [saveError, setSaveError] = useState(""); // Form save error messages
   const [useSerial, setUseSerial] = useState(false); // Toggle for using serial as asset tag
-  
+
   // === DEVICE ASSIGNMENT STATE ===
   const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee
   const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility
@@ -517,11 +567,11 @@ function Assets() {
   const [showUnassignModal, setShowUnassignModal] = useState(false); // Unassignment modal visibility
   const [unassignDevice, setUnassignDevice] = useState(null); // Device being unassigned
   const [unassignReason, setUnassignReason] = useState(""); // Reason for device unassignment
-  
+
   // === SEARCH AND SELECTION STATE ===
   const [search, setSearch] = useState(""); // Global search across all device fields
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]); // Device IDs selected for bulk operations
-  
+
   // === BULK OPERATIONS STATE ===
   const [bulkReassignModalOpen, setBulkReassignModalOpen] = useState(false); // Bulk reassignment modal
   const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false); // Bulk unassignment modal
@@ -553,32 +603,32 @@ function Assets() {
     { label: "UPS", code: "UPS" }, // Uninterruptible power supplies
     { label: "Webcam", code: "W" }, // Camera devices
   ];
-  
+
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for asset tracking
   const conditions = [
     "BRANDNEW", // Never used devices
     "GOOD", // Working condition devices
     "DEFECTIVE", // Non-functional devices
-    "NEEDS REPAIR", // Devices requiring maintenance
-    "RETIRED", // Devices removed from service
   ];
-  
+
   // === TRANSFER AND PROGRESS STATE ===
-  const [selectedTransferEmployee, setSelectedTransferEmployee] = useState(null); // Employee selected for device transfer
+  const [selectedTransferEmployee, setSelectedTransferEmployee] =
+    useState(null); // Employee selected for device transfer
   const [progress, setProgress] = useState(0); // Progress tracking for bulk operations
   const [generatingForm, setGeneratingForm] = useState(false); // Progress indicator visibility
   const [unassignGenerating, setUnassignGenerating] = useState(false); // Unassign operation in progress
   const [unassignProgress, setUnassignProgress] = useState(0); // Unassign progress percentage
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
-  
+
   // === PAGINATION STATE ===
   const [currentPage, setCurrentPage] = useState(1); // Current page number for device table
   const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
 
   // === DEVICE HISTORY STATE ===
   const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null); // Device selected for history view
 
   // === COMPONENT INITIALIZATION ===
   // Load devices and employees data when component mounts
@@ -603,13 +653,13 @@ function Assets() {
     };
 
     // Add event listeners for focus and visibility changes
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup event listeners
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -631,7 +681,7 @@ function Assets() {
     if (!isAutoRefresh) {
       setLoading(true);
     }
-    
+
     try {
       const [allDevices, allEmployees] = await Promise.all([
         getAllDevices(), // Fetch all devices from database
@@ -2408,14 +2458,16 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "6px",
-                                padding: "8px",
+                                borderRadius: "4px",
+                                padding: "3px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "all 0.2s ease",
                                 color: "#6b7280",
+                                minWidth: "24px",
+                                minHeight: "24px",
                               }}
                               title="Edit"
                               onClick={(e) => {
@@ -2438,8 +2490,8 @@ function Assets() {
                               }}
                             >
                               <svg
-                                width="16"
-                                height="16"
+                                width="14"
+                                height="14"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
@@ -3062,6 +3114,7 @@ function Assets() {
             setUseSerial={setUseSerial}
             onSerialToggle={() => setUseSerial(!useSerial)}
             editingDevice={form._editDeviceId}
+            deviceTypes={deviceTypes}
           />
         )}
 

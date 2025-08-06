@@ -36,13 +36,7 @@ export const deviceTypes = [
   { label: "Webcam", code: "W" },
 ];
 
-export const conditions = [
-  "BRANDNEW",
-  "GOOD",
-  "DEFECTIVE",
-  "NEEDS REPAIR",
-  "RETIRED",
-];
+export const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE"];
 
 // Function to get background color based on condition
 export const getConditionColor = (condition) => {

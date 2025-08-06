@@ -181,9 +181,9 @@ export const generateNextDeviceTag = (deviceType, existingDevices) => {
 
   // Find existing tags with this prefix
   const existingTags = existingDevices
-    .filter((device) => device.deviceTag && device.deviceTag.startsWith(prefix))
+    .filter((device) => device.Tag && device.Tag.startsWith(prefix))
     .map((device) => {
-      const tagNumber = device.deviceTag.replace(prefix, "");
+      const tagNumber = device.Tag.replace(prefix, "");
       return parseInt(tagNumber, 10);
     })
     .filter((num) => !isNaN(num))

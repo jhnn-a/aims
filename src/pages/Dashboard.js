@@ -135,6 +135,10 @@ function Dashboard() {
   }
   const username = currentUser?.username || "User";
   
+  // Scroll to top button state
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  
   // Core metrics state
   const [employeeCount, setEmployeeCount] = useState(0);
   const [deviceCount, setDeviceCount] = useState(0);
@@ -159,6 +163,111 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [systemHistory, setSystemHistory] = useState([]);
   const [allDevices, setAllDevices] = useState([]);
+
+  // Scroll event handler for scroll-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      // Get scroll position from multiple sources
+      let scrollTop = 0;
+      
+      // Check dashboard container first
+      const dashboardElement = document.getElementById('dashboard-container');
+      if (dashboardElement && dashboardElement.scrollTop > 0) {
+        scrollTop = dashboardElement.scrollTop;
+      }
+      // Check main content element
+      else {
+        const mainContentElement = document.querySelector('.main-content');
+        if (mainContentElement && mainContentElement.scrollTop > 0) {
+          scrollTop = mainContentElement.scrollTop;
+        }
+        // Fallback to window scroll
+        else {
+          scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        }
+      }
+      
+      setScrollPosition(scrollTop);
+      setShowScrollTop(scrollTop > 200);
+    };
+
+    // Set up listeners with a delay to ensure DOM is ready
+    const setupListeners = () => {
+      const dashboardElement = document.getElementById('dashboard-container');
+      const mainContentElement = document.querySelector('.main-content');
+      
+      // Add scroll listeners to available elements
+      if (dashboardElement) {
+        dashboardElement.addEventListener('scroll', handleScroll, { passive: true });
+      }
+      
+      if (mainContentElement) {
+        mainContentElement.addEventListener('scroll', handleScroll, { passive: true });
+      }
+      
+      // Add fallback listeners
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      document.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Also add a polling check as backup
+      const pollInterval = setInterval(() => {
+        handleScroll();
+      }, 100);
+      
+      // Initial check
+      setTimeout(() => {
+        handleScroll();
+      }, 50);
+      
+      return () => {
+        if (dashboardElement) {
+          dashboardElement.removeEventListener('scroll', handleScroll);
+        }
+        if (mainContentElement) {
+          mainContentElement.removeEventListener('scroll', handleScroll);
+        }
+        window.removeEventListener('scroll', handleScroll);
+        document.removeEventListener('scroll', handleScroll);
+        clearInterval(pollInterval);
+      };
+    };
+
+    // Use a timeout to ensure the DOM is fully rendered
+    const timeoutId = setTimeout(setupListeners, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Function to scroll to top
+  const scrollToTop = () => {
+    // Get all possible scroll containers
+    const dashboardElement = document.getElementById('dashboard-container');
+    const mainContentElement = document.querySelector('.main-content');
+    
+    // Try dashboard container first
+    if (dashboardElement) {
+      dashboardElement.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+    
+    // Also try main content element since that's what we found
+    if (mainContentElement) {
+      mainContentElement.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+    
+    // Fallback to window scroll
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -339,14 +448,16 @@ function Dashboard() {
 
   return (
     <div
+      id="dashboard-container"
       style={{
         padding: "40px 48px 80px 48px",
         width: "100%",
-        minHeight: "100vh",
+        height: "100%",
         boxSizing: "border-box",
         fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         overflowY: "auto",
         background: "#f9f9f9",
+        position: "relative"
       }}
     >
       {/* Header with time range filter */}
@@ -831,6 +942,50 @@ function Dashboard() {
           AIMS Dashboard v2.0 | Last updated: {new Date().toLocaleDateString()} | 
           Data refreshed: {new Date().toLocaleTimeString()}
         </p>
+      </div>
+
+      {/* Scroll to Top Button */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          zIndex: 99999,
+          display: showScrollTop ? 'block' : 'none'
+        }}
+      >
+        <button
+          onClick={scrollToTop}
+          style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            backgroundColor: '#2563eb',
+            color: '#fff',
+            border: '2px solid #fff',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease',
+            outline: 'none'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = '#1d4ed8';
+            e.target.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = '#2563eb';
+            e.target.style.transform = 'scale(1)';
+          }}
+          title="Scroll to top"
+          aria-label="Scroll to top"
+        >
+          ↑
+        </button>
       </div>
     </div>
   );

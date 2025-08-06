@@ -383,6 +383,192 @@ function DeviceFormModal({
             style={styles.inventoryInput}
           />
         </div>
+
+        {/* Conditional PC/Laptop Specifications */}
+        {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "12px",
+              marginBottom: 12,
+              background: "#f9fafb",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#374151",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+              </svg>
+              {data.deviceType} Specifications
+            </h4>
+
+            {/* Row 1: CPU Gen and RAM */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>CPU Gen:</label>
+                <input
+                  name="cpuGen"
+                  value={data.cpuGen || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., Intel i5 12th Gen"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>RAM:</label>
+                <select
+                  name="ram"
+                  value={data.ram || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select RAM</option>
+                  <option value="4GB">4GB</option>
+                  <option value="8GB">8GB</option>
+                  <option value="16GB">16GB</option>
+                  <option value="32GB">32GB</option>
+                  <option value="64GB">64GB</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Drive 1 and Drive 2 */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 1:</label>
+                <input
+                  name="drive1"
+                  value={data.drive1 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 256 GB SSD"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 2 (Optional):</label>
+                <input
+                  name="drive2"
+                  value={data.drive2 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 1 TB HDD"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: GPU and OS */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 0,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>GPU:</label>
+                <input
+                  name="gpu"
+                  value={data.gpu || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., Integrated / GTX 1650"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>OS:</label>
+                <select
+                  name="os"
+                  value={data.os || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select OS</option>
+                  <option value="Windows 11 Pro">Windows 11 Pro</option>
+                  <option value="Windows 11 Home">Windows 11 Home</option>
+                  <option value="Windows 10 Pro">Windows 10 Pro</option>
+                  <option value="Windows 10 Home">Windows 10 Home</option>
+                  <option value="macOS">macOS</option>
+                  <option value="Ubuntu">Ubuntu</option>
+                  <option value="Other Linux">Other Linux</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Acquisition Date:</label>
           <input
@@ -709,6 +895,25 @@ function Inventory() {
   };
 
   // === STATE MANAGEMENT ===
+  // === FORM STRUCTURE ===
+  const initialForm = {
+    deviceType: "",
+    deviceTag: "",
+    brand: "",
+    model: "",
+    condition: "",
+    client: "",
+    remarks: "",
+    acquisitionDate: "",
+    // PC/Laptop specific fields
+    cpuGen: "",
+    ram: "",
+    drive1: "",
+    drive2: "",
+    gpu: "",
+    os: "",
+  };
+
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of unassigned devices from database
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
@@ -811,6 +1016,13 @@ function Inventory() {
   const [manualSerials, setManualSerials] = useState([]);
   const [activeManualTabId, setActiveManualTabId] = useState(1);
   const [importTexts, setImportTexts] = useState({}); // Track import text per tab
+
+  // --- STATE for Last Tags Modal ---
+  const [showLastTagsModal, setShowLastTagsModal] = useState(false);
+  const [lastTagsData, setLastTagsData] = useState([]);
+
+  // --- HOOKS ---
+  const showSnackbar = useSnackbar();
 
   // --- HANDLERS ---
 
@@ -1315,6 +1527,13 @@ function Inventory() {
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
+      // PC/Laptop specifications
+      cpuGen: deviceData.cpuGen || "",
+      ram: deviceData.ram || "",
+      drive1: deviceData.drive1 || "",
+      drive2: deviceData.drive2 || "",
+      gpu: deviceData.gpu || "",
+      os: deviceData.os || "",
       _editDeviceId: id,
       id: id, // Keep id for edit mode detection
     };
@@ -2858,6 +3077,63 @@ function Inventory() {
     }
   };
 
+  // --- Last Tags Functionality ---
+  const getLastTagsForEachDeviceType = async () => {
+    try {
+      const allDevices = await getAllDevices();
+      const deviceTypesList = [
+        { label: "Headset", code: "HS" },
+        { label: "Keyboard", code: "KB" },
+        { label: "Laptop", code: "LPT" },
+        { label: "Monitor", code: "MN" },
+        { label: "Mouse", code: "M" },
+        { label: "PC", code: "PC" },
+        { label: "PSU", code: "PSU" },
+        { label: "RAM", code: "RAM" },
+        { label: "SSD", code: "SSD" },
+        { label: "UPS", code: "UPS" },
+        { label: "Webcam", code: "W" },
+      ];
+
+      const lastTagsResults = deviceTypesList.map((type) => {
+        const prefix = `JOII${type.code}`;
+
+        // Find existing tags with this prefix
+        const existingTags = allDevices
+          .filter(
+            (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+          )
+          .map((device) => {
+            const tagNumber = device.deviceTag.replace(prefix, "");
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number (subtract 1 from the next available as requested)
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        return {
+          deviceType: type.label,
+          code: type.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        };
+      });
+
+      setLastTagsData(lastTagsResults);
+      setShowLastTagsModal(true);
+    } catch (error) {
+      console.error("Error fetching last tags:", error);
+      showSnackbar("Error fetching last tags data", "error");
+    }
+  };
+
   return (
     <div
       style={{
@@ -2871,6 +3147,41 @@ function Inventory() {
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Responsive search bar styles */
+        .inventory-search-container {
+          /* Small screens (mobile) - max 250px */
+          max-width: 250px;
+        }
+        
+        @media (min-width: 768px) {
+          /* Medium screens (tablets) - max 350px */
+          .inventory-search-container {
+            max-width: 350px;
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          /* Large screens (laptops) - max 450px */
+          .inventory-search-container {
+            max-width: 450px;
+          }
+        }
+        
+        @media (min-width: 1280px) {
+          /* Extra large screens (desktops) - max 600px */
+          .inventory-search-container {
+            max-width: 600px;
+          }
+        }
+        
+        @media (min-width: 1536px) {
+          /* Extra extra large screens (large monitors) - max 800px */
+          .inventory-search-container {
+            max-width: 800px;
+          }
+        }
+      `}</style>
       <div
         style={{
           position: "sticky",
@@ -2891,6 +3202,7 @@ function Inventory() {
           }}
         >
           <div
+            className="inventory-search-container"
             style={{
               display: "flex",
               alignItems: "center",
@@ -2899,8 +3211,7 @@ function Inventory() {
               border: "1px solid #d1d5db",
               padding: "10px 14px",
               flex: 1,
-              maxWidth: "400px",
-              minWidth: "280px",
+              minWidth: "200px",
             }}
           >
             <svg
@@ -3246,6 +3557,44 @@ function Inventory() {
                 <polyline points="10,9 9,9 8,9"></polyline>
               </svg>
               New Acquisitions
+            </button>
+
+            <button
+              onClick={getLastTagsForEachDeviceType}
+              style={{
+                background: "#8b5cf6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#7c3aed";
+                e.target.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#8b5cf6";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+              </svg>
+              Last Tags
             </button>
 
             {deleteProgress.total > 0 && (
@@ -3888,373 +4237,373 @@ function Inventory() {
                   }
 
                   return currentDevices.map((device, index) => (
-                    <tr
-                      key={device.id}
+                  <tr
+                    key={device.id}
+                    style={{
+                    borderBottom: "1px solid #d1d5db",
+                    background:
+                      index % 2 === 0
+                      ? "rgb(250, 250, 252)"
+                      : "rgb(240, 240, 243)",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    }}
+                    onClick={() => handleSelectOne(device.id)}
+                    onMouseEnter={(e) => {
+                    if (index % 2 === 0) {
+                      e.currentTarget.style.background =
+                      "rgb(235, 235, 240)";
+                    } else {
+                      e.currentTarget.style.background =
+                      "rgb(225, 225, 235)";
+                    }
+                    }}
+                    onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      index % 2 === 0
+                      ? "rgb(250, 250, 252)"
+                      : "rgb(240, 240, 243)";
+                    }}
+                  >
+                    <td
+                    style={{
+                      width: "4%",
+                      padding: "8px 4px",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                    }}
+                    >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(device.id)}
+                      onChange={(e) => {
+                      e.stopPropagation();
+                      handleSelectOne(device.id);
+                      }}
+                      style={{ width: 16, height: 16, margin: 0 }}
+                    />
+                    </td>
+                    <td
+                    style={{
+                      width: "3%",
+                      padding: "8px 4px",
+                      fontSize: "14px",
+                      color: "rgb(55, 65, 81)",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                    }}
+                    >
+                    {(currentPage - 1) * devicesPerPage + index + 1}
+                    </td>
+                    <td
+                    style={{
+                      width: "13%",
+                      padding: "8px 6px",
+                      fontSize: "14px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    <span
+                      onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowDeviceHistory(device);
+                      }}
                       style={{
-                        borderBottom: "1px solid #d1d5db",
-                        background:
-                          index % 2 === 0
-                            ? "rgb(250, 250, 252)"
-                            : "rgb(240, 240, 243)",
-                        cursor: "pointer",
-                        transition: "background 0.15s",
+                      cursor: "pointer",
+                      color: "rgb(107, 114, 128)",
+                      textDecoration: "none",
+                      fontWeight: 400,
+                      transition: "color 0.2s",
+                      display: "block",
+                      width: "100%",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      fontSize: "13px", // Slightly smaller to fit better
                       }}
-                      onClick={() => handleSelectOne(device.id)}
-                      onMouseEnter={(e) => {
-                        if (index % 2 === 0) {
-                          e.currentTarget.style.background =
-                            "rgb(235, 235, 240)";
-                        } else {
-                          e.currentTarget.style.background =
-                            "rgb(225, 225, 235)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background =
-                          index % 2 === 0
-                            ? "rgb(250, 250, 252)"
-                            : "rgb(240, 240, 243)";
+                      onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                      }
+                      onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                      }
+                      title={`Click to view device history: ${device.deviceTag}`}
+                    >
+                      {device.deviceTag}
+                    </span>
+                    </td>
+                    <td
+                    style={{
+                      width: "11%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.deviceType}
+                    </td>
+                    <td
+                    style={{
+                      width: "10%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.brand}
+                    </td>
+                    <td
+                    style={{
+                      width: "10%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.model || ""}
+                    </td>
+                    <td
+                    style={{
+                      width: "9%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.client || "-"}
+                    </td>
+                    <td
+                    style={{
+                      width: "9%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      overflow: "hidden",
+                    }}
+                    >
+                    <div
+                      style={{
+                      display: "inline-block",
+                      background: getConditionColor(device.condition),
+                      color: getConditionTextColor(device.condition),
+                      padding: "4px 6px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      textAlign: "center",
+                      width: "100%",
+                      boxSizing: "border-box",
+                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      <td
-                        style={{
-                          width: "4%",
-                          padding: "8px 4px",
-                          textAlign: "center",
-                          border: "1px solid #d1d5db",
-                        }}
+                      {device.condition}
+                    </div>
+                    </td>
+                    <td
+                    style={{
+                      width: "15%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                      overflow: "hidden",
+                    }}
+                    >
+                    {device.remarks || ""}
+                    </td>
+                    <td
+                    style={{
+                      width: "12%",
+                      padding: "8px 6px",
+                      fontSize: "13px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                      wordWrap: "break-word",
+                      whiteSpace: "normal",
+                      lineHeight: "1.4",
+                    }}
+                    >
+                    {device.acquisitionDate ? (
+                      formatDateToMMDDYYYY(device.acquisitionDate)
+                    ) : (
+                      <span
+                      style={{ color: "#9ca3af", fontStyle: "italic" }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(device.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleSelectOne(device.id);
-                          }}
-                          style={{ width: 16, height: 16, margin: 0 }}
-                        />
-                      </td>
-                      <td
-                        style={{
-                          width: "3%",
-                          padding: "8px 4px",
-                          fontSize: "14px",
-                          color: "rgb(55, 65, 81)",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                        }}
+                      Not recorded
+                      </span>
+                    )}
+                    </td>
+                    <td
+                    style={{
+                      width: "8%",
+                      padding: "4px 2px",
+                      fontSize: "14px",
+                      color: "#374151",
+                      border: "1px solid #d1d5db",
+                      textAlign: "center",
+                    }}
+                    >
+                    <div
+                      style={{
+                      display: "flex",
+                      gap: "1px",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexWrap: "nowrap",
+                      minWidth: "fit-content",
+                      }}
+                    >
+                      <button
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "none",
+                        outline: "none",
+                        borderRadius: 4,
+                        background: "transparent",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        padding: "3px",
+                        minWidth: "24px",
+                        minHeight: "24px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#3b82f6";
+                        e.currentTarget.style.transform = "scale(1.1)";
+                        e.currentTarget.style.boxShadow =
+                        "0 4px 12px rgba(59, 130, 246, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(device);
+                      }}
+                      title="Edit"
                       >
-                        {(currentPage - 1) * devicesPerPage + index + 1}
-                      </td>
-                      <td
+                      <svg
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="#6b7280"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
                         style={{
-                          width: "13%",
-                          padding: "8px 6px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
+                        transition: "stroke 0.2s ease",
                         }}
+                        onMouseEnter={(e) =>
+                        (e.currentTarget.style.stroke = "#ffffff")
+                        }
+                        onMouseLeave={(e) =>
+                        (e.currentTarget.style.stroke = "#6b7280")
+                        }
                       >
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleShowDeviceHistory(device);
-                          }}
-                          style={{
-                            cursor: "pointer",
-                            color: "rgb(107, 114, 128)",
-                            textDecoration: "none",
-                            fontWeight: 400,
-                            transition: "color 0.2s",
-                            display: "block",
-                            width: "100%",
-                            wordWrap: "break-word",
-                            whiteSpace: "normal",
-                            fontSize: "13px", // Slightly smaller to fit better
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
-                          }
-                          title={`Click to view device history: ${device.deviceTag}`}
-                        >
-                          {device.deviceTag}
-                        </span>
-                      </td>
-                      <td
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </svg>
+                      </button>
+                      <button
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "none",
+                        outline: "none",
+                        borderRadius: 4,
+                        background: "transparent",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        padding: "3px",
+                        minWidth: "24px",
+                        minHeight: "24px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#ef4444";
+                        e.currentTarget.style.transform = "scale(1.1)";
+                        e.currentTarget.style.boxShadow =
+                        "0 4px 12px rgba(239, 68, 68, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(device.id);
+                      }}
+                      title="Delete"
+                      >
+                      <svg
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="#6b7280"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        viewBox="0 0 24 24"
                         style={{
-                          width: "11%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
+                        transition: "stroke 0.2s ease",
                         }}
+                        onMouseEnter={(e) =>
+                        (e.currentTarget.style.stroke = "#ffffff")
+                        }
+                        onMouseLeave={(e) =>
+                        (e.currentTarget.style.stroke = "#6b7280")
+                        }
                       >
-                        {device.deviceType}
-                      </td>
-                      <td
-                        style={{
-                          width: "10%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {device.brand}
-                      </td>
-                      <td
-                        style={{
-                          width: "10%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {device.model || ""}
-                      </td>
-                      <td
-                        style={{
-                          width: "9%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {device.client || "-"}
-                      </td>
-                      <td
-                        style={{
-                          width: "9%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "inline-block",
-                            background: getConditionColor(device.condition),
-                            color: getConditionTextColor(device.condition),
-                            padding: "4px 6px",
-                            borderRadius: "4px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            textAlign: "center",
-                            width: "100%",
-                            boxSizing: "border-box",
-                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          {device.condition}
-                        </div>
-                      </td>
-                      <td
-                        style={{
-                          width: "15%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {device.remarks || ""}
-                      </td>
-                      <td
-                        style={{
-                          width: "12%",
-                          padding: "8px 6px",
-                          fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                          wordWrap: "break-word",
-                          whiteSpace: "normal",
-                          lineHeight: "1.4",
-                        }}
-                      >
-                        {device.acquisitionDate ? (
-                          formatDateToMMDDYYYY(device.acquisitionDate)
-                        ) : (
-                          <span
-                            style={{ color: "#9ca3af", fontStyle: "italic" }}
-                          >
-                            Not recorded
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          width: "8%",
-                          padding: "4px 2px",
-                          fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "1px",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexWrap: "nowrap",
-                            minWidth: "fit-content",
-                          }}
-                        >
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4,
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "3px",
-                              minWidth: "24px",
-                              minHeight: "24px",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#3b82f6";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(59, 130, 246, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEdit(device);
-                            }}
-                            title="Edit"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                            </svg>
-                          </button>
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4,
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "3px",
-                              minWidth: "24px",
-                              minHeight: "24px",
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#ef4444";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(239, 68, 68, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(device.id);
-                            }}
-                            title="Delete"
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                              <line x1="10" y1="11" x2="10" y2="17" />
-                              <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                      </button>
+                    </div>
+                    </td>
+                  </tr>
                   ));
                 })()}
               </tbody>
@@ -6215,6 +6564,274 @@ function Inventory() {
                 }}
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Last Tags Modal */}
+      {showLastTagsModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowLastTagsModal(false)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: "12px",
+              padding: "16px",
+              maxWidth: "600px",
+              width: "90%",
+              maxHeight: "70vh",
+              overflowY: "auto",
+              boxShadow:
+                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "12px",
+                borderBottom: "2px solid #e5e7eb",
+                paddingBottom: "12px",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#1f2937",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="#8b5cf6"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                Last Used Tags by Device Type
+              </h3>
+              <button
+                onClick={() => setShowLastTagsModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  color: "#6b7280",
+                  padding: "4px",
+                  borderRadius: "4px",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#f3f4f6";
+                  e.target.style.color = "#374151";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "none";
+                  e.target.style.color = "#6b7280";
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: "12px",
+              }}
+            >
+              {lastTagsData.map((item, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "16px",
+                    background: index % 2 === 0 ? "#f9fafb" : "#ffffff",
+                    borderRadius: "8px",
+                    border: "1px solid #e5e7eb",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "#ede9fe";
+                    e.target.style.borderColor = "#8b5cf6";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background =
+                      index % 2 === 0 ? "#f9fafb" : "#ffffff";
+                    e.target.style.borderColor = "#e5e7eb";
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: "#8b5cf6",
+                        color: "#fff",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        minWidth: "50px",
+                        textAlign: "center",
+                      }}
+                    >
+                      {item.code}
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: "600",
+                        color: "#374151",
+                        fontSize: "16px",
+                      }}
+                    >
+                      {item.deviceType}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: "4px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: "700",
+                        color:
+                          item.lastTag === "No tags used yet"
+                            ? "#ef4444"
+                            : "#2563eb",
+                        fontSize: "14px",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {item.lastTag}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {item.totalCount} tag{item.totalCount !== 1 ? "s" : ""}{" "}
+                      used
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "16px",
+                background: "#f0f9ff",
+                borderRadius: "8px",
+                border: "1px solid #0ea5e9",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "8px",
+                }}
+              >
+                <svg width="16" height="16" fill="#0ea5e9" viewBox="0 0 24 24">
+                  <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#0369a1",
+                  }}
+                >
+                  Information
+                </span>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  color: "#0369a1",
+                  lineHeight: "1.5",
+                }}
+              >
+                This shows the last used tag for each device type. The next
+                available tag would be one number higher than displayed. For
+                example, if the last tag shown is JOIILPT0005, the next
+                available tag would be JOIILPT0006.
+              </p>
+            </div>
+
+            <div
+              style={{
+                marginTop: "20px",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={() => setShowLastTagsModal(false)}
+                style={{
+                  background: "#8b5cf6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 20px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#7c3aed";
+                  e.target.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "#8b5cf6";
+                  e.target.style.transform = "translateY(0)";
+                }}
+              >
+                Close
               </button>
             </div>
           </div>
