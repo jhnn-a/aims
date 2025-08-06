@@ -1,8 +1,8 @@
-import React from 'react';
+import React from "react";
 
 /**
  * TableHeaderFilters Component
- * 
+ *
  * A reusable component that provides header-level filtering for tables.
  * Supports text inputs, dropdowns, and date pickers with consistent styling.
  */
@@ -22,15 +22,18 @@ export const TextFilter = ({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
         border: "1px solid #d1d5db",
         borderRadius: "4px",
         background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
@@ -62,16 +65,19 @@ export const DropdownFilter = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
         border: "1px solid #d1d5db",
         borderRadius: "4px",
         background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         cursor: "pointer",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
@@ -111,16 +117,19 @@ export const DateFilter = ({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
         border: "1px solid #d1d5db",
         borderRadius: "4px",
         background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         cursor: "pointer",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
@@ -157,7 +166,8 @@ export const ClearFilterButton = ({
         borderRadius: "3px",
         background: disabled ? "#f3f4f6" : "#ffffff",
         color: disabled ? "#9ca3af" : "#374151",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         cursor: disabled ? "not-allowed" : "pointer",
         transition: "all 0.2s",
         marginLeft: "4px",
@@ -214,7 +224,8 @@ export const FilterContainer = ({
             borderRadius: "3px",
             background: "#ffffff",
             color: "#dc2626",
-            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontFamily:
+              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             cursor: "pointer",
             transition: "all 0.2s",
             alignSelf: "center",
@@ -241,14 +252,14 @@ export const useTableFilters = (initialFilters = {}) => {
   const [filters, setFilters] = React.useState(initialFilters);
 
   const updateFilter = React.useCallback((key, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   }, []);
 
   const clearFilter = React.useCallback((key) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       const newFilters = { ...prev };
       delete newFilters[key];
       return newFilters;
@@ -260,8 +271,8 @@ export const useTableFilters = (initialFilters = {}) => {
   }, []);
 
   const hasActiveFilters = React.useMemo(() => {
-    return Object.values(filters).some(value => 
-      value !== undefined && value !== null && value !== ''
+    return Object.values(filters).some(
+      (value) => value !== undefined && value !== null && value !== ""
     );
   }, [filters]);
 
@@ -270,7 +281,7 @@ export const useTableFilters = (initialFilters = {}) => {
     updateFilter,
     clearFilter,
     clearAllFilters,
-    hasActiveFilters
+    hasActiveFilters,
   };
 };
 
@@ -280,18 +291,20 @@ export const applyFilters = (data, filters) => {
     return data;
   }
 
-  return data.filter(item => {
+  return data.filter((item) => {
     return Object.entries(filters).every(([key, filterValue]) => {
       if (!filterValue) return true;
-      
+
       const itemValue = item[key];
       if (itemValue === undefined || itemValue === null) return false;
-      
+
       // For string comparisons (case-insensitive)
-      if (typeof filterValue === 'string') {
-        return String(itemValue).toLowerCase().includes(filterValue.toLowerCase());
+      if (typeof filterValue === "string") {
+        return String(itemValue)
+          .toLowerCase()
+          .includes(filterValue.toLowerCase());
       }
-      
+
       // For exact matches (numbers, dates, etc.)
       return itemValue === filterValue;
     });
@@ -305,5 +318,5 @@ export default {
   ClearFilterButton,
   FilterContainer,
   useTableFilters,
-  applyFilters
+  applyFilters,
 };

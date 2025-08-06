@@ -383,6 +383,192 @@ function DeviceFormModal({
             style={styles.inventoryInput}
           />
         </div>
+
+        {/* Conditional PC/Laptop Specifications */}
+        {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "12px",
+              marginBottom: 12,
+              background: "#f9fafb",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#374151",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+              </svg>
+              {data.deviceType} Specifications
+            </h4>
+
+            {/* Row 1: CPU Gen and RAM */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>CPU Gen:</label>
+                <input
+                  name="cpuGen"
+                  value={data.cpuGen || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., Intel i5 12th Gen"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>RAM:</label>
+                <select
+                  name="ram"
+                  value={data.ram || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select RAM</option>
+                  <option value="4GB">4GB</option>
+                  <option value="8GB">8GB</option>
+                  <option value="16GB">16GB</option>
+                  <option value="32GB">32GB</option>
+                  <option value="64GB">64GB</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Drive 1 and Drive 2 */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 1:</label>
+                <input
+                  name="drive1"
+                  value={data.drive1 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 256 GB SSD"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 2 (Optional):</label>
+                <input
+                  name="drive2"
+                  value={data.drive2 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 1 TB HDD"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: GPU and OS */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 0,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>GPU:</label>
+                <input
+                  name="gpu"
+                  value={data.gpu || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., Integrated / GTX 1650"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>OS:</label>
+                <select
+                  name="os"
+                  value={data.os || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select OS</option>
+                  <option value="Windows 11 Pro">Windows 11 Pro</option>
+                  <option value="Windows 11 Home">Windows 11 Home</option>
+                  <option value="Windows 10 Pro">Windows 10 Pro</option>
+                  <option value="Windows 10 Home">Windows 10 Home</option>
+                  <option value="macOS">macOS</option>
+                  <option value="Ubuntu">Ubuntu</option>
+                  <option value="Other Linux">Other Linux</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Acquisition Date:</label>
           <input
@@ -709,6 +895,25 @@ function Inventory() {
   };
 
   // === STATE MANAGEMENT ===
+  // === FORM STRUCTURE ===
+  const initialForm = {
+    deviceType: "",
+    deviceTag: "",
+    brand: "",
+    model: "",
+    condition: "",
+    client: "",
+    remarks: "",
+    acquisitionDate: "",
+    // PC/Laptop specific fields
+    cpuGen: "",
+    ram: "",
+    drive1: "",
+    drive2: "",
+    gpu: "",
+    os: "",
+  };
+
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of unassigned devices from database
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
@@ -1322,6 +1527,13 @@ function Inventory() {
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
+      // PC/Laptop specifications
+      cpuGen: deviceData.cpuGen || "",
+      ram: deviceData.ram || "",
+      drive1: deviceData.drive1 || "",
+      drive2: deviceData.drive2 || "",
+      gpu: deviceData.gpu || "",
+      os: deviceData.os || "",
       _editDeviceId: id,
       id: id, // Keep id for edit mode detection
     };
@@ -2935,6 +3147,41 @@ function Inventory() {
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Responsive search bar styles */
+        .inventory-search-container {
+          /* Small screens (mobile) - max 250px */
+          max-width: 250px;
+        }
+        
+        @media (min-width: 768px) {
+          /* Medium screens (tablets) - max 350px */
+          .inventory-search-container {
+            max-width: 350px;
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          /* Large screens (laptops) - max 450px */
+          .inventory-search-container {
+            max-width: 450px;
+          }
+        }
+        
+        @media (min-width: 1280px) {
+          /* Extra large screens (desktops) - max 600px */
+          .inventory-search-container {
+            max-width: 600px;
+          }
+        }
+        
+        @media (min-width: 1536px) {
+          /* Extra extra large screens (large monitors) - max 800px */
+          .inventory-search-container {
+            max-width: 800px;
+          }
+        }
+      `}</style>
       <div
         style={{
           position: "sticky",
@@ -2955,6 +3202,7 @@ function Inventory() {
           }}
         >
           <div
+            className="inventory-search-container"
             style={{
               display: "flex",
               alignItems: "center",
@@ -2963,7 +3211,6 @@ function Inventory() {
               border: "1px solid #d1d5db",
               padding: "10px 14px",
               flex: 1,
-              maxWidth: "300px",
               minWidth: "200px",
             }}
           >
@@ -4170,13 +4417,14 @@ function Inventory() {
                             display: "inline-block",
                             background: getConditionColor(device.condition),
                             color: getConditionTextColor(device.condition),
-                            padding: "4px 6px",
+                            padding: "4px 8px",
                             borderRadius: "4px",
-                            fontSize: "11px",
+                            fontSize: "12px",
                             fontWeight: "600",
                             textAlign: "center",
-                            width: "100%",
-                            boxSizing: "border-box",
+                            minWidth: "70px",
+                            lineHeight: "1.2",
+                            whiteSpace: "nowrap",
                             boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                           }}
                         >
