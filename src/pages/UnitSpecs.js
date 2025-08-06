@@ -15,7 +15,11 @@ import * as XLSX from "xlsx";
 // Import snackbar for notifications
 import { useSnackbar } from "../components/Snackbar";
 // Import device types and tag generation utility
-import { deviceTypes, getConditionColor, getConditionTextColor } from "./InventoryConstants";
+import {
+  deviceTypes,
+  getConditionColor,
+  getConditionTextColor,
+} from "./InventoryConstants";
 import { generateNextDeviceTag } from "./InventoryUtils";
 
 const emptyUnit = {
@@ -46,8 +50,8 @@ const categoryOptions = [
 ];
 
 // Device type options (filtered for PC and Laptop only)
-const unitDeviceTypes = deviceTypes.filter(type => 
-  type.label === "PC" || type.label === "Laptop"
+const unitDeviceTypes = deviceTypes.filter(
+  (type) => type.label === "PC" || type.label === "Laptop"
 );
 
 const osOptions = [
@@ -451,9 +455,9 @@ const UnitSpecs = () => {
 
   // --- Checkbox Functions ---
   const handleSelectItem = (itemId) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       if (prev.includes(itemId)) {
-        return prev.filter(id => id !== itemId);
+        return prev.filter((id) => id !== itemId);
       } else {
         return [...prev, itemId];
       }
@@ -461,8 +465,11 @@ const UnitSpecs = () => {
   };
 
   const handleSelectAll = (data) => {
-    const allIds = data.map(item => item.id);
-    if (selectedItems.length === allIds.length && allIds.every(id => selectedItems.includes(id))) {
+    const allIds = data.map((item) => item.id);
+    if (
+      selectedItems.length === allIds.length &&
+      allIds.every((id) => selectedItems.includes(id))
+    ) {
       // If all are selected, deselect all
       setSelectedItems([]);
     } else {
@@ -479,16 +486,16 @@ const UnitSpecs = () => {
     try {
       for (const itemId of selectedItems) {
         // Find the item in either inventory or deployed data
-        const inventoryItem = inventory.find(item => item.id === itemId);
-        const deployedItem = deployed.find(item => item.id === itemId);
-        
+        const inventoryItem = inventory.find((item) => item.id === itemId);
+        const deployedItem = deployed.find((item) => item.id === itemId);
+
         if (inventoryItem) {
           await deleteDoc(doc(db, "InventoryUnits", itemId));
         } else if (deployedItem) {
           await deleteDoc(doc(db, "DeployedUnits", itemId));
         }
       }
-      
+
       setSelectedItems([]);
       setBulkDeleteConfirm(false);
       fetchData();
@@ -556,7 +563,7 @@ const UnitSpecs = () => {
   // Filtering logic for all columns (now takes filters as argument)
   const filterData = (data, filters) => {
     let filtered = data;
-    
+
     // Apply search filter first
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
@@ -769,10 +776,13 @@ const UnitSpecs = () => {
   // Card Footer with Pagination Controls
   const renderCardFooter = () => {
     const currentData = activeTab === "InventoryUnits" ? inventory : deployed;
-    const currentPage = activeTab === "InventoryUnits" ? inventoryPage : deployedPage;
-    const setCurrentPage = activeTab === "InventoryUnits" ? setInventoryPage : setDeployedPage;
-    const filters = activeTab === "InventoryUnits" ? inventoryFilters : deployedFilters;
-    
+    const currentPage =
+      activeTab === "InventoryUnits" ? inventoryPage : deployedPage;
+    const setCurrentPage =
+      activeTab === "InventoryUnits" ? setInventoryPage : setDeployedPage;
+    const filters =
+      activeTab === "InventoryUnits" ? inventoryFilters : deployedFilters;
+
     let filtered = filterData(currentData, filters);
     let sorted = sortData(filtered);
     const totalPages = Math.ceil(sorted.length / itemsPerPage);
@@ -800,7 +810,9 @@ const UnitSpecs = () => {
         {/* Left side: Show dropdown and info */}
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span style={{ fontSize: "14px", color: "#374151", fontWeight: 500 }}>
+            <span
+              style={{ fontSize: "14px", color: "#374151", fontWeight: 500 }}
+            >
               Show:
             </span>
             <select
@@ -829,7 +841,7 @@ const UnitSpecs = () => {
               <option value={100}>100</option>
             </select>
           </div>
-          
+
           <span style={{ color: "#6b7280", fontSize: "14px" }}>
             Showing {(currentPage - 1) * itemsPerPage + 1} -{" "}
             {Math.min(currentPage * itemsPerPage, sorted.length)} of{" "}
@@ -872,7 +884,7 @@ const UnitSpecs = () => {
             >
               Previous
             </button>
-            
+
             <span
               style={{
                 margin: "0 12px",
@@ -883,7 +895,7 @@ const UnitSpecs = () => {
             >
               Page {currentPage} of {totalPages}
             </span>
-            
+
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
@@ -1021,7 +1033,7 @@ const UnitSpecs = () => {
 
   const renderBulkDeleteConfirmModal = () => {
     if (!bulkDeleteConfirm) return null;
-    
+
     return (
       <div
         style={{
@@ -1063,7 +1075,8 @@ const UnitSpecs = () => {
             Confirm Bulk Delete
           </h2>
           <div style={{ marginBottom: 18, color: "#18181a", fontWeight: 500 }}>
-            Are you sure you want to delete the following {selectedItems.length} selected unit(s)?
+            Are you sure you want to delete the following {selectedItems.length}{" "}
+            selected unit(s)?
             <div
               style={{
                 margin: "12px 0",
@@ -1245,7 +1258,7 @@ const UnitSpecs = () => {
             </button>
           </div>
         </div>
-        
+
         {/* Scrollable Table Container */}
         <div
           style={{
@@ -1266,32 +1279,9 @@ const UnitSpecs = () => {
               tableLayout: "fixed",
             }}
           >
-          <thead>
-            <tr style={{ background: "#f9fafb" }}>
-              {/* Select All Checkbox Column */}
-              <th
-                style={{
-                  width: "4%",
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={sorted.length > 0 && sorted.every(item => selectedItems.includes(item.id))}
-                  onChange={() => handleSelectAll(sorted)}
-                  style={{ width: 16, height: 16, margin: 0 }}
-                />
-              </th>
-              {deleteMode.active && deleteMode.table === collectionName && (
+            <thead>
+              <tr style={{ background: "#f9fafb" }}>
+                {/* Select All Checkbox Column */}
                 <th
                   style={{
                     width: "4%",
@@ -1309,43 +1299,117 @@ const UnitSpecs = () => {
                 >
                   <input
                     type="checkbox"
+                    checked={
+                      sorted.length > 0 &&
+                      sorted.every((item) => selectedItems.includes(item.id))
+                    }
+                    onChange={() => handleSelectAll(sorted)}
                     style={{ width: 16, height: 16, margin: 0 }}
                   />
                 </th>
-              )}
-              {[
-                "Tag",
-                "CPU",
-                "RAM",
-                "Drive",
-                "GPU",
-                "Status",
-                "OS",
-                "Category",
-                "Remarks",
-              ].map((col) => (
-                <th
-                  key={col}
-                  style={{
-                    width:
-                      col === "Tag"
-                        ? "12%"
-                        : col === "CPU"
-                        ? "12%"
-                        : col === "RAM"
-                        ? "8%"
+                {deleteMode.active && deleteMode.table === collectionName && (
+                  <th
+                    style={{
+                      width: "4%",
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{ width: 16, height: 16, margin: 0 }}
+                    />
+                  </th>
+                )}
+                {[
+                  "Tag",
+                  "CPU",
+                  "RAM",
+                  "Drive",
+                  "GPU",
+                  "Status",
+                  "OS",
+                  "Category",
+                  "Remarks",
+                ].map((col) => (
+                  <th
+                    key={col}
+                    style={{
+                      width:
+                        col === "Tag"
+                          ? "12%"
+                          : col === "CPU"
+                          ? "12%"
+                          : col === "RAM"
+                          ? "8%"
+                          : col === "Drive"
+                          ? "15%"
+                          : col === "GPU"
+                          ? "12%"
+                          : col === "Status"
+                          ? "10%"
+                          : col === "OS"
+                          ? "8%"
+                          : col === "Category"
+                          ? "10%"
+                          : "13%", // Remarks
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#374151",
+                      textAlign: "center",
+                      border: "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    <span
+                      onClick={
+                        col !== "Tag"
+                          ? (e) => handleFilterClick(e, col, collectionName)
+                          : undefined
+                      }
+                      style={{
+                        marginRight: 8,
+                        textDecoration:
+                          col !== "Tag" ? "underline dotted" : undefined,
+                        cursor: col !== "Tag" ? "pointer" : undefined,
+                        display: "inline-block",
+                      }}
+                    >
+                      {col === "CPU"
+                        ? "CPU GEN"
                         : col === "Drive"
-                        ? "15%"
-                        : col === "GPU"
-                        ? "12%"
-                        : col === "Status"
-                        ? "10%"
-                        : col === "OS"
-                        ? "8%"
-                        : col === "Category"
-                        ? "10%"
-                        : "13%", // Remarks
-                    padding: "8px 6px",
+                        ? "MAIN DRIVE"
+                        : col.toUpperCase()}
+                    </span>
+                    <span
+                      onClick={() => handleSort(col)}
+                      style={{ marginLeft: 2, fontSize: 10, cursor: "pointer" }}
+                    >
+                      ⇅
+                    </span>
+                    {col !== "Tag" &&
+                      filterPopup.open &&
+                      filterPopup.column === col &&
+                      filterPopup.table === collectionName &&
+                      renderFilterPopup(col, data, collectionName)}
+                  </th>
+                ))}
+                <th
+                  style={{
+                    width: "13%",
+                    padding: "8px 4px",
                     fontSize: "12px",
                     fontWeight: "600",
                     color: "#374151",
@@ -1357,59 +1421,11 @@ const UnitSpecs = () => {
                     zIndex: 10,
                   }}
                 >
-                  <span
-                    onClick={
-                      col !== "Tag"
-                        ? (e) => handleFilterClick(e, col, collectionName)
-                        : undefined
-                    }
-                    style={{
-                      marginRight: 8,
-                      textDecoration:
-                        col !== "Tag" ? "underline dotted" : undefined,
-                      cursor: col !== "Tag" ? "pointer" : undefined,
-                      display: "inline-block",
-                    }}
-                  >
-                    {col === "CPU"
-                      ? "CPU GEN"
-                      : col === "Drive"
-                      ? "MAIN DRIVE"
-                      : col.toUpperCase()}
-                  </span>
-                  <span
-                    onClick={() => handleSort(col)}
-                    style={{ marginLeft: 2, fontSize: 10, cursor: "pointer" }}
-                  >
-                    ⇅
-                  </span>
-                  {col !== "Tag" &&
-                    filterPopup.open &&
-                    filterPopup.column === col &&
-                    filterPopup.table === collectionName &&
-                    renderFilterPopup(col, data, collectionName)}
+                  ACTIONS
                 </th>
-              ))}
-              <th
-                style={{
-                  width: "13%",
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                }}
-              >
-                ACTIONS
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </tr>
+            </thead>
+            <tbody>
               {paginatedData.length === 0 ? (
                 <tr>
                   <td
@@ -1448,7 +1464,10 @@ const UnitSpecs = () => {
                       transition: "background 0.15s",
                     }}
                     onMouseEnter={(e) => {
-                      setHoveredRow({ id: unit.id, collection: collectionName });
+                      setHoveredRow({
+                        id: unit.id,
+                        collection: collectionName,
+                      });
                       if (index % 2 === 0) {
                         e.currentTarget.style.background = "rgb(235, 235, 240)";
                       } else {
@@ -1695,7 +1714,11 @@ const UnitSpecs = () => {
                               e.currentTarget.style.transform = "scale(1)";
                               e.currentTarget.style.boxShadow = "none";
                             }}
-                            title={collectionName === "InventoryUnits" ? "Deploy" : "Return"}
+                            title={
+                              collectionName === "InventoryUnits"
+                                ? "Deploy"
+                                : "Return"
+                            }
                           >
                             <svg
                               width="14"
@@ -1800,7 +1823,9 @@ const UnitSpecs = () => {
                               minWidth: "24px",
                               minHeight: "24px",
                             }}
-                            onClick={() => setConfirmSingleDelete({ unit, collectionName })}
+                            onClick={() =>
+                              setConfirmSingleDelete({ unit, collectionName })
+                            }
                             title="Delete"
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#ef4444";
@@ -1887,7 +1912,8 @@ const UnitSpecs = () => {
           scrollbarWidth: "none",
           msOverflowStyle: "none",
           WebkitScrollbar: { display: "none" },
-          fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          fontFamily:
+            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           animation: "modalFadeIn 0.2s ease-out",
         }}
         role="dialog"
@@ -1953,7 +1979,8 @@ const UnitSpecs = () => {
               marginBottom: 0,
               letterSpacing: 0.5,
               width: "100%",
-              fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             }}
           >
             {editId ? "Edit Unit" : "Add Unit"}
@@ -1987,7 +2014,8 @@ const UnitSpecs = () => {
             >
               <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Editing existing unit - modify the fields below to update the unit information
+            Editing existing unit - modify the fields below to update the unit
+            information
           </div>
         )}
 
@@ -2011,7 +2039,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Add to:
@@ -2030,7 +2059,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2042,7 +2072,14 @@ const UnitSpecs = () => {
           )}
 
           {/* Row 2: Device Type and Category */}
-          <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2061,7 +2098,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Device Type:
@@ -2081,7 +2119,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2114,7 +2153,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Category:
@@ -2134,7 +2174,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2167,7 +2208,8 @@ const UnitSpecs = () => {
                 color: "#222e3a",
                 marginBottom: 3,
                 fontSize: 13,
-                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
             >
               TAG:
@@ -2191,7 +2233,8 @@ const UnitSpecs = () => {
                 height: "30px",
                 boxSizing: "border-box",
                 marginBottom: 0,
-                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 outline: "none",
                 transition: "border-color 0.2s, box-shadow 0.2s",
                 cursor: editId ? "not-allowed" : "text",
@@ -2200,7 +2243,14 @@ const UnitSpecs = () => {
           </div>
 
           {/* Row 4: CPU Generation and Model */}
-          <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2219,7 +2269,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 CPU Generation:
@@ -2239,7 +2290,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2272,7 +2324,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 CPU Model:
@@ -2293,7 +2346,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2302,7 +2356,14 @@ const UnitSpecs = () => {
           </div>
 
           {/* Row 5: RAM and Drive */}
-          <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2321,7 +2382,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 RAM (GB):
@@ -2341,7 +2403,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2373,7 +2436,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Drive:
@@ -2394,7 +2458,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2403,7 +2468,14 @@ const UnitSpecs = () => {
           </div>
 
           {/* Row 6: GPU and Status */}
-          <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2422,7 +2494,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 GPU:
@@ -2443,7 +2516,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2468,7 +2542,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Status:
@@ -2488,7 +2563,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2505,7 +2581,14 @@ const UnitSpecs = () => {
           </div>
 
           {/* Row 7: OS and Remarks */}
-          <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -2524,7 +2607,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 OS:
@@ -2544,7 +2628,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2577,7 +2662,8 @@ const UnitSpecs = () => {
                   color: "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Remarks:
@@ -2598,7 +2684,8 @@ const UnitSpecs = () => {
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
-                  fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                   outline: "none",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
@@ -2631,7 +2718,8 @@ const UnitSpecs = () => {
                 boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 transition: "background 0.2s, box-shadow 0.2s",
                 outline: "none",
-                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
               aria-label={editId ? "Update unit information" : "Save new unit"}
             >
@@ -2653,7 +2741,8 @@ const UnitSpecs = () => {
                 boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 transition: "background 0.2s, box-shadow 0.2s",
                 outline: "none",
-                fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
               aria-label="Cancel and close dialog"
             >
@@ -2731,7 +2820,10 @@ const UnitSpecs = () => {
             padding: "10px 32px",
             borderRadius: 0,
             cursor: "pointer",
-            boxShadow: activeTab === "InventoryUnits" ? "0 -2px 8px rgba(68,95,109,0.08)" : "none",
+            boxShadow:
+              activeTab === "InventoryUnits"
+                ? "0 -2px 8px rgba(68,95,109,0.08)"
+                : "none",
             outline: "none",
             transition: "all 0.2s",
           }}
@@ -2749,7 +2841,10 @@ const UnitSpecs = () => {
             padding: "10px 32px",
             borderRadius: 0,
             cursor: "pointer",
-            boxShadow: activeTab === "DeployedUnits" ? "0 -2px 8px rgba(68,95,109,0.08)" : "none",
+            boxShadow:
+              activeTab === "DeployedUnits"
+                ? "0 -2px 8px rgba(68,95,109,0.08)"
+                : "none",
             outline: "none",
             transition: "all 0.2s",
           }}
@@ -2777,7 +2872,9 @@ const UnitSpecs = () => {
         }}
       >
         {activeTab === "InventoryUnits" && (
-          <div style={{ flex: 1, overflow: "hidden", background: "transparent" }}>
+          <div
+            style={{ flex: 1, overflow: "hidden", background: "transparent" }}
+          >
             {loading ? (
               <div
                 style={{
@@ -2801,7 +2898,9 @@ const UnitSpecs = () => {
           </div>
         )}
         {activeTab === "DeployedUnits" && (
-          <div style={{ flex: 1, overflow: "hidden", background: "transparent" }}>
+          <div
+            style={{ flex: 1, overflow: "hidden", background: "transparent" }}
+          >
             {loading ? (
               <div
                 style={{
