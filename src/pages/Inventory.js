@@ -225,7 +225,11 @@ function DeviceFormModal({
 
           {data.deviceType === "RAM" ? (
             <div
-              style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
             >
               <label style={styles.inventoryLabel}>Size:</label>
               <select
@@ -244,7 +248,11 @@ function DeviceFormModal({
             </div>
           ) : (
             <div
-              style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
             >
               <label style={styles.inventoryLabel}>Brand:</label>
               <input
@@ -1168,7 +1176,7 @@ function Inventory() {
     if (name === "deviceType") {
       // When device type changes
       const typeObj = deviceTypes.find((t) => t.label === value);
-      
+
       if (value === "RAM") {
         // For RAM, don't generate tag until size is selected
         setForm((prev) => ({
@@ -1209,10 +1217,10 @@ function Inventory() {
       if (form.deviceType === "RAM" && value) {
         const sizeMap = {
           "4GB": "4",
-          "8GB": "8", 
+          "8GB": "8",
           "16GB": "16",
           "32GB": "32",
-          "64GB": "64"
+          "64GB": "64",
         };
         const sizeCode = sizeMap[value];
         if (sizeCode) {
@@ -1602,7 +1610,7 @@ function Inventory() {
       const ramMatch = deviceData.deviceTag.match(/^JOIIRAM(\d+)/);
       if (ramMatch) {
         const fullNumber = ramMatch[1]; // e.g., "40004"
-        
+
         // Extract just the size part (first 1-2 digits)
         let sizeNumber = "";
         if (fullNumber.startsWith("4")) {
@@ -1616,14 +1624,14 @@ function Inventory() {
         } else if (fullNumber.startsWith("64")) {
           sizeNumber = "64";
         }
-        
+
         // Map the extracted size to the dropdown option format
         const sizeMap = {
-          "4": "4GB",
-          "8": "8GB", 
-          "16": "16GB",
-          "32": "32GB",
-          "64": "64GB"
+          4: "4GB",
+          8: "8GB",
+          16: "16GB",
+          32: "32GB",
+          64: "64GB",
         };
         extractedRamSize = sizeMap[sizeNumber] || "";
       }
@@ -1768,10 +1776,10 @@ function Inventory() {
         if (form.ramSize) {
           const sizeMap = {
             "4GB": "4",
-            "8GB": "8", 
+            "8GB": "8",
             "16GB": "16",
             "32GB": "32",
-            "64GB": "64"
+            "64GB": "64",
           };
           const sizeCode = sizeMap[form.ramSize];
           if (sizeCode) {

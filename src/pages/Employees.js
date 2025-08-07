@@ -1062,7 +1062,8 @@ function Employees() {
               <table
                 style={{
                   width: "100%",
-                  borderCollapse: "collapse",
+                  borderCollapse: "separate",
+                  borderSpacing: "0",
                   background: "#fff",
                   fontSize: "14px",
                   border: "1px solid #d1d5db",
@@ -1212,10 +1213,8 @@ function Employees() {
                         color: "#374151",
                         fontWeight: 500,
                         padding: "8px 16px",
-                        borderTop: "1px solid #d1d5db",
-                        borderBottom: "1px solid #e5e7eb",
-                        borderLeft: "1px solid #d1d5db",
-                        borderRight: "3px solid #374151",
+                        border: "1px solid #d1d5db",
+                        borderRight: "5px solid #1f2937",
                         textAlign: "center",
                         fontSize: "12px",
                         textTransform: "uppercase",
@@ -1223,6 +1222,8 @@ function Employees() {
                         width: "120px",
                         maxWidth: "120px",
                         minWidth: "100px",
+                        position: "relative",
+                        backgroundColor: "#f8f9fa",
                       }}
                     >
                       Date Hired
@@ -1232,15 +1233,15 @@ function Employees() {
                         color: "#374151",
                         fontWeight: 500,
                         padding: "8px 16px",
-                        borderTop: "1px solid #d1d5db",
-                        borderBottom: "1px solid #e5e7eb",
-                        borderLeft: "3px solid #374151",
-                        borderRight: "1px solid #d1d5db",
+                        border: "1px solid #d1d5db",
+                        borderLeft: "5px solid #1f2937",
                         textAlign: "center",
                         fontSize: "12px",
                         textTransform: "uppercase",
                         letterSpacing: "0.05em",
                         width: "100px",
+                        position: "relative",
+                        backgroundColor: "#f8f9fa",
                       }}
                     >
                       Actions
@@ -1369,15 +1370,15 @@ function Employees() {
                         <td
                           style={{
                             padding: "8px 16px",
-                            borderTop: "1px solid #d1d5db",
-                            borderBottom: "1px solid #d1d5db",
-                            borderLeft: "1px solid #d1d5db",
-                            borderRight: "3px solid #374151",
+                            border: "1px solid #d1d5db",
+                            borderRight: "5px solid #1f2937",
                             textAlign: "center",
                             fontSize: "14px",
                             color: "#374151",
                             width: "120px",
                             maxWidth: "120px",
+                            position: "relative",
+                            backgroundColor: "#fafafa",
                           }}
                         >
                           {emp.dateHired || "-"}
@@ -1385,21 +1386,22 @@ function Employees() {
                         <td
                           style={{
                             padding: "8px 16px",
-                            borderTop: "1px solid #d1d5db",
-                            borderBottom: "1px solid #d1d5db",
-                            borderLeft: "3px solid #374151",
-                            borderRight: "1px solid #d1d5db",
+                            border: "1px solid #d1d5db",
+                            borderLeft: "5px solid #1f2937",
                             textAlign: "center",
                             fontSize: "14px",
                             color: "#374151",
                             width: "100px",
+                            position: "relative",
+                            backgroundColor: "#fafafa",
                           }}
                         >
                           <div
                             style={{
                               display: "flex",
-                              gap: "4px",
+                              gap: "6px",
                               justifyContent: "center",
+                              alignItems: "center",
                               flexWrap: "wrap",
                             }}
                           >
@@ -1411,37 +1413,38 @@ function Employees() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "4px",
-                                padding: "3px",
+                                borderRadius: "6px",
+                                padding: "6px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                transition: "all 0.2s ease",
+                                transition: "all 0.3s ease",
                                 color: "#6b7280",
-                                minWidth: "24px",
-                                minHeight: "24px",
+                                minWidth: "28px",
+                                minHeight: "28px",
+                                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
                               }}
-                              title="Edit"
+                              title="Edit Employee"
                               onMouseEnter={(e) => {
-                                e.target.style.background = "#3b82f6";
-                                e.target.style.color = "#ffffff";
-                                e.target.style.transform = "scale(1.1)";
-                                e.target.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                                e.currentTarget.style.background = "#3b82f6";
+                                e.currentTarget.style.color = "#ffffff";
+                                e.currentTarget.style.transform = "scale(1.15)";
+                                e.currentTarget.style.boxShadow = "0 6px 20px rgba(59, 130, 246, 0.4)";
                               }}
                               onMouseLeave={(e) => {
-                                e.target.style.background = "transparent";
-                                e.target.style.color = "#6b7280";
-                                e.target.style.transform = "scale(1)";
-                                e.target.style.boxShadow = "none";
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
                               }}
                             >
                               <svg
-                                width="14"
-                                height="14"
+                                width="16"
+                                height="16"
                                 fill="none"
                                 stroke="currentColor"
-                                strokeWidth="2"
+                                strokeWidth="2.5"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 viewBox="0 0 24 24"
