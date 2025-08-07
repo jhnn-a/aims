@@ -9,7 +9,11 @@ import {
   undoResignation,
 } from "../services/employeeService";
 import { getAllClients } from "../services/clientService";
-import { getAllDevices, updateDevice, addDevice } from "../services/deviceService";
+import {
+  getAllDevices,
+  updateDevice,
+  addDevice,
+} from "../services/deviceService";
 import {
   getDeviceHistoryForEmployee,
   logDeviceHistory,
@@ -27,6 +31,11 @@ import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
+
+// Helper function to get current date in YYYY-MM-DD format
+const getCurrentDate = () => {
+  return new Date().toISOString().slice(0, 10);
+};
 
 // Simple Modal Component with CompanyAssets styling
 function EmployeeFormModal({
@@ -63,7 +72,8 @@ function EmployeeFormModal({
           maxWidth: "min(480px, 90vw)",
           maxHeight: "95vh",
           overflow: "auto",
-          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
           margin: "auto",
           boxSizing: "border-box",
@@ -84,7 +94,7 @@ function EmployeeFormModal({
         >
           {data.id ? "Edit Employee" : "Add Employee"}
         </h2>
-        
+
         {/* Hidden fields for First Name, Last Name, Middle Name */}
         <input
           name="firstName"
@@ -104,10 +114,10 @@ function EmployeeFormModal({
           onChange={onChange}
           style={{ display: "none" }}
         />
-        
+
         {/* Scrollable content area */}
-        <div 
-          style={{ 
+        <div
+          style={{
             flex: 1,
             overflow: "auto",
             minHeight: 0,
@@ -117,13 +127,15 @@ function EmployeeFormModal({
         >
           <div style={{ display: "grid", gap: "clamp(10px, 1.2vw, 14px)" }}>
             <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "clamp(12px, 1.1vw, 14px)",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 4,
-              }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}
+              >
                 Full Name:
               </label>
               <input
@@ -136,21 +148,23 @@ function EmployeeFormModal({
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
                 }}
               />
             </div>
-            
+
             <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "clamp(12px, 1.1vw, 14px)",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 4,
-              }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}
+              >
                 Position:
               </label>
               <input
@@ -163,21 +177,23 @@ function EmployeeFormModal({
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
                 }}
               />
             </div>
-            
+
             <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "clamp(12px, 1.1vw, 14px)",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 4,
-              }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}
+              >
                 Department:
               </label>
               <input
@@ -190,21 +206,23 @@ function EmployeeFormModal({
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
                 }}
               />
             </div>
-            
+
             <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "clamp(12px, 1.1vw, 14px)",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 4,
-              }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}
+              >
                 Client:
               </label>
               <select
@@ -217,7 +235,7 @@ function EmployeeFormModal({
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   backgroundColor: "white",
                   boxSizing: "border-box",
@@ -236,16 +254,24 @@ function EmployeeFormModal({
                   ))}
               </select>
             </div>
-            
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(6px, 0.8vw, 10px)" }}>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "clamp(6px, 0.8vw, 10px)",
+              }}
+            >
               <div>
-                <label style={{ 
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: "#374151",
-                  marginBottom: 4,
-                }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: 4,
+                  }}
+                >
                   Corporate Email:
                 </label>
                 <input
@@ -259,21 +285,23 @@ function EmployeeFormModal({
                     border: "1px solid #d1d5db",
                     borderRadius: 6,
                     fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontFamily: 'inherit',
+                    fontFamily: "inherit",
                     outline: "none",
                     boxSizing: "border-box",
                   }}
                 />
               </div>
-              
+
               <div>
-                <label style={{ 
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: "#374151",
-                  marginBottom: 4,
-                }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: 4,
+                  }}
+                >
                   Personal Email:
                 </label>
                 <input
@@ -287,22 +315,24 @@ function EmployeeFormModal({
                     border: "1px solid #d1d5db",
                     borderRadius: 6,
                     fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontFamily: 'inherit',
+                    fontFamily: "inherit",
                     outline: "none",
                     boxSizing: "border-box",
                   }}
                 />
               </div>
             </div>
-            
+
             <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "clamp(12px, 1.1vw, 14px)",
-                fontWeight: 600,
-                color: "#374151",
-                marginBottom: 4,
-              }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "clamp(12px, 1.1vw, 14px)",
+                  fontWeight: 600,
+                  color: "#374151",
+                  marginBottom: 4,
+                }}
+              >
                 Date Hired:
               </label>
               <input
@@ -316,7 +346,7 @@ function EmployeeFormModal({
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
                 }}
@@ -324,19 +354,21 @@ function EmployeeFormModal({
             </div>
           </div>
         </div>
-        
+
         {/* Fixed footer with buttons */}
-        <div style={{ 
-          display: "flex", 
-          gap: "clamp(6px, 0.8vw, 10px)", 
-          justifyContent: "flex-end",
-          marginTop: "clamp(12px, 1.5vw, 16px)",
-          flexWrap: "wrap",
-          flexShrink: 0,
-          paddingTop: "clamp(8px, 1vw, 12px)",
-          borderTop: "1px solid #f3f4f6",
-        }}>
-          <button 
+        <div
+          style={{
+            display: "flex",
+            gap: "clamp(6px, 0.8vw, 10px)",
+            justifyContent: "flex-end",
+            marginTop: "clamp(12px, 1.5vw, 16px)",
+            flexWrap: "wrap",
+            flexShrink: 0,
+            paddingTop: "clamp(8px, 1vw, 12px)",
+            borderTop: "1px solid #f3f4f6",
+          }}
+        >
+          <button
             onClick={onCancel}
             style={{
               padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
@@ -347,14 +379,14 @@ function EmployeeFormModal({
               fontSize: "clamp(12px, 1.1vw, 14px)",
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
               minWidth: "70px",
             }}
           >
             Cancel
           </button>
-          <button 
-            onClick={onSave} 
+          <button
+            onClick={onSave}
             disabled={!isValid}
             style={{
               padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
@@ -365,7 +397,7 @@ function EmployeeFormModal({
               fontSize: "clamp(12px, 1.1vw, 14px)",
               fontWeight: 500,
               cursor: isValid ? "pointer" : "not-allowed",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
               minWidth: "70px",
             }}
           >
@@ -378,7 +410,14 @@ function EmployeeFormModal({
 }
 
 // Modal for bulk resign confirmation
-function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, setReason }) {
+function BulkResignModal({
+  isOpen,
+  onConfirm,
+  onCancel,
+  selectedCount,
+  reason,
+  setReason,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -403,7 +442,8 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
           padding: 32,
           width: "90%",
           maxWidth: 400,
-          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
         }}
       >
@@ -421,15 +461,17 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
         <p style={{ color: "#6b7280", marginBottom: 20, fontSize: 14 }}>
           Are you sure you want to resign {selectedCount} employee(s)?
         </p>
-        
+
         <div style={{ marginBottom: 20 }}>
-          <label style={{ 
-            display: "block",
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: 6,
-          }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#374151",
+              marginBottom: 6,
+            }}
+          >
             Reason for resignation:
           </label>
           <textarea
@@ -442,16 +484,16 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
               border: "1px solid #d1d5db",
               borderRadius: 6,
               fontSize: 14,
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
               outline: "none",
               minHeight: 80,
               resize: "vertical",
             }}
           />
         </div>
-        
+
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-          <button 
+          <button
             onClick={onCancel}
             style={{
               padding: "8px 16px",
@@ -462,12 +504,12 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
             }}
           >
             Cancel
           </button>
-          <button 
+          <button
             onClick={onConfirm}
             style={{
               padding: "8px 16px",
@@ -478,7 +520,7 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
             }}
           >
             Resign {selectedCount} Employee(s)
@@ -490,7 +532,15 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount, reason, s
 }
 
 // Modern Confirmation Modal for Individual Actions
-function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confirmText, confirmColor = "#dc2626" }) {
+function ConfirmationModal({
+  isOpen,
+  onConfirm,
+  onCancel,
+  title,
+  message,
+  confirmText,
+  confirmColor = "#dc2626",
+}) {
   if (!isOpen) return null;
 
   return (
@@ -520,7 +570,8 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
           position: "relative",
           margin: "20px",
           boxSizing: "border-box",
-          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
         <h2
@@ -601,13 +652,20 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
 }
 
 // Employee Assets Modal
-function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory = [], onDeviceUpdate }) {
+function EmployeeAssetsModal({
+  isOpen,
+  onClose,
+  employee,
+  devices,
+  deviceHistory = [],
+  onDeviceUpdate,
+}) {
   const { showSuccess, showError } = useSnackbar();
-  
+
   // Modal states for action confirmations
   const [actionModal, setActionModal] = useState({
     isOpen: false,
-    type: '', // 'unassign' or 'reassign'
+    type: "", // 'unassign' or 'reassign'
     device: null,
     devices: [], // for bulk actions
     newEmployee: null, // for reassign
@@ -615,24 +673,28 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
     progress: 0,
     docxBlob: null,
     isBulk: false,
-    selectedCondition: '', // 'GOOD' or 'DEFECTIVE' for single unassign operations
-    deviceConditions: {} // Object to store individual device conditions for bulk operations: {deviceId: 'GOOD'|'DEFECTIVE'}
+    selectedCondition: "", // 'GOOD' or 'DEFECTIVE' for single unassign operations
+    deviceConditions: {}, // Object to store individual device conditions for bulk operations: {deviceId: 'GOOD'|'DEFECTIVE'}
   });
-  
+
   // State for reassign employee selection
   const [allEmployees, setAllEmployees] = useState([]);
-  
+
   // Bulk selection state
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
-  
+
   // Load employees for reassignment
   useEffect(() => {
     if (isOpen) {
       const loadEmployees = async () => {
         try {
           const employeeList = await getAllEmployees();
-          setAllEmployees(employeeList.filter(emp => !emp.isResigned && emp.id !== employee?.id));
+          setAllEmployees(
+            employeeList.filter(
+              (emp) => !emp.isResigned && emp.id !== employee?.id
+            )
+          );
         } catch (error) {
           console.error("Error loading employees:", error);
         }
@@ -647,7 +709,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
   // Bulk selection handlers
   const handleSelectAllDevices = (checked) => {
     if (checked) {
-      setSelectedDeviceIds(deployedAssets.map(device => device.id));
+      setSelectedDeviceIds(deployedAssets.map((device) => device.id));
     } else {
       setSelectedDeviceIds([]);
     }
@@ -659,7 +721,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
     if (checked) {
       newSelection = [...selectedDeviceIds, deviceId];
     } else {
-      newSelection = selectedDeviceIds.filter(id => id !== deviceId);
+      newSelection = selectedDeviceIds.filter((id) => id !== deviceId);
     }
     setSelectedDeviceIds(newSelection);
     setShowBulkActions(newSelection.length > 0);
@@ -667,10 +729,12 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
 
   // Bulk action handlers
   const handleBulkUnassign = () => {
-    const selectedDevices = deployedAssets.filter(device => selectedDeviceIds.includes(device.id));
+    const selectedDevices = deployedAssets.filter((device) =>
+      selectedDeviceIds.includes(device.id)
+    );
     setActionModal({
       isOpen: true,
-      type: 'unassign',
+      type: "unassign",
       device: null,
       devices: selectedDevices,
       newEmployee: null,
@@ -678,16 +742,18 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       progress: 0,
       docxBlob: null,
       isBulk: true,
-      selectedCondition: '',
-      deviceConditions: {} // Initialize empty - user will select for each device
+      selectedCondition: "",
+      deviceConditions: {}, // Initialize empty - user will select for each device
     });
   };
 
   const handleBulkReassign = () => {
-    const selectedDevices = deployedAssets.filter(device => selectedDeviceIds.includes(device.id));
+    const selectedDevices = deployedAssets.filter((device) =>
+      selectedDeviceIds.includes(device.id)
+    );
     setActionModal({
       isOpen: true,
-      type: 'reassign',
+      type: "reassign",
       device: null,
       devices: selectedDevices,
       newEmployee: null,
@@ -695,8 +761,8 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       progress: 0,
       docxBlob: null,
       isBulk: true,
-      selectedCondition: '',
-      deviceConditions: {}
+      selectedCondition: "",
+      deviceConditions: {},
     });
   };
 
@@ -704,7 +770,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
   const handleUnassign = (device) => {
     setActionModal({
       isOpen: true,
-      type: 'unassign',
+      type: "unassign",
       device,
       devices: [device],
       newEmployee: null,
@@ -712,15 +778,15 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       progress: 0,
       docxBlob: null,
       isBulk: false,
-      selectedCondition: '',
-      deviceConditions: {}
+      selectedCondition: "",
+      deviceConditions: {},
     });
   };
 
   const handleReassign = (device) => {
     setActionModal({
       isOpen: true,
-      type: 'reassign',
+      type: "reassign",
       device,
       devices: [device],
       newEmployee: null,
@@ -728,124 +794,151 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       progress: 0,
       docxBlob: null,
       isBulk: false,
-      selectedCondition: '',
-      deviceConditions: {}
+      selectedCondition: "",
+      deviceConditions: {},
     });
   };
 
   const handleConfirmAction = async () => {
-    const { type, devices, newEmployee, isBulk, selectedCondition, deviceConditions } = actionModal;
-    
+    const {
+      type,
+      devices,
+      newEmployee,
+      isBulk,
+      selectedCondition,
+      deviceConditions,
+    } = actionModal;
+
     try {
-      setActionModal(prev => ({ ...prev, isGenerating: true, progress: 10 }));
-      
+      setActionModal((prev) => ({ ...prev, isGenerating: true, progress: 10 }));
+
       const progressStep = 70 / devices.length; // Distribute progress across devices
       let currentProgress = 10;
-      
+
       for (let i = 0; i < devices.length; i++) {
         const device = devices[i];
-        
-        if (type === 'unassign') {
+
+        if (type === "unassign") {
           // Get condition for this specific device (bulk) or use single condition
-          const deviceCondition = isBulk ? deviceConditions[device.id] : selectedCondition;
-          
+          const deviceCondition = isBulk
+            ? deviceConditions[device.id]
+            : selectedCondition;
+
           // Unassign device with updated condition
           await updateDevice(device.id, {
             assignedTo: null,
             assignmentDate: null,
             status: "AVAILABLE",
-            condition: deviceCondition // Update condition based on user selection
+            condition: deviceCondition, // Update condition based on user selection
           });
-          
+
           // Log device history
           await logDeviceHistory({
             employeeId: employee.id,
             employeeName: employee.fullName,
             deviceId: device.id,
             deviceTag: device.deviceTag,
-            action: 'unassigned',
+            action: "unassigned",
             date: new Date().toISOString(),
-            reason: isBulk ? 'Bulk unassignment from Employee page' : 'Manual unassignment from Employee page',
-            condition: deviceCondition
+            reason: isBulk
+              ? "Bulk unassignment from Employee page"
+              : "Manual unassignment from Employee page",
+            condition: deviceCondition,
           });
-          
-        } else if (type === 'reassign' && newEmployee) {
+        } else if (type === "reassign" && newEmployee) {
           // Reassign device - automatically change BRANDNEW to GOOD when reassigning
-          const newCondition = device.condition === 'BRANDNEW' ? 'GOOD' : device.condition;
-          
+          const newCondition =
+            device.condition === "BRANDNEW" ? "GOOD" : device.condition;
+
           await updateDevice(device.id, {
             assignedTo: newEmployee.id,
             assignmentDate: new Date().toISOString().slice(0, 10),
             status: "DEPLOYED",
-            condition: newCondition
+            condition: newCondition,
           });
-          
+
           // Log device history for unassignment from current employee
           await logDeviceHistory({
             employeeId: employee.id,
             employeeName: employee.fullName,
             deviceId: device.id,
             deviceTag: device.deviceTag,
-            action: 'unassigned',
+            action: "unassigned",
             date: new Date().toISOString(),
-            reason: isBulk ? `Bulk reassigned to ${newEmployee.fullName}` : `Reassigned to ${newEmployee.fullName}`,
-            condition: device.condition // Original condition before reassignment
+            reason: isBulk
+              ? `Bulk reassigned to ${newEmployee.fullName}`
+              : `Reassigned to ${newEmployee.fullName}`,
+            condition: device.condition, // Original condition before reassignment
           });
-          
+
           // Log device history for assignment to new employee
           await logDeviceHistory({
             employeeId: newEmployee.id,
             employeeName: newEmployee.fullName,
             deviceId: device.id,
             deviceTag: device.deviceTag,
-            action: 'assigned',
+            action: "assigned",
             date: new Date().toISOString(),
-            reason: isBulk ? `Bulk reassigned from ${employee.fullName}` : `Reassigned from ${employee.fullName}`,
-            condition: newCondition // New condition after reassignment
+            reason: isBulk
+              ? `Bulk reassigned from ${employee.fullName}`
+              : `Reassigned from ${employee.fullName}`,
+            condition: newCondition, // New condition after reassignment
           });
         }
-        
+
         currentProgress += progressStep;
-        setActionModal(prev => ({ ...prev, progress: Math.min(currentProgress, 80) }));
+        setActionModal((prev) => ({
+          ...prev,
+          progress: Math.min(currentProgress, 80),
+        }));
       }
-      
-      setActionModal(prev => ({ ...prev, progress: 85 }));
+
+      setActionModal((prev) => ({ ...prev, progress: 85 }));
       await generateBulkDocx(type, devices, employee, newEmployee);
-      
+
       // Clear bulk selection
       setSelectedDeviceIds([]);
       setShowBulkActions(false);
-      
+
       // Refresh device data
       if (onDeviceUpdate) {
         onDeviceUpdate();
       }
-      
+
       const deviceCount = devices.length;
-      const actionText = type === 'unassign' ? 'unassigned' : 'reassigned';
-      showSuccess(`${deviceCount} device${deviceCount > 1 ? 's' : ''} ${actionText} successfully!`);
-      
+      const actionText = type === "unassign" ? "unassigned" : "reassigned";
+      showSuccess(
+        `${deviceCount} device${
+          deviceCount > 1 ? "s" : ""
+        } ${actionText} successfully!`
+      );
     } catch (error) {
       console.error(`Error ${type}ing devices:`, error);
       showError(`Error ${type}ing devices: ${error.message}`);
-      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+      setActionModal((prev) => ({ ...prev, isGenerating: false, progress: 0 }));
     }
   };
 
-  const generateDocx = async (actionType, device, fromEmployee, toEmployee = null) => {
+  const generateDocx = async (
+    actionType,
+    device,
+    fromEmployee,
+    toEmployee = null
+  ) => {
     try {
-      setActionModal(prev => ({ ...prev, progress: 40 }));
-      
-      const templatePath = actionType === 'unassign' 
-        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
-      
+      setActionModal((prev) => ({ ...prev, progress: 40 }));
+
+      const templatePath =
+        actionType === "unassign"
+          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+
       const response = await fetch(templatePath);
-      setActionModal(prev => ({ ...prev, progress: 50 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 50 }));
+
       const content = await response.arrayBuffer();
-      setActionModal(prev => ({ ...prev, progress: 60 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 60 }));
+
       const zip = new PizZip(content);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
@@ -854,7 +947,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           return "";
         },
       });
-      setActionModal(prev => ({ ...prev, progress: 70 }));
+      setActionModal((prev) => ({ ...prev, progress: 70 }));
 
       // Format date helper to match Assets.js implementation
       const formatTransferDate = (dateStr) => {
@@ -862,17 +955,20 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         try {
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
-            return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "2-digit",
-            });
+            return new Date(dateStr.seconds * 1000).toLocaleDateString(
+              "en-US",
+              {
+                year: "numeric",
+                month: "long",
+                day: "2-digit",
+              }
+            );
           }
-          
+
           // Handle regular date
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
-          
+
           return date.toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -886,12 +982,12 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
 
       let templateData;
 
-      if (actionType === 'unassign') {
+      if (actionType === "unassign") {
         // For return forms - match Assets.js structure
         const { selectedCondition } = actionModal;
-        const isWorking = selectedCondition === 'GOOD';
-        const isDefective = selectedCondition === 'DEFECTIVE';
-        
+        const isWorking = selectedCondition === "GOOD";
+        const isDefective = selectedCondition === "DEFECTIVE";
+
         templateData = {
           name: fromEmployee.fullName || "",
           department: fromEmployee.department || "",
@@ -905,7 +1001,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
               model: device.model || "",
               deviceTag: device.deviceTag || "",
               condition: selectedCondition || device.condition || "",
-            }
+            },
           ],
           checkBox1Checked: isWorking ? "◼" : "",
           checkBox1Unchecked: isWorking ? "" : "☐",
@@ -923,63 +1019,77 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         templateData = {
           transferor_name: fromEmployee.fullName || "",
           transferor_department: fromEmployee.department || "",
-          transferor_date_hired: formatTransferDate(fromEmployee.dateHired) || "",
+          transferor_date_hired:
+            formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee ? toEmployee.fullName || "" : "",
           transferee_department: toEmployee ? toEmployee.department || "" : "",
-          transferee_date_hired: toEmployee ? formatTransferDate(toEmployee.dateHired) || "" : "",
+          transferee_date_hired: toEmployee
+            ? formatTransferDate(toEmployee.dateHired) || ""
+            : "",
           transferee_position: toEmployee ? toEmployee.position || "" : "",
           devices: [
             {
-              TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+              TransferDate: formatTransferDate(
+                device.assignmentDate || new Date()
+              ),
               deviceType: device.deviceType || "",
               brand: device.brand || "",
               model: device.model || "",
               deviceTag: device.deviceTag || "",
-              condition: device.condition === 'BRANDNEW' ? 'GOOD' : (device.condition || ""), // Auto-change BRANDNEW to GOOD for reassignment
-            }
+              condition:
+                device.condition === "BRANDNEW"
+                  ? "GOOD"
+                  : device.condition || "", // Auto-change BRANDNEW to GOOD for reassignment
+            },
           ],
         };
       }
 
       doc.setData(templateData);
-      setActionModal(prev => ({ ...prev, progress: 80 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 80 }));
+
       doc.render();
-      setActionModal(prev => ({ ...prev, progress: 90 }));
-      
-      const out = doc.getZip().generate({ 
+      setActionModal((prev) => ({ ...prev, progress: 90 }));
+
+      const out = doc.getZip().generate({
         type: "blob",
-        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
-      setActionModal(prev => ({ 
-        ...prev, 
+      setActionModal((prev) => ({
+        ...prev,
         progress: 100,
         isGenerating: false,
-        docxBlob: out 
+        docxBlob: out,
       }));
-      
     } catch (error) {
       console.error("Error generating docx:", error);
       showError("Error generating document: " + error.message);
-      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+      setActionModal((prev) => ({ ...prev, isGenerating: false, progress: 0 }));
     }
   };
 
-  const generateBulkDocx = async (actionType, devices, fromEmployee, toEmployee = null) => {
+  const generateBulkDocx = async (
+    actionType,
+    devices,
+    fromEmployee,
+    toEmployee = null
+  ) => {
     try {
-      setActionModal(prev => ({ ...prev, progress: 85 }));
-      
-      const templatePath = actionType === 'unassign' 
-        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
-      
+      setActionModal((prev) => ({ ...prev, progress: 85 }));
+
+      const templatePath =
+        actionType === "unassign"
+          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+
       const response = await fetch(templatePath);
-      setActionModal(prev => ({ ...prev, progress: 87 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 87 }));
+
       const content = await response.arrayBuffer();
-      setActionModal(prev => ({ ...prev, progress: 90 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 90 }));
+
       const zip = new PizZip(content);
       const doc = new Docxtemplater(zip, {
         paragraphLoop: true,
@@ -988,7 +1098,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           return "";
         },
       });
-      setActionModal(prev => ({ ...prev, progress: 92 }));
+      setActionModal((prev) => ({ ...prev, progress: 92 }));
 
       // Format date helper to match Assets.js implementation
       const formatTransferDate = (dateStr) => {
@@ -996,17 +1106,20 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         try {
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
-            return new Date(dateStr.seconds * 1000).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "2-digit",
-            });
+            return new Date(dateStr.seconds * 1000).toLocaleDateString(
+              "en-US",
+              {
+                year: "numeric",
+                month: "long",
+                day: "2-digit",
+              }
+            );
           }
-          
+
           // Handle regular date
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
-          
+
           return date.toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -1020,36 +1133,42 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
 
       let templateData;
 
-      if (actionType === 'unassign') {
+      if (actionType === "unassign") {
         // For return forms - match Assets.js structure
         const { selectedCondition, deviceConditions, isBulk } = actionModal;
-        
+
         // For bulk operations, determine overall condition for checkboxes
         // If all devices have the same condition, use that; otherwise default to working
-        let overallCondition = 'GOOD';
+        let overallCondition = "GOOD";
         if (isBulk) {
-          const conditions = devices.map(device => deviceConditions[device.id]).filter(Boolean);
-          const allSame = conditions.length > 0 && conditions.every(c => c === conditions[0]);
-          overallCondition = allSame ? conditions[0] : 'GOOD';
+          const conditions = devices
+            .map((device) => deviceConditions[device.id])
+            .filter(Boolean);
+          const allSame =
+            conditions.length > 0 &&
+            conditions.every((c) => c === conditions[0]);
+          overallCondition = allSame ? conditions[0] : "GOOD";
         } else {
           overallCondition = selectedCondition;
         }
-        
-        const isWorking = overallCondition === 'GOOD';
-        const isDefective = overallCondition === 'DEFECTIVE';
-        
+
+        const isWorking = overallCondition === "GOOD";
+        const isDefective = overallCondition === "DEFECTIVE";
+
         templateData = {
           name: fromEmployee.fullName || "",
           department: fromEmployee.department || "",
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
-          devices: devices.map(device => ({
+          devices: devices.map((device) => ({
             assignmentDate: formatTransferDate(device.assignmentDate) || "",
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             model: device.model || "",
             deviceTag: device.deviceTag || "",
-            condition: isBulk ? (deviceConditions[device.id] || device.condition || "") : (selectedCondition || device.condition || ""),
+            condition: isBulk
+              ? deviceConditions[device.id] || device.condition || ""
+              : selectedCondition || device.condition || "",
           })),
           checkBox1Checked: isWorking ? "◼" : "",
           checkBox1Unchecked: isWorking ? "" : "☐",
@@ -1066,86 +1185,78 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
         templateData = {
           transferor_name: fromEmployee.fullName || "",
           transferor_department: fromEmployee.department || "",
-          transferor_date_hired: formatTransferDate(fromEmployee.dateHired) || "",
+          transferor_date_hired:
+            formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee ? toEmployee.fullName || "" : "",
           transferee_department: toEmployee ? toEmployee.department || "" : "",
-          transferee_date_hired: toEmployee ? formatTransferDate(toEmployee.dateHired) || "" : "",
+          transferee_date_hired: toEmployee
+            ? formatTransferDate(toEmployee.dateHired) || ""
+            : "",
           transferee_position: toEmployee ? toEmployee.position || "" : "",
-          devices: devices.map(device => ({
-            TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+          devices: devices.map((device) => ({
+            TransferDate: formatTransferDate(
+              device.assignmentDate || new Date()
+            ),
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             model: device.model || "",
             deviceTag: device.deviceTag || "",
-            condition: device.condition === 'BRANDNEW' ? 'GOOD' : (device.condition || ""), // Auto-change BRANDNEW to GOOD for reassignment
+            condition:
+              device.condition === "BRANDNEW" ? "GOOD" : device.condition || "", // Auto-change BRANDNEW to GOOD for reassignment
           })),
         };
       }
 
       doc.setData(templateData);
-      setActionModal(prev => ({ ...prev, progress: 95 }));
-      
+      setActionModal((prev) => ({ ...prev, progress: 95 }));
+
       doc.render();
-      setActionModal(prev => ({ ...prev, progress: 98 }));
-      
-      const out = doc.getZip().generate({ 
+      setActionModal((prev) => ({ ...prev, progress: 98 }));
+
+      const out = doc.getZip().generate({
         type: "blob",
-        mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
-      setActionModal(prev => ({ 
-        ...prev, 
+      setActionModal((prev) => ({
+        ...prev,
         progress: 100,
         isGenerating: false,
-        docxBlob: out 
+        docxBlob: out,
       }));
-      
     } catch (error) {
       console.error("Error generating bulk docx:", error);
       showError("Error generating bulk document: " + error.message);
-      setActionModal(prev => ({ ...prev, isGenerating: false, progress: 0 }));
+      setActionModal((prev) => ({ ...prev, isGenerating: false, progress: 0 }));
     }
   };
 
   const handleDownloadDocx = () => {
     if (!actionModal.docxBlob) return;
-    
+
     const { type, device, devices, isBulk } = actionModal;
     const employeeName = employee.fullName
       ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
       : "Employee";
-    
+
     let fileName;
     if (isBulk) {
       const deviceCount = devices.length;
-      const actionText = type === 'unassign' ? 'RETURN' : 'TRANSFER';
+      const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
       fileName = `${employeeName}_BULK_${deviceCount}_DEVICES_${actionText}.docx`;
     } else {
       const deviceTag = device.deviceTag || "Device";
-      const actionText = type === 'unassign' ? 'RETURN' : 'TRANSFER';
+      const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
       fileName = `${employeeName}_${deviceTag}_${actionText}.docx`;
     }
-    
+
     saveAs(actionModal.docxBlob, fileName);
-    
+
     // Close modal after download
     setActionModal({
       isOpen: false,
-      type: '',
-      device: null,
-      devices: [],
-      newEmployee: null,
-      isGenerating: false,
-      progress: 0,
-      docxBlob: null,
-      isBulk: false
-    });
-  };
-
-  const closeActionModal = () => {
-    setActionModal({
-      isOpen: false,
-      type: '',
+      type: "",
       device: null,
       devices: [],
       newEmployee: null,
@@ -1153,51 +1264,68 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       progress: 0,
       docxBlob: null,
       isBulk: false,
-      selectedCondition: '',
-      deviceConditions: {}
+    });
+  };
+
+  const closeActionModal = () => {
+    setActionModal({
+      isOpen: false,
+      type: "",
+      device: null,
+      devices: [],
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: false,
+      selectedCondition: "",
+      deviceConditions: {},
     });
   };
 
   if (!isOpen || !employee) return null;
 
   // Filter devices currently assigned to this employee (deployed)
-  const deployedAssets = devices.filter(device => device.assignedTo === employee.id);
+  const deployedAssets = devices.filter(
+    (device) => device.assignedTo === employee.id
+  );
 
   // Get returned assets from device history
   // Find devices that were assigned to this employee but are no longer assigned
   const returnedAssets = deviceHistory
-    .filter(history => 
-      history.action === 'returned' || 
-      (history.action === 'unassigned' && history.employeeId === employee.id)
+    .filter(
+      (history) =>
+        history.action === "returned" ||
+        (history.action === "unassigned" && history.employeeId === employee.id)
     )
-    .map(history => {
+    .map((history) => {
       // Find the corresponding device
-      const device = devices.find(d => d.id === history.deviceId);
+      const device = devices.find((d) => d.id === history.deviceId);
       if (device) {
         return {
           ...device,
           returnDate: history.date,
           returnReason: history.reason,
-          returnCondition: history.condition
+          returnCondition: history.condition,
         };
       }
       // If device not found in current devices, create a basic record from history
       return {
         id: history.deviceId,
         deviceTag: history.deviceTag,
-        deviceType: 'Unknown',
-        brand: 'Unknown',
-        model: 'Unknown',
-        serialNumber: 'Unknown',
-        condition: history.condition || 'Unknown',
+        deviceType: "Unknown",
+        brand: "Unknown",
+        model: "Unknown",
+        serialNumber: "Unknown",
+        condition: history.condition || "Unknown",
         returnDate: history.date,
         returnReason: history.reason,
-        returnCondition: history.condition
+        returnCondition: history.condition,
       };
     })
     // Remove duplicates (keep the most recent return record for each device)
-    .filter((asset, index, self) => 
-      index === self.findIndex(a => a.id === asset.id)
+    .filter(
+      (asset, index, self) => index === self.findIndex((a) => a.id === asset.id)
     );
 
   // Format date helper
@@ -1207,31 +1335,31 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
       // Handle Firestore timestamp object
       if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
         const date = new Date(dateStr.seconds * 1000);
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
+        return date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
         });
       }
-      
+
       // Handle Firestore timestamp with nanoseconds
       if (dateStr && typeof dateStr === "object" && dateStr.toDate) {
         const date = dateStr.toDate();
-        return date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
+        return date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
         });
       }
-      
+
       // Handle different date formats
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return "-";
-      
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
     } catch (error) {
       console.log("Date formatting error:", error, "Input:", dateStr);
@@ -1261,9 +1389,15 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           >
             <input
               type="checkbox"
-              checked={deployedAssets.length > 0 && selectedDeviceIds.length === deployedAssets.length}
+              checked={
+                deployedAssets.length > 0 &&
+                selectedDeviceIds.length === deployedAssets.length
+              }
               ref={(el) => {
-                if (el) el.indeterminate = selectedDeviceIds.length > 0 && selectedDeviceIds.length < deployedAssets.length;
+                if (el)
+                  el.indeterminate =
+                    selectedDeviceIds.length > 0 &&
+                    selectedDeviceIds.length < deployedAssets.length;
               }}
               onChange={(e) => handleSelectAllDevices(e.target.checked)}
               style={{ cursor: "pointer" }}
@@ -1453,19 +1587,47 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
             borderRadius: 3,
             fontSize: 11,
             fontWeight: 500,
-            background: 
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "BRANDNEW" ? "rgb(40, 167, 69)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "GOOD" ? "rgb(0, 123, 255)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "DEFECTIVE" ? "rgb(220, 53, 69)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "#fee2e2" : "#f3f4f6",
+            background:
+              (isReturned
+                ? device.returnCondition || device.condition
+                : device.condition) === "BRANDNEW"
+                ? "rgb(40, 167, 69)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "GOOD"
+                ? "rgb(0, 123, 255)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "DEFECTIVE"
+                ? "rgb(220, 53, 69)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "Poor"
+                ? "#fee2e2"
+                : "#f3f4f6",
             color:
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "BRANDNEW" ? "rgb(255, 255, 255)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "GOOD" ? "rgb(255, 255, 255)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "DEFECTIVE" ? "rgb(255, 255, 255)" :
-              (isReturned ? device.returnCondition || device.condition : device.condition) === "Poor" ? "rgb(255, 255, 255)" : "#374151",
+              (isReturned
+                ? device.returnCondition || device.condition
+                : device.condition) === "BRANDNEW"
+                ? "rgb(255, 255, 255)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "GOOD"
+                ? "rgb(255, 255, 255)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "DEFECTIVE"
+                ? "rgb(255, 255, 255)"
+                : (isReturned
+                    ? device.returnCondition || device.condition
+                    : device.condition) === "Poor"
+                ? "rgb(255, 255, 255)"
+                : "#374151",
           }}
         >
-          {(isReturned ? device.returnCondition || device.condition : device.condition) || "Unknown"}   
+          {(isReturned
+            ? device.returnCondition || device.condition
+            : device.condition) || "Unknown"}
         </span>
       </td>
       <td
@@ -1478,10 +1640,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           maxWidth: "100px",
         }}
       >
-        {isReturned 
-          ? formatDate(device.returnDate) 
-          : formatDate(device.assignmentDate)
-        }
+        {isReturned
+          ? formatDate(device.returnDate)
+          : formatDate(device.assignmentDate)}
       </td>
       {!isReturned && (
         <td
@@ -1490,7 +1651,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
             textAlign: "center",
           }}
         >
-          <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+          <div
+            style={{ display: "flex", gap: "8px", justifyContent: "center" }}
+          >
             <button
               onClick={() => onUnassign(device)}
               style={{
@@ -1502,7 +1665,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
                 whiteSpace: "nowrap",
               }}
             >
@@ -1519,7 +1682,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 fontSize: 12,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
                 whiteSpace: "nowrap",
               }}
             >
@@ -1554,7 +1717,8 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
           maxWidth: 1200,
           maxHeight: "95vh",
           overflow: "hidden",
-          fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
           display: "flex",
           flexDirection: "column",
@@ -1589,7 +1753,8 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 margin: 0,
               }}
             >
-              {employee.fullName} • {deployedAssets.length} deployed, {returnedAssets.length} returned
+              {employee.fullName} • {deployedAssets.length} deployed,{" "}
+              {returnedAssets.length} returned
             </p>
           </div>
           <button
@@ -1630,7 +1795,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 marginBottom: "16px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              >
                 <h3
                   style={{
                     fontSize: 18,
@@ -1668,7 +1835,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   </span>
                 )}
               </div>
-              
+
               {/* Bulk Action Buttons */}
               {showBulkActions && selectedDeviceIds.length > 0 && (
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -1683,7 +1850,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                       fontSize: 13,
                       fontWeight: 500,
                       cursor: "pointer",
-                      fontFamily: 'inherit',
+                      fontFamily: "inherit",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -1700,7 +1867,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                       fontSize: 13,
                       fontWeight: 500,
                       cursor: "pointer",
-                      fontFamily: 'inherit',
+                      fontFamily: "inherit",
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -1709,7 +1876,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 </div>
               )}
             </div>
-            
+
             {deployedAssets.length === 0 ? (
               <div
                 style={{
@@ -1743,9 +1910,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   <TableHeader isReturned={false} />
                   <tbody>
                     {deployedAssets.map((device) => (
-                      <TableRow 
-                        key={`deployed-${device.id}`} 
-                        device={device} 
+                      <TableRow
+                        key={`deployed-${device.id}`}
+                        device={device}
                         isReturned={false}
                         onUnassign={handleUnassign}
                         onReassign={handleReassign}
@@ -1790,7 +1957,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                 {returnedAssets.length} returned
               </span>
             </div>
-            
+
             {returnedAssets.length === 0 ? (
               <div
                 style={{
@@ -1824,7 +1991,11 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   <TableHeader isReturned={true} />
                   <tbody>
                     {returnedAssets.map((device) => (
-                      <TableRow key={`returned-${device.id}`} device={device} isReturned={true} />
+                      <TableRow
+                        key={`returned-${device.id}`}
+                        device={device}
+                        isReturned={true}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -1852,7 +2023,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
             }}
           >
             Close
@@ -1882,7 +2053,8 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
               borderRadius: 12,
               width: "100%",
               maxWidth: 480,
-              fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontFamily:
+                'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
               boxShadow: "0 20px 32px rgba(34, 46, 58, 0.3)",
             }}
           >
@@ -1902,10 +2074,13 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   marginBottom: 8,
                 }}
               >
-                {actionModal.isBulk 
-                  ? `Bulk ${actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'} Devices`
-                  : `${actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'} Device`
-                }
+                {actionModal.isBulk
+                  ? `Bulk ${
+                      actionModal.type === "unassign" ? "Unassign" : "Reassign"
+                    } Devices`
+                  : `${
+                      actionModal.type === "unassign" ? "Unassign" : "Reassign"
+                    } Device`}
               </h2>
               <p
                 style={{
@@ -1914,10 +2089,17 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   margin: 0,
                 }}
               >
-                {actionModal.isBulk 
-                  ? `This will ${actionModal.type} ${actionModal.devices.length} devices and generate a ${actionModal.type === 'unassign' ? 'bulk return' : 'bulk transfer'} form.`
-                  : `This will ${actionModal.type} the device and generate a ${actionModal.type === 'unassign' ? 'return' : 'transfer'} form.`
-                }
+                {actionModal.isBulk
+                  ? `This will ${actionModal.type} ${
+                      actionModal.devices.length
+                    } devices and generate a ${
+                      actionModal.type === "unassign"
+                        ? "bulk return"
+                        : "bulk transfer"
+                    } form.`
+                  : `This will ${actionModal.type} the device and generate a ${
+                      actionModal.type === "unassign" ? "return" : "transfer"
+                    } form.`}
               </p>
             </div>
 
@@ -1941,31 +2123,58 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                     marginBottom: 8,
                   }}
                 >
-                  {actionModal.isBulk ? 'Selected Devices' : 'Device Information'}
+                  {actionModal.isBulk
+                    ? "Selected Devices"
+                    : "Device Information"}
                 </h4>
                 {actionModal.isBulk ? (
-                  <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
-                    <div><strong>Count:</strong> {actionModal.devices.length} devices</div>
-                    <div style={{ maxHeight: "120px", overflowY: "auto", marginTop: 8 }}>
+                  <div
+                    style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                  >
+                    <div>
+                      <strong>Count:</strong> {actionModal.devices.length}{" "}
+                      devices
+                    </div>
+                    <div
+                      style={{
+                        maxHeight: "120px",
+                        overflowY: "auto",
+                        marginTop: 8,
+                      }}
+                    >
                       {actionModal.devices.map((device, index) => (
-                        <div key={device.id} style={{ 
-                          padding: "4px 8px", 
-                          backgroundColor: "#fff", 
-                          borderRadius: 4, 
-                          marginBottom: 4,
-                          border: "1px solid #e5e7eb"
-                        }}>
-                          <strong>{device.deviceTag}</strong> - {device.deviceType} ({device.brand})
+                        <div
+                          key={device.id}
+                          style={{
+                            padding: "4px 8px",
+                            backgroundColor: "#fff",
+                            borderRadius: 4,
+                            marginBottom: 4,
+                            border: "1px solid #e5e7eb",
+                          }}
+                        >
+                          <strong>{device.deviceTag}</strong> -{" "}
+                          {device.deviceType} ({device.brand})
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
-                    <div><strong>Tag:</strong> {actionModal.device?.deviceTag}</div>
-                    <div><strong>Type:</strong> {actionModal.device?.deviceType}</div>
-                    <div><strong>Brand:</strong> {actionModal.device?.brand}</div>
-                    <div><strong>Model:</strong> {actionModal.device?.model}</div>
+                  <div
+                    style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                  >
+                    <div>
+                      <strong>Tag:</strong> {actionModal.device?.deviceTag}
+                    </div>
+                    <div>
+                      <strong>Type:</strong> {actionModal.device?.deviceType}
+                    </div>
+                    <div>
+                      <strong>Brand:</strong> {actionModal.device?.brand}
+                    </div>
+                    <div>
+                      <strong>Model:</strong> {actionModal.device?.model}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1976,7 +2185,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   padding: "16px",
                   backgroundColor: "#fef3c7",
                   borderRadius: 8,
-                  marginBottom: actionModal.type === 'reassign' ? 20 : 0,
+                  marginBottom: actionModal.type === "reassign" ? 20 : 0,
                 }}
               >
                 <h4
@@ -1988,17 +2197,27 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                     marginBottom: 8,
                   }}
                 >
-                  {actionModal.type === 'unassign' ? 'Returning from' : 'Transferring from'}
+                  {actionModal.type === "unassign"
+                    ? "Returning from"
+                    : "Transferring from"}
                 </h4>
-                <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
-                  <div><strong>Name:</strong> {employee.fullName}</div>
-                  <div><strong>Position:</strong> {employee.position}</div>
-                  <div><strong>Department:</strong> {employee.department}</div>
+                <div
+                  style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                >
+                  <div>
+                    <strong>Name:</strong> {employee.fullName}
+                  </div>
+                  <div>
+                    <strong>Position:</strong> {employee.position}
+                  </div>
+                  <div>
+                    <strong>Department:</strong> {employee.department}
+                  </div>
                 </div>
               </div>
 
               {/* Condition Selection for Unassign */}
-              {actionModal.type === 'unassign' && (
+              {actionModal.type === "unassign" && (
                 <div
                   style={{
                     padding: "16px",
@@ -2018,7 +2237,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   >
                     Device Condition After Return
                   </h4>
-                  
+
                   {!actionModal.isBulk ? (
                     /* Single Device Condition Selection */
                     <>
@@ -2029,7 +2248,8 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                           margin: "0 0 12px 0",
                         }}
                       >
-                        Please select the condition of the device being returned:
+                        Please select the condition of the device being
+                        returned:
                       </p>
                       <div style={{ display: "flex", gap: 16 }}>
                         <label
@@ -2045,12 +2265,18 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                         >
                           <input
                             type="checkbox"
-                            checked={actionModal.selectedCondition === 'GOOD'}
+                            checked={actionModal.selectedCondition === "GOOD"}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setActionModal(prev => ({ ...prev, selectedCondition: 'GOOD' }));
+                                setActionModal((prev) => ({
+                                  ...prev,
+                                  selectedCondition: "GOOD",
+                                }));
                               } else {
-                                setActionModal(prev => ({ ...prev, selectedCondition: '' }));
+                                setActionModal((prev) => ({
+                                  ...prev,
+                                  selectedCondition: "",
+                                }));
                               }
                             }}
                             style={{
@@ -2059,7 +2285,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                               cursor: "pointer",
                             }}
                           />
-                          <span style={{ color: "#059669" }}>GOOD Condition</span>
+                          <span style={{ color: "#059669" }}>
+                            GOOD Condition
+                          </span>
                         </label>
                         <label
                           style={{
@@ -2074,12 +2302,20 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                         >
                           <input
                             type="checkbox"
-                            checked={actionModal.selectedCondition === 'DEFECTIVE'}
+                            checked={
+                              actionModal.selectedCondition === "DEFECTIVE"
+                            }
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setActionModal(prev => ({ ...prev, selectedCondition: 'DEFECTIVE' }));
+                                setActionModal((prev) => ({
+                                  ...prev,
+                                  selectedCondition: "DEFECTIVE",
+                                }));
                               } else {
-                                setActionModal(prev => ({ ...prev, selectedCondition: '' }));
+                                setActionModal((prev) => ({
+                                  ...prev,
+                                  selectedCondition: "",
+                                }));
                               }
                             }}
                             style={{
@@ -2088,7 +2324,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                               cursor: "pointer",
                             }}
                           />
-                          <span style={{ color: "#dc2626" }}>DEFECTIVE Condition</span>
+                          <span style={{ color: "#dc2626" }}>
+                            DEFECTIVE Condition
+                          </span>
                         </label>
                       </div>
                     </>
@@ -2102,37 +2340,53 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                           margin: "0 0 12px 0",
                         }}
                       >
-                        Please select the condition for each device being returned:
+                        Please select the condition for each device being
+                        returned:
                       </p>
-                      <div 
-                        style={{ 
-                          maxHeight: "300px", 
+                      <div
+                        style={{
+                          maxHeight: "300px",
                           overflowY: "auto",
                           border: "1px solid #e5e7eb",
                           borderRadius: 6,
-                          backgroundColor: "#fff"
+                          backgroundColor: "#fff",
                         }}
                       >
                         {actionModal.devices.map((device, index) => (
-                          <div 
-                            key={device.id} 
-                            style={{ 
+                          <div
+                            key={device.id}
+                            style={{
                               padding: "12px 16px",
-                              borderBottom: index < actionModal.devices.length - 1 ? "1px solid #f3f4f6" : "none",
+                              borderBottom:
+                                index < actionModal.devices.length - 1
+                                  ? "1px solid #f3f4f6"
+                                  : "none",
                               display: "flex",
                               justifyContent: "space-between",
-                              alignItems: "center"
+                              alignItems: "center",
                             }}
                           >
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 13, color: "#374151" }}>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  color: "#374151",
+                                }}
+                              >
                                 {device.deviceTag}
                               </div>
                               <div style={{ fontSize: 12, color: "#6b7280" }}>
                                 {device.deviceType} - {device.brand}
                               </div>
                             </div>
-                            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 12,
+                                alignItems: "center",
+                              }}
+                            >
                               <label
                                 style={{
                                   display: "flex",
@@ -2146,23 +2400,26 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                               >
                                 <input
                                   type="checkbox"
-                                  checked={actionModal.deviceConditions[device.id] === 'GOOD'}
+                                  checked={
+                                    actionModal.deviceConditions[device.id] ===
+                                    "GOOD"
+                                  }
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setActionModal(prev => ({ 
-                                        ...prev, 
+                                      setActionModal((prev) => ({
+                                        ...prev,
                                         deviceConditions: {
                                           ...prev.deviceConditions,
-                                          [device.id]: 'GOOD'
-                                        }
+                                          [device.id]: "GOOD",
+                                        },
                                       }));
                                     } else {
-                                      setActionModal(prev => ({ 
-                                        ...prev, 
+                                      setActionModal((prev) => ({
+                                        ...prev,
                                         deviceConditions: {
                                           ...prev.deviceConditions,
-                                          [device.id]: ''
-                                        }
+                                          [device.id]: "",
+                                        },
                                       }));
                                     }
                                   }}
@@ -2187,23 +2444,26 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                               >
                                 <input
                                   type="checkbox"
-                                  checked={actionModal.deviceConditions[device.id] === 'DEFECTIVE'}
+                                  checked={
+                                    actionModal.deviceConditions[device.id] ===
+                                    "DEFECTIVE"
+                                  }
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setActionModal(prev => ({ 
-                                        ...prev, 
+                                      setActionModal((prev) => ({
+                                        ...prev,
                                         deviceConditions: {
                                           ...prev.deviceConditions,
-                                          [device.id]: 'DEFECTIVE'
-                                        }
+                                          [device.id]: "DEFECTIVE",
+                                        },
                                       }));
                                     } else {
-                                      setActionModal(prev => ({ 
-                                        ...prev, 
+                                      setActionModal((prev) => ({
+                                        ...prev,
                                         deviceConditions: {
                                           ...prev.deviceConditions,
-                                          [device.id]: ''
-                                        }
+                                          [device.id]: "",
+                                        },
                                       }));
                                     }
                                   }}
@@ -2213,7 +2473,9 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                                     cursor: "pointer",
                                   }}
                                 />
-                                <span style={{ color: "#dc2626" }}>DEFECTIVE</span>
+                                <span style={{ color: "#dc2626" }}>
+                                  DEFECTIVE
+                                </span>
                               </label>
                             </div>
                           </div>
@@ -2225,7 +2487,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
               )}
 
               {/* Reassign Employee Selection */}
-              {actionModal.type === 'reassign' && (
+              {actionModal.type === "reassign" && (
                 <div
                   style={{
                     padding: "16px",
@@ -2245,10 +2507,15 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                     Assign to Employee
                   </h4>
                   <select
-                    value={actionModal.newEmployee?.id || ''}
+                    value={actionModal.newEmployee?.id || ""}
                     onChange={(e) => {
-                      const selectedEmployee = allEmployees.find(emp => emp.id === e.target.value);
-                      setActionModal(prev => ({ ...prev, newEmployee: selectedEmployee }));
+                      const selectedEmployee = allEmployees.find(
+                        (emp) => emp.id === e.target.value
+                      );
+                      setActionModal((prev) => ({
+                        ...prev,
+                        newEmployee: selectedEmployee,
+                      }));
                     }}
                     style={{
                       width: "100%",
@@ -2256,13 +2523,13 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                       border: "1px solid #d1d5db",
                       borderRadius: 6,
                       fontSize: 14,
-                      fontFamily: 'inherit',
+                      fontFamily: "inherit",
                       outline: "none",
                       backgroundColor: "white",
                     }}
                   >
                     <option value="">Select employee...</option>
-                    {allEmployees.map(emp => (
+                    {allEmployees.map((emp) => (
                       <option key={emp.id} value={emp.id}>
                         {emp.fullName} - {emp.position}
                       </option>
@@ -2295,7 +2562,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                       fontSize: 14,
                       fontWeight: 500,
                       cursor: "pointer",
-                      fontFamily: 'inherit',
+                      fontFamily: "inherit",
                     }}
                   >
                     Cancel
@@ -2303,37 +2570,61 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   <button
                     onClick={handleConfirmAction}
                     disabled={
-                      (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
-                      (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
-                      (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
+                      (actionModal.type === "reassign" &&
+                        !actionModal.newEmployee) ||
+                      (actionModal.type === "unassign" &&
+                        !actionModal.isBulk &&
+                        !actionModal.selectedCondition) ||
+                      (actionModal.type === "unassign" &&
+                        actionModal.isBulk &&
+                        !actionModal.devices.every(
+                          (device) => actionModal.deviceConditions[device.id]
+                        ))
                     }
                     style={{
                       padding: "8px 16px",
                       border: "none",
                       borderRadius: 6,
-                      background: (
-                        (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
-                        (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
-                        (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
-                      ) 
-                        ? "#9ca3af" 
-                        : (actionModal.type === 'unassign' ? "#dc2626" : "#2563eb"),
+                      background:
+                        (actionModal.type === "reassign" &&
+                          !actionModal.newEmployee) ||
+                        (actionModal.type === "unassign" &&
+                          !actionModal.isBulk &&
+                          !actionModal.selectedCondition) ||
+                        (actionModal.type === "unassign" &&
+                          actionModal.isBulk &&
+                          !actionModal.devices.every(
+                            (device) => actionModal.deviceConditions[device.id]
+                          ))
+                          ? "#9ca3af"
+                          : actionModal.type === "unassign"
+                          ? "#dc2626"
+                          : "#2563eb",
                       color: "white",
                       fontSize: 14,
                       fontWeight: 500,
-                      cursor: (
-                        (actionModal.type === 'reassign' && !actionModal.newEmployee) ||
-                        (actionModal.type === 'unassign' && !actionModal.isBulk && !actionModal.selectedCondition) ||
-                        (actionModal.type === 'unassign' && actionModal.isBulk && !actionModal.devices.every(device => actionModal.deviceConditions[device.id]))
-                      ) ? "not-allowed" : "pointer",
-                      fontFamily: 'inherit',
+                      cursor:
+                        (actionModal.type === "reassign" &&
+                          !actionModal.newEmployee) ||
+                        (actionModal.type === "unassign" &&
+                          !actionModal.isBulk &&
+                          !actionModal.selectedCondition) ||
+                        (actionModal.type === "unassign" &&
+                          actionModal.isBulk &&
+                          !actionModal.devices.every(
+                            (device) => actionModal.deviceConditions[device.id]
+                          ))
+                          ? "not-allowed"
+                          : "pointer",
+                      fontFamily: "inherit",
                     }}
                   >
-                    Confirm {actionModal.type === 'unassign' ? 'Unassign' : 'Reassign'}
+                    Confirm{" "}
+                    {actionModal.type === "unassign" ? "Unassign" : "Reassign"}
                   </button>
                 </>
               )}
-              
+
               {actionModal.isGenerating && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div
@@ -2359,7 +2650,7 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                   </span>
                 </div>
               )}
-              
+
               {actionModal.docxBlob && (
                 <button
                   onClick={handleDownloadDocx}
@@ -2372,10 +2663,11 @@ function EmployeeAssetsModal({ isOpen, onClose, employee, devices, deviceHistory
                     fontSize: 14,
                     fontWeight: 500,
                     cursor: "pointer",
-                    fontFamily: 'inherit',
+                    fontFamily: "inherit",
                   }}
                 >
-                  Download {actionModal.isBulk ? 'Bulk ' : ''}{actionModal.type === 'unassign' ? 'Return' : 'Transfer'} Form
+                  Download {actionModal.isBulk ? "Bulk " : ""}
+                  {actionModal.type === "unassign" ? "Return" : "Transfer"} Form
                 </button>
               )}
             </div>
@@ -2446,26 +2738,26 @@ export default function Employee() {
   const [sortBy, setSortBy] = useState("default");
   const [activeTab, setActiveTab] = useState("active");
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
-  
+
   // Assets modal state
   const [assetsModal, setAssetsModal] = useState({
     isOpen: false,
     employee: null,
   });
   const [employeeDeviceHistory, setEmployeeDeviceHistory] = useState([]);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [employeesPerPage, setEmployeesPerPage] = useState(50);
-  
+
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkResignModal, setShowBulkResignModal] = useState(false);
   const [bulkResignReason, setBulkResignReason] = useState("");
-  
+
   // Confirmation modal states
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [showUndoConfirm, setShowUndoConfirm] = useState(false);
@@ -2483,11 +2775,11 @@ export default function Employee() {
       ]);
       setClients(clientsData);
       setDevices(devicesData);
-      
+
       // Separate active and resigned employees
-      const activeEmployees = employeesData.filter(emp => !emp.isResigned);
-      const resignedEmployees = employeesData.filter(emp => emp.isResigned);
-      
+      const activeEmployees = employeesData.filter((emp) => !emp.isResigned);
+      const resignedEmployees = employeesData.filter((emp) => emp.isResigned);
+
       setEmployees(activeEmployees);
       setResignedEmployees(resignedEmployees);
     } catch (error) {
@@ -2548,11 +2840,11 @@ export default function Employee() {
   const handleSave = async () => {
     console.log("handleSave called with form:", form);
     console.log("Is form valid?", isFormValid());
-    
+
     // Close modal immediately
     setForm({});
     setShowForm(false);
-    
+
     try {
       setIsTableLoading(true);
       const dataToSave = { ...form };
@@ -2578,26 +2870,26 @@ export default function Employee() {
 
   // Resign employee with undo capability
   const handleResignEmployee = (id, reason = "") => {
-    const employee = employees.find(emp => emp.id === id);
+    const employee = employees.find((emp) => emp.id === id);
     setEmployeeToResign({ id, reason, employee });
     setShowResignConfirm(true);
   };
-  
+
   const confirmResignEmployee = async () => {
     if (!employeeToResign) return;
-    
+
     const { id, reason, employee } = employeeToResign;
-    
+
     // Close modal immediately
     setShowResignConfirm(false);
     setEmployeeToResign(null);
-    
+
     try {
       setIsTableLoading(true);
-      
+
       // Store original state for undo
       const originalState = { ...employee };
-      
+
       // Add to undo manager
       undoManager.addDeletedItem(
         id,
@@ -2618,14 +2910,11 @@ export default function Employee() {
       // Perform the resignation
       await resignEmployee(id, reason);
       loadClientsAndEmployees();
-      
+
       // Show undo notification
-      showUndoNotification(
-        "Employee resigned successfully",
-        () => {
-          undoManager.restoreItem(id);
-        }
-      );
+      showUndoNotification("Employee resigned successfully", () => {
+        undoManager.restoreItem(id);
+      });
     } catch (error) {
       showError("Error resigning employee: " + error.message);
     } finally {
@@ -2635,20 +2924,20 @@ export default function Employee() {
 
   // Undo resignation - restore employee to active status
   const handleUndoResignation = (id) => {
-    const employee = resignedEmployees.find(emp => emp.id === id);
+    const employee = resignedEmployees.find((emp) => emp.id === id);
     setEmployeeToUndo({ id, employee });
     setShowUndoConfirm(true);
   };
-  
+
   const confirmUndoResignation = async () => {
     if (!employeeToUndo) return;
-    
+
     const { id } = employeeToUndo;
-    
+
     // Close modal immediately
     setShowUndoConfirm(false);
     setEmployeeToUndo(null);
-    
+
     try {
       setIsTableLoading(true);
       await undoResignation(id);
@@ -2664,7 +2953,7 @@ export default function Employee() {
   // Bulk selection handlers
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedIds(currentEmployees.map(emp => emp.id));
+      setSelectedIds(currentEmployees.map((emp) => emp.id));
     } else {
       setSelectedIds([]);
     }
@@ -2672,9 +2961,9 @@ export default function Employee() {
 
   const handleSelectEmployee = (id, checked) => {
     if (checked) {
-      setSelectedIds(prev => [...prev, id]);
+      setSelectedIds((prev) => [...prev, id]);
     } else {
-      setSelectedIds(prev => prev.filter(selectedId => selectedId !== id));
+      setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
     }
   };
 
@@ -2691,18 +2980,20 @@ export default function Employee() {
     // Close modal immediately
     setShowBulkResignModal(false);
     setBulkResignReason("");
-    
+
     try {
       setIsTableLoading(true);
-      
+
       // Store original states and selected IDs for undo
-      const employeesToResign = employees.filter(emp => selectedIds.includes(emp.id));
-      const originalStates = employeesToResign.map(emp => ({ ...emp }));
+      const employeesToResign = employees.filter((emp) =>
+        selectedIds.includes(emp.id)
+      );
+      const originalStates = employeesToResign.map((emp) => ({ ...emp }));
       const resignedIds = [...selectedIds]; // Copy the array before clearing
-      
+
       // Clear selection immediately after copying
       setSelectedIds([]);
-      
+
       // Add each employee to undo manager
       resignedIds.forEach((id, index) => {
         undoManager.addDeletedItem(
@@ -2713,7 +3004,10 @@ export default function Employee() {
               await undoResignation(id);
               loadClientsAndEmployees();
             } catch (error) {
-              console.error(`Failed to undo resignation for employee ${id}:`, error);
+              console.error(
+                `Failed to undo resignation for employee ${id}:`,
+                error
+              );
             }
           },
           10000 // 10 seconds for bulk operations
@@ -2724,16 +3018,16 @@ export default function Employee() {
       for (const id of resignedIds) {
         await resignEmployee(id, bulkResignReason);
       }
-      
+
       const resignedCount = resignedIds.length;
       loadClientsAndEmployees();
-      
+
       // Show undo notification for bulk operation
       showUndoNotification(
         `Successfully resigned ${resignedCount} employee(s)`,
         () => {
           // Restore all resigned employees
-          resignedIds.forEach(id => {
+          resignedIds.forEach((id) => {
             undoManager.restoreItem(id);
           });
         }
@@ -2752,7 +3046,7 @@ export default function Employee() {
 
     setIsTableLoading(true);
     const reader = new FileReader();
-    
+
     reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
@@ -2777,7 +3071,9 @@ export default function Employee() {
             const firstName = row["FIRST NAME"] || "";
             const middleName = row["MIDDLE NAME"] || "";
             const lastName = row["LAST NAME"] || "";
-            const fullName = [firstName, middleName, lastName].filter(name => name.trim()).join(' ');
+            const fullName = [firstName, middleName, lastName]
+              .filter((name) => name.trim())
+              .join(" ");
 
             const employeeData = {
               fullName: fullName,
@@ -2799,7 +3095,10 @@ export default function Employee() {
               await addEmployee(employeeData);
               successCount++;
             } else {
-              console.log("Skipping invalid row (missing fullName or position):", row);
+              console.log(
+                "Skipping invalid row (missing fullName or position):",
+                row
+              );
               errorCount++;
             }
           } catch (error) {
@@ -2809,10 +3108,16 @@ export default function Employee() {
         }
 
         if (successCount > 0) {
-          showSuccess(`Successfully imported ${successCount} employee(s)${errorCount > 0 ? ` (${errorCount} failed)` : ""}`);
+          showSuccess(
+            `Successfully imported ${successCount} employee(s)${
+              errorCount > 0 ? ` (${errorCount} failed)` : ""
+            }`
+          );
           await loadClientsAndEmployees();
         } else {
-          showError("No valid employees found to import. Please check your Excel format and ensure FIRST NAME, LAST NAME, and POSITION columns have data.");
+          showError(
+            "No valid employees found to import. Please check your Excel format and ensure FIRST NAME, LAST NAME, and POSITION columns have data."
+          );
         }
       } catch (error) {
         console.error("Error importing Excel file:", error);
@@ -2838,7 +3143,7 @@ export default function Employee() {
 
     setIsTableLoading(true);
     const reader = new FileReader();
-    
+
     reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
@@ -2861,46 +3166,48 @@ export default function Employee() {
 
         // Get all existing devices to check for duplicate device tags
         const existingDevices = await getAllDevices();
-        const existingTags = new Set(existingDevices.map(d => d.deviceTag?.toLowerCase()));
+        const existingTags = new Set(
+          existingDevices.map((d) => d.deviceTag?.toLowerCase())
+        );
 
         // Device type mapping for tag generation with JOII prefix for generated tags
         const deviceTypeMap = {
-          'headset': 'JOIIHS',
-          'keyboard': 'JOIIKB', 
-          'laptop': 'JOIILPT',
-          'monitor': 'JOIIMN',
-          'mouse': 'JOIIM',
-          'pc': 'JOIIPC',
-          'psu': 'JOIIPSU',
-          'ram': 'JOIIRAM',
-          'ssd': 'JOIISSD',
-          'ups': 'JOIIUPS',
-          'webcam': 'JOIIW'
+          headset: "JOIIHS",
+          keyboard: "JOIIKB",
+          laptop: "JOIILPT",
+          monitor: "JOIIMN",
+          mouse: "JOIIM",
+          pc: "JOIIPC",
+          psu: "JOIIPSU",
+          ram: "JOIIRAM",
+          ssd: "JOIISSD",
+          ups: "JOIIUPS",
+          webcam: "JOIIW",
         };
 
         // Helper function to generate unique device tag with JOII prefix
         const generateDeviceTag = (deviceType) => {
-          const normalizedType = deviceType?.toLowerCase() || 'dev';
-          const prefix = deviceTypeMap[normalizedType] || 'JOIIDEV';
-          
+          const normalizedType = deviceType?.toLowerCase() || "dev";
+          const prefix = deviceTypeMap[normalizedType] || "JOIIDEV";
+
           // Find highest existing number for this JOII prefix (including in-memory additions)
           let maxNum = 0;
-          existingDevices.forEach(device => {
+          existingDevices.forEach((device) => {
             if (device.deviceTag && device.deviceTag.startsWith(prefix)) {
-              const num = parseInt(device.deviceTag.replace(prefix, ''), 10);
+              const num = parseInt(device.deviceTag.replace(prefix, ""), 10);
               if (!isNaN(num) && num > maxNum) maxNum = num;
             }
           });
-          
+
           // Also check tags that have been generated in this import session
-          existingTags.forEach(tag => {
+          existingTags.forEach((tag) => {
             if (tag.startsWith(prefix.toLowerCase())) {
-              const num = parseInt(tag.replace(prefix.toLowerCase(), ''), 10);
+              const num = parseInt(tag.replace(prefix.toLowerCase(), ""), 10);
               if (!isNaN(num) && num > maxNum) maxNum = num;
             }
           });
-          
-          const newTag = `${prefix}${String(maxNum + 1).padStart(4, '0')}`;
+
+          const newTag = `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
           return newTag;
         };
 
@@ -2914,45 +3221,70 @@ export default function Employee() {
             const dateDeployed = row["DATE DEPLOYED"];
             const employeeId = (row["EMPLOYEE ID"] || "").toString().trim();
 
-            console.log("Processing asset row:", { employeeName, deviceType, brand, deviceTag, dateDeployed, employeeId });
+            console.log("Processing asset row:", {
+              employeeName,
+              deviceType,
+              brand,
+              deviceTag,
+              dateDeployed,
+              employeeId,
+            });
 
             // Validate required fields and device type
             if (!deviceType || !brand) {
               errorCount++;
-              errors.push(`Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`);
+              errors.push(
+                `Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`
+              );
               continue;
             }
 
             // Validate device type against system device types
             const validDeviceTypes = [
-              "Headset", "Keyboard", "Laptop", "Monitor", "Mouse", "PC", 
-              "PSU", "RAM", "SSD", "UPS", "Webcam"
+              "Headset",
+              "Keyboard",
+              "Laptop",
+              "Monitor",
+              "Mouse",
+              "PC",
+              "PSU",
+              "RAM",
+              "SSD",
+              "UPS",
+              "Webcam",
             ];
             const validDeviceType = validDeviceTypes.find(
               (type) => type.toLowerCase() === deviceType.toLowerCase()
             );
-            
+
             if (!validDeviceType) {
               errorCount++;
-              errors.push(`Row with Employee "${employeeName}": Invalid device type "${deviceType}". Valid types: ${validDeviceTypes.join(', ')}`);
+              errors.push(
+                `Row with Employee "${employeeName}": Invalid device type "${deviceType}". Valid types: ${validDeviceTypes.join(
+                  ", "
+                )}`
+              );
               continue;
             }
 
             // Find employee by Employee ID (primary) or name (fallback)
             let employee = null;
             if (employeeId) {
-              employee = employees.find(emp => emp.id === employeeId);
+              employee = employees.find((emp) => emp.id === employeeId);
             }
-            
+
             if (!employee && employeeName) {
-              employee = employees.find(emp => 
-                emp.fullName?.toLowerCase() === employeeName.toLowerCase()
+              employee = employees.find(
+                (emp) =>
+                  emp.fullName?.toLowerCase() === employeeName.toLowerCase()
               );
             }
 
             if (!employee) {
               skippedCount++;
-              errors.push(`Row with Employee "${employeeName}" (ID: ${employeeId}): Employee not found in system`);
+              errors.push(
+                `Row with Employee "${employeeName}" (ID: ${employeeId}): Employee not found in system`
+              );
               continue;
             }
 
@@ -2961,9 +3293,13 @@ export default function Employee() {
               const originalTag = deviceTag;
               deviceTag = generateDeviceTag(deviceType);
               if (originalTag) {
-                console.log(`Duplicate device tag "${originalTag}" found, generated new tag: ${deviceTag}`);
+                console.log(
+                  `Duplicate device tag "${originalTag}" found, generated new tag: ${deviceTag}`
+                );
               } else {
-                console.log(`Generated device tag for ${deviceType}: ${deviceTag}`);
+                console.log(
+                  `Generated device tag for ${deviceType}: ${deviceTag}`
+                );
               }
             }
 
@@ -2999,7 +3335,7 @@ export default function Employee() {
               specifications: row["SPECIFICATIONS"] || "",
               warranty: row["WARRANTY"] || "",
               purchaseDate: row["PURCHASE DATE"] || "",
-              supplier: row["SUPPLIER"] || ""
+              supplier: row["SUPPLIER"] || "",
             };
 
             console.log("Creating device:", deviceData);
@@ -3013,20 +3349,26 @@ export default function Employee() {
               employeeName: employee.fullName,
               deviceId: createdDevice.id,
               deviceTag: deviceTag,
-              action: 'assigned',
-              date: assignmentDate === "-" ? new Date().toISOString() : new Date(assignmentDate).toISOString(),
-              reason: 'Bulk import of deployed assets'
+              action: "assigned",
+              date:
+                assignmentDate === "-"
+                  ? new Date().toISOString()
+                  : new Date(assignmentDate).toISOString(),
+              reason: "Bulk import of deployed assets",
             });
 
             // Add to existing tags set to prevent duplicates in this import
             existingTags.add(deviceTag.toLowerCase());
-            
-            successCount++;
 
+            successCount++;
           } catch (error) {
             console.error("Error processing asset row:", error);
             errorCount++;
-            errors.push(`Row with Employee "${row["Employee"] || 'Unknown'}": ${error.message}`);
+            errors.push(
+              `Row with Employee "${row["Employee"] || "Unknown"}": ${
+                error.message
+              }`
+            );
           }
         }
 
@@ -3035,7 +3377,7 @@ export default function Employee() {
         let message = `Asset import completed: ${successCount} successful`;
         if (errorCount > 0) message += `, ${errorCount} errors`;
         if (skippedCount > 0) message += `, ${skippedCount} skipped`;
-        
+
         if (successCount > 0) {
           showSuccess(message);
           await loadClientsAndEmployees(); // Refresh data
@@ -3048,10 +3390,13 @@ export default function Employee() {
           console.log("Asset import errors:", errors);
           if (errors.length <= 5) {
             // Show first few errors in UI
-            showError(`Import issues: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`);
+            showError(
+              `Import issues: ${errors.slice(0, 3).join("; ")}${
+                errors.length > 3 ? "..." : ""
+              }`
+            );
           }
         }
-
       } catch (error) {
         console.error("Error importing assets:", error);
         showError("Error importing assets: " + error.message);
@@ -3072,24 +3417,34 @@ export default function Employee() {
   // Helper function to find client ID by name
   const findClientIdByName = (clientName) => {
     if (!clientName) return "";
-    const client = clients.find(c => c.clientName === clientName);
+    const client = clients.find((c) => c.clientName === clientName);
     return client ? client.id : "";
   };
 
   // Helper function to extract first, middle, and last names from fullName
   const extractNames = (fullName) => {
     if (!fullName) return { firstName: "", middleName: "", lastName: "" };
-    const nameParts = fullName.trim().split(' ').filter(part => part.length > 0);
-    
-    if (nameParts.length === 0) return { firstName: "", middleName: "", lastName: "" };
-    if (nameParts.length === 1) return { firstName: nameParts[0], middleName: "", lastName: "" };
-    if (nameParts.length === 2) return { firstName: nameParts[0], middleName: "", lastName: nameParts[1] };
-    
+    const nameParts = fullName
+      .trim()
+      .split(" ")
+      .filter((part) => part.length > 0);
+
+    if (nameParts.length === 0)
+      return { firstName: "", middleName: "", lastName: "" };
+    if (nameParts.length === 1)
+      return { firstName: nameParts[0], middleName: "", lastName: "" };
+    if (nameParts.length === 2)
+      return {
+        firstName: nameParts[0],
+        middleName: "",
+        lastName: nameParts[1],
+      };
+
     // For 3+ parts: first name, middle name(s), last name
     const firstName = nameParts[0];
     const lastName = nameParts[nameParts.length - 1]; // Last part is the last name
-    const middleName = nameParts.slice(1, -1).join(' '); // Everything between first and last
-    
+    const middleName = nameParts.slice(1, -1).join(" "); // Everything between first and last
+
     return { firstName, middleName, lastName };
   };
 
@@ -3102,11 +3457,11 @@ export default function Employee() {
       return {
         "Employee ID": emp.id || `EMP-${index + 1}`, // Use actual employee ID
         "DATE HIRED": formatDisplayDate(emp.dateHired),
-        "CLIENT": getClientName(emp.clientId),
+        CLIENT: getClientName(emp.clientId),
         "LAST NAME": lastName,
         "FIRST NAME": firstName,
         "MIDDLE NAME": middleName, // Now properly extracted middle name
-        "POSITION": emp.position,
+        POSITION: emp.position,
         "CORPORATE EMAIL": emp.corporateEmail || "",
         "PERSONAL EMAIL": emp.personalEmail || "",
       };
@@ -3115,13 +3470,20 @@ export default function Employee() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employees");
-    
+
     // Update filename and success message to reflect what was actually exported
-    const filterInfo = searchTerm ? `filtered_${searchTerm.replace(/[^\w]/g, '_')}_` : '';
-    XLSX.writeFile(wb, `employees_${activeTab}_${filterInfo}${new Date().toISOString().split('T')[0]}.xlsx`);
-    
-    const message = searchTerm 
-      ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")` 
+    const filterInfo = searchTerm
+      ? `filtered_${searchTerm.replace(/[^\w]/g, "_")}_`
+      : "";
+    XLSX.writeFile(
+      wb,
+      `employees_${activeTab}_${filterInfo}${
+        new Date().toISOString().split("T")[0]
+      }.xlsx`
+    );
+
+    const message = searchTerm
+      ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")`
       : `Excel file exported successfully! (${exportData.length} ${activeTab} employees)`;
     showSuccess(message);
   };
@@ -3129,18 +3491,18 @@ export default function Employee() {
   // Helper to format date for input field (YYYY-MM-DD format)
   const formatDateForInput = (dateValue) => {
     if (!dateValue) return "";
-    
+
     // Handle Firestore timestamp object
     if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
       const date = new Date(dateValue.seconds * 1000);
       return date.toISOString().slice(0, 10);
     }
-    
+
     // Handle Date object
     if (dateValue instanceof Date) {
       return dateValue.toISOString().slice(0, 10);
     }
-    
+
     // Handle date string
     if (typeof dateValue === "string") {
       // If it's already in YYYY-MM-DD format, return as is
@@ -3153,7 +3515,7 @@ export default function Employee() {
         return date.toISOString().slice(0, 10);
       }
     }
-    
+
     return "";
   };
 
@@ -3170,7 +3532,7 @@ export default function Employee() {
       department: form.department,
       clientId: form.clientId,
       allFormData: form,
-      isValid: form.fullName && form.position && form.clientId
+      isValid: form.fullName && form.position && form.clientId,
     });
     // Only require fullName, position, and clientId for now
     // Department can be optional to allow editing existing employees
@@ -3194,11 +3556,11 @@ export default function Employee() {
   // Search function
   const searchEmployees = (employeeList, searchTerm) => {
     if (!searchTerm.trim()) return employeeList;
-    
+
     const term = searchTerm.toLowerCase().trim();
     console.log("Searching for term:", term); // Debug log
-    
-    return employeeList.filter(employee => {
+
+    return employeeList.filter((employee) => {
       const fullName = (employee.fullName || "").toLowerCase();
       const position = (employee.position || "").toLowerCase();
       const department = (employee.department || "").toLowerCase();
@@ -3206,20 +3568,30 @@ export default function Employee() {
       const personalEmail = (employee.personalEmail || "").toLowerCase();
       const clientName = getClientName(employee.clientId).toLowerCase();
       const employeeId = (employee.id || "").toLowerCase();
-      
+
       // Debug logging for employee ID search
       if (term.length > 0) {
-        console.log("Employee:", employee.fullName, "ID:", employee.id, "Searching for:", term, "Match:", employeeId.includes(term));
+        console.log(
+          "Employee:",
+          employee.fullName,
+          "ID:",
+          employee.id,
+          "Searching for:",
+          term,
+          "Match:",
+          employeeId.includes(term)
+        );
       }
-      
-      const matches = fullName.includes(term) ||
-             position.includes(term) ||
-             department.includes(term) ||
-             corporateEmail.includes(term) ||
-             personalEmail.includes(term) ||
-             clientName.includes(term) ||
-             employeeId.includes(term);
-             
+
+      const matches =
+        fullName.includes(term) ||
+        position.includes(term) ||
+        department.includes(term) ||
+        corporateEmail.includes(term) ||
+        personalEmail.includes(term) ||
+        clientName.includes(term) ||
+        employeeId.includes(term);
+
       return matches;
     });
   };
@@ -3228,53 +3600,66 @@ export default function Employee() {
   const baseEmployees = activeTab === "active" ? employees : resignedEmployees;
   const searchedEmployees = searchEmployees(baseEmployees, searchTerm);
   const allEmployees = sortEmployees(searchedEmployees);
-  
+
   // Calculate pagination
   const totalPages = Math.ceil(allEmployees.length / employeesPerPage);
-  
+
   // Ensure current page is within valid bounds to prevent empty states
   // when changing items per page or when filters reduce the total count
-  const validCurrentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+  const validCurrentPage = Math.min(
+    Math.max(1, currentPage),
+    Math.max(1, totalPages)
+  );
   if (validCurrentPage !== currentPage && allEmployees.length > 0) {
     setCurrentPage(validCurrentPage);
   }
-  
+
   const startIndex = (validCurrentPage - 1) * employeesPerPage;
   const endIndex = startIndex + employeesPerPage;
   const currentEmployees = allEmployees.slice(startIndex, endIndex);
-  
-  const isAllSelected = currentEmployees.length > 0 && selectedIds.length === currentEmployees.length;
-  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < currentEmployees.length;
+
+  const isAllSelected =
+    currentEmployees.length > 0 &&
+    selectedIds.length === currentEmployees.length;
+  const isIndeterminate =
+    selectedIds.length > 0 && selectedIds.length < currentEmployees.length;
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      width: "100%",
-      height: "100vh",
-      background: "#f7f9fb",
-      fontFamily: 'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      overflow: "hidden",
-      boxSizing: "border-box",
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100vh",
+        background: "#f7f9fb",
+        fontFamily:
+          'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
       {/* Header */}
-      <div style={{
-        fontSize: 28,
-        fontWeight: 700,
-        color: "#222e3a",
-        letterSpacing: 1,
-        padding: "20px 24px 0px 24px",
-        flexShrink: 0,
-      }}>
+      <div
+        style={{
+          fontSize: 28,
+          fontWeight: 700,
+          color: "#222e3a",
+          letterSpacing: 1,
+          padding: "20px 24px 0px 24px",
+          flexShrink: 0,
+        }}
+      >
         EMPLOYEE MANAGEMENT
       </div>
 
       {/* Tab Navigation */}
-      <div style={{
-        display: "flex",
-        padding: "16px 24px 0px 24px",
-        flexShrink: 0,
-      }}>
+      <div
+        style={{
+          display: "flex",
+          padding: "16px 24px 0px 24px",
+          flexShrink: 0,
+        }}
+      >
         <button
           onClick={() => handleTabChange("active")}
           style={{
@@ -3285,8 +3670,11 @@ export default function Employee() {
             fontSize: 14,
             fontWeight: 600,
             cursor: "pointer",
-            fontFamily: 'inherit',
-            borderBottom: activeTab === "active" ? "2px solid #2563eb" : "2px solid transparent",
+            fontFamily: "inherit",
+            borderBottom:
+              activeTab === "active"
+                ? "2px solid #2563eb"
+                : "2px solid transparent",
             transition: "all 0.2s ease",
           }}
         >
@@ -3302,8 +3690,11 @@ export default function Employee() {
             fontSize: 14,
             fontWeight: 600,
             cursor: "pointer",
-            fontFamily: 'inherit',
-            borderBottom: activeTab === "resigned" ? "2px solid #2563eb" : "2px solid transparent",
+            fontFamily: "inherit",
+            borderBottom:
+              activeTab === "resigned"
+                ? "2px solid #2563eb"
+                : "2px solid transparent",
             transition: "all 0.2s ease",
           }}
         >
@@ -3312,13 +3703,15 @@ export default function Employee() {
       </div>
 
       {/* Controls */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "16px 24px 16px 24px",
-        flexShrink: 0,
-      }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "16px 24px 16px 24px",
+          flexShrink: 0,
+        }}
+      >
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           {/* Search Bar */}
           <div style={{ position: "relative" }}>
@@ -3328,7 +3721,7 @@ export default function Employee() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') {
+                if (e.key === "Escape") {
                   setSearchTerm("");
                 }
               }}
@@ -3338,20 +3731,22 @@ export default function Employee() {
                 border: "1px solid #d1d5db",
                 borderRadius: 6,
                 fontSize: 14,
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
                 outline: "none",
                 width: 200,
                 backgroundColor: "white",
               }}
             />
-            <div style={{
-              position: "absolute",
-              left: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "#6b7280",
-              fontSize: 16,
-            }}>
+            <div
+              style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#6b7280",
+                fontSize: 16,
+              }}
+            >
               🔍
             </div>
             {searchTerm && (
@@ -3379,7 +3774,7 @@ export default function Employee() {
               </button>
             )}
           </div>
-          
+
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -3388,7 +3783,7 @@ export default function Employee() {
               border: "1px solid #d1d5db",
               borderRadius: 6,
               fontSize: 14,
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
               outline: "none",
               backgroundColor: "white",
             }}
@@ -3397,7 +3792,7 @@ export default function Employee() {
             <option value="name">Sort: Name A-Z</option>
             <option value="position">Sort: Position</option>
           </select>
-          
+
           {/* Show bulk resign only for active employees */}
           {selectedIds.length > 0 && activeTab === "active" && (
             <button
@@ -3411,14 +3806,14 @@ export default function Employee() {
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
               }}
             >
               Resign Selected ({selectedIds.length})
             </button>
           )}
         </div>
-        
+
         <div style={{ display: "flex", gap: 12 }}>
           {/* Show Import Excel only for active tab */}
           {activeTab === "active" && (
@@ -3432,7 +3827,7 @@ export default function Employee() {
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
                 display: "inline-block",
               }}
             >
@@ -3457,7 +3852,7 @@ export default function Employee() {
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
                 display: "inline-block",
               }}
             >
@@ -3481,7 +3876,7 @@ export default function Employee() {
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: 'inherit',
+              fontFamily: "inherit",
             }}
           >
             Export Excel
@@ -3490,7 +3885,7 @@ export default function Employee() {
           {activeTab === "active" && (
             <button
               onClick={() => {
-                setForm({});
+                setForm({ dateHired: getCurrentDate() });
                 setShowForm(true);
               }}
               style={{
@@ -3502,7 +3897,7 @@ export default function Employee() {
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: 'inherit',
+                fontFamily: "inherit",
               }}
             >
               Add Employee
@@ -3512,7 +3907,8 @@ export default function Employee() {
       </div>
 
       {/* Table Container */}
-        <div style={{
+      <div
+        style={{
           flex: 1,
           margin: "0 24px",
           background: "white",
@@ -3523,421 +3919,517 @@ export default function Employee() {
           display: "flex",
           flexDirection: "column",
           boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
-        }}>
-          <div style={{
+        }}
+      >
+        <div
+          style={{
             flex: 1,
             overflow: "auto",
             minHeight: 0,
-          }}>
-            <table style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "clamp(12px, 1vw, 14px)",
-          color: "#374151",
-          tableLayout: "fixed", // Fixed layout for better control
-          border: "1px solid #e5e7eb", // Add outer border
-            }}>
-          <thead>
-            <tr style={{
-              background: "#f9fafb",
-              borderBottom: "1px solid #e5e7eb",
-              position: "sticky",
-              top: 0,
-              zIndex: 10,
-            }}>
-              <th style={{
-                padding: "clamp(8px, 1vw, 16px)",
-                textAlign: "left",
-                fontWeight: 600,
-                color: "#374151",
-                width: "3%",
-                minWidth: "40px",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-            {activeTab === "active" && (
-              <input
-                type="checkbox"
-                checked={isAllSelected}
-                ref={(el) => {
-              if (el) el.indeterminate = isIndeterminate;
-                }}
-                onChange={(e) => handleSelectAll(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-            )}
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "8%" : "8%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Employee ID
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "16%" : "15%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Full Name
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "13%" : "12%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Position
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "10%" : "9%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Department
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "11%" : "10%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Client
-              </th>
-              <th style={{ 
-                padding: "clamp(8px, 1vw, 16px)", 
-                textAlign: "left", 
-                fontWeight: 600, 
-                color: "#374151",
-                width: activeTab === "active" ? "16%" : "15%",
-                fontSize: "clamp(11px, 0.9vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                Corporate Email
-              </th>
-              <th style={{ 
-            padding: "clamp(8px, 1vw, 16px)", 
-            textAlign: "left", 
-            fontWeight: 600, 
-            color: "#9c2b2bff",
-            width: activeTab === "active" ? "10%" : "9%",
-            fontSize: "clamp(11px, 0.9vw, 14px)",
-            border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-            {activeTab === "active" ? "Date Hired" : "Date Resigned"}
-              </th>
-              {activeTab === "resigned" && (
-            <th style={{ 
-              padding: "clamp(8px, 1vw, 16px)", 
-              textAlign: "left", 
-              fontWeight: 600, 
-              color: "#374151",
-              width: "12%",
-              fontSize: "clamp(11px, 0.9vw, 14px)",
-              border: "1px solid #e5e7eb", // Add cell borders
-            }}>
-              Resignation Reason
-            </th>
-              )}
-              {activeTab === "resigned" && (
-            <th style={{ 
-              padding: "clamp(8px, 1vw, 16px)", 
-              textAlign: "center", 
-              fontWeight: 600, 
-              color: "#374151",
-              width: "10%",
-              fontSize: "clamp(11px, 0.9vw, 14px)",
-              border: "1px solid #e5e7eb", // Add cell borders
-            }}>
-              Actions
-            </th>
-              )}
-              {activeTab === "active" && (
-            <th style={{ 
-              padding: "clamp(8px, 1vw, 16px)", 
-              textAlign: "center", 
-              fontWeight: 600, 
-              color: "#374151",
-              width: "10%",
-              fontSize: "clamp(11px, 0.9vw, 14px)",
-              border: "1px solid #e5e7eb", // Add cell borders
-            }}>
-              Actions
-            </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {isTableLoading ? (
-              <tr>
-            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", border: "1px solid #e5e7eb" }}>
-              <TableLoadingSpinner />
-            </td>
-              </tr>
-            ) : currentEmployees.length === 0 ? (
-              <tr>
-            <td colSpan={activeTab === "active" ? "8" : "9"} style={{ padding: 40, textAlign: "center", color: "#6b7280", border: "1px solid #e5e7eb" }}>
-              {searchTerm ? (
-                <>
-              No {activeTab} employees found matching "{searchTerm}"
-              <br />
-              <button
-                onClick={() => setSearchTerm("")}
-                style={{
-                  marginTop: 8,
-                  padding: "4px 8px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 4,
-                  background: "white",
-                  color: "#374151",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: 'inherit',
-                }}
-              >
-                Clear search
-              </button>
-                </>
-              ) : (
-                activeTab === "active" ? "No active employees found" : "No resigned employees found"
-              )}
-            </td>
-              </tr>
-            ) : (
-              currentEmployees.map((employee) => (
-            <tr
-              key={employee.id}
-              style={{
-                borderBottom: "1px solid #f3f4f6",
-                ":hover": { backgroundColor: "#f9fafb" },
-              }}
-            >
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                {activeTab === "active" && (
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(employee.id)}
-                onChange={(e) => handleSelectEmployee(employee.id, e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-                )}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-                color: "#6b7280",
-                fontFamily: "monospace",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }} title={employee.id}>
-                {employee.id ? employee.id.substring(0, 8) : 'Record Not Found'}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }}>
-                <span
-                  onClick={() => handleEmployeeNameClick(employee)}
-                  style={{
-                    color: "#2563eb",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    textDecorationColor: "transparent",
-                    transition: "all 0.2s ease",
-                    fontSize: "clamp(12px, 1vw, 14px)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.textDecorationColor = "#2563eb";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.textDecorationColor = "transparent";
-                  }}
-                  title={employee.fullName} // Show full name on hover
-                >
-                  {employee.fullName}
-                </span>
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }} title={employee.position}>
-                {employee.position}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }} title={employee.department}>
-                {employee.department}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }} title={getClientName(employee.clientId)}>
-                {getClientName(employee.clientId)}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-                border: "1px solid #e5e7eb", // Add cell borders
-              }} title={employee.corporateEmail || "-"}>
-                {employee.corporateEmail || "-"}
-              </td>
-              <td style={{ 
-                padding: "clamp(8px, 1vw, 16px)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                fontSize: "clamp(12px, 1vw, 14px)",
-              }}>
-                {activeTab === "active" 
-              ? formatDisplayDate(employee.dateHired)
-              : formatDisplayDate(employee.dateResigned || employee.dateHired)
-                }
-              </td>
-              {activeTab === "resigned" && (
-                <td style={{ 
-              padding: "clamp(8px, 1vw, 16px)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
               fontSize: "clamp(12px, 1vw, 14px)",
-                }} title={employee.resignationReason || "-"}>
-              {employee.resignationReason || "-"}
-                </td>
-              )}
-              {activeTab === "resigned" && (
-                <td style={{ 
-              padding: "clamp(8px, 1vw, 16px)", 
-              textAlign: "center",
-              overflow: "hidden",
-                }}>
-              <button
-                onClick={() => handleUndoResignation(employee.id)}
+              color: "#374151",
+              tableLayout: "fixed", // Fixed layout for better control
+              border: "1px solid #e5e7eb", // Add outer border
+            }}
+          >
+            <thead>
+              <tr
                 style={{
-                  padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
-                  border: "1px solid #059669",
-                  borderRadius: 4,
-                  background: "white",
-                  color: "#059669",
-                  fontSize: "clamp(10px, 0.8vw, 12px)",
-                  cursor: "pointer",
-                  fontFamily: 'inherit',
-                  whiteSpace: "nowrap",
+                  background: "#f9fafb",
+                  borderBottom: "1px solid #e5e7eb",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 10,
                 }}
               >
-                Undo
-              </button>
-                </td>
-              )}
-              {activeTab === "active" && (
-                <td style={{ 
-              padding: "clamp(8px, 1vw, 16px)", 
-              textAlign: "center",
-              overflow: "hidden",
-                }}>
-              <div style={{ display: "flex", gap: "clamp(4px, 0.5vw, 8px)", justifyContent: "center" }}>
-                <button
-                  onClick={() => {
-                console.log("Edit button clicked for employee:", employee);
-                
-                // Properly format the employee data for editing
-                const formattedEmployee = {
-                  ...employee,
-                  dateHired: formatDateForInput(employee.dateHired),
-                  // Ensure required fields have default values
-                  department: employee.department || "",
-                  clientId: employee.clientId || "",
-                  fullName: employee.fullName || "",
-                  position: employee.position || "",
-                };
-                
-                console.log("Formatted employee data for form:", formattedEmployee);
-                setForm(formattedEmployee);
-                setShowForm(true);
-                  }}
+                <th
                   style={{
-                padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
-                border: "1px solid #d1d5db",
-                borderRadius: 4,
-                background: "white",
-                color: "#374151",
-                fontSize: "clamp(10px, 0.8vw, 12px)",
-                cursor: "pointer",
-                fontFamily: 'inherit',
-                whiteSpace: "nowrap",
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: "3%",
+                    minWidth: "40px",
+                    border: "1px solid #e5e7eb", // Add cell borders
                   }}
                 >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleResignEmployee(employee.id)}
+                  {activeTab === "active" && (
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isIndeterminate;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      style={{ cursor: "pointer" }}
+                    />
+                  )}
+                </th>
+                <th
                   style={{
-                padding: "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
-                border: "1px solid #dc2626",
-                borderRadius: 4,
-                background: "white",
-                color: "#dc2626",
-                fontSize: "clamp(10px, 0.8vw, 12px)",
-                cursor: "pointer",
-                fontFamily: 'inherit',
-                whiteSpace: "nowrap",
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "8%" : "8%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
                   }}
                 >
-                  Resign
-                </button>
-              </div>
-                </td>
-              )}
-            </tr>
-              ))
-            )}
-          </tbody>
-            </table>
-          </div>
-        </div>
+                  Employee ID
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "16%" : "15%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  Full Name
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "13%" : "12%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  Position
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "10%" : "9%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  Department
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "11%" : "10%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  Client
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#374151",
+                    width: activeTab === "active" ? "16%" : "15%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  Corporate Email
+                </th>
+                <th
+                  style={{
+                    padding: "clamp(8px, 1vw, 16px)",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: "#9c2b2bff",
+                    width: activeTab === "active" ? "10%" : "9%",
+                    fontSize: "clamp(11px, 0.9vw, 14px)",
+                    border: "1px solid #e5e7eb", // Add cell borders
+                  }}
+                >
+                  {activeTab === "active" ? "Date Hired" : "Date Resigned"}
+                </th>
+                {activeTab === "resigned" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: "#374151",
+                      width: "12%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: "1px solid #e5e7eb", // Add cell borders
+                    }}
+                  >
+                    Resignation Reason
+                  </th>
+                )}
+                {activeTab === "resigned" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: "#374151",
+                      width: "10%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: "1px solid #e5e7eb", // Add cell borders
+                    }}
+                  >
+                    Actions
+                  </th>
+                )}
+                {activeTab === "active" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: "#374151",
+                      width: "10%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: "1px solid #e5e7eb", // Add cell borders
+                    }}
+                  >
+                    Actions
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {isTableLoading ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === "active" ? "8" : "9"}
+                    style={{
+                      padding: 40,
+                      textAlign: "center",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <TableLoadingSpinner />
+                  </td>
+                </tr>
+              ) : currentEmployees.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={activeTab === "active" ? "8" : "9"}
+                    style={{
+                      padding: 40,
+                      textAlign: "center",
+                      color: "#6b7280",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    {searchTerm ? (
+                      <>
+                        No {activeTab} employees found matching "{searchTerm}"
+                        <br />
+                        <button
+                          onClick={() => setSearchTerm("")}
+                          style={{
+                            marginTop: 8,
+                            padding: "4px 8px",
+                            border: "1px solid #d1d5db",
+                            borderRadius: 4,
+                            background: "white",
+                            color: "#374151",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Clear search
+                        </button>
+                      </>
+                    ) : activeTab === "active" ? (
+                      "No active employees found"
+                    ) : (
+                      "No resigned employees found"
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                currentEmployees.map((employee) => (
+                  <tr
+                    key={employee.id}
+                    style={{
+                      borderBottom: "1px solid #f3f4f6",
+                      ":hover": { backgroundColor: "#f9fafb" },
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                    >
+                      {activeTab === "active" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(employee.id)}
+                          onChange={(e) =>
+                            handleSelectEmployee(employee.id, e.target.checked)
+                          }
+                          style={{ cursor: "pointer" }}
+                        />
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                        color: "#6b7280",
+                        fontFamily: "monospace",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                      title={employee.id}
+                    >
+                      {employee.id
+                        ? employee.id.substring(0, 8)
+                        : "Record Not Found"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                    >
+                      <span
+                        onClick={() => handleEmployeeNameClick(employee)}
+                        style={{
+                          color: "#2563eb",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                          textDecorationColor: "transparent",
+                          transition: "all 0.2s ease",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.textDecorationColor = "#2563eb";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.textDecorationColor = "transparent";
+                        }}
+                        title={employee.fullName} // Show full name on hover
+                      >
+                        {employee.fullName}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                      title={employee.position}
+                    >
+                      {employee.position}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                      title={employee.department}
+                    >
+                      {employee.department}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                      title={getClientName(employee.clientId)}
+                    >
+                      {getClientName(employee.clientId)}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                        border: "1px solid #e5e7eb", // Add cell borders
+                      }}
+                      title={employee.corporateEmail || "-"}
+                    >
+                      {employee.corporateEmail || "-"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "clamp(8px, 1vw, 16px)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontSize: "clamp(12px, 1vw, 14px)",
+                      }}
+                    >
+                      {activeTab === "active"
+                        ? formatDisplayDate(employee.dateHired)
+                        : formatDisplayDate(
+                            employee.dateResigned || employee.dateHired
+                          )}
+                    </td>
+                    {activeTab === "resigned" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                        }}
+                        title={employee.resignationReason || "-"}
+                      >
+                        {employee.resignationReason || "-"}
+                      </td>
+                    )}
+                    {activeTab === "resigned" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          textAlign: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <button
+                          onClick={() => handleUndoResignation(employee.id)}
+                          style={{
+                            padding:
+                              "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                            border: "1px solid #059669",
+                            borderRadius: 4,
+                            background: "white",
+                            color: "#059669",
+                            fontSize: "clamp(10px, 0.8vw, 12px)",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Undo
+                        </button>
+                      </td>
+                    )}
+                    {activeTab === "active" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          textAlign: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "clamp(4px, 0.5vw, 8px)",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <button
+                            onClick={() => {
+                              console.log(
+                                "Edit button clicked for employee:",
+                                employee
+                              );
 
-        {/* Pagination Footer */}
+                              // Properly format the employee data for editing
+                              const formattedEmployee = {
+                                ...employee,
+                                dateHired: formatDateForInput(
+                                  employee.dateHired
+                                ),
+                                // Ensure required fields have default values
+                                department: employee.department || "",
+                                clientId: employee.clientId || "",
+                                fullName: employee.fullName || "",
+                                position: employee.position || "",
+                              };
+
+                              console.log(
+                                "Formatted employee data for form:",
+                                formattedEmployee
+                              );
+                              setForm(formattedEmployee);
+                              setShowForm(true);
+                            }}
+                            style={{
+                              padding:
+                                "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                              border: "1px solid #d1d5db",
+                              borderRadius: 4,
+                              background: "white",
+                              color: "#374151",
+                              fontSize: "clamp(10px, 0.8vw, 12px)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleResignEmployee(employee.id)}
+                            style={{
+                              padding:
+                                "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                              border: "1px solid #dc2626",
+                              borderRadius: 4,
+                              background: "white",
+                              color: "#dc2626",
+                              fontSize: "clamp(10px, 0.8vw, 12px)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Resign
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination Footer */}
       {allEmployees.length > 0 && (
         <div
           style={{
@@ -3956,14 +4448,15 @@ export default function Employee() {
           {/* Left side - Results info and items per page */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <span style={{ fontSize: "14px", color: "#6b7280" }}>
-              Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)} of {allEmployees.length} {activeTab} employees
+              Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)}{" "}
+              of {allEmployees.length} {activeTab} employees
               {searchTerm && (
                 <span style={{ fontStyle: "italic", marginLeft: "8px" }}>
                   (filtered by "{searchTerm}")
                 </span>
               )}
             </span>
-            
+
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span style={{ fontSize: "14px", color: "#6b7280" }}>Show:</span>
               <select
@@ -3974,7 +4467,7 @@ export default function Employee() {
                   border: "1px solid #e0e7ef",
                   borderRadius: "4px",
                   fontSize: "14px",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                   outline: "none",
                   background: "#fff",
                   color: "#445F6D",
@@ -4007,7 +4500,7 @@ export default function Employee() {
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                 }}
               >
                 <svg
@@ -4041,7 +4534,7 @@ export default function Employee() {
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                 }}
               >
                 <svg
@@ -4091,7 +4584,7 @@ export default function Employee() {
                         fontSize: "14px",
                         fontWeight: "500",
                         minWidth: "40px",
-                        fontFamily: 'inherit',
+                        fontFamily: "inherit",
                       }}
                     >
                       {i}
@@ -4109,15 +4602,18 @@ export default function Employee() {
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: validCurrentPage === totalPages ? "not-allowed" : "pointer",
+                  background:
+                    validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color:
+                    validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor:
+                    validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                 }}
               >
                 Next
@@ -4142,15 +4638,18 @@ export default function Employee() {
                   padding: "8px 12px",
                   borderRadius: "6px",
                   border: "1px solid #e0e7ef",
-                  background: validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
-                  cursor: validCurrentPage === totalPages ? "not-allowed" : "pointer",
+                  background:
+                    validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                  color:
+                    validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                  cursor:
+                    validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  fontFamily: 'inherit',
+                  fontFamily: "inherit",
                 }}
               >
                 Last
@@ -4210,7 +4709,7 @@ export default function Employee() {
         }}
         title="Confirm Resignation"
         message={
-          employeeToResign?.employee 
+          employeeToResign?.employee
             ? `Are you sure you want to resign ${employeeToResign.employee.fullName}?`
             : "Are you sure you want to resign this employee?"
         }
@@ -4228,7 +4727,7 @@ export default function Employee() {
         }}
         title="Restore Employee"
         message={
-          employeeToUndo?.employee 
+          employeeToUndo?.employee
             ? `Are you sure you want to restore ${employeeToUndo.employee.fullName} to active status?`
             : "Are you sure you want to restore this employee to active status?"
         }

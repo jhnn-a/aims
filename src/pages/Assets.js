@@ -621,6 +621,10 @@ function Assets() {
   const [unassignProgress, setUnassignProgress] = useState(0); // Unassign progress percentage
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
 
+  // === SELECTION WARNING STATE ===
+  const [showSelectionWarning, setShowSelectionWarning] = useState(false); // Selection warning modal visibility
+  const [selectionWarningMessage, setSelectionWarningMessage] = useState(""); // Warning message content
+
   // === PAGINATION STATE ===
   const [currentPage, setCurrentPage] = useState(1); // Current page number for device table
   const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
@@ -938,14 +942,12 @@ function Assets() {
     if (firstDevice && device.assignedTo !== firstDevice.assignedTo) {
       const firstName = getEmployeeName(firstDevice.assignedTo);
       const thisName = getEmployeeName(device.assignedTo);
-      window.alert(
-        `You can only select devices assigned to the same employee for bulk unassign.\nFirst selected: ${
+      setSelectionWarningMessage(
+        `You can only select devices assigned to the same employee for bulk operations.\n\nFirst selected: ${
           firstName || "Unassigned"
-        }\nTried: ${thisName || "Unassigned"}`
+        }\nTried to select: ${thisName || "Unassigned"}`
       );
-      setBulkUnassignWarning(
-        "You can only select devices assigned to the same employee for bulk unassign."
-      );
+      setShowSelectionWarning(true);
       return;
     }
     setBulkUnassignWarning("");
@@ -1250,6 +1252,8 @@ function Assets() {
       const isDefective = reason === "defective";
       // If defective, set device condition to 'Defective' in docx
       const docxCondition = isDefective ? "Defective" : device.condition || "";
+      // Use current date for return document (not original assignment date)
+      const currentDate = formatTransferDate(new Date());
       const data = {
         name: employee.fullName || "",
         department: employee.department || "",
@@ -1259,9 +1263,7 @@ function Assets() {
           : "",
         devices: [
           {
-            assignmentDate: device.assignmentDate
-              ? formatTransferDate(device.assignmentDate)
-              : "",
+            assignmentDate: currentDate, // Use current date for return
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             deviceTag: device.deviceTag || "",
@@ -1323,6 +1325,8 @@ function Assets() {
       const isDefective = reason === "defective";
       // If defective, set device condition to 'Defective' in docx
       const docxCondition = isDefective ? "Defective" : "";
+      // Use current date for return document (not original assignment date)
+      const currentDate = formatTransferDate(new Date());
       const data = {
         name: employee.fullName || "",
         department: employee.department || "",
@@ -1331,9 +1335,7 @@ function Assets() {
           ? formatTransferDate(employee.dateHired)
           : "",
         devices: devices.map((device) => ({
-          assignmentDate: device.assignmentDate
-            ? formatTransferDate(device.assignmentDate)
-            : "",
+          assignmentDate: currentDate, // Use current date for return
           deviceType: device.deviceType || "",
           brand: device.brand || "",
           deviceTag: device.deviceTag || "",
@@ -3575,6 +3577,66 @@ function Assets() {
                   />
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Selection Warning Modal */}
+        {showSelectionWarning && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+            onClick={() => setShowSelectionWarning(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "white",
+                padding: 30,
+                borderRadius: 8,
+                minWidth: 400,
+                maxWidth: 500,
+                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: "0 0 20px 0", color: "#d32f2f" }}>
+                Selection Not Allowed
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 20px 0",
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-line",
+                }}
+              >
+                {selectionWarningMessage}
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowSelectionWarning(false)}
+                  style={{
+                    padding: "8px 20px",
+                    backgroundColor: "#1976d2",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
         )}

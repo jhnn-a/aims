@@ -552,7 +552,8 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
                     }}
                   >
                     <td style={styles.td}>
-                      {emp.firstName || ""} {emp.lastName || ""}
+                      {emp.fullName ||
+                        `${emp.firstName || ""} ${emp.lastName || ""}`}
                     </td>
                     <td style={{ ...styles.td, borderRight: "none" }}>
                       {emp.id}

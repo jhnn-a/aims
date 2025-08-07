@@ -200,7 +200,7 @@ function DeviceFormModal({
           </div>
         )}
 
-        {/* Row 1: Device Type and Brand */}
+        {/* Row 1: Device Type and Size/Brand */}
         <div
           style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}
         >
@@ -223,9 +223,44 @@ function DeviceFormModal({
             </select>
           </div>
 
-          <div
-            style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
-          >
+          {data.deviceType === "RAM" ? (
+            <div
+              style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
+            >
+              <label style={styles.inventoryLabel}>Size:</label>
+              <select
+                name="ramSize"
+                value={data.ramSize}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select Size</option>
+                <option value="4GB">4 GB RAM</option>
+                <option value="8GB">8 GB RAM</option>
+                <option value="16GB">16 GB RAM</option>
+                <option value="32GB">32 GB RAM</option>
+                <option value="64GB">64 GB RAM</option>
+              </select>
+            </div>
+          ) : (
+            <div
+              style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
+            >
+              <label style={styles.inventoryLabel}>Brand:</label>
+              <input
+                name="brand"
+                value={data.brand}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Row 1.5: Brand for RAM (when RAM is selected) */}
+        {data.deviceType === "RAM" && (
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
             <label style={styles.inventoryLabel}>Brand:</label>
             <input
               name="brand"
@@ -235,7 +270,7 @@ function DeviceFormModal({
               autoComplete="off"
             />
           </div>
-        </div>
+        )}
 
         {/* Row 2: Device Tag (full width when visible) */}
         {data.deviceType && (
@@ -555,14 +590,8 @@ function DeviceFormModal({
                   style={styles.inventoryInput}
                 >
                   <option value="">Select OS</option>
-                  <option value="Windows 11 Pro">Windows 11 Pro</option>
-                  <option value="Windows 11 Home">Windows 11 Home</option>
-                  <option value="Windows 10 Pro">Windows 10 Pro</option>
-                  <option value="Windows 10 Home">Windows 10 Home</option>
-                  <option value="macOS">macOS</option>
-                  <option value="Ubuntu">Ubuntu</option>
-                  <option value="Other Linux">Other Linux</option>
-                  <option value="Other">Other</option>
+                  <option value="Windows 10">Windows 10</option>
+                  <option value="Windows 11">Windows 11</option>
                 </select>
               </div>
             </div>
@@ -905,6 +934,7 @@ function Inventory() {
     client: "",
     remarks: "",
     acquisitionDate: "",
+    ramSize: "", // Size dropdown for RAM devices
     // PC/Laptop specific fields
     cpuGen: "",
     ram: "",
@@ -1136,28 +1166,77 @@ function Inventory() {
 
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
-      // When device type changes, auto-generate device tag
+      // When device type changes
       const typeObj = deviceTypes.find((t) => t.label === value);
-      let newTag = "";
-      if (typeObj) {
-        const prefix = `JOII${typeObj.code}`;
-        // Find max existing tag for this type
-        getAllDevices().then((allDevices) => {
-          const ids = allDevices
-            .map((d) => d.deviceTag)
-            .filter((tag) => tag && tag.startsWith(prefix))
-            .map((tag) => parseInt(tag.replace(prefix, "")))
-            .filter((num) => !isNaN(num));
-          const max = ids.length > 0 ? Math.max(...ids) : 0;
-          newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-          setForm((prev) => ({
-            ...prev,
-            deviceType: value,
-            deviceTag: newTag,
-          }));
-        });
+      
+      if (value === "RAM") {
+        // For RAM, don't generate tag until size is selected
+        setForm((prev) => ({
+          ...prev,
+          deviceType: value,
+          deviceTag: "",
+          ramSize: "", // Reset RAM size when device type changes
+        }));
       } else {
-        setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+        // For non-RAM devices, generate tag immediately
+        let newTag = "";
+        if (typeObj) {
+          const prefix = `JOII${typeObj.code}`;
+          // Find max existing tag for this type
+          getAllDevices().then((allDevices) => {
+            const ids = allDevices
+              .map((d) => d.deviceTag)
+              .filter((tag) => tag && tag.startsWith(prefix))
+              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({
+              ...prev,
+              deviceType: value,
+              deviceTag: newTag,
+            }));
+          });
+        } else {
+          setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+        }
+      }
+      setTagError("");
+      return;
+    }
+    if (name === "ramSize") {
+      // When RAM size is selected, generate the specific RAM tag
+      if (form.deviceType === "RAM" && value) {
+        const sizeMap = {
+          "4GB": "4",
+          "8GB": "8", 
+          "16GB": "16",
+          "32GB": "32",
+          "64GB": "64"
+        };
+        const sizeCode = sizeMap[value];
+        if (sizeCode) {
+          const prefix = `JOIIRAM${sizeCode}`;
+          // Find max existing tag for this RAM size
+          getAllDevices().then((allDevices) => {
+            const ids = allDevices
+              .map((d) => d.deviceTag)
+              .filter((tag) => tag && tag.startsWith(prefix))
+              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({
+              ...prev,
+              ramSize: value,
+              deviceTag: newTag,
+            }));
+          });
+        } else {
+          setForm((prev) => ({ ...prev, ramSize: value, deviceTag: "" }));
+        }
+      } else {
+        setForm((prev) => ({ ...prev, ramSize: value }));
       }
       setTagError("");
       return;
@@ -1515,6 +1594,41 @@ function Inventory() {
       matchedType = foundType ? foundType.label : deviceData.deviceType;
     }
 
+    // Extract RAM size for RAM devices
+    let extractedRamSize = "";
+    if (matchedType === "RAM" && deviceData.deviceTag) {
+      // Extract size from tag format like JOIIRAM40001, JOIIRAM80001, etc.
+      // The format is JOIIRAM[SIZE][NUMBER] where SIZE can be 4, 8, 16, 32, 64
+      const ramMatch = deviceData.deviceTag.match(/^JOIIRAM(\d+)/);
+      if (ramMatch) {
+        const fullNumber = ramMatch[1]; // e.g., "40004"
+        
+        // Extract just the size part (first 1-2 digits)
+        let sizeNumber = "";
+        if (fullNumber.startsWith("4")) {
+          sizeNumber = "4";
+        } else if (fullNumber.startsWith("8")) {
+          sizeNumber = "8";
+        } else if (fullNumber.startsWith("16")) {
+          sizeNumber = "16";
+        } else if (fullNumber.startsWith("32")) {
+          sizeNumber = "32";
+        } else if (fullNumber.startsWith("64")) {
+          sizeNumber = "64";
+        }
+        
+        // Map the extracted size to the dropdown option format
+        const sizeMap = {
+          "4": "4GB",
+          "8": "8GB", 
+          "16": "16GB",
+          "32": "32GB",
+          "64": "64GB"
+        };
+        extractedRamSize = sizeMap[sizeNumber] || "";
+      }
+    }
+
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
       deviceType: matchedType || "",
@@ -1525,6 +1639,7 @@ function Inventory() {
       condition: deviceData.condition || "",
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
+      ramSize: extractedRamSize, // Add extracted RAM size
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
       // PC/Laptop specifications
@@ -1648,19 +1763,47 @@ function Inventory() {
       setTagError("");
     } else {
       // Switching back to auto-generated: re-generate deviceTag
-      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
-      if (typeObj) {
-        const prefix = `JOII${typeObj.code}`;
-        getAllDevices().then((allDevices) => {
-          const ids = allDevices
-            .map((d) => d.deviceTag)
-            .filter((tag) => tag && tag.startsWith(prefix))
-            .map((tag) => parseInt(tag.replace(prefix, "")))
-            .filter((num) => !isNaN(num));
-          const max = ids.length > 0 ? Math.max(...ids) : 0;
-          const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-          setForm((prev) => ({ ...prev, deviceTag: newTag }));
-        });
+      if (form.deviceType === "RAM") {
+        // For RAM, re-generate based on selected size
+        if (form.ramSize) {
+          const sizeMap = {
+            "4GB": "4",
+            "8GB": "8", 
+            "16GB": "16",
+            "32GB": "32",
+            "64GB": "64"
+          };
+          const sizeCode = sizeMap[form.ramSize];
+          if (sizeCode) {
+            const prefix = `JOIIRAM${sizeCode}`;
+            getAllDevices().then((allDevices) => {
+              const ids = allDevices
+                .map((d) => d.deviceTag)
+                .filter((tag) => tag && tag.startsWith(prefix))
+                .map((tag) => parseInt(tag.replace(prefix, "")))
+                .filter((num) => !isNaN(num));
+              const max = ids.length > 0 ? Math.max(...ids) : 0;
+              const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+              setForm((prev) => ({ ...prev, deviceTag: newTag }));
+            });
+          }
+        }
+      } else {
+        // For non-RAM devices, use standard logic
+        const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
+        if (typeObj) {
+          const prefix = `JOII${typeObj.code}`;
+          getAllDevices().then((allDevices) => {
+            const ids = allDevices
+              .map((d) => d.deviceTag)
+              .filter((tag) => tag && tag.startsWith(prefix))
+              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({ ...prev, deviceTag: newTag }));
+          });
+        }
       }
       setTagError("");
     }
@@ -4237,374 +4380,374 @@ function Inventory() {
                   }
 
                   return currentDevices.map((device, index) => (
-                  <tr
-                    key={device.id}
-                    style={{
-                    borderBottom: "1px solid #d1d5db",
-                    background:
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    }}
-                    onClick={() => handleSelectOne(device.id)}
-                    onMouseEnter={(e) => {
-                    if (index % 2 === 0) {
-                      e.currentTarget.style.background =
-                      "rgb(235, 235, 240)";
-                    } else {
-                      e.currentTarget.style.background =
-                      "rgb(225, 225, 235)";
-                    }
-                    }}
-                    onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)";
-                    }}
-                  >
-                    <td
-                    style={{
-                      width: "4%",
-                      padding: "8px 4px",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                    }}
-                    >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(device.id)}
-                      onChange={(e) => {
-                      e.stopPropagation();
-                      handleSelectOne(device.id);
-                      }}
-                      style={{ width: 16, height: 16, margin: 0 }}
-                    />
-                    </td>
-                    <td
-                    style={{
-                      width: "3%",
-                      padding: "8px 4px",
-                      fontSize: "14px",
-                      color: "rgb(55, 65, 81)",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    {(currentPage - 1) * devicesPerPage + index + 1}
-                    </td>
-                    <td
-                    style={{
-                      width: "13%",
-                      padding: "8px 6px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <span
-                      onClick={(e) => {
-                      e.stopPropagation();
-                      handleShowDeviceHistory(device);
-                      }}
+                    <tr
+                      key={device.id}
                       style={{
-                      cursor: "pointer",
-                      color: "rgb(107, 114, 128)",
-                      textDecoration: "none",
-                      fontWeight: 400,
-                      transition: "color 0.2s",
-                      display: "block",
-                      width: "100%",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      fontSize: "13px", // Slightly smaller to fit better
-                      }}
-                      onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "rgb(75, 85, 99)")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "rgb(107, 114, 128)")
-                      }
-                      title={`Click to view device history: ${device.deviceTag}`}
-                    >
-                      {device.deviceTag}
-                    </span>
-                    </td>
-                    <td
-                    style={{
-                      width: "11%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.deviceType}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.brand}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.model || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.client || "-"}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <span
-                      style={{
-                      display: "inline-block",
-                      background: getConditionColor(device.condition),
-                      color: getConditionTextColor(device.condition),
-                      padding: "4px 8px",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      textAlign: "center",
-                      lineHeight: "1.2",
-                      whiteSpace: "nowrap",
-                      minWidth: "70px",
-                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                      }}
-                    >
-                      {device.condition}
-                    </span>
-                    </td>
-                    <td
-                    style={{
-                      width: "15%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.remarks || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "12%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                    }}
-                    >
-                    {device.acquisitionDate ? (
-                      formatDateToMMDDYYYY(device.acquisitionDate)
-                    ) : (
-                      <span
-                      style={{ color: "#9ca3af", fontStyle: "italic" }}
-                      >
-                      Not recorded
-                      </span>
-                    )}
-                    </td>
-                    <td
-                    style={{
-                      width: "8%",
-                      padding: "4px 2px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    <div
-                      style={{
-                      display: "flex",
-                      gap: "1px",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexWrap: "nowrap",
-                      minWidth: "fit-content",
-                      }}
-                    >
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
+                        borderBottom: "1px solid #d1d5db",
+                        background:
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)",
                         cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
+                        transition: "background 0.15s",
                       }}
+                      onClick={() => handleSelectOne(device.id)}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#3b82f6";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(59, 130, 246, 0.3)";
+                        if (index % 2 === 0) {
+                          e.currentTarget.style.background =
+                            "rgb(235, 235, 240)";
+                        } else {
+                          e.currentTarget.style.background =
+                            "rgb(225, 225, 235)";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
+                        e.currentTarget.style.background =
+                          index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)";
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(device);
-                      }}
-                      title="Edit"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                    >
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "4%",
+                          padding: "8px 4px",
+                          textAlign: "center",
+                          border: "1px solid #d1d5db",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                      </button>
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#ef4444";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(239, 68, 68, 0.3)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(device.id);
-                      }}
-                      title="Delete"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(device.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectOne(device.id);
+                          }}
+                          style={{ width: 16, height: 16, margin: 0 }}
+                        />
+                      </td>
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "3%",
+                          padding: "8px 4px",
+                          fontSize: "14px",
+                          color: "rgb(55, 65, 81)",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                      </button>
-                    </div>
-                    </td>
-                  </tr>
+                        {(currentPage - 1) * devicesPerPage + index + 1}
+                      </td>
+                      <td
+                        style={{
+                          width: "13%",
+                          padding: "8px 6px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShowDeviceHistory(device);
+                          }}
+                          style={{
+                            cursor: "pointer",
+                            color: "rgb(107, 114, 128)",
+                            textDecoration: "none",
+                            fontWeight: 400,
+                            transition: "color 0.2s",
+                            display: "block",
+                            width: "100%",
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            fontSize: "13px", // Slightly smaller to fit better
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                          }
+                          title={`Click to view device history: ${device.deviceTag}`}
+                        >
+                          {device.deviceTag}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          width: "11%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.deviceType}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.brand}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.model || ""}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.client || "-"}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-block",
+                            background: getConditionColor(device.condition),
+                            color: getConditionTextColor(device.condition),
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textAlign: "center",
+                            lineHeight: "1.2",
+                            whiteSpace: "nowrap",
+                            minWidth: "70px",
+                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          {device.condition}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          width: "15%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.remarks || ""}
+                      </td>
+                      <td
+                        style={{
+                          width: "12%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {device.acquisitionDate ? (
+                          formatDateToMMDDYYYY(device.acquisitionDate)
+                        ) : (
+                          <span
+                            style={{ color: "#9ca3af", fontStyle: "italic" }}
+                          >
+                            Not recorded
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          width: "8%",
+                          padding: "4px 2px",
+                          fontSize: "14px",
+                          color: "#374151",
+                          border: "1px solid #d1d5db",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "1px",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexWrap: "nowrap",
+                            minWidth: "fit-content",
+                          }}
+                        >
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#3b82f6";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(59, 130, 246, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(device);
+                            }}
+                            title="Edit"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#ef4444";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(239, 68, 68, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(device.id);
+                            }}
+                            title="Delete"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ));
                 })()}
               </tbody>
