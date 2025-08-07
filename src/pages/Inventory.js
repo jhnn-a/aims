@@ -826,6 +826,12 @@ function Inventory() {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      
+      /* Pulse animation for sticky note indicator */
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
     `;
     document.head.appendChild(style);
 
@@ -1058,6 +1064,10 @@ function Inventory() {
   // --- STATE for Last Tags Modal ---
   const [showLastTagsModal, setShowLastTagsModal] = useState(false);
   const [lastTagsData, setLastTagsData] = useState([]);
+  const [isLastTagsMinimized, setIsLastTagsMinimized] = useState(false);
+  const [lastTagsPosition, setLastTagsPosition] = useState({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   // --- HOOKS ---
   const showSnackbar = useSnackbar();
@@ -3240,13 +3250,24 @@ function Inventory() {
         { label: "Mouse", code: "M" },
         { label: "PC", code: "PC" },
         { label: "PSU", code: "PSU" },
-        { label: "RAM", code: "RAM" },
         { label: "SSD", code: "SSD" },
         { label: "UPS", code: "UPS" },
         { label: "Webcam", code: "W" },
       ];
 
-      const lastTagsResults = deviceTypesList.map((type) => {
+      // RAM sizes to track separately
+      const ramSizes = [
+        { label: "RAM4", code: "RAM4", prefix: "JOIIRAM4" },
+        { label: "RAM8", code: "RAM8", prefix: "JOIIRAM8" },
+        { label: "RAM16", code: "RAM16", prefix: "JOIIRAM16" },
+        { label: "RAM32", code: "RAM32", prefix: "JOIIRAM32" },
+        { label: "RAM64", code: "RAM64", prefix: "JOIIRAM64" },
+      ];
+
+      const lastTagsResults = [];
+
+      // Process regular device types (excluding RAM)
+      deviceTypesList.forEach((type) => {
         const prefix = `JOII${type.code}`;
 
         // Find existing tags with this prefix
@@ -3269,12 +3290,42 @@ function Inventory() {
             ? `${prefix}${String(lastUsedNumber).padStart(4, "0")}`
             : "No tags used yet";
 
-        return {
+        lastTagsResults.push({
           deviceType: type.label,
           code: type.code,
           lastTag: lastUsedTag,
           totalCount: existingTags.length,
-        };
+        });
+      });
+
+      // Process RAM sizes separately
+      ramSizes.forEach((ramType) => {
+        // Find existing tags with this RAM size prefix
+        const existingTags = allDevices
+          .filter(
+            (device) => device.deviceTag && device.deviceTag.startsWith(ramType.prefix)
+          )
+          .map((device) => {
+            const tagNumber = device.deviceTag.replace(ramType.prefix, "");
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${ramType.prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        lastTagsResults.push({
+          deviceType: ramType.label,
+          code: ramType.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        });
       });
 
       setLastTagsData(lastTagsResults);
@@ -3283,6 +3334,69 @@ function Inventory() {
       console.error("Error fetching last tags:", error);
       showSnackbar("Error fetching last tags data", "error");
     }
+  };
+
+  // --- Floating Window Drag Functionality ---
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      // Keep window within viewport bounds
+      const maxX = window.innerWidth - 400; // Window width
+      const maxY = window.innerHeight - 100; // Minimum visible height
+      
+      setLastTagsPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY)),
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add global mouse event listeners for dragging
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'grabbing';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+  }, [isDragging, dragOffset]);
+
+  const handleMinimize = () => {
+    setIsLastTagsMinimized(true);
+  };
+
+  const handleRestore = () => {
+    setIsLastTagsMinimized(false);
+  };
+
+  const handleClose = () => {
+    setShowLastTagsModal(false);
+    setIsLastTagsMinimized(false);
   };
 
   return (
@@ -6722,271 +6836,299 @@ function Inventory() {
         </div>
       )}
 
-      {/* Last Tags Modal */}
+      {/* Last Tags Floating Window */}
       {showLastTagsModal && (
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            left: lastTagsPosition.x,
+            top: lastTagsPosition.y,
+            width: isLastTagsMinimized ? "250px" : "400px",
+            height: isLastTagsMinimized ? "50px" : "auto",
+            maxHeight: isLastTagsMinimized ? "50px" : "600px",
+            background: "#ffffff",
+            borderRadius: "12px",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+            border: "2px solid #e5e7eb",
             zIndex: 1000,
+            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            overflow: "hidden",
+            transition: "all 0.3s ease",
+            transform: isDragging ? "rotate(2deg)" : "rotate(0deg)",
           }}
-          onClick={() => setShowLastTagsModal(false)}
         >
+          {/* Header Bar - Always visible and draggable */}
           <div
             style={{
-              background: "#fff",
-              borderRadius: "12px",
-              padding: "16px",
-              maxWidth: "600px",
-              width: "90%",
-              maxHeight: "70vh",
-              overflowY: "auto",
-              boxShadow:
-                "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-              fontFamily:
-                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 16px",
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              borderRadius: "10px 10px 0 0",
+              cursor: isDragging ? "grabbing" : "grab",
+              userSelect: "none",
+              borderBottom: isLastTagsMinimized ? "none" : "2px solid #e5e7eb",
             }}
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={handleMouseDown}
           >
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "12px",
-                borderBottom: "2px solid #e5e7eb",
-                paddingBottom: "12px",
+                gap: "8px",
+                color: "#ffffff",
               }}
             >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: "20px",
-                  fontWeight: "700",
-                  color: "#1f2937",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
+              <svg
+                width="16"
+                height="16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="#8b5cf6"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                </svg>
-                Last Used Tags by Device Type
-              </h3>
-              <button
-                onClick={() => setShowLastTagsModal(false)}
+                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+              </svg>
+              <span
                 style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#6b7280",
-                  padding: "4px",
-                  borderRadius: "4px",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "#f3f4f6";
-                  e.target.style.color = "#374151";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "none";
-                  e.target.style.color = "#6b7280";
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gap: "12px",
-              }}
-            >
-              {lastTagsData.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "16px",
-                    background: index % 2 === 0 ? "#f9fafb" : "#ffffff",
-                    borderRadius: "8px",
-                    border: "1px solid #e5e7eb",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "#ede9fe";
-                    e.target.style.borderColor = "#8b5cf6";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background =
-                      index % 2 === 0 ? "#f9fafb" : "#ffffff";
-                    e.target.style.borderColor = "#e5e7eb";
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        background: "#8b5cf6",
-                        color: "#fff",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        minWidth: "50px",
-                        textAlign: "center",
-                      }}
-                    >
-                      {item.code}
-                    </span>
-                    <span
-                      style={{
-                        fontWeight: "600",
-                        color: "#374151",
-                        fontSize: "16px",
-                      }}
-                    >
-                      {item.deviceType}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-end",
-                      gap: "4px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: "700",
-                        color:
-                          item.lastTag === "No tags used yet"
-                            ? "#ef4444"
-                            : "#2563eb",
-                        fontSize: "14px",
-                        fontFamily: "monospace",
-                      }}
-                    >
-                      {item.lastTag}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        color: "#6b7280",
-                        fontWeight: "500",
-                      }}
-                    >
-                      {item.totalCount} tag{item.totalCount !== 1 ? "s" : ""}{" "}
-                      used
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "16px",
-                background: "#f0f9ff",
-                borderRadius: "8px",
-                border: "1px solid #0ea5e9",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginBottom: "8px",
-                }}
-              >
-                <svg width="16" height="16" fill="#0ea5e9" viewBox="0 0 24 24">
-                  <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#0369a1",
-                  }}
-                >
-                  Information
-                </span>
-              </div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "13px",
-                  color: "#0369a1",
-                  lineHeight: "1.5",
-                }}
-              >
-                This shows the last used tag for each device type. The next
-                available tag would be one number higher than displayed. For
-                example, if the last tag shown is JOIILPT0005, the next
-                available tag would be JOIILPT0006.
-              </p>
-            </div>
-
-            <div
-              style={{
-                marginTop: "20px",
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <button
-                onClick={() => setShowLastTagsModal(false)}
-                style={{
-                  background: "#8b5cf6",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "10px 20px",
                   fontSize: "14px",
                   fontWeight: "600",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "#7c3aed";
-                  e.target.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "#8b5cf6";
-                  e.target.style.transform = "translateY(0)";
+                  color: "#ffffff",
                 }}
               >
-                Close
+                {isLastTagsMinimized ? "Last Tags" : "Last Used Tags"}
+              </span>
+            </div>
+            
+            <div style={{ display: "flex", gap: "8px" }}>
+              {/* Minimize/Restore Button */}
+              <button
+                onClick={isLastTagsMinimized ? handleRestore : handleMinimize}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px",
+                  cursor: "pointer",
+                  color: "#ffffff",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "rgba(255, 255, 255, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "rgba(255, 255, 255, 0.2)";
+                }}
+              >
+                {isLastTagsMinimized ? (
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 13H5v-2h14v2z"/>
+                  </svg>
+                )}
+              </button>
+              
+              {/* Close Button */}
+              <button
+                onClick={handleClose}
+                style={{
+                  background: "rgba(255, 255, 255, 0.2)",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "4px",
+                  cursor: "pointer",
+                  color: "#ffffff",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "rgba(255, 82, 82, 0.8)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "rgba(255, 255, 255, 0.2)";
+                }}
+              >
+                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
               </button>
             </div>
           </div>
+
+          {/* Content - Hidden when minimized */}
+          {!isLastTagsMinimized && (
+            <div
+              style={{
+                padding: "16px",
+                maxHeight: "520px",
+                overflowY: "auto",
+              }}
+            >
+              {/* Tags Grid */}
+              <div
+                style={{
+                  display: "grid",
+                  gap: "8px",
+                  marginBottom: "16px",
+                }}
+              >
+                {lastTagsData.map((item, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "12px",
+                      background: index % 2 === 0 ? "#f8fafc" : "#ffffff",
+                      borderRadius: "8px",
+                      border: "1px solid #e2e8f0",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = "#ede9fe";
+                      e.target.style.borderColor = "#8b5cf6";
+                      e.target.style.transform = "translateY(-1px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = index % 2 === 0 ? "#f8fafc" : "#ffffff";
+                      e.target.style.borderColor = "#e2e8f0";
+                      e.target.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          color: "#fff",
+                          padding: "3px 6px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          minWidth: "45px",
+                          textAlign: "center",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        {item.code}
+                      </span>
+                      <span
+                        style={{
+                          fontWeight: "500",
+                          color: "#374151",
+                          fontSize: "14px",
+                        }}
+                      >
+                        {item.deviceType}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-end",
+                        gap: "2px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontWeight: "600",
+                          color: item.lastTag === "No tags used yet" ? "#ef4444" : "#2563eb",
+                          fontSize: "12px",
+                          fontFamily: "monospace",
+                          background: item.lastTag === "No tags used yet" ? "#fef2f2" : "#eff6ff",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: `1px solid ${item.lastTag === "No tags used yet" ? "#fecaca" : "#dbeafe"}`,
+                        }}
+                      >
+                        {item.lastTag}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: "#6b7280",
+                          fontWeight: "500",
+                        }}
+                      >
+                        {item.totalCount} used
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Info Section */}
+              <div
+                style={{
+                  padding: "12px",
+                  background: "linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)",
+                  borderRadius: "8px",
+                  border: "1px solid #bae6fd",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <svg width="14" height="14" fill="#0369a1" viewBox="0 0 24 24">
+                    <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#0369a1",
+                    }}
+                  >
+                    Quick Reference
+                  </span>
+                </div>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "11px",
+                    color: "#075985",
+                    lineHeight: "1.4",
+                  }}
+                >
+                  Next available tag = Last tag + 1. Example: JOIILPT0005 → Next: JOIILPT0006
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {/* Sticky Note Visual Indicator */}
+          <div
+            style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              width: "6px",
+              height: "6px",
+              background: "#fbbf24",
+              borderRadius: "50%",
+              boxShadow: "0 0 0 2px rgba(251, 191, 36, 0.3)",
+              animation: "pulse 2s infinite",
+            }}
+          />
         </div>
       )}
     </div>

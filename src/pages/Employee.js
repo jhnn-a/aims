@@ -4058,6 +4058,7 @@ export default function Employee() {
                     width: activeTab === "active" ? "10%" : "9%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    borderRight: "1px solid #e5e7eb", // Standard border for separation
                   }}
                 >
                   {activeTab === "active" ? "Date Hired" : "Date Resigned"}
@@ -4087,6 +4088,7 @@ export default function Employee() {
                       width: "10%",
                       fontSize: "clamp(11px, 0.9vw, 14px)",
                       border: "1px solid #e5e7eb", // Add cell borders
+                      borderLeft: "1px solid #e5e7eb", // Standard border for separation
                     }}
                   >
                     Actions
@@ -4102,6 +4104,7 @@ export default function Employee() {
                       width: "10%",
                       fontSize: "clamp(11px, 0.9vw, 14px)",
                       border: "1px solid #e5e7eb", // Add cell borders
+                      borderLeft: "1px solid #e5e7eb", // Standard border for separation
                     }}
                   >
                     Actions
@@ -4113,7 +4116,7 @@ export default function Employee() {
               {isTableLoading ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "active" ? "8" : "9"}
+                    colSpan={activeTab === "active" ? "9" : "10"}
                     style={{
                       padding: 40,
                       textAlign: "center",
@@ -4126,7 +4129,7 @@ export default function Employee() {
               ) : currentEmployees.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "active" ? "8" : "9"}
+                    colSpan={activeTab === "active" ? "9" : "10"}
                     style={{
                       padding: 40,
                       textAlign: "center",
@@ -4295,6 +4298,8 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
+                        border: "1px solid #e5e7eb",
+                        borderRight: "1px solid #e5e7eb", // Standard border for separation
                       }}
                     >
                       {activeTab === "active"
@@ -4323,6 +4328,8 @@ export default function Employee() {
                           padding: "clamp(8px, 1vw, 16px)",
                           textAlign: "center",
                           overflow: "hidden",
+                          border: "1px solid #e5e7eb",
+                          borderLeft: "1px solid #e5e7eb", // Standard border for separation
                         }}
                       >
                         <button
@@ -4350,6 +4357,8 @@ export default function Employee() {
                           padding: "clamp(8px, 1vw, 16px)",
                           textAlign: "center",
                           overflow: "hidden",
+                          border: "1px solid #e5e7eb",
+                          borderLeft: "1px solid #e5e7eb", // Standard border for separation
                         }}
                       >
                         <div
