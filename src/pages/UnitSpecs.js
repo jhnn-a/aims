@@ -26,6 +26,7 @@ const emptyUnit = {
   Tag: "",
   deviceType: "", // New field for device type (Laptop/PC)
   category: "", // New field for category (mid-range, etc.)
+  cpuSystemUnit: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
   cpuGen: "", // New field for CPU generation
   cpuModel: "", // New field for CPU model
   CPU: "",
@@ -38,7 +39,7 @@ const emptyUnit = {
   lifespan: "", // New field for lifespan
 };
 
-const cpuGenOptions = ["i3", "i5", "i7"];
+const cpuGenOptions = ["i3", "i5", "i7", "i9"];
 const ramOptions = [4, 8, 16, 32, 64];
 
 // Category options for devices
@@ -321,6 +322,104 @@ const UnitSpecs = () => {
     fetchData();
   }, []);
 
+  // === SYNC FROM INVENTORY FUNCTION ===
+  // Utility function to sync existing PC/Laptop data from main inventory to UnitSpecs
+  const syncFromInventory = async () => {
+    try {
+      setLoading(true);
+      showInfo("Syncing PC and Laptop data from Inventory...");
+
+      // Get all devices from main inventory
+      const devicesSnapshot = await getDocs(collection(db, "devices"));
+      const allDevices = devicesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Filter for PC and Laptop devices only
+      const pcAndLaptops = allDevices.filter(
+        (device) =>
+          device.deviceType &&
+          ["PC", "Laptop", "Desktop", "Notebook"].includes(device.deviceType)
+      );
+
+      let syncedCount = 0;
+
+      for (const device of pcAndLaptops) {
+        try {
+          // Helper functions to extract data
+          const extractCpuGen = (cpuString) => {
+            if (!cpuString) return "";
+            const match = cpuString.match(/(i[357])/i);
+            return match ? match[1].toLowerCase() : "";
+          };
+
+          const extractCpuModel = (cpuString) => {
+            if (!cpuString) return "";
+            return cpuString
+              .replace(/(i[357])/i, "")
+              .replace(/^[\s-]+/, "")
+              .trim();
+          };
+
+          const extractRamSize = (ramString) => {
+            if (!ramString) return "";
+            const match = ramString.match(/(\d+)/);
+            return match ? match[1] : "";
+          };
+
+          // Map inventory fields to UnitSpecs format
+          const unitSpecData = {
+            Tag: device.deviceTag || "",
+            deviceType: device.deviceType || "",
+            category: device.category || "",
+            cpuGen: extractCpuGen(device.cpuGen || device.cpu || ""),
+            cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
+            CPU: device.cpuGen || device.cpu || "",
+            RAM: extractRamSize(device.ram) || "",
+            Drive: device.drive1 || device.mainDrive || "",
+            GPU: device.gpu || "",
+            Status: device.condition || "",
+            OS: device.os || device.operatingSystem || "",
+            Remarks: device.remarks || "",
+            lifespan: device.lifespan || "",
+          };
+
+          // Determine target collection based on assignment status
+          const targetCollection =
+            device.assignedTo && device.assignedTo.trim() !== ""
+              ? "DeployedUnits"
+              : "InventoryUnits";
+
+          // Add to appropriate UnitSpecs collection
+          await setDoc(
+            doc(db, targetCollection, device.deviceTag),
+            unitSpecData
+          );
+          syncedCount++;
+        } catch (deviceError) {
+          console.error(
+            `Error syncing device ${device.deviceTag}:`,
+            deviceError
+          );
+        }
+      }
+
+      // Refresh data
+      await fetchData();
+
+      showSuccess(
+        `Successfully synced ${syncedCount} PC/Laptop devices from Inventory to UnitSpecs!`
+      );
+      console.log(`Synced ${syncedCount} PC/Laptop devices to UnitSpecs`);
+    } catch (error) {
+      console.error("Error syncing from inventory:", error);
+      showError("Failed to sync data from Inventory. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prevForm) => {
@@ -328,12 +427,46 @@ const UnitSpecs = () => {
 
       // Auto-generate tag when device type changes (for new units only)
       if (name === "deviceType" && !editId && value) {
-        // Ensure we're using the most current data for tag generation
-        const allDevices = [...inventory, ...deployed];
-        const generatedTag = generateNextDeviceTag(value, allDevices);
-        newForm.Tag = generatedTag;
-        console.log(`Generated tag for ${value}:`, generatedTag); // Debug log
-        console.log("Existing devices count:", allDevices.length); // Debug log
+        if (value === "PC") {
+          // For PC, don't generate tag until CPU System Unit is selected
+          newForm.Tag = "";
+          newForm.cpuSystemUnit = ""; // Reset CPU System Unit when device type changes
+        } else {
+          // For non-PC devices, generate tag immediately
+          const allDevices = [...inventory, ...deployed];
+          const generatedTag = generateNextDeviceTag(value, allDevices);
+          newForm.Tag = generatedTag;
+          console.log(`Generated tag for ${value}:`, generatedTag); // Debug log
+          console.log("Existing devices count:", allDevices.length); // Debug log
+        }
+      }
+
+      // Auto-generate tag when CPU System Unit changes for PC (for new units only)
+      if (
+        name === "cpuSystemUnit" &&
+        !editId &&
+        newForm.deviceType === "PC" &&
+        value
+      ) {
+        const cpuMap = {
+          i3: "I3",
+          i5: "I5",
+          i7: "I7",
+          i9: "I9",
+        };
+        const cpuCode = cpuMap[value];
+        if (cpuCode) {
+          const allDevices = [...inventory, ...deployed];
+          const prefix = `JOIIPC${cpuCode}`;
+          const ids = allDevices
+            .map((d) => d.Tag)
+            .filter((tag) => tag && tag.startsWith(prefix))
+            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          newForm.Tag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          console.log(`Generated PC ${value} tag:`, newForm.Tag); // Debug log
+        }
       }
 
       // Combine cpuGen and cpuModel into the main CPU field
@@ -349,11 +482,20 @@ const UnitSpecs = () => {
         const hasGPU = newForm.GPU && newForm.GPU.trim() !== "";
 
         // High-End: i7+, 16GB+ RAM, SSD/NVMe + GPU
-        if (cpuGen === "i7" && ramValue >= 16 && (drive.includes("ssd") || drive.includes("nvme")) && hasGPU) {
+        if (
+          (cpuGen === "i7" || cpuGen === "i9") &&
+          ramValue >= 16 &&
+          (drive.includes("ssd") || drive.includes("nvme")) &&
+          hasGPU
+        ) {
           return "High-End";
         }
         // Mid-Range: i5/i7, 8GB+ RAM, SSD
-        else if ((cpuGen === "i5" || cpuGen === "i7") && ramValue >= 8 && (drive.includes("ssd") || drive.includes("nvme"))) {
+        else if (
+          (cpuGen === "i5" || cpuGen === "i7") &&
+          ramValue >= 8 &&
+          (drive.includes("ssd") || drive.includes("nvme"))
+        ) {
           return "Mid-Range";
         }
         // Low-End: i3, 4GB RAM, HDD
@@ -479,10 +621,28 @@ const UnitSpecs = () => {
     const cpuGen = cpuParts[0] || "";
     const cpuModel = cpuParts.length > 1 ? cpuParts.slice(1).join(" - ") : "";
 
+    // Extract CPU System Unit for PC devices
+    let extractedCpuSystemUnit = "";
+    if (unit.deviceType === "PC" && unit.Tag) {
+      // Extract CPU type from tag format like JOIIPCI30001, JOIIPCI50001, etc.
+      const pcMatch = unit.Tag.match(/^JOIIPC(I[3579])/);
+      if (pcMatch) {
+        const cpuType = pcMatch[1]; // e.g., "I3", "I5", "I7", "I9"
+        const cpuMap = {
+          I3: "i3",
+          I5: "i5",
+          I7: "i7",
+          I9: "i9",
+        };
+        extractedCpuSystemUnit = cpuMap[cpuType] || "";
+      }
+    }
+
     setForm({
       Tag: unit.Tag || "",
       deviceType: unit.deviceType || "", // Include device type for editing
       category: unit.category || "", // Include category for editing
+      cpuSystemUnit: extractedCpuSystemUnit, // Add extracted CPU System Unit
       cpuGen: cpuGen,
       cpuModel: cpuModel,
       CPU: unit.CPU || "",
@@ -1291,6 +1451,61 @@ const UnitSpecs = () => {
             )}
             <button
               style={{
+                background: "#10b981",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              onClick={syncFromInventory}
+              title="Sync PC and Laptop data from main Inventory"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ marginRight: "8px", verticalAlign: "middle" }}
+              >
+                <path
+                  d="M1 4v6h6"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M23 20v-6h-6"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Sync from Inventory
+            </button>
+            <button
+              style={{
                 background: "#3b82f6",
                 color: "#fff",
                 border: "none",
@@ -1334,7 +1549,14 @@ const UnitSpecs = () => {
               tableLayout: "fixed",
             }}
           >
-            <thead>
+            <thead
+              style={{
+                position: "sticky",
+                top: "0",
+                background: "#f9fafb",
+                zIndex: 10,
+              }}
+            >
               <tr style={{ background: "#f9fafb" }}>
                 {/* Select All Checkbox Column */}
                 <th
@@ -2259,6 +2481,72 @@ const UnitSpecs = () => {
               </select>
             </div>
           </div>
+
+          {/* Row 2.5: CPU - System Unit (for PC devices only) */}
+          {form.deviceType === "PC" && (
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  CPU - System Unit:
+                </label>
+                <select
+                  name="cpuSystemUnit"
+                  value={form.cpuSystemUnit}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: "1.2px solid #cbd5e1",
+                    background: "#f1f5f9",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                  required
+                >
+                  <option value="">Select CPU Type</option>
+                  <option value="i3">i3</option>
+                  <option value="i5">i5</option>
+                  <option value="i7">i7</option>
+                  <option value="i9">i9</option>
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Row 3: TAG */}
           <div

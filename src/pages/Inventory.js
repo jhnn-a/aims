@@ -21,7 +21,7 @@ import {
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export functionality
-import { doc, setDoc } from "firebase/firestore"; // Firestore database operations
+import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
 import { db } from "../utils/firebase"; // Firebase configuration
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
@@ -246,6 +246,28 @@ function DeviceFormModal({
                 <option value="64GB">64 GB RAM</option>
               </select>
             </div>
+          ) : data.deviceType === "PC" ? (
+            <div
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
+            >
+              <label style={styles.inventoryLabel}>CPU - System Unit:</label>
+              <select
+                name="cpuSystemUnit"
+                value={data.cpuSystemUnit}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select CPU Type</option>
+                <option value="i3">i3</option>
+                <option value="i5">i5</option>
+                <option value="i7">i7</option>
+                <option value="i9">i9</option>
+              </select>
+            </div>
           ) : (
             <div
               style={{
@@ -266,7 +288,7 @@ function DeviceFormModal({
           )}
         </div>
 
-        {/* Row 1.5: Brand for RAM (when RAM is selected) */}
+        {/* Row 1.5: Brand for RAM only (when RAM is selected) */}
         {data.deviceType === "RAM" && (
           <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
             <label style={styles.inventoryLabel}>Brand:</label>
@@ -508,7 +530,6 @@ function DeviceFormModal({
                   <option value="16GB">16GB</option>
                   <option value="32GB">32GB</option>
                   <option value="64GB">64GB</option>
-                  <option value="Other">Other</option>
                 </select>
               </div>
             </div>
@@ -912,11 +933,24 @@ function Inventory() {
         : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
-      await updateDevice(assigningDevice.id, {
+      const updatedDevice = {
         ...assigningDevice,
         assignedTo: selectedAssignEmployee.id,
         assignmentDate: new Date(), // Store full timestamp for precise ordering
-      });
+      };
+
+      await updateDevice(assigningDevice.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
+      // Move from InventoryUnits to DeployedUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        assigningDevice.deviceTag,
+        "InventoryUnits",
+        "DeployedUnits"
+      );
+
       await logDeviceHistory({
         employeeId: selectedAssignEmployee.id,
         employeeName: selectedAssignEmployee.fullName,
@@ -939,6 +973,14 @@ function Inventory() {
 
   // === STATE MANAGEMENT ===
   // === FORM STRUCTURE ===
+  const getCurrentDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${month}/${day}/${year}`;
+  };
+
   const initialForm = {
     deviceType: "",
     deviceTag: "",
@@ -947,9 +989,10 @@ function Inventory() {
     condition: "",
     client: "",
     remarks: "",
-    acquisitionDate: "",
+    acquisitionDate: getCurrentDate(),
     ramSize: "", // Size dropdown for RAM devices
     // PC/Laptop specific fields
+    cpuSystemUnit: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
     cpuGen: "",
     ram: "",
     drive1: "",
@@ -1195,8 +1238,17 @@ function Inventory() {
           deviceTag: "",
           ramSize: "", // Reset RAM size when device type changes
         }));
+      } else if (value === "PC") {
+        // For PC, don't generate tag until CPU System Unit is selected
+        setForm((prev) => ({
+          ...prev,
+          deviceType: value,
+          deviceTag: "",
+          cpuSystemUnit: "", // Reset CPU System Unit when device type changes
+          brand: "", // Reset brand for PC devices
+        }));
       } else {
-        // For non-RAM devices, generate tag immediately
+        // For non-RAM and non-PC devices, generate tag immediately
         let newTag = "";
         if (typeObj) {
           const prefix = `JOII${typeObj.code}`;
@@ -1218,6 +1270,52 @@ function Inventory() {
         } else {
           setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
         }
+      }
+      setTagError("");
+      return;
+    }
+    if (name === "cpuSystemUnit") {
+      // When CPU System Unit is selected for PC, generate the specific PC tag
+      if (form.deviceType === "PC" && value) {
+        const cpuMap = {
+          i3: "I3",
+          i5: "I5",
+          i7: "I7",
+          i9: "I9",
+        };
+        const cpuCode = cpuMap[value];
+        if (cpuCode) {
+          const prefix = `JOIIPC${cpuCode}`;
+          // Find max existing tag for this PC CPU type
+          getAllDevices().then((allDevices) => {
+            const ids = allDevices
+              .map((d) => d.deviceTag)
+              .filter((tag) => tag && tag.startsWith(prefix))
+              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({
+              ...prev,
+              cpuSystemUnit: value,
+              deviceTag: newTag,
+              brand: value, // Set brand to CPU System Unit value for PC devices
+            }));
+          });
+        } else {
+          setForm((prev) => ({
+            ...prev,
+            cpuSystemUnit: value,
+            deviceTag: "",
+            brand: value, // Set brand to CPU System Unit value for PC devices
+          }));
+        }
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          cpuSystemUnit: value,
+          brand: form.deviceType === "PC" ? value : prev.brand, // Only set brand for PC devices
+        }));
       }
       setTagError("");
       return;
@@ -1477,6 +1575,129 @@ function Inventory() {
       : "No changes detected";
   };
 
+  // === SYNC TO UNITSPECS FUNCTION ===
+  // Syncs PC and Laptop data from Inventory to UnitSpecs
+  const syncToUnitSpecs = async (deviceData, targetCollection = null) => {
+    try {
+      // Only sync PC and Laptop devices (including all variants)
+      if (
+        !deviceData.deviceType ||
+        ![
+          "PC",
+          "Laptop",
+          "Desktop",
+          "Notebook",
+          "Computer",
+          "Workstation",
+        ].includes(deviceData.deviceType)
+      ) {
+        return; // Skip non-PC/Laptop devices
+      }
+
+      // Map inventory fields to UnitSpecs format with enhanced data extraction
+      const unitSpecData = {
+        Tag: deviceData.deviceTag || "",
+        deviceType: deviceData.deviceType || "",
+        category: deviceData.category || "",
+        cpuGen: extractCpuGen(
+          deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || ""
+        ),
+        cpuModel: extractCpuModel(deviceData.cpuGen || deviceData.cpu || ""),
+        CPU:
+          deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || "",
+        RAM: extractRamSize(deviceData.ram) || "",
+        Drive: deviceData.drive1 || deviceData.mainDrive || "",
+        GPU: deviceData.gpu || "",
+        Status: deviceData.condition || "",
+        OS: deviceData.os || deviceData.operatingSystem || "",
+        Remarks: deviceData.remarks || "",
+        lifespan: deviceData.lifespan || "",
+        brand: deviceData.brand || "",
+        model: deviceData.model || "",
+        acquisitionDate: deviceData.acquisitionDate || "",
+        assignedTo: deviceData.assignedTo || "",
+        assignmentDate: deviceData.assignmentDate || "",
+      };
+
+      // Determine target collection based on assignment status or explicit target
+      let collection = targetCollection;
+      if (!collection) {
+        collection =
+          deviceData.assignedTo && deviceData.assignedTo.trim() !== ""
+            ? "DeployedUnits"
+            : "InventoryUnits";
+      }
+
+      // Add to appropriate UnitSpecs collection
+      await setDoc(doc(db, collection, deviceData.deviceTag), unitSpecData);
+
+      console.log(
+        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection}`
+      );
+    } catch (error) {
+      console.error("Error syncing to UnitSpecs:", error);
+      // Don't throw error to prevent blocking main inventory save
+    }
+  };
+
+  // Helper function to move device between UnitSpecs collections
+  const moveDeviceInUnitSpecs = async (
+    deviceTag,
+    fromCollection,
+    toCollection
+  ) => {
+    try {
+      // Get the device data from the source collection
+      const sourceDocRef = doc(db, fromCollection, deviceTag);
+      const sourceDoc = await sourceDocRef.get();
+
+      if (sourceDoc.exists()) {
+        const deviceData = sourceDoc.data();
+
+        // Add to target collection
+        await setDoc(doc(db, toCollection, deviceTag), deviceData);
+
+        // Remove from source collection
+        await deleteDoc(sourceDocRef);
+
+        console.log(
+          `Moved ${deviceTag} from ${fromCollection} to ${toCollection} in UnitSpecs`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error moving device in UnitSpecs from ${fromCollection} to ${toCollection}:`,
+        error
+      );
+    }
+  };
+
+  // Helper function to extract CPU generation (i3, i5, i7, i9)
+  const extractCpuGen = (cpuString) => {
+    if (!cpuString) return "";
+    // Handle both full CPU strings and cpuSystemUnit values
+    const match = cpuString.match(/(i[3579])/i);
+    return match ? match[1].toLowerCase() : "";
+  };
+
+  // Helper function to extract CPU model
+  const extractCpuModel = (cpuString) => {
+    if (!cpuString) return "";
+    // Remove the generation part and clean up
+    return cpuString
+      .replace(/(i[3579])/i, "")
+      .replace(/^[\s-]+/, "")
+      .trim();
+  };
+
+  // Helper function to extract RAM size in GB
+  const extractRamSize = (ramString) => {
+    if (!ramString) return "";
+    // Extract numbers from RAM string (e.g., "8GB" -> "8", "16 GB" -> "16")
+    const match = ramString.match(/(\d+)/);
+    return match ? match[1] : "";
+  };
+
   const handleSave = async () => {
     setShowForm(false); // Close modal immediately to prevent multiple clicks
     setSaveError("");
@@ -1520,6 +1741,10 @@ function Inventory() {
       if (useSerial) {
         if (!form._editDeviceId) {
           const newDevice = await addDevice(payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
+
           // Log device creation
           await logDeviceHistory({
             employeeId: null,
@@ -1538,6 +1763,9 @@ function Inventory() {
           const changeDescription = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
 
           // Log device update with change details
           await logDeviceHistory({
@@ -1555,6 +1783,10 @@ function Inventory() {
       } else {
         if (!form._editDeviceId) {
           const newDevice = await addDevice(payload, tagPrefix);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
+
           // Log device creation
           await logDeviceHistory({
             employeeId: null,
@@ -1573,6 +1805,9 @@ function Inventory() {
           const changeDescription = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
 
           // Log device update with change details
           await logDeviceHistory({
@@ -1647,17 +1882,39 @@ function Inventory() {
       }
     }
 
+    // Extract CPU System Unit for PC devices
+    let extractedCpuSystemUnit = "";
+    if (matchedType === "PC" && deviceData.deviceTag) {
+      // Extract CPU type from tag format like JOIIPCI30001, JOIIPCI50001, etc.
+      // The format is JOIIPC[CPU_TYPE][NUMBER] where CPU_TYPE can be I3, I5, I7, I9
+      const pcMatch = deviceData.deviceTag.match(/^JOIIPC(I[3579])/);
+      if (pcMatch) {
+        const cpuType = pcMatch[1]; // e.g., "I3", "I5", "I7", "I9"
+
+        // Map the extracted CPU type to the dropdown option format
+        const cpuMap = {
+          I3: "i3",
+          I5: "i5",
+          I7: "i7",
+          I9: "i9",
+        };
+        extractedCpuSystemUnit = cpuMap[cpuType] || "";
+      }
+    }
+
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
       deviceType: matchedType || "",
       deviceTag: deviceData.deviceTag || "",
-      brand: deviceData.brand || "",
+      brand:
+        matchedType === "PC" ? extractedCpuSystemUnit : deviceData.brand || "", // Use CPU System Unit as brand for PC devices
       model: deviceData.model || "",
       client: deviceData.client || "",
       condition: deviceData.condition || "",
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
       ramSize: extractedRamSize, // Add extracted RAM size
+      cpuSystemUnit: extractedCpuSystemUnit, // Add extracted CPU System Unit
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
       // PC/Laptop specifications
@@ -1677,7 +1934,22 @@ function Inventory() {
     const typeObj = deviceTypes.find(
       (t) => t.label.toLowerCase() === matchedType.toLowerCase()
     );
-    const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
+    let expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
+
+    // For PC devices, check for CPU-specific prefixes
+    if (matchedType === "PC" && extractedCpuSystemUnit) {
+      const cpuMap = {
+        i3: "I3",
+        i5: "I5",
+        i7: "I7",
+        i9: "I9",
+      };
+      const cpuCode = cpuMap[extractedCpuSystemUnit];
+      if (cpuCode) {
+        expectedPrefix = `JOIIPC${cpuCode}`;
+      }
+    }
+
     const isSerialFormat =
       deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
     setUseSerial(isSerialFormat);
@@ -1762,7 +2034,7 @@ function Inventory() {
   };
 
   const resetForm = () => {
-    setForm({ ...initialForm });
+    setForm({ ...initialForm, acquisitionDate: getCurrentDate() });
     setUseSerial(false);
     setShowForm(false);
     setSaveError("");
@@ -1806,8 +2078,32 @@ function Inventory() {
             });
           }
         }
+      } else if (form.deviceType === "PC") {
+        // For PC, re-generate based on selected CPU System Unit
+        if (form.cpuSystemUnit) {
+          const cpuMap = {
+            i3: "I3",
+            i5: "I5",
+            i7: "I7",
+            i9: "I9",
+          };
+          const cpuCode = cpuMap[form.cpuSystemUnit];
+          if (cpuCode) {
+            const prefix = `JOIIPC${cpuCode}`;
+            getAllDevices().then((allDevices) => {
+              const ids = allDevices
+                .map((d) => d.deviceTag)
+                .filter((tag) => tag && tag.startsWith(prefix))
+                .map((tag) => parseInt(tag.replace(prefix, "")))
+                .filter((num) => !isNaN(num));
+              const max = ids.length > 0 ? Math.max(...ids) : 0;
+              const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+              setForm((prev) => ({ ...prev, deviceTag: newTag }));
+            });
+          }
+        }
       } else {
-        // For non-RAM devices, use standard logic
+        // For non-RAM and non-PC devices, use standard logic
         const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
         if (typeObj) {
           const prefix = `JOII${typeObj.code}`;
@@ -1891,8 +2187,12 @@ function Inventory() {
           try {
             if (existing) {
               await updateDevice(existing.id, devicePayload); // Overwrite
+              // Sync to UnitSpecs if it's a PC or Laptop
+              await syncToUnitSpecs(devicePayload);
             } else {
               await addDevice(devicePayload);
+              // Sync to UnitSpecs if it's a PC or Laptop
+              await syncToUnitSpecs(devicePayload);
             }
             importedCount++;
           } catch (err) {}
@@ -2023,11 +2323,13 @@ function Inventory() {
   // --- ASSIGN MODAL LOGIC ---
   const [assignModalStep, setAssignModalStep] = useState(0);
   const [assignModalChecks, setAssignModalChecks] = useState({
+    // Radio button selections
+    issueTypeSelected: "", // "newIssue" or "wfh"
+    // Checkbox states
     newIssueNew: false,
     newIssueStock: false,
     wfhNew: false,
     wfhStock: false,
-    temporaryDeploy: false,
   });
   const [assignModalShowGenerate, setAssignModalShowGenerate] = useState(false);
   const [assignModalGenerating, setAssignModalGenerating] = useState(false);
@@ -2046,12 +2348,12 @@ function Inventory() {
     setAssignModalShowGenerate(false); // Reset show generate button
     setSelectedAssignEmployee(null); // Reset selected employee
     setAssignModalChecks({
-      // Reset all checkboxes
+      // Reset all radio buttons and checkboxes
+      issueTypeSelected: "",
       newIssueNew: false,
       newIssueStock: false,
       wfhNew: false,
       wfhStock: false,
-      temporaryDeploy: false,
     });
     setAssignSearch("");
   };
@@ -2062,11 +2364,11 @@ function Inventory() {
     setAssignModalStep(0);
     setSelectedAssignEmployee(null);
     setAssignModalChecks({
+      issueTypeSelected: "",
       newIssueNew: false,
       newIssueStock: false,
       wfhNew: false,
       wfhStock: false,
-      temporaryDeploy: false,
     });
     setAssignModalShowGenerate(false);
     setProgress(0);
@@ -2078,14 +2380,105 @@ function Inventory() {
     setAssignSearch("");
   };
 
-  const handleAssignModalCheckbox = (e) => {
+  const handleAssignModalRadio = (issueType) => {
+    // Get devices to check - either single device or selected devices for bulk assign
+    let devicesToCheck = [];
+    if (assigningDevice) {
+      // Single device assignment
+      devicesToCheck = [assigningDevice];
+    } else if (selectedIds.length > 0) {
+      // Bulk assignment - get selected devices
+      devicesToCheck = devices.filter(device => selectedIds.includes(device.id));
+    }
+
+    // Analyze device conditions
+    const hasGoodDevices = devicesToCheck.some(device => device.condition === "GOOD");
+    const hasBrandNewDevices = devicesToCheck.some(device => device.condition === "BRANDNEW");
+
+    // Determine automatic checkbox selection based on device conditions
+    let autoChecks = {
+      newIssueNew: false,
+      newIssueStock: false,
+      wfhNew: false,
+      wfhStock: false,
+    };
+
+    if (hasGoodDevices && hasBrandNewDevices) {
+      // Mixed conditions: select both 'Newly Purchased' and 'Stock'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueNew = true;
+        autoChecks.newIssueStock = true;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhNew = true;
+        autoChecks.wfhStock = true;
+      }
+    } else if (hasBrandNewDevices) {
+      // Only BRANDNEW devices: select both 'Newly Purchased' and 'Stock'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueNew = true;
+        autoChecks.newIssueStock = true;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhNew = true;
+        autoChecks.wfhStock = true;
+      }
+    } else if (hasGoodDevices) {
+      // Only GOOD devices: select only 'Stock'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueStock = true;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhStock = true;
+      }
+    }
+
     setAssignModalChecks((prev) => ({
       ...prev,
-      [e.target.name]: e.target.checked,
+      issueTypeSelected: issueType,
+      // Set automatic checkbox selections based on device conditions
+      ...autoChecks,
     }));
   };
 
+  const handleAssignModalCheckbox = (e) => {
+    const { name, checked } = e.target;
+    
+    setAssignModalChecks((prev) => {
+      const newState = { ...prev };
+      
+      // Handle Newly Purchased logic
+      if (name === "newIssueNew" || name === "wfhNew") {
+        newState[name] = checked;
+        
+        if (checked) {
+          // Auto-select Stock when Newly Purchased is selected
+          if (name === "newIssueNew") {
+            newState.newIssueStock = true;
+          } else if (name === "wfhNew") {
+            newState.wfhStock = true;
+          }
+        }
+      } else if (name === "newIssueStock" || name === "wfhStock") {
+        // Only allow unchecking Stock if Newly Purchased is not selected
+        const newlyPurchasedField = name === "newIssueStock" ? "newIssueNew" : "wfhNew";
+        if (!prev[newlyPurchasedField]) {
+          newState[name] = checked;
+        }
+        // If Newly Purchased is selected, Stock remains checked (disabled behavior)
+      }
+      
+      return newState;
+    });
+  };
+
   const handleAssignModalNext = () => {
+    // Validate that either New Issue or Work From Home is selected
+    if (!assignModalChecks.issueTypeSelected) {
+      showError("Please select either 'New Issue' or 'Work From Home/Borrowed' option.");
+      return;
+    }
+    
+    // Note: Checkbox validation is no longer needed since they are automatically selected
+    // based on device condition when a radio button is chosen
+    
     setAssignModalShowGenerate(true);
   };
 
@@ -2150,9 +2543,7 @@ function Inventory() {
             brand: dev.brand,
             deviceTag: dev.deviceTag,
             condition: dev.condition,
-            remarks: assignModalChecks.temporaryDeploy
-              ? "temporary deployed"
-              : dev.remarks,
+            remarks: dev.remarks,
           };
         }),
         // Dual placeholders for colored checkboxes
@@ -2203,14 +2594,26 @@ function Inventory() {
     const devicesToAssign = devices.filter((d) => selectedIds.includes(d.id));
 
     for (const dev of devicesToAssign) {
-      await updateDevice(dev.id, {
+      const updatedDevice = {
         ...dev,
         assignedTo: selectedAssignEmployee.id,
         assignmentDate: new Date(), // Store full timestamp for precise ordering
-        remarks: assignModalChecks.temporaryDeploy
-          ? "temporary deployed"
-          : dev.remarks,
-      });
+        remarks: dev.remarks,
+        assignmentType: assignModalChecks.issueTypeSelected, // Store assignment type: "newIssue" or "wfh"
+      };
+
+      await updateDevice(dev.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
+      // Move from InventoryUnits to DeployedUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        dev.deviceTag,
+        "InventoryUnits",
+        "DeployedUnits"
+      );
+
       await logDeviceHistory({
         employeeId: selectedAssignEmployee.id,
         employeeName: selectedAssignEmployee.fullName,
@@ -2218,6 +2621,7 @@ function Inventory() {
         deviceTag: dev.deviceTag,
         action: "assigned",
         date: new Date(), // Store full timestamp for precise ordering
+        assignmentType: assignModalChecks.issueTypeSelected, // Store assignment type for history tracking
       });
     }
 
@@ -2372,6 +2776,10 @@ function Inventory() {
       // console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
       try {
         const newDevice = await addDevice(payload);
+
+        // Sync to UnitSpecs if it's a PC or Laptop
+        await syncToUnitSpecs(payload);
+
         // Log device creation
         await logDeviceHistory({
           employeeId: null,
@@ -2762,6 +3170,10 @@ function Inventory() {
 
           try {
             const newDevice = await addDevice(payload);
+
+            // Sync to UnitSpecs if it's a PC or Laptop
+            await syncToUnitSpecs(payload);
+
             // Log device creation
             await logDeviceHistory({
               employeeId: null,
@@ -3248,11 +3660,18 @@ function Inventory() {
         { label: "Laptop", code: "LPT" },
         { label: "Monitor", code: "MN" },
         { label: "Mouse", code: "M" },
-        { label: "PC", code: "PC" },
         { label: "PSU", code: "PSU" },
         { label: "SSD", code: "SSD" },
         { label: "UPS", code: "UPS" },
         { label: "Webcam", code: "W" },
+      ];
+
+      // PC CPU types to track separately
+      const pcCpuTypes = [
+        { label: "PC i3", code: "PCI3", prefix: "JOIIPCI3" },
+        { label: "PC i5", code: "PCI5", prefix: "JOIIPCI5" },
+        { label: "PC i7", code: "PCI7", prefix: "JOIIPCI7" },
+        { label: "PC i9", code: "PCI9", prefix: "JOIIPCI9" },
       ];
 
       // RAM sizes to track separately
@@ -3266,7 +3685,7 @@ function Inventory() {
 
       const lastTagsResults = [];
 
-      // Process regular device types (excluding RAM)
+      // Process regular device types (excluding RAM and PC)
       deviceTypesList.forEach((type) => {
         const prefix = `JOII${type.code}`;
 
@@ -3298,12 +3717,44 @@ function Inventory() {
         });
       });
 
+      // Process PC CPU types separately
+      pcCpuTypes.forEach((pcType) => {
+        // Find existing tags with this PC CPU type prefix
+        const existingTags = allDevices
+          .filter(
+            (device) =>
+              device.deviceTag && device.deviceTag.startsWith(pcType.prefix)
+          )
+          .map((device) => {
+            const tagNumber = device.deviceTag.replace(pcType.prefix, "");
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${pcType.prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        lastTagsResults.push({
+          deviceType: pcType.label,
+          code: pcType.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        });
+      });
+
       // Process RAM sizes separately
       ramSizes.forEach((ramType) => {
         // Find existing tags with this RAM size prefix
         const existingTags = allDevices
           .filter(
-            (device) => device.deviceTag && device.deviceTag.startsWith(ramType.prefix)
+            (device) =>
+              device.deviceTag && device.deviceTag.startsWith(ramType.prefix)
           )
           .map((device) => {
             const tagNumber = device.deviceTag.replace(ramType.prefix, "");
@@ -3351,11 +3802,11 @@ function Inventory() {
     if (isDragging) {
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
-      
+
       // Keep window within viewport bounds
       const maxX = window.innerWidth - 400; // Window width
       const maxY = window.innerHeight - 100; // Minimum visible height
-      
+
       setLastTagsPosition({
         x: Math.max(0, Math.min(newX, maxX)),
         y: Math.max(0, Math.min(newY, maxY)),
@@ -3370,19 +3821,19 @@ function Inventory() {
   // Add global mouse event listeners for dragging
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'grabbing';
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "grabbing";
     } else {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'default';
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "default";
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'default';
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "default";
     };
   }, [isDragging, dragOffset]);
 
@@ -3551,7 +4002,13 @@ function Inventory() {
             }}
           >
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setForm({ ...initialForm, acquisitionDate: getCurrentDate() });
+                setUseSerial(false);
+                setSaveError("");
+                setTagError("");
+                setShowForm(true);
+              }}
               style={{
                 background: "#3b82f6",
                 color: "#fff",
@@ -4065,7 +4522,7 @@ function Inventory() {
                 tableLayout: "fixed", // Fixed layout for better column control
               }}
             >
-              <thead>
+              <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row */}
                 <tr style={{ background: "#f9fafb" }}>
                   <th
@@ -5288,6 +5745,41 @@ function Inventory() {
                     {selectedAssignEmployee.fullName}
                   </span>
                 </h4>
+                
+                {/* Device condition information */}
+                {(assigningDevice || selectedIds.length > 0) && (
+                  <div
+                    style={{
+                      background: "#fef3c7",
+                      border: "1px solid #f59e0b",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 16,
+                      fontSize: 14,
+                      color: "#92400e",
+                    }}
+                  >
+                    {assigningDevice ? (
+                      <>
+                        <strong>Device Condition: {assigningDevice.condition}</strong>
+                        <br />
+                        {assigningDevice.condition === "GOOD" && 
+                          "Checkboxes will be automatically selected based on device condition (Stock only)."
+                        }
+                        {assigningDevice.condition === "BRANDNEW" && 
+                          "Checkboxes will be automatically selected based on device condition (Newly Purchased + Stock)."
+                        }
+                      </>
+                    ) : (
+                      <>
+                        <strong>Bulk Assignment: {selectedIds.length} device(s) selected</strong>
+                        <br />
+                        Checkboxes will be automatically selected based on mixed device conditions.
+                      </>
+                    )}
+                  </div>
+                )}
+                
                 <div
                   style={{
                     ...styles.modalSection,
@@ -5298,148 +5790,152 @@ function Inventory() {
                     marginBottom: 16,
                   }}
                 >
-                  <div
-                    style={{
-                      ...styles.modalLabel,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#374151",
-                      marginBottom: 12,
-                    }}
-                  >
-                    New Issue:
-                  </div>
-                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="newIssueNew"
-                        checked={assignModalChecks.newIssueNew}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Newly Purchased
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="newIssueStock"
-                        checked={assignModalChecks.newIssueStock}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Stock
-                    </label>
-                  </div>
-                  <div
-                    style={{
-                      ...styles.modalLabel,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#374151",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Work From Home/Borrowed:
-                  </div>
-                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="wfhNew"
-                        checked={assignModalChecks.wfhNew}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Newly Purchased
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="wfhStock"
-                        checked={assignModalChecks.wfhStock}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Stock
-                    </label>
-                  </div>
-                  <div style={{ marginTop: 4 }}>
+                  {/* New Issue Section */}
+                  <div style={{ marginBottom: 24 }}>
                     <label
                       style={{
                         display: "flex",
                         alignItems: "center",
                         fontSize: 14,
                         fontWeight: 600,
-                        color: "#dc2626",
+                        color: "#374151",
+                        marginBottom: 12,
                         cursor: "pointer",
                       }}
                     >
                       <input
-                        type="checkbox"
-                        name="temporaryDeploy"
-                        checked={assignModalChecks.temporaryDeploy}
-                        onChange={handleAssignModalCheckbox}
+                        type="radio"
+                        name="issueType"
+                        checked={assignModalChecks.issueTypeSelected === "newIssue"}
+                        onChange={() => handleAssignModalRadio("newIssue")}
                         style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#dc2626",
                           marginRight: 8,
+                          transform: "scale(1.2)",
+                          accentColor: "#2563eb",
                         }}
-                      />{" "}
-                      Temporary Deploy
+                      />
+                      New Issue
                     </label>
+                    <div style={{ marginLeft: 28, display: "flex", gap: 20 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="newIssueNew"
+                          checked={assignModalChecks.newIssueNew}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#2563eb",
+                          }}
+                        />
+                        Newly Purchased
+                      </label>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="newIssueStock"
+                          checked={assignModalChecks.newIssueStock}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#2563eb",
+                          }}
+                        />
+                        Stock
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Work From Home/Borrowed Section */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#374151",
+                        marginBottom: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="issueType"
+                        checked={assignModalChecks.issueTypeSelected === "wfh"}
+                        onChange={() => handleAssignModalRadio("wfh")}
+                        style={{
+                          marginRight: 8,
+                          transform: "scale(1.2)",
+                          accentColor: "#2563eb",
+                        }}
+                      />
+                      Work From Home/Borrowed
+                    </label>
+                    <div style={{ marginLeft: 28, display: "flex", gap: 20 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="wfhNew"
+                          checked={assignModalChecks.wfhNew}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#2563eb",
+                          }}
+                        />
+                        Newly Purchased
+                      </label>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="wfhStock"
+                          checked={assignModalChecks.wfhStock}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#2563eb",
+                          }}
+                        />
+                        Stock
+                      </label>
+                    </div>
                   </div>
                 </div>
                 {!assignModalShowGenerate && (
@@ -5935,7 +6431,7 @@ function Inventory() {
                           <label style={styles.inventoryLabel}>Quantity:</label>
                           <input
                             type="number"
-                            value={currentData.manualQuantity || 1}
+                            value={currentData.manualQuantity || ""}
                             onChange={handleQuantityChange}
                             style={styles.inventoryInput}
                             min="1"
@@ -5957,7 +6453,7 @@ function Inventory() {
                           <input
                             name="quantity"
                             type="number"
-                            value={currentData.quantity || 1}
+                            value={currentData.quantity || ""}
                             onChange={handleNewAcqInput}
                             style={styles.inventoryInput}
                             min="1"
@@ -6848,10 +7344,12 @@ function Inventory() {
             maxHeight: isLastTagsMinimized ? "50px" : "600px",
             background: "#ffffff",
             borderRadius: "12px",
-            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+            boxShadow:
+              "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
             border: "2px solid #e5e7eb",
             zIndex: 1000,
-            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontFamily:
+              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             overflow: "hidden",
             transition: "all 0.3s ease",
             transform: isDragging ? "rotate(2deg)" : "rotate(0deg)",
@@ -6898,7 +7396,7 @@ function Inventory() {
                 {isLastTagsMinimized ? "Last Tags" : "Last Used Tags"}
               </span>
             </div>
-            
+
             <div style={{ display: "flex", gap: "8px" }}>
               {/* Minimize/Restore Button */}
               <button
@@ -6923,16 +7421,26 @@ function Inventory() {
                 }}
               >
                 {isLastTagsMinimized ? (
-                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 13H5v-2h14v2z"/>
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M19 13H5v-2h14v2z" />
                   </svg>
                 )}
               </button>
-              
+
               {/* Close Button */}
               <button
                 onClick={handleClose}
@@ -6955,8 +7463,13 @@ function Inventory() {
                   e.target.style.background = "rgba(255, 255, 255, 0.2)";
                 }}
               >
-                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                <svg
+                  width="12"
+                  height="12"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                 </svg>
               </button>
             </div>
@@ -6998,7 +7511,8 @@ function Inventory() {
                       e.target.style.transform = "translateY(-1px)";
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.background = index % 2 === 0 ? "#f8fafc" : "#ffffff";
+                      e.target.style.background =
+                        index % 2 === 0 ? "#f8fafc" : "#ffffff";
                       e.target.style.borderColor = "#e2e8f0";
                       e.target.style.transform = "translateY(0)";
                     }}
@@ -7012,7 +7526,8 @@ function Inventory() {
                     >
                       <span
                         style={{
-                          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          background:
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                           color: "#fff",
                           padding: "3px 6px",
                           borderRadius: "4px",
@@ -7046,13 +7561,23 @@ function Inventory() {
                       <span
                         style={{
                           fontWeight: "600",
-                          color: item.lastTag === "No tags used yet" ? "#ef4444" : "#2563eb",
+                          color:
+                            item.lastTag === "No tags used yet"
+                              ? "#ef4444"
+                              : "#2563eb",
                           fontSize: "12px",
                           fontFamily: "monospace",
-                          background: item.lastTag === "No tags used yet" ? "#fef2f2" : "#eff6ff",
+                          background:
+                            item.lastTag === "No tags used yet"
+                              ? "#fef2f2"
+                              : "#eff6ff",
                           padding: "2px 6px",
                           borderRadius: "4px",
-                          border: `1px solid ${item.lastTag === "No tags used yet" ? "#fecaca" : "#dbeafe"}`,
+                          border: `1px solid ${
+                            item.lastTag === "No tags used yet"
+                              ? "#fecaca"
+                              : "#dbeafe"
+                          }`,
                         }}
                       >
                         {item.lastTag}
@@ -7075,7 +7600,8 @@ function Inventory() {
               <div
                 style={{
                   padding: "12px",
-                  background: "linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)",
+                  background:
+                    "linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)",
                   borderRadius: "8px",
                   border: "1px solid #bae6fd",
                 }}
@@ -7088,7 +7614,12 @@ function Inventory() {
                     marginBottom: "6px",
                   }}
                 >
-                  <svg width="14" height="14" fill="#0369a1" viewBox="0 0 24 24">
+                  <svg
+                    width="14"
+                    height="14"
+                    fill="#0369a1"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span
@@ -7109,12 +7640,13 @@ function Inventory() {
                     lineHeight: "1.4",
                   }}
                 >
-                  Next available tag = Last tag + 1. Example: JOIILPT0005 → Next: JOIILPT0006
+                  Next available tag = Last tag + 1. Example: JOIILPT0005 →
+                  Next: JOIILPT0006
                 </p>
               </div>
             </div>
           )}
-          
+
           {/* Sticky Note Visual Indicator */}
           <div
             style={{

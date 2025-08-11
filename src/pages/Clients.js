@@ -487,6 +487,9 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
     tableHeader: {
       background: "#f9fafb",
       borderBottom: "1px solid #d1d5db",
+      position: "sticky",
+      top: "0",
+      zIndex: 10,
     },
     th: {
       padding: "12px 16px",
@@ -495,6 +498,10 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
       color: "#374151",
       textAlign: "left",
       borderRight: "1px solid #d1d5db",
+      position: "sticky",
+      top: "0",
+      background: "#f9fafb",
+      zIndex: 10,
     },
     td: {
       padding: "12px 16px",
@@ -1101,7 +1108,14 @@ function Clients() {
                 tableLayout: "fixed",
               }}
             >
-              <thead>
+              <thead
+                style={{
+                  position: "sticky",
+                  top: "0",
+                  background: "#f9fafb",
+                  zIndex: 10,
+                }}
+              >
                 <tr style={{ background: "#f9fafb" }}>
                   <th
                     style={{

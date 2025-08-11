@@ -30,6 +30,8 @@ import {
   formatDateToYYYYMMDD,
   formatDateToMMDDYYYY,
 } from "../pages/InventoryUtils"; // Date formatting utilities
+import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
+import { db } from "../utils/firebase"; // Firebase configuration
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -753,6 +755,109 @@ function Assets() {
     setSelectedDeviceForHistory(null);
   };
 
+  // === UNITSPECS SYNC FUNCTIONS ===
+  // Helper functions to extract data for UnitSpecs
+  const extractCpuGen = (cpuString) => {
+    if (!cpuString) return "";
+    const match = cpuString.match(/(i[357])/i);
+    return match ? match[1].toLowerCase() : "";
+  };
+
+  const extractCpuModel = (cpuString) => {
+    if (!cpuString) return "";
+    return cpuString
+      .replace(/(i[357])/i, "")
+      .replace(/^[\s-]+/, "")
+      .trim();
+  };
+
+  const extractRamSize = (ramString) => {
+    if (!ramString) return "";
+    const match = ramString.match(/(\d+)/);
+    return match ? match[1] : "";
+  };
+
+  // Function to sync PC/Laptop data to UnitSpecs
+  const syncToUnitSpecs = async (deviceData, targetCollection = null) => {
+    try {
+      // Only sync PC and Laptop devices
+      if (
+        !deviceData.deviceType ||
+        !["PC", "Laptop", "Desktop", "Notebook"].includes(deviceData.deviceType)
+      ) {
+        return; // Skip non-PC/Laptop devices
+      }
+
+      // Map inventory fields to UnitSpecs format
+      const unitSpecData = {
+        Tag: deviceData.deviceTag || "",
+        deviceType: deviceData.deviceType || "",
+        category: deviceData.category || "",
+        cpuGen: extractCpuGen(deviceData.cpuGen || deviceData.cpu || ""),
+        cpuModel: extractCpuModel(deviceData.cpuGen || deviceData.cpu || ""),
+        CPU: deviceData.cpuGen || deviceData.cpu || "",
+        RAM: extractRamSize(deviceData.ram) || "",
+        Drive: deviceData.drive1 || deviceData.mainDrive || "",
+        GPU: deviceData.gpu || "",
+        Status: deviceData.condition || "",
+        OS: deviceData.os || deviceData.operatingSystem || "",
+        Remarks: deviceData.remarks || "",
+        lifespan: deviceData.lifespan || "",
+      };
+
+      // Determine target collection based on assignment status or explicit target
+      let collection = targetCollection;
+      if (!collection) {
+        collection =
+          deviceData.assignedTo && deviceData.assignedTo.trim() !== ""
+            ? "DeployedUnits"
+            : "InventoryUnits";
+      }
+
+      // Add to appropriate UnitSpecs collection
+      await setDoc(doc(db, collection, deviceData.deviceTag), unitSpecData);
+
+      console.log(
+        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection}`
+      );
+    } catch (error) {
+      console.error("Error syncing to UnitSpecs:", error);
+      // Don't throw error to prevent blocking main operation
+    }
+  };
+
+  // Helper function to move device between UnitSpecs collections
+  const moveDeviceInUnitSpecs = async (
+    deviceTag,
+    fromCollection,
+    toCollection
+  ) => {
+    try {
+      // Get the device data from the source collection
+      const sourceDocRef = doc(db, fromCollection, deviceTag);
+      const sourceDoc = await getDoc(sourceDocRef);
+
+      if (sourceDoc.exists()) {
+        const deviceData = sourceDoc.data();
+
+        // Add to target collection
+        await setDoc(doc(db, toCollection, deviceTag), deviceData);
+
+        // Remove from source collection
+        await deleteDoc(sourceDocRef);
+
+        console.log(
+          `Moved ${deviceTag} from ${fromCollection} to ${toCollection} in UnitSpecs`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error moving device in UnitSpecs from ${fromCollection} to ${toCollection}:`,
+        error
+      );
+    }
+  };
+
   const handleUnassign = (device) => {
     setUnassignDevice(device);
     setUnassignReason("working");
@@ -770,7 +875,7 @@ function Assets() {
     }
     try {
       const { id, ...deviceWithoutId } = unassignDevice;
-      await updateDevice(unassignDevice.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: "",
         assignmentDate: "",
@@ -781,7 +886,20 @@ function Assets() {
           (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
             ? ""
             : deviceWithoutId.remarks,
-      });
+      };
+
+      await updateDevice(unassignDevice.id, updatedDevice);
+
+      // Sync to UnitSpecs InventoryUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "InventoryUnits");
+
+      // Move from DeployedUnits to InventoryUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        unassignDevice.deviceTag,
+        "DeployedUnits",
+        "InventoryUnits"
+      );
+
       await logDeviceHistory({
         employeeId: unassignDevice.assignedTo,
         deviceId: unassignDevice.id,
@@ -996,11 +1114,17 @@ function Assets() {
         });
       }
       const { id: _id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: emp.id,
         assignmentDate: new Date().toISOString().slice(0, 10),
-      });
+      };
+
+      await updateDevice(device.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
       await logDeviceHistory({
         employeeId: emp.id,
         deviceId: device.id,
@@ -1072,7 +1196,7 @@ function Assets() {
     // Update all devices and log history
     for (const device of selected) {
       const { id: _id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: "",
         assignmentDate: "",
@@ -1082,7 +1206,20 @@ function Assets() {
           (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
             ? ""
             : deviceWithoutId.remarks,
-      });
+      };
+
+      await updateDevice(device.id, updatedDevice);
+
+      // Sync to UnitSpecs InventoryUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "InventoryUnits");
+
+      // Move from DeployedUnits to InventoryUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        device.deviceTag,
+        "DeployedUnits",
+        "InventoryUnits"
+      );
+
       await logDeviceHistory({
         employeeId: device.assignedTo,
         deviceId: device.id,
@@ -1793,7 +1930,7 @@ function Assets() {
                 border: "1px solid #d1d5db",
               }}
             >
-              <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+              <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row with Column Titles */}
                 <tr
                   style={{
@@ -1812,6 +1949,10 @@ function Assets() {
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     <input
@@ -1841,6 +1982,10 @@ function Assets() {
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     #
@@ -1858,6 +2003,10 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Device Tag
@@ -1875,6 +2024,10 @@ function Assets() {
                       width: "130px",
                       maxWidth: "130px",
                       minWidth: "110px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Type
@@ -1892,6 +2045,10 @@ function Assets() {
                       width: "150px",
                       maxWidth: "150px",
                       minWidth: "120px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Brand
@@ -1909,6 +2066,10 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Model
@@ -1926,6 +2087,10 @@ function Assets() {
                       width: "200px",
                       maxWidth: "200px",
                       minWidth: "180px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Assigned To
@@ -1943,6 +2108,10 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Date Assigned
@@ -1960,6 +2129,10 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "70px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Condition
@@ -1977,6 +2150,10 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Remarks
@@ -1992,6 +2169,10 @@ function Assets() {
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       width: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Actions
@@ -2011,6 +2192,10 @@ function Assets() {
                       border: "1px solid #d1d5db",
                       width: "40px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {hasActiveHeaderFilters && (
@@ -2047,6 +2232,10 @@ function Assets() {
                       padding: "8px 12px",
                       border: "1px solid #d1d5db",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {/* No filter for row number */}
@@ -2059,6 +2248,10 @@ function Assets() {
                       maxWidth: "120px",
                       minWidth: "100px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2077,6 +2270,10 @@ function Assets() {
                       maxWidth: "130px",
                       minWidth: "110px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DropdownFilter
@@ -2096,6 +2293,10 @@ function Assets() {
                       maxWidth: "150px",
                       minWidth: "120px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2112,6 +2313,10 @@ function Assets() {
                       maxWidth: "180px",
                       minWidth: "150px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2128,6 +2333,10 @@ function Assets() {
                       maxWidth: "200px",
                       minWidth: "180px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2146,6 +2355,10 @@ function Assets() {
                       maxWidth: "120px",
                       minWidth: "100px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DateFilter
@@ -2164,6 +2377,10 @@ function Assets() {
                       maxWidth: "120px",
                       minWidth: "70px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DropdownFilter
@@ -2183,6 +2400,10 @@ function Assets() {
                       maxWidth: "180px",
                       minWidth: "150px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2197,6 +2418,10 @@ function Assets() {
                       border: "1px solid #d1d5db",
                       width: "100px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {/* No filter for actions */}

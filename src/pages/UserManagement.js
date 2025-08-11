@@ -610,7 +610,14 @@ function UserManagement() {
                   tableLayout: "fixed",
                 }}
               >
-                <thead>
+                <thead
+                  style={{
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
+                  }}
+                >
                   <tr style={{ background: "#f9fafb" }}>
                     <th
                       style={{

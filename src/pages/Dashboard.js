@@ -6,6 +6,8 @@ import { exportDashboardToExcel } from "../utils/exportDashboardToExcel";
 import { getDeviceHistory } from "../services/deviceHistoryService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useCurrentUser } from "../CurrentUserContext";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../utils/firebase";
 import {
   PieChart,
   Pie,
@@ -75,8 +77,26 @@ function CustomPieChart({ data, title, height = 300 }) {
   );
 }
 
-// Custom Bar Chart Component
+// Custom Bar Chart Component with internal labels
 function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
+  // Custom label function for bars
+  const renderCustomLabel = (props) => {
+    const { x, y, width, height, value } = props;
+    return (
+      <text 
+        x={x + width / 2} 
+        y={y + height / 2} 
+        fill="#ffffff" 
+        textAnchor="middle" 
+        dominantBaseline="middle"
+        fontSize="12"
+        fontWeight="600"
+      >
+        {value}
+      </text>
+    );
+  };
+
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: 24, border: '1px solid #e0e7ef' }}>
       <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: 18, fontWeight: 600 }}>{title}</h3>
@@ -86,7 +106,11 @@ function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
           <XAxis dataKey={xKey} />
           <YAxis />
           <Tooltip />
-          <Bar dataKey={yKey} fill="#2563eb" />
+          <Bar 
+            dataKey={yKey} 
+            fill="#2563eb"
+            label={renderCustomLabel}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -137,7 +161,6 @@ function Dashboard() {
   
   // Scroll to top button state
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [scrollPosition, setScrollPosition] = useState(0);
   
   // Core metrics state
   const [employeeCount, setEmployeeCount] = useState(0);
@@ -157,8 +180,10 @@ function Dashboard() {
   
   // Enhanced dashboard state
   const [clientAllocation, setClientAllocation] = useState([]);
-  const [deviceLifecycle, setDeviceLifecycle] = useState([]);
   const [utilizationRate, setUtilizationRate] = useState(0);
+  const [totalAdmins, setTotalAdmins] = useState(0);
+  const [workingDevices, setWorkingDevices] = useState([]);
+  const [employeeMap, setEmployeeMap] = useState({});
   const [timeRange, setTimeRange] = useState('30days');
   const [loading, setLoading] = useState(true);
   const [systemHistory, setSystemHistory] = useState([]);
@@ -187,7 +212,6 @@ function Dashboard() {
         }
       }
       
-      setScrollPosition(scrollTop);
       setShowScrollTop(scrollTop > 200);
     };
 
@@ -278,6 +302,11 @@ function Dashboard() {
           getAllClients(),
         ]);
         
+        // Fetch total admins from users collection
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const totalAdminsCount = usersSnapshot.size;
+        setTotalAdmins(totalAdminsCount);
+        
         setEmployeeCount(employees.length);
         setDeviceCount(devices.length);
         setClientCount(clients.length);
@@ -298,6 +327,13 @@ function Dashboard() {
           d.status !== "Disposed"
         ).length;
         setInventoryCount(inventory);
+        
+        // Get working devices (GOOD or BRANDNEW condition)
+        const workingDevicesList = devices.filter((d) => 
+          d.condition === "GOOD" || d.condition === "BRANDNEW"
+        );
+        setWorkingDevices(workingDevicesList);
+        setAllDevices(devices); // Store all devices for later use
 
         // Build employeeId → employeeName map
         const empMap = {};
@@ -310,6 +346,7 @@ function Dashboard() {
             empMap[docId] = emp.fullName.trim();
           }
         });
+        setEmployeeMap(empMap); // Store employee map in state
 
         // Count device types
         const typeMap = {};
@@ -362,33 +399,6 @@ function Dashboard() {
           .sort((a, b) => b.count - a.count);
         setClientAllocation(clientAllocationData);
 
-        // Device lifecycle calculation
-        const currentDate = new Date();
-        const lifecycleMap = { "< 1 year": 0, "1-3 years": 0, "> 3 years": 0, "Unknown": 0 };
-        
-        devices.forEach(device => {
-          const purchaseDate = device.purchaseDate || device.dateDeployed;
-          if (purchaseDate) {
-            const deviceDate = new Date(purchaseDate);
-            const yearsDiff = (currentDate - deviceDate) / (1000 * 60 * 60 * 24 * 365);
-            
-            if (yearsDiff < 1) {
-              lifecycleMap["< 1 year"]++;
-            } else if (yearsDiff <= 3) {
-              lifecycleMap["1-3 years"]++;
-            } else {
-              lifecycleMap["> 3 years"]++;
-            }
-          } else {
-            lifecycleMap["Unknown"]++;
-          }
-        });
-        
-        const lifecycleData = Object.entries(lifecycleMap)
-          .map(([age, count]) => ({ age, count }))
-          .filter(item => item.count > 0);
-        setDeviceLifecycle(lifecycleData);
-
         // Utilization rate calculation
         const totalDevices = devices.length;
         const devicesInUse = devices.filter(d => d.status === "In Use").length;
@@ -396,16 +406,50 @@ function Dashboard() {
         setUtilizationRate(utilization);
 
         // Fetch system history
-        const history = await getDeviceHistory();
-        const sorted = history.sort(
-          (a, b) => new Date(b.date) - new Date(a.date)
-        );
-        const last10 = sorted.slice(0, 10);
-        const formatted = last10.map((entry) => ({
-          event: formatHistoryEvent(entry, empMap),
-          date: formatShortDate(entry.date),
-        }));
-        setSystemHistory(formatted);
+        try {
+          const history = await getDeviceHistory();
+          console.log("Device history data:", history); // Debug log
+          const sorted = history.sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+          );
+          const last10 = sorted.slice(0, 10);
+          const formatted = last10.map((entry) => ({
+            event: formatHistoryEvent(entry, empMap),
+            date: formatShortDate(entry.date),
+          }));
+          console.log("Formatted history:", formatted); // Debug log
+          
+          // If no history data, provide fallback
+          if (formatted.length === 0) {
+            const fallbackHistory = [
+              {
+                event: "No recent activity found",
+                date: formatShortDate(new Date().toISOString()),
+              },
+              {
+                event: "System monitoring active",
+                date: formatShortDate(new Date().toISOString()),
+              }
+            ];
+            setSystemHistory(fallbackHistory);
+          } else {
+            setSystemHistory(formatted);
+          }
+        } catch (historyError) {
+          console.error("Error fetching device history:", historyError);
+          // Provide fallback sample data if no history exists
+          const fallbackHistory = [
+            {
+              event: "System initialized",
+              date: formatShortDate(new Date().toISOString()),
+            },
+            {
+              event: "Dashboard loaded",
+              date: formatShortDate(new Date().toISOString()),
+            }
+          ];
+          setSystemHistory(fallbackHistory);
+        }
         
         setLoading(false);
       } catch (error) {
@@ -547,10 +591,10 @@ function Dashboard() {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#6b7280', marginBottom: 8 }}>
-            Utilization Rate
+            Total Admins
           </div>
           <div style={{ fontSize: 32, fontWeight: 800, color: '#22c55e' }}>
-            {utilizationRate}%
+            {totalAdmins}
           </div>
         </div>
         
@@ -627,14 +671,83 @@ function Dashboard() {
           />
         )}
         
-        {/* Device Lifecycle Overview */}
-        {deviceLifecycle.length > 0 && (
-          <CustomPieChart 
-            data={deviceLifecycle.map(item => ({ name: item.age, value: item.count }))} 
-            title="📅 Device Lifecycle Overview" 
-            height={350}
-          />
-        )}
+        {/* Working Devices Table */}
+        <div style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: 24,
+          border: '1px solid #e0e7ef'
+        }}>
+          <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: 18, fontWeight: 600 }}>
+            🔧 Working Devices
+          </h3>
+          <div style={{ overflowX: 'auto', maxHeight: 400, overflowY: 'auto' }}>
+            {workingDevices.length === 0 ? (
+              <div style={{ 
+                color: '#6b7280', 
+                textAlign: 'center', 
+                padding: 20,
+                fontStyle: 'italic'
+              }}>
+                No working devices found
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #e0e7ef' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Device Tag</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Type</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Status</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Condition</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Assigned To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workingDevices.map((device, index) => (
+                    <tr key={device.id || index} style={{ 
+                      borderBottom: '1px solid #f3f4f6',
+                      backgroundColor: index % 2 === 0 ? '#fafafa' : '#ffffff'
+                    }}>
+                      <td style={{ padding: '12px 8px', color: '#374151' }}>
+                        {device.deviceTag || device.deviceName || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 8px', color: '#6b7280' }}>
+                        {device.deviceType || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          backgroundColor: device.status === 'In Use' ? '#dcfce7' : '#e0e7ff',
+                          color: device.status === 'In Use' ? '#166534' : '#1e40af'
+                        }}>
+                          {device.status || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          backgroundColor: device.condition === 'BRANDNEW' ? '#dcfce7' : '#f0fdf4',
+                          color: device.condition === 'BRANDNEW' ? '#166534' : '#15803d'
+                        }}>
+                          {device.condition || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px', color: '#6b7280' }}>
+                        {device.assignedTo ? (employeeMap[device.assignedTo.toString().trim().toUpperCase()] || device.assignedTo) : 'Not assigned'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Additional Metrics & Controls */}
@@ -654,7 +767,7 @@ function Dashboard() {
           <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: 18, fontWeight: 600 }}>
             📋 Recent Activity
           </h3>
-          <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 400, overflowY: 'auto' }}>
             {systemHistory.length === 0 ? (
               <div style={{ 
                 color: '#6b7280', 

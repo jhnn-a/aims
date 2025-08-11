@@ -410,14 +410,7 @@ function EmployeeFormModal({
 }
 
 // Modal for bulk resign confirmation
-function BulkResignModal({
-  isOpen,
-  onConfirm,
-  onCancel,
-  selectedCount,
-  reason,
-  setReason,
-}) {
+function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
   if (!isOpen) return null;
 
   return (
@@ -461,36 +454,6 @@ function BulkResignModal({
         <p style={{ color: "#6b7280", marginBottom: 20, fontSize: 14 }}>
           Are you sure you want to resign {selectedCount} employee(s)?
         </p>
-
-        <div style={{ marginBottom: 20 }}>
-          <label
-            style={{
-              display: "block",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#374151",
-              marginBottom: 6,
-            }}
-          >
-            Reason for resignation:
-          </label>
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Optional reason..."
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: 6,
-              fontSize: 14,
-              fontFamily: "inherit",
-              outline: "none",
-              minHeight: 80,
-              resize: "vertical",
-            }}
-          />
-        </div>
 
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
           <button
@@ -680,9 +643,11 @@ function EmployeeAssetsModal({
   // State for reassign employee selection
   const [allEmployees, setAllEmployees] = useState([]);
 
-  // Bulk selection state
-  const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
+  // Bulk selection state - separate for deployed and work from home assets
+  const [selectedDeployedIds, setSelectedDeployedIds] = useState([]);
+  const [selectedWfhIds, setSelectedWfhIds] = useState([]);
+  const [showDeployedBulkActions, setShowDeployedBulkActions] = useState(false);
+  const [showWfhBulkActions, setShowWfhBulkActions] = useState(false);
 
   // Load employees for reassignment
   useEffect(() => {
@@ -701,36 +666,59 @@ function EmployeeAssetsModal({
       };
       loadEmployees();
       // Reset bulk selection when modal opens
-      setSelectedDeviceIds([]);
-      setShowBulkActions(false);
+      setSelectedDeployedIds([]);
+      setSelectedWfhIds([]);
+      setShowDeployedBulkActions(false);
+      setShowWfhBulkActions(false);
     }
   }, [isOpen, employee?.id]);
 
-  // Bulk selection handlers
-  const handleSelectAllDevices = (checked) => {
+  // Bulk selection handlers for deployed assets
+  const handleSelectAllDeployedDevices = (checked) => {
     if (checked) {
-      setSelectedDeviceIds(deployedAssets.map((device) => device.id));
+      setSelectedDeployedIds(deployedAssets.map((device) => device.id));
     } else {
-      setSelectedDeviceIds([]);
+      setSelectedDeployedIds([]);
     }
-    setShowBulkActions(checked && deployedAssets.length > 0);
+    setShowDeployedBulkActions(checked && deployedAssets.length > 0);
   };
 
-  const handleSelectDevice = (deviceId, checked) => {
+  const handleSelectDeployedDevice = (deviceId, checked) => {
     let newSelection;
     if (checked) {
-      newSelection = [...selectedDeviceIds, deviceId];
+      newSelection = [...selectedDeployedIds, deviceId];
     } else {
-      newSelection = selectedDeviceIds.filter((id) => id !== deviceId);
+      newSelection = selectedDeployedIds.filter((id) => id !== deviceId);
     }
-    setSelectedDeviceIds(newSelection);
-    setShowBulkActions(newSelection.length > 0);
+    setSelectedDeployedIds(newSelection);
+    setShowDeployedBulkActions(newSelection.length > 0);
   };
 
-  // Bulk action handlers
-  const handleBulkUnassign = () => {
+  // Bulk selection handlers for work from home assets
+  const handleSelectAllWfhDevices = (checked) => {
+    if (checked) {
+      setSelectedWfhIds(workFromHomeAssets.map((device) => device.id));
+    } else {
+      setSelectedWfhIds([]);
+    }
+    setShowWfhBulkActions(checked && workFromHomeAssets.length > 0);
+  };
+
+  const handleSelectWfhDevice = (deviceId, checked) => {
+    let newSelection;
+    if (checked) {
+      newSelection = [...selectedWfhIds, deviceId];
+    } else {
+      newSelection = selectedWfhIds.filter((id) => id !== deviceId);
+    }
+    setSelectedWfhIds(newSelection);
+    setShowWfhBulkActions(newSelection.length > 0);
+  };
+
+  // Bulk action handlers for deployed assets
+  const handleDeployedBulkUnassign = () => {
     const selectedDevices = deployedAssets.filter((device) =>
-      selectedDeviceIds.includes(device.id)
+      selectedDeployedIds.includes(device.id)
     );
     setActionModal({
       isOpen: true,
@@ -747,9 +735,48 @@ function EmployeeAssetsModal({
     });
   };
 
-  const handleBulkReassign = () => {
+  const handleDeployedBulkReassign = () => {
     const selectedDevices = deployedAssets.filter((device) =>
-      selectedDeviceIds.includes(device.id)
+      selectedDeployedIds.includes(device.id)
+    );
+    setActionModal({
+      isOpen: true,
+      type: "reassign",
+      device: null,
+      devices: selectedDevices,
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: true,
+      selectedCondition: "",
+      deviceConditions: {},
+    });
+  };
+
+  // Bulk action handlers for work from home assets
+  const handleWfhBulkUnassign = () => {
+    const selectedDevices = workFromHomeAssets.filter((device) =>
+      selectedWfhIds.includes(device.id)
+    );
+    setActionModal({
+      isOpen: true,
+      type: "unassign",
+      device: null,
+      devices: selectedDevices,
+      newEmployee: null,
+      isGenerating: false,
+      progress: 0,
+      docxBlob: null,
+      isBulk: true,
+      selectedCondition: "",
+      deviceConditions: {},
+    });
+  };
+
+  const handleWfhBulkReassign = () => {
+    const selectedDevices = workFromHomeAssets.filter((device) =>
+      selectedWfhIds.includes(device.id)
     );
     setActionModal({
       isOpen: true,
@@ -897,8 +924,10 @@ function EmployeeAssetsModal({
       await generateBulkDocx(type, devices, employee, newEmployee);
 
       // Clear bulk selection
-      setSelectedDeviceIds([]);
-      setShowBulkActions(false);
+      setSelectedDeployedIds([]);
+      setSelectedWfhIds([]);
+      setShowDeployedBulkActions(false);
+      setShowWfhBulkActions(false);
 
       // Refresh device data
       if (onDeviceUpdate) {
@@ -1287,7 +1316,12 @@ function EmployeeAssetsModal({
 
   // Filter devices currently assigned to this employee (deployed)
   const deployedAssets = devices.filter(
-    (device) => device.assignedTo === employee.id
+    (device) => device.assignedTo === employee.id && device.assignmentType === "newIssue"
+  );
+
+  // Filter work from home/borrowed assets assigned to this employee
+  const workFromHomeAssets = devices.filter(
+    (device) => device.assignedTo === employee.id && device.assignmentType === "wfh"
   );
 
   // Get returned assets from device history
@@ -1368,8 +1402,8 @@ function EmployeeAssetsModal({
   };
 
   // Common table header component
-  const TableHeader = ({ isReturned = false }) => (
-    <thead>
+  const TableHeader = ({ isReturned = false, isWfh = false }) => (
+    <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
       <tr
         style={{
           background: "#f9fafb",
@@ -1385,21 +1419,37 @@ function EmployeeAssetsModal({
               color: "#374151",
               fontSize: 12,
               width: "40px",
+              position: "sticky",
+              top: "0",
+              background: "#f9fafb",
+              zIndex: 10,
             }}
           >
             <input
               type="checkbox"
               checked={
-                deployedAssets.length > 0 &&
-                selectedDeviceIds.length === deployedAssets.length
+                isWfh 
+                  ? workFromHomeAssets.length > 0 && selectedWfhIds.length === workFromHomeAssets.length
+                  : deployedAssets.length > 0 && selectedDeployedIds.length === deployedAssets.length
               }
               ref={(el) => {
-                if (el)
-                  el.indeterminate =
-                    selectedDeviceIds.length > 0 &&
-                    selectedDeviceIds.length < deployedAssets.length;
+                if (el) {
+                  if (isWfh) {
+                    el.indeterminate =
+                      selectedWfhIds.length > 0 &&
+                      selectedWfhIds.length < workFromHomeAssets.length;
+                  } else {
+                    el.indeterminate =
+                      selectedDeployedIds.length > 0 &&
+                      selectedDeployedIds.length < deployedAssets.length;
+                  }
+                }
               }}
-              onChange={(e) => handleSelectAllDevices(e.target.checked)}
+              onChange={(e) => 
+                isWfh 
+                  ? handleSelectAllWfhDevices(e.target.checked)
+                  : handleSelectAllDeployedDevices(e.target.checked)
+              }
               style={{ cursor: "pointer" }}
             />
           </th>
@@ -1413,6 +1463,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           Device Tag
@@ -1426,6 +1480,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           Type
@@ -1439,6 +1497,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           Brand
@@ -1452,6 +1514,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           Model
@@ -1465,6 +1531,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           Condition
@@ -1478,6 +1548,10 @@ function EmployeeAssetsModal({
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
+            position: "sticky",
+            top: "0",
+            background: "#f9fafb",
+            zIndex: 10,
           }}
         >
           {isReturned ? "Date Returned" : "Date Assigned"}
@@ -1492,6 +1566,10 @@ function EmployeeAssetsModal({
               fontSize: 12,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
+              position: "sticky",
+              top: "0",
+              background: "#f9fafb",
+              zIndex: 10,
             }}
           >
             Actions
@@ -1502,7 +1580,7 @@ function EmployeeAssetsModal({
   );
 
   // Common table row component
-  const TableRow = ({ device, isReturned = false, onUnassign, onReassign }) => (
+  const TableRow = ({ device, isReturned = false, isWfh = false, onUnassign, onReassign }) => (
     <tr
       style={{
         borderBottom: "1px solid #f3f4f6",
@@ -1517,8 +1595,16 @@ function EmployeeAssetsModal({
         >
           <input
             type="checkbox"
-            checked={selectedDeviceIds.includes(device.id)}
-            onChange={(e) => handleSelectDevice(device.id, e.target.checked)}
+            checked={
+              isWfh 
+                ? selectedWfhIds.includes(device.id)
+                : selectedDeployedIds.includes(device.id)
+            }
+            onChange={(e) => 
+              isWfh 
+                ? handleSelectWfhDevice(device.id, e.target.checked)
+                : handleSelectDeployedDevice(device.id, e.target.checked)
+            }
             style={{ cursor: "pointer" }}
           />
         </td>
@@ -1753,7 +1839,7 @@ function EmployeeAssetsModal({
                 margin: 0,
               }}
             >
-              {employee.fullName} • {deployedAssets.length} deployed,{" "}
+              {employee.fullName} • {deployedAssets.length} deployed, {workFromHomeAssets.length} work from home,{" "}
               {returnedAssets.length} returned
             </p>
           </div>
@@ -1820,7 +1906,7 @@ function EmployeeAssetsModal({
                 >
                   {deployedAssets.length} active
                 </span>
-                {selectedDeviceIds.length > 0 && (
+                {selectedDeployedIds.length > 0 && (
                   <span
                     style={{
                       backgroundColor: "#2563eb",
@@ -1831,16 +1917,16 @@ function EmployeeAssetsModal({
                       fontWeight: 500,
                     }}
                   >
-                    {selectedDeviceIds.length} selected
+                    {selectedDeployedIds.length} selected
                   </span>
                 )}
               </div>
 
               {/* Bulk Action Buttons */}
-              {showBulkActions && selectedDeviceIds.length > 0 && (
+              {showDeployedBulkActions && selectedDeployedIds.length > 0 && (
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
-                    onClick={handleBulkUnassign}
+                    onClick={handleDeployedBulkUnassign}
                     style={{
                       padding: "6px 12px",
                       border: "1px solid #dc2626",
@@ -1854,10 +1940,10 @@ function EmployeeAssetsModal({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Bulk Unassign ({selectedDeviceIds.length})
+                    Bulk Unassign ({selectedDeployedIds.length})
                   </button>
                   <button
-                    onClick={handleBulkReassign}
+                    onClick={handleDeployedBulkReassign}
                     style={{
                       padding: "6px 12px",
                       border: "1px solid #2563eb",
@@ -1871,7 +1957,7 @@ function EmployeeAssetsModal({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    Bulk Reassign ({selectedDeviceIds.length})
+                    Bulk Reassign ({selectedDeployedIds.length})
                   </button>
                 </div>
               )}
@@ -1907,13 +1993,154 @@ function EmployeeAssetsModal({
                     color: "#374151",
                   }}
                 >
-                  <TableHeader isReturned={false} />
+                  <TableHeader isReturned={false} isWfh={false} />
                   <tbody>
                     {deployedAssets.map((device) => (
                       <TableRow
                         key={`deployed-${device.id}`}
                         device={device}
                         isReturned={false}
+                        isWfh={false}
+                        onUnassign={handleUnassign}
+                        onReassign={handleReassign}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Work From Home / Borrowed Assets Section */}
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "16px",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              >
+                <h3
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: "#222e3a",
+                    margin: 0,
+                  }}
+                >
+                  Work From Home / Borrowed Assets
+                </h3>
+                <span
+                  style={{
+                    backgroundColor: "#059669",
+                    color: "white",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 500,
+                  }}
+                >
+                  {workFromHomeAssets.length} active
+                </span>
+                {selectedWfhIds.length > 0 && (
+                  <span
+                    style={{
+                      backgroundColor: "#2563eb",
+                      color: "white",
+                      padding: "2px 8px",
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {selectedWfhIds.length} selected
+                  </span>
+                )}
+              </div>
+
+              {/* Bulk Action Buttons */}
+              {showWfhBulkActions && selectedWfhIds.length > 0 && (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={handleWfhBulkUnassign}
+                    style={{
+                      padding: "6px 12px",
+                      border: "1px solid #dc2626",
+                      borderRadius: 6,
+                      background: "white",
+                      color: "#dc2626",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Bulk Unassign ({selectedWfhIds.length})
+                  </button>
+                  <button
+                    onClick={handleWfhBulkReassign}
+                    style={{
+                      padding: "6px 12px",
+                      border: "1px solid #2563eb",
+                      borderRadius: 6,
+                      background: "white",
+                      color: "#2563eb",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Bulk Reassign ({selectedWfhIds.length})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {workFromHomeAssets.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  color: "#6b7280",
+                  fontSize: 14,
+                  padding: "32px 16px",
+                  backgroundColor: "#f9fafb",
+                  borderRadius: 8,
+                  border: "1px dashed #d1d5db",
+                }}
+              >
+                No work from home or borrowed assets assigned to this employee
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 8,
+                  overflow: "hidden",
+                }}
+              >
+                <table
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    fontSize: 14,
+                    color: "#374151",
+                  }}
+                >
+                  <TableHeader isReturned={false} isWfh={true} />
+                  <tbody>
+                    {workFromHomeAssets.map((device) => (
+                      <TableRow
+                        key={`wfh-${device.id}`}
+                        device={device}
+                        isReturned={false}
+                        isWfh={true}
                         onUnassign={handleUnassign}
                         onReassign={handleReassign}
                       />
@@ -1946,7 +2173,7 @@ function EmployeeAssetsModal({
               </h3>
               <span
                 style={{
-                  backgroundColor: "#6b7280",
+                  backgroundColor: "#2563eb",
                   color: "white",
                   padding: "2px 8px",
                   borderRadius: 12,
@@ -2756,13 +2983,19 @@ export default function Employee() {
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBulkResignModal, setShowBulkResignModal] = useState(false);
-  const [bulkResignReason, setBulkResignReason] = useState("");
 
   // Confirmation modal states
   const [showResignConfirm, setShowResignConfirm] = useState(false);
   const [showUndoConfirm, setShowUndoConfirm] = useState(false);
   const [employeeToResign, setEmployeeToResign] = useState(null);
   const [employeeToUndo, setEmployeeToUndo] = useState(null);
+
+  // Delete permanently state
+  const [showDeletePermanentlyConfirm, setShowDeletePermanentlyConfirm] =
+    useState(false);
+
+  // Hover state for table rows
+  const [hoveredRowId, setHoveredRowId] = useState(null);
 
   // Load clients and employees
   const loadClientsAndEmployees = async () => {
@@ -2979,7 +3212,6 @@ export default function Employee() {
   const handleBulkResign = async () => {
     // Close modal immediately
     setShowBulkResignModal(false);
-    setBulkResignReason("");
 
     try {
       setIsTableLoading(true);
@@ -3016,7 +3248,7 @@ export default function Employee() {
 
       // Perform bulk resignation
       for (const id of resignedIds) {
-        await resignEmployee(id, bulkResignReason);
+        await resignEmployee(id, "");
       }
 
       const resignedCount = resignedIds.length;
@@ -3034,6 +3266,44 @@ export default function Employee() {
       );
     } catch (error) {
       showError("Failed to resign employees: " + error.message);
+    } finally {
+      setIsTableLoading(false);
+    }
+  };
+
+  // Delete permanently function for resigned employees
+  const handleDeletePermanently = () => {
+    if (selectedIds.length === 0) return;
+    setShowDeletePermanentlyConfirm(true);
+  };
+
+  const confirmDeletePermanently = async () => {
+    if (selectedIds.length === 0) return;
+
+    setIsTableLoading(true);
+    try {
+      const employeesToDelete = resignedEmployees.filter((emp) =>
+        selectedIds.includes(emp.id)
+      );
+
+      // Delete each employee permanently
+      for (const employee of employeesToDelete) {
+        await deleteEmployee(employee.id);
+      }
+
+      // Refresh data
+      await loadClientsAndEmployees();
+
+      // Clear selection
+      setSelectedIds([]);
+      setShowDeletePermanentlyConfirm(false);
+
+      showSuccess(
+        `Successfully deleted ${employeesToDelete.length} employee(s) permanently`
+      );
+    } catch (error) {
+      console.error("Error deleting employees permanently:", error);
+      showError("Failed to delete employees permanently: " + error.message);
     } finally {
       setIsTableLoading(false);
     }
@@ -3881,6 +4151,25 @@ export default function Employee() {
           >
             Export Excel
           </button>
+          {/* Show Delete Permanently button only for resigned tab when employees are selected */}
+          {activeTab === "resigned" && selectedIds.length > 0 && (
+            <button
+              onClick={handleDeletePermanently}
+              style={{
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: 6,
+                background: "#dc2626",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Delete Permanently ({selectedIds.length})
+            </button>
+          )}
           {/* Show Add Employee only for active tab */}
           {activeTab === "active" && (
             <button
@@ -3957,9 +4246,24 @@ export default function Employee() {
                     width: "3%",
                     minWidth: "40px",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   {activeTab === "active" && (
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isIndeterminate;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      style={{ cursor: "pointer" }}
+                    />
+                  )}
+                  {activeTab === "resigned" && (
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -3980,6 +4284,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "8%" : "8%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Employee ID
@@ -3993,6 +4301,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "16%" : "15%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Full Name
@@ -4006,6 +4318,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "13%" : "12%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Position
@@ -4019,6 +4335,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "10%" : "9%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Department
@@ -4032,6 +4352,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "11%" : "10%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Client
@@ -4045,6 +4369,10 @@ export default function Employee() {
                     width: activeTab === "active" ? "16%" : "15%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   Corporate Email
@@ -4059,25 +4387,14 @@ export default function Employee() {
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: "1px solid #e5e7eb", // Add cell borders
                     borderRight: "1px solid #e5e7eb", // Standard border for separation
+                    position: "sticky",
+                    top: "0",
+                    background: "#f9fafb",
+                    zIndex: 10,
                   }}
                 >
                   {activeTab === "active" ? "Date Hired" : "Date Resigned"}
                 </th>
-                {activeTab === "resigned" && (
-                  <th
-                    style={{
-                      padding: "clamp(8px, 1vw, 16px)",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: "#374151",
-                      width: "12%",
-                      fontSize: "clamp(11px, 0.9vw, 14px)",
-                      border: "1px solid #e5e7eb", // Add cell borders
-                    }}
-                  >
-                    Resignation Reason
-                  </th>
-                )}
                 {activeTab === "resigned" && (
                   <th
                     style={{
@@ -4089,6 +4406,10 @@ export default function Employee() {
                       fontSize: "clamp(11px, 0.9vw, 14px)",
                       border: "1px solid #e5e7eb", // Add cell borders
                       borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                      position: "sticky",
+                      top: "0",
+                      background: "#f9fafb",
+                      zIndex: 10,
                     }}
                   >
                     Actions
@@ -4105,6 +4426,10 @@ export default function Employee() {
                       fontSize: "clamp(11px, 0.9vw, 14px)",
                       border: "1px solid #e5e7eb", // Add cell borders
                       borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                      position: "sticky",
+                      top: "0",
+                      background: "#f9fafb",
+                      zIndex: 10,
                     }}
                   >
                     Actions
@@ -4171,8 +4496,15 @@ export default function Employee() {
                     key={employee.id}
                     style={{
                       borderBottom: "1px solid #f3f4f6",
-                      ":hover": { backgroundColor: "#f9fafb" },
+                      backgroundColor:
+                        hoveredRowId === employee.id
+                          ? "#e5e7eb"
+                          : "transparent",
+                      transition: "background-color 0.2s ease",
+                      cursor: "pointer",
                     }}
+                    onMouseEnter={() => setHoveredRowId(employee.id)}
+                    onMouseLeave={() => setHoveredRowId(null)}
                   >
                     <td
                       style={{
@@ -4182,6 +4514,16 @@ export default function Employee() {
                       }}
                     >
                       {activeTab === "active" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(employee.id)}
+                          onChange={(e) =>
+                            handleSelectEmployee(employee.id, e.target.checked)
+                          }
+                          style={{ cursor: "pointer" }}
+                        />
+                      )}
+                      {activeTab === "resigned" && (
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(employee.id)}
@@ -4308,20 +4650,6 @@ export default function Employee() {
                             employee.dateResigned || employee.dateHired
                           )}
                     </td>
-                    {activeTab === "resigned" && (
-                      <td
-                        style={{
-                          padding: "clamp(8px, 1vw, 16px)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontSize: "clamp(12px, 1vw, 14px)",
-                        }}
-                        title={employee.resignationReason || "-"}
-                      >
-                        {employee.resignationReason || "-"}
-                      </td>
-                    )}
                     {activeTab === "resigned" && (
                       <td
                         style={{
@@ -4703,8 +5031,6 @@ export default function Employee() {
           onConfirm={handleBulkResign}
           onCancel={() => setShowBulkResignModal(false)}
           selectedCount={selectedIds.length}
-          reason={bulkResignReason}
-          setReason={setBulkResignReason}
         />
       )}
 
@@ -4742,6 +5068,19 @@ export default function Employee() {
         }
         confirmText="Restore"
         confirmColor="#059669"
+      />
+
+      {/* Delete Permanently Confirmation */}
+      <ConfirmationModal
+        isOpen={showDeletePermanentlyConfirm}
+        onConfirm={confirmDeletePermanently}
+        onCancel={() => {
+          setShowDeletePermanentlyConfirm(false);
+        }}
+        title="Delete Permanently"
+        message={`Are you sure you want to permanently delete ${selectedIds.length} employee(s)? This action cannot be undone.`}
+        confirmText="Delete Permanently"
+        confirmColor="#dc2626"
       />
 
       {/* Employee Assets Modal */}
