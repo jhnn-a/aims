@@ -1316,12 +1316,14 @@ function EmployeeAssetsModal({
 
   // Filter devices currently assigned to this employee (deployed)
   const deployedAssets = devices.filter(
-    (device) => device.assignedTo === employee.id && device.assignmentType === "newIssue"
+    (device) =>
+      device.assignedTo === employee.id && device.assignmentType === "newIssue"
   );
 
   // Filter work from home/borrowed assets assigned to this employee
   const workFromHomeAssets = devices.filter(
-    (device) => device.assignedTo === employee.id && device.assignmentType === "wfh"
+    (device) =>
+      device.assignedTo === employee.id && device.assignmentType === "wfh"
   );
 
   // Get returned assets from device history
@@ -1428,9 +1430,11 @@ function EmployeeAssetsModal({
             <input
               type="checkbox"
               checked={
-                isWfh 
-                  ? workFromHomeAssets.length > 0 && selectedWfhIds.length === workFromHomeAssets.length
-                  : deployedAssets.length > 0 && selectedDeployedIds.length === deployedAssets.length
+                isWfh
+                  ? workFromHomeAssets.length > 0 &&
+                    selectedWfhIds.length === workFromHomeAssets.length
+                  : deployedAssets.length > 0 &&
+                    selectedDeployedIds.length === deployedAssets.length
               }
               ref={(el) => {
                 if (el) {
@@ -1445,8 +1449,8 @@ function EmployeeAssetsModal({
                   }
                 }
               }}
-              onChange={(e) => 
-                isWfh 
+              onChange={(e) =>
+                isWfh
                   ? handleSelectAllWfhDevices(e.target.checked)
                   : handleSelectAllDeployedDevices(e.target.checked)
               }
@@ -1580,7 +1584,13 @@ function EmployeeAssetsModal({
   );
 
   // Common table row component
-  const TableRow = ({ device, isReturned = false, isWfh = false, onUnassign, onReassign }) => (
+  const TableRow = ({
+    device,
+    isReturned = false,
+    isWfh = false,
+    onUnassign,
+    onReassign,
+  }) => (
     <tr
       style={{
         borderBottom: "1px solid #f3f4f6",
@@ -1596,12 +1606,12 @@ function EmployeeAssetsModal({
           <input
             type="checkbox"
             checked={
-              isWfh 
+              isWfh
                 ? selectedWfhIds.includes(device.id)
                 : selectedDeployedIds.includes(device.id)
             }
-            onChange={(e) => 
-              isWfh 
+            onChange={(e) =>
+              isWfh
                 ? handleSelectWfhDevice(device.id, e.target.checked)
                 : handleSelectDeployedDevice(device.id, e.target.checked)
             }
@@ -1839,7 +1849,8 @@ function EmployeeAssetsModal({
                 margin: 0,
               }}
             >
-              {employee.fullName} • {deployedAssets.length} deployed, {workFromHomeAssets.length} work from home,{" "}
+              {employee.fullName} • {deployedAssets.length} deployed,{" "}
+              {workFromHomeAssets.length} work from home,{" "}
               {returnedAssets.length} returned
             </p>
           </div>

@@ -2388,12 +2388,18 @@ function Inventory() {
       devicesToCheck = [assigningDevice];
     } else if (selectedIds.length > 0) {
       // Bulk assignment - get selected devices
-      devicesToCheck = devices.filter(device => selectedIds.includes(device.id));
+      devicesToCheck = devices.filter((device) =>
+        selectedIds.includes(device.id)
+      );
     }
 
     // Analyze device conditions
-    const hasGoodDevices = devicesToCheck.some(device => device.condition === "GOOD");
-    const hasBrandNewDevices = devicesToCheck.some(device => device.condition === "BRANDNEW");
+    const hasGoodDevices = devicesToCheck.some(
+      (device) => device.condition === "GOOD"
+    );
+    const hasBrandNewDevices = devicesToCheck.some(
+      (device) => device.condition === "BRANDNEW"
+    );
 
     // Determine automatic checkbox selection based on device conditions
     let autoChecks = {
@@ -2440,14 +2446,14 @@ function Inventory() {
 
   const handleAssignModalCheckbox = (e) => {
     const { name, checked } = e.target;
-    
+
     setAssignModalChecks((prev) => {
       const newState = { ...prev };
-      
+
       // Handle Newly Purchased logic
       if (name === "newIssueNew" || name === "wfhNew") {
         newState[name] = checked;
-        
+
         if (checked) {
           // Auto-select Stock when Newly Purchased is selected
           if (name === "newIssueNew") {
@@ -2458,13 +2464,14 @@ function Inventory() {
         }
       } else if (name === "newIssueStock" || name === "wfhStock") {
         // Only allow unchecking Stock if Newly Purchased is not selected
-        const newlyPurchasedField = name === "newIssueStock" ? "newIssueNew" : "wfhNew";
+        const newlyPurchasedField =
+          name === "newIssueStock" ? "newIssueNew" : "wfhNew";
         if (!prev[newlyPurchasedField]) {
           newState[name] = checked;
         }
         // If Newly Purchased is selected, Stock remains checked (disabled behavior)
       }
-      
+
       return newState;
     });
   };
@@ -2472,13 +2479,15 @@ function Inventory() {
   const handleAssignModalNext = () => {
     // Validate that either New Issue or Work From Home is selected
     if (!assignModalChecks.issueTypeSelected) {
-      showError("Please select either 'New Issue' or 'Work From Home/Borrowed' option.");
+      showError(
+        "Please select either 'New Issue' or 'Work From Home/Borrowed' option."
+      );
       return;
     }
-    
+
     // Note: Checkbox validation is no longer needed since they are automatically selected
     // based on device condition when a radio button is chosen
-    
+
     setAssignModalShowGenerate(true);
   };
 
@@ -5745,7 +5754,7 @@ function Inventory() {
                     {selectedAssignEmployee.fullName}
                   </span>
                 </h4>
-                
+
                 {/* Device condition information */}
                 {(assigningDevice || selectedIds.length > 0) && (
                   <div
@@ -5761,25 +5770,29 @@ function Inventory() {
                   >
                     {assigningDevice ? (
                       <>
-                        <strong>Device Condition: {assigningDevice.condition}</strong>
+                        <strong>
+                          Device Condition: {assigningDevice.condition}
+                        </strong>
                         <br />
-                        {assigningDevice.condition === "GOOD" && 
-                          "Checkboxes will be automatically selected based on device condition (Stock only)."
-                        }
-                        {assigningDevice.condition === "BRANDNEW" && 
-                          "Checkboxes will be automatically selected based on device condition (Newly Purchased + Stock)."
-                        }
+                        {assigningDevice.condition === "GOOD" &&
+                          "Checkboxes will be automatically selected based on device condition (Stock only)."}
+                        {assigningDevice.condition === "BRANDNEW" &&
+                          "Checkboxes will be automatically selected based on device condition (Newly Purchased + Stock)."}
                       </>
                     ) : (
                       <>
-                        <strong>Bulk Assignment: {selectedIds.length} device(s) selected</strong>
+                        <strong>
+                          Bulk Assignment: {selectedIds.length} device(s)
+                          selected
+                        </strong>
                         <br />
-                        Checkboxes will be automatically selected based on mixed device conditions.
+                        Checkboxes will be automatically selected based on mixed
+                        device conditions.
                       </>
                     )}
                   </div>
                 )}
-                
+
                 <div
                   style={{
                     ...styles.modalSection,
@@ -5806,7 +5819,9 @@ function Inventory() {
                       <input
                         type="radio"
                         name="issueType"
-                        checked={assignModalChecks.issueTypeSelected === "newIssue"}
+                        checked={
+                          assignModalChecks.issueTypeSelected === "newIssue"
+                        }
                         onChange={() => handleAssignModalRadio("newIssue")}
                         style={{
                           marginRight: 8,
