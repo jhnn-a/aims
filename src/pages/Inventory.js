@@ -2463,13 +2463,8 @@ function Inventory() {
           }
         }
       } else if (name === "newIssueStock" || name === "wfhStock") {
-        // Only allow unchecking Stock if Newly Purchased is not selected
-        const newlyPurchasedField =
-          name === "newIssueStock" ? "newIssueNew" : "wfhNew";
-        if (!prev[newlyPurchasedField]) {
-          newState[name] = checked;
-        }
-        // If Newly Purchased is selected, Stock remains checked (disabled behavior)
+        // Allow users to freely check/uncheck Stock regardless of Newly Purchased status
+        newState[name] = checked;
       }
 
       return newState;
