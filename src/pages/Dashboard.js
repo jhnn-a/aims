@@ -6,6 +6,7 @@ import { exportDashboardToExcel } from "../utils/exportDashboardToExcel";
 import { getDeviceHistory } from "../services/deviceHistoryService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useCurrentUser } from "../CurrentUserContext";
+import { useTheme } from "../context/ThemeContext";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import {
@@ -34,84 +35,116 @@ const COLORS = [
 ];
 
 // Custom Pie Chart Component
-function CustomPieChart({ data, title, height = 300 }) {
-  const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    percent,
-    index,
-  }) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+function CustomPieChart({ data, title, height = 300, isDarkMode = false }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  const renderCustomLegend = () => {
     return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor={x > cx ? "start" : "end"}
-        dominantBaseline="central"
-        fontSize={12}
-        fontWeight="bold"
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: 16,
+          marginTop: 16,
+        }}
       >
-        {`${(percent * 100).toFixed(0)}%`}
-      </text>
+        {data.map((entry, index) => {
+          const percentage =
+            total > 0 ? ((entry.value / total) * 100).toFixed(1) : 0;
+          return (
+            <div
+              key={entry.name}
+              style={{ display: "flex", alignItems: "center", gap: 8 }}
+            >
+              <div
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  backgroundColor: entry.color,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 14,
+                  color:
+                    entry.name === "DEFECTIVE"
+                      ? "#ef4444"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
+                  fontWeight: entry.name === "DEFECTIVE" ? 600 : 500,
+                }}
+              >
+                {entry.name} ({percentage}%)
+              </span>
+            </div>
+          );
+        })}
+      </div>
     );
   };
 
   return (
     <div
       style={{
-        background: "#fff",
+        background: isDarkMode ? "#1f2937" : "#fff",
         borderRadius: 12,
         padding: 24,
-        border: "1px solid #e0e7ef",
+        border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
       }}
     >
       <h3
         style={{
           margin: "0 0 16px 0",
-          color: "#374151",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
           fontSize: 18,
           fontWeight: 600,
         }}
       >
         {title}
       </h3>
-      <ResponsiveContainer width="100%" height={height}>
+      <ResponsiveContainer width="100%" height={height - 60}>
         <PieChart>
           <Pie
             data={data}
             cx="50%"
             cy="50%"
-            labelLine={false}
-            label={renderCustomizedLabel}
-            outerRadius={80}
+            outerRadius={100}
             fill="#8884d8"
             dataKey="value"
+            stroke="none"
           >
             {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
-              />
+              <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
             ))}
           </Pie>
-          <Tooltip />
-          <Legend />
+          <Tooltip
+            formatter={(value, name) => [`${value} devices`, name]}
+            contentStyle={{
+              backgroundColor: isDarkMode ? "#374151" : "#fff",
+              border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+              borderRadius: "8px",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+            }}
+          />
         </PieChart>
       </ResponsiveContainer>
+      {renderCustomLegend()}
     </div>
   );
 }
 
 // Custom Bar Chart Component with internal labels
-function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
+function CustomBarChart({
+  data,
+  title,
+  xKey,
+  yKey,
+  height = 300,
+  isDarkMode = false,
+}) {
   // Custom label function for bars
   const renderCustomLabel = (props) => {
     const { x, y, width, height, value } = props;
@@ -133,16 +166,16 @@ function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
   return (
     <div
       style={{
-        background: "#fff",
+        background: isDarkMode ? "#1f2937" : "#fff",
         borderRadius: 12,
         padding: 24,
-        border: "1px solid #e0e7ef",
+        border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
       }}
     >
       <h3
         style={{
           margin: "0 0 16px 0",
-          color: "#374151",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
           fontSize: 18,
           fontWeight: 600,
         }}
@@ -151,10 +184,27 @@ function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
       </h3>
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey={xKey} />
-          <YAxis />
-          <Tooltip />
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke={isDarkMode ? "#4b5563" : "#e5e7eb"}
+          />
+          <XAxis
+            dataKey={xKey}
+            tick={{ fill: isDarkMode ? "#9ca3af" : "#6b7280", fontSize: 12 }}
+            axisLine={{ stroke: isDarkMode ? "#4b5563" : "#e5e7eb" }}
+          />
+          <YAxis
+            tick={{ fill: isDarkMode ? "#9ca3af" : "#6b7280", fontSize: 12 }}
+            axisLine={{ stroke: isDarkMode ? "#4b5563" : "#e5e7eb" }}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: isDarkMode ? "#374151" : "#fff",
+              border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+              borderRadius: "8px",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+            }}
+          />
           <Bar dataKey={yKey} fill="#2563eb" label={renderCustomLabel} />
         </BarChart>
       </ResponsiveContainer>
@@ -163,7 +213,7 @@ function CustomBarChart({ data, title, xKey, yKey, height = 300 }) {
 }
 
 // Time Range Filter Component
-function TimeRangeFilter({ value, onChange }) {
+function TimeRangeFilter({ value, onChange, isDarkMode }) {
   const options = [
     { value: "7days", label: "Last 7 days" },
     { value: "30days", label: "Last 30 days" },
@@ -173,7 +223,13 @@ function TimeRangeFilter({ value, onChange }) {
 
   return (
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <span style={{ fontSize: 14, fontWeight: 500, color: "#6b7280" }}>
+      <span
+        style={{
+          fontSize: 14,
+          fontWeight: 500,
+          color: isDarkMode ? "#9ca3af" : "#6b7280",
+        }}
+      >
         Time Range:
       </span>
       <select
@@ -182,9 +238,10 @@ function TimeRangeFilter({ value, onChange }) {
         style={{
           padding: "6px 12px",
           borderRadius: 6,
-          border: "1px solid #d1d5db",
+          border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
           fontSize: 14,
-          background: "#fff",
+          background: isDarkMode ? "#374151" : "#fff",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {options.map((option) => (
@@ -207,6 +264,9 @@ function Dashboard() {
     currentUser = undefined;
   }
   const username = currentUser?.username || "User";
+
+  // Get dark mode state from theme context
+  const { isDarkMode } = useTheme();
 
   // Scroll to top button state
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -241,22 +301,24 @@ function Dashboard() {
 
   // Extract fetchData as a standalone function for reuse
   const fetchData = async () => {
-    console.log('🔄 fetchData function called!');
+    console.log("🔄 fetchData function called!");
     const isRefresh = !loading; // If not loading, it's a refresh
     if (isRefresh) {
-      console.log('📊 Setting refreshing to true');
+      console.log("📊 Setting refreshing to true");
       setRefreshing(true);
     }
-    
+
     try {
-      console.log('📡 Fetching data from services...');
+      console.log("📡 Fetching data from services...");
       const [employees, devices, clients] = await Promise.all([
         getAllEmployees(),
         getAllDevices(),
         getAllClients(),
       ]);
 
-      console.log(`📊 Data fetched - Employees: ${employees.length}, Devices: ${devices.length}, Clients: ${clients.length}`);
+      console.log(
+        `📊 Data fetched - Employees: ${employees.length}, Devices: ${devices.length}, Clients: ${clients.length}`
+      );
 
       // Fetch total admins from users collection
       const usersSnapshot = await getDocs(collection(db, "users"));
@@ -326,9 +388,7 @@ function Dashboard() {
       setDefectiveCount(
         devices.filter((d) => d.condition === "DEFECTIVE").length
       );
-      setRetiredCount(
-        devices.filter((d) => d.condition === "RETIRED").length
-      );
+      setRetiredCount(devices.filter((d) => d.condition === "RETIRED").length);
       setAllDevices(devices);
 
       // Enhanced metrics calculations
@@ -366,13 +426,9 @@ function Dashboard() {
 
       // Utilization rate calculation
       const totalDevices = devices.length;
-      const devicesInUse = devices.filter(
-        (d) => d.status === "In Use"
-      ).length;
+      const devicesInUse = devices.filter((d) => d.status === "In Use").length;
       const utilization =
-        totalDevices > 0
-          ? Math.round((devicesInUse / totalDevices) * 100)
-          : 0;
+        totalDevices > 0 ? Math.round((devicesInUse / totalDevices) * 100) : 0;
       setUtilizationRate(utilization);
 
       // Fetch system history
@@ -381,21 +437,21 @@ function Dashboard() {
         console.log("=== Device History Debug ===");
         console.log("Raw history data:", history);
         console.log("History count:", history.length);
-        
+
         // Check for recent history (last 24 hours)
         const now = new Date();
         const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const recentHistory = history.filter(entry => {
+        const recentHistory = history.filter((entry) => {
           const entryDate = new Date(entry.date);
           return entryDate > oneDayAgo;
         });
         console.log("Recent history (last 24h):", recentHistory);
-        
+
         const sorted = history.sort(
           (a, b) => new Date(b.date) - new Date(a.date)
         );
         console.log("Sorted history (first 5):", sorted.slice(0, 5));
-        
+
         const last10 = sorted.slice(0, 10);
         const formatted = last10.map((entry) => ({
           event: formatHistoryEvent(entry, empMap),
@@ -419,7 +475,11 @@ function Dashboard() {
           ];
           setSystemHistory(fallbackHistory);
         } else {
-          console.log("Setting system history with", formatted.length, "entries");
+          console.log(
+            "Setting system history with",
+            formatted.length,
+            "entries"
+          );
           setSystemHistory(formatted);
         }
       } catch (historyError) {
@@ -440,14 +500,14 @@ function Dashboard() {
 
       setLoading(false);
       if (isRefresh) {
-        console.log('✅ Data fetch complete, setting refreshing to false');
+        console.log("✅ Data fetch complete, setting refreshing to false");
         setRefreshing(false);
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       setLoading(false);
       if (isRefresh) {
-        console.log('❌ Data fetch error, setting refreshing to false');
+        console.log("❌ Data fetch error, setting refreshing to false");
         setRefreshing(false);
       }
     }
@@ -567,14 +627,14 @@ function Dashboard() {
 
   useEffect(() => {
     fetchData();
-    
+
     // Set up automatic refresh every 30 seconds for recent activity
     const refreshInterval = setInterval(() => {
       if (!refreshing) {
         fetchData();
       }
     }, 30000); // 30 seconds
-    
+
     return () => clearInterval(refreshInterval);
   }, [refreshing]);
 
@@ -590,7 +650,7 @@ function Dashboard() {
           justifyContent: "center",
           fontFamily:
             'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          background: "#f9f9f9",
+          background: isDarkMode ? "#111827" : "#f9f9f9",
         }}
       >
         <LoadingSpinner />
@@ -600,10 +660,10 @@ function Dashboard() {
 
   // Prepare data for enhanced visualizations
   const deviceStatusData = [
-    { name: "GOOD", value: goodCount },
-    { name: "BRAND NEW", value: brandNewCount },
-    { name: "DEFECTIVE", value: defectiveCount },
-    { name: "RETIRED", value: retiredCount },
+    { name: "GOOD", value: goodCount, color: "#2563eb" },
+    { name: "BRAND NEW", value: brandNewCount, color: "#22c55e" },
+    { name: "DEFECTIVE", value: defectiveCount, color: "#ef4444" },
+    { name: "RETIRED", value: retiredCount, color: "#6b7280" },
   ].filter((item) => item.value > 0);
 
   const deviceTypeData = deviceTypes.map((dt) => ({
@@ -622,11 +682,11 @@ function Dashboard() {
         fontFamily:
           'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         overflowY: "auto",
-        background: "#f9f9f9",
+        background: isDarkMode ? "#111827" : "#f9f9f9",
         position: "relative",
       }}
     >
-      {/* Header with time range filter */}
+      {/* Header with time range filter and theme toggle */}
       <div
         style={{
           display: "flex",
@@ -649,14 +709,20 @@ function Dashboard() {
           <p
             style={{
               fontSize: 17,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               margin: 0,
             }}
           >
             Comprehensive asset and inventory management dashboard
           </p>
         </div>
-        <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <TimeRangeFilter
+            value={timeRange}
+            onChange={setTimeRange}
+            isDarkMode={isDarkMode}
+          />
+        </div>
       </div>
 
       {/* Core Metrics Cards */}
@@ -670,10 +736,10 @@ function Dashboard() {
       >
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -681,7 +747,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -694,10 +760,10 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -705,7 +771,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -718,10 +784,10 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -729,7 +795,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -742,10 +808,10 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -753,7 +819,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -766,10 +832,10 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -777,7 +843,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -790,10 +856,10 @@ function Dashboard() {
 
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             textAlign: "center",
           }}
         >
@@ -801,7 +867,7 @@ function Dashboard() {
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#6b7280",
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
               marginBottom: 8,
             }}
           >
@@ -827,6 +893,7 @@ function Dashboard() {
           data={deviceStatusData}
           title="🎯 Device Status Summary"
           height={350}
+          isDarkMode={isDarkMode}
         />
 
         {/* Device Type Distribution */}
@@ -836,6 +903,7 @@ function Dashboard() {
           xKey="type"
           yKey="count"
           height={350}
+          isDarkMode={isDarkMode}
         />
       </div>
 
@@ -856,157 +924,9 @@ function Dashboard() {
             xKey="client"
             yKey="count"
             height={350}
+            isDarkMode={isDarkMode}
           />
         )}
-
-        {/* Working Devices Table */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 12,
-            padding: 24,
-            border: "1px solid #e0e7ef",
-          }}
-        >
-          <h3
-            style={{
-              margin: "0 0 16px 0",
-              color: "#374151",
-              fontSize: 18,
-              fontWeight: 600,
-            }}
-          >
-            🔧 Working Devices
-          </h3>
-          <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
-            {workingDevices.length === 0 ? (
-              <div
-                style={{
-                  color: "#6b7280",
-                  textAlign: "center",
-                  padding: 20,
-                  fontStyle: "italic",
-                }}
-              >
-                No working devices found
-              </div>
-            ) : (
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 14,
-                }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #e0e7ef" }}>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      Device Tag
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      Type
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      Condition
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      Assigned To
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
-                      Assigned Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workingDevices.map((device, index) => (
-                    <tr
-                      key={device.id || index}
-                      style={{
-                        borderBottom: "1px solid #f3f4f6",
-                        backgroundColor:
-                          index % 2 === 0 ? "#fafafa" : "#ffffff",
-                      }}
-                    >
-                      <td style={{ padding: "12px 8px", color: "#374151" }}>
-                        {device.deviceTag || device.deviceName || "N/A"}
-                      </td>
-                      <td style={{ padding: "12px 8px", color: "#6b7280" }}>
-                        {device.deviceType || "N/A"}
-                      </td>
-                      <td style={{ padding: "12px 8px" }}>
-                        <span
-                          style={{
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            backgroundColor:
-                              device.condition === "BRANDNEW"
-                                ? "#dcfce7"
-                                : "#f0fdf4",
-                            color:
-                              device.condition === "BRANDNEW"
-                                ? "#166534"
-                                : "#15803d",
-                          }}
-                        >
-                          {device.condition || "N/A"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px 8px", color: "#6b7280" }}>
-                        {device.assignedTo
-                          ? employeeMap[
-                              device.assignedTo.toString().trim().toUpperCase()
-                            ] || device.assignedTo
-                          : "Not assigned"}
-                      </td>
-                      <td style={{ padding: "12px 8px", color: "#6b7280" }}>
-                        {device.assignmentDate
-                          ? new Date(device.assignmentDate).toLocaleDateString()
-                          : "N/A"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Additional Metrics & Controls */}
@@ -1021,10 +941,10 @@ function Dashboard() {
         {/* Recent Activity */}
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
           }}
         >
           <div
@@ -1038,7 +958,7 @@ function Dashboard() {
             <h3
               style={{
                 margin: 0,
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 18,
                 fontWeight: 600,
               }}
@@ -1047,7 +967,7 @@ function Dashboard() {
             </h3>
             <button
               onClick={() => {
-                console.log('🔄 Refresh button clicked!');
+                console.log("🔄 Refresh button clicked!");
                 fetchData();
               }}
               disabled={refreshing}
@@ -1070,14 +990,14 @@ function Dashboard() {
               }}
               onMouseEnter={(e) => {
                 if (!refreshing) {
-                  console.log('🖱️ Mouse enter refresh button');
+                  console.log("🖱️ Mouse enter refresh button");
                   e.target.style.backgroundColor = "#1d4ed8";
                   e.target.style.color = "#ffffff";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!refreshing) {
-                  console.log('🖱️ Mouse leave refresh button');
+                  console.log("🖱️ Mouse leave refresh button");
                   e.target.style.backgroundColor = "#2563eb";
                   e.target.style.color = "#ffffff";
                 }
@@ -1090,12 +1010,12 @@ function Dashboard() {
                 viewBox="0 0 24 24"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                style={{ 
+                style={{
                   marginRight: "6px",
                   transform: refreshing ? "rotate(360deg)" : "rotate(0deg)",
                   transition: "transform 1s linear",
                   display: "inline-block",
-                  verticalAlign: "middle"
+                  verticalAlign: "middle",
                 }}
               >
                 <path
@@ -1134,7 +1054,7 @@ function Dashboard() {
             {systemHistory.length === 0 ? (
               <div
                 style={{
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   textAlign: "center",
                   padding: 20,
                   fontStyle: "italic",
@@ -1151,20 +1071,25 @@ function Dashboard() {
                       padding: "12px 0",
                       borderBottom:
                         index < systemHistory.length - 1
-                          ? "1px solid #f3f4f6"
+                          ? `1px solid ${isDarkMode ? "#374151" : "#f3f4f6"}`
                           : "none",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >
-                    <span style={{ fontSize: 14, color: "#374151" }}>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                      }}
+                    >
                       {entry.event}
                     </span>
                     <span
                       style={{
                         fontSize: 12,
-                        color: "#6b7280",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
                         fontWeight: 500,
                       }}
                     >
@@ -1188,16 +1113,16 @@ function Dashboard() {
           {/* Stock Availability */}
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: 12,
               padding: 20,
-              border: "1px solid #e0e7ef",
+              border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             }}
           >
             <h4
               style={{
                 margin: "0 0 12px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 fontWeight: 600,
               }}
@@ -1211,7 +1136,12 @@ function Dashboard() {
                 alignItems: "center",
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
                 Available Units
               </span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#22c55e" }}>
@@ -1226,7 +1156,14 @@ function Dashboard() {
                 marginTop: 8,
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>Brand New</span>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                Brand New
+              </span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#2563eb" }}>
                 {brandNewCount}
               </span>
@@ -1236,16 +1173,16 @@ function Dashboard() {
           {/* Asset Condition Summary */}
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: 12,
               padding: 20,
-              border: "1px solid #e0e7ef",
+              border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             }}
           >
             <h4
               style={{
                 margin: "0 0 12px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 fontWeight: 600,
               }}
@@ -1259,7 +1196,12 @@ function Dashboard() {
                 alignItems: "center",
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
                 Needs Repair
               </span>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b" }}>
@@ -1274,7 +1216,14 @@ function Dashboard() {
                 marginTop: 8,
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>Defective</span>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                Defective
+              </span>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#ef4444" }}>
                 {defectiveCount}
               </span>
@@ -1284,16 +1233,16 @@ function Dashboard() {
           {/* Deployment Summary */}
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: 12,
               padding: 20,
-              border: "1px solid #e0e7ef",
+              border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             }}
           >
             <h4
               style={{
                 margin: "0 0 12px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 fontWeight: 600,
               }}
@@ -1307,7 +1256,12 @@ function Dashboard() {
                 alignItems: "center",
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
                 Assets Deployed
               </span>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b" }}>
@@ -1322,7 +1276,12 @@ function Dashboard() {
                 marginTop: 8,
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
                 Inventory Total
               </span>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#8b5cf6" }}>
@@ -1337,7 +1296,12 @@ function Dashboard() {
                 marginTop: 8,
               }}
             >
-              <span style={{ fontSize: 14, color: "#6b7280" }}>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
                 Deployment Rate
               </span>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#10b981" }}>
@@ -1352,16 +1316,16 @@ function Dashboard() {
           {/* Export Options */}
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: 12,
               padding: 20,
-              border: "1px solid #e0e7ef",
+              border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             }}
           >
             <h4
               style={{
                 margin: "0 0 12px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 fontWeight: 600,
               }}
@@ -1409,21 +1373,731 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Actual Count Monitoring Assets Table */}
+      <div
+        style={{
+          background: isDarkMode ? "#1f2937" : "#fff",
+          borderRadius: 12,
+          padding: 24,
+          border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
+          marginBottom: 32,
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 16px 0",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
+            fontSize: 18,
+            fontWeight: 600,
+          }}
+        >
+          📊 Actual Count Monitoring Assets
+        </h3>
+        <div style={{ overflowX: "auto" }}>
+          <table
+            style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}
+          >
+            <thead>
+              <tr
+                style={{ backgroundColor: isDarkMode ? "#374151" : "#f8fafc" }}
+              >
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "120px",
+                  }}
+                >
+                  ASSETS
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "80px",
+                  }}
+                >
+                  TOTAL
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "90px",
+                  }}
+                >
+                  DEPLOYED
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "110px",
+                  }}
+                >
+                  TOTAL STOCKROOM
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "90px",
+                  }}
+                >
+                  DEFECTIVE
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "90px",
+                  }}
+                >
+                  BRANDNEW
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "80px",
+                  }}
+                >
+                  GOODS
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "80px",
+                  }}
+                >
+                  USABLE
+                </th>
+                <th
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
+                    minWidth: "130px",
+                  }}
+                >
+                  REORDER STATUS
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                // Process device data by type
+                const deviceTypeStats = {};
+
+                allDevices.forEach((device) => {
+                  const deviceType = device.deviceType || "Unknown";
+
+                  if (!deviceTypeStats[deviceType]) {
+                    deviceTypeStats[deviceType] = {
+                      total: 0,
+                      deployed: 0,
+                      stockroom: 0,
+                      defective: 0,
+                      brandnew: 0,
+                      good: 0,
+                    };
+                  }
+
+                  const stats = deviceTypeStats[deviceType];
+                  stats.total++;
+
+                  // Count deployed (assigned/in use)
+                  if (
+                    device.status === "In Use" ||
+                    device.status === "Deployed" ||
+                    (device.assignedTo && device.assignedTo.trim() !== "")
+                  ) {
+                    stats.deployed++;
+                  }
+
+                  // Count stockroom (available inventory)
+                  if (
+                    device.status === "Stock Room" ||
+                    device.status === "Available"
+                  ) {
+                    stats.stockroom++;
+                  }
+
+                  // Count by condition
+                  const condition = device.condition?.toUpperCase() || "";
+                  if (condition === "DEFECTIVE") {
+                    stats.defective++;
+                  } else if (
+                    condition === "BRANDNEW" ||
+                    condition === "BRAND NEW"
+                  ) {
+                    stats.brandnew++;
+                  } else if (condition === "GOOD") {
+                    stats.good++;
+                  }
+                });
+
+                return Object.entries(deviceTypeStats)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([deviceType, stats], index) => {
+                    const usable = stats.brandnew + stats.good;
+                    const reorderThreshold = 5; // Consider restocking if usable < 5
+                    const reorderStatus =
+                      usable >= reorderThreshold
+                        ? "Sufficient"
+                        : "Needs Restocking";
+
+                    return (
+                      <tr
+                        key={deviceType}
+                        style={{
+                          borderBottom: `1px solid ${
+                            isDarkMode ? "#374151" : "#f3f4f6"
+                          }`,
+                          backgroundColor:
+                            index % 2 === 0
+                              ? isDarkMode
+                                ? "#1f2937"
+                                : "#ffffff"
+                              : isDarkMode
+                              ? "#374151"
+                              : "#f8fafc",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {deviceType}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#2563eb",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.total}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#f59e0b",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.deployed}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#8b5cf6",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.stockroom}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#ef4444",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.defective}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#06b6d4",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.brandnew}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#22c55e",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {stats.good}
+                        </td>
+                        <td
+                          style={{
+                            padding: "12px 8px",
+                            textAlign: "center",
+                            color: "#10b981",
+                            fontWeight: 700,
+                            backgroundColor:
+                              usable > 0
+                                ? isDarkMode
+                                  ? "#064e3b"
+                                  : "#f0fdf4"
+                                : isDarkMode
+                                ? "#7f1d1d"
+                                : "#fef2f2",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {usable}
+                        </td>
+                        <td
+                          style={{ padding: "12px 8px", textAlign: "center" }}
+                        >
+                          <span
+                            style={{
+                              color:
+                                reorderStatus === "Sufficient"
+                                  ? "#22c55e"
+                                  : "#ef4444",
+                              fontWeight: 600,
+                              fontSize: 12,
+                              padding: "4px 8px",
+                              backgroundColor:
+                                reorderStatus === "Sufficient"
+                                  ? isDarkMode
+                                    ? "#064e3b"
+                                    : "#f0fdf4"
+                                  : isDarkMode
+                                  ? "#7f1d1d"
+                                  : "#fef2f2",
+                              borderRadius: 4,
+                              border:
+                                reorderStatus === "Sufficient"
+                                  ? `1px solid ${
+                                      isDarkMode ? "#059669" : "#bbf7d0"
+                                    }`
+                                  : `1px solid ${
+                                      isDarkMode ? "#dc2626" : "#fecaca"
+                                    }`,
+                            }}
+                          >
+                            {reorderStatus === "Sufficient"
+                              ? "✅ Sufficient"
+                              : "⚠️ Needs Restocking"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  });
+              })()}
+            </tbody>
+          </table>
+
+          {/* Summary Row */}
+          <div
+            style={{
+              marginTop: 16,
+              padding: 16,
+              backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+              borderRadius: 8,
+              border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 12px 0",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+            >
+              📈 Summary Statistics
+            </h4>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{ fontSize: 20, fontWeight: 700, color: "#2563eb" }}
+                >
+                  {allDevices.length}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontWeight: 500,
+                  }}
+                >
+                  Total Assets
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{ fontSize: 20, fontWeight: 700, color: "#f59e0b" }}
+                >
+                  {
+                    allDevices.filter(
+                      (d) =>
+                        d.status === "In Use" ||
+                        d.status === "Deployed" ||
+                        (d.assignedTo && d.assignedTo.trim() !== "")
+                    ).length
+                  }
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontWeight: 500,
+                  }}
+                >
+                  Total Deployed
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{ fontSize: 20, fontWeight: 700, color: "#22c55e" }}
+                >
+                  {
+                    allDevices.filter(
+                      (d) =>
+                        d.condition?.toUpperCase() === "BRANDNEW" ||
+                        d.condition?.toUpperCase() === "BRAND NEW" ||
+                        d.condition?.toUpperCase() === "GOOD"
+                    ).length
+                  }
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontWeight: 500,
+                  }}
+                >
+                  Total Usable
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{ fontSize: 20, fontWeight: 700, color: "#ef4444" }}
+                >
+                  {
+                    allDevices.filter(
+                      (d) => d.condition?.toUpperCase() === "DEFECTIVE"
+                    ).length
+                  }
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontWeight: 500,
+                  }}
+                >
+                  Total Defective
+                </div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{ fontSize: 20, fontWeight: 700, color: "#8b5cf6" }}
+                >
+                  {(() => {
+                    const deviceTypeStats = {};
+                    allDevices.forEach((device) => {
+                      const deviceType = device.deviceType || "Unknown";
+                      if (!deviceTypeStats[deviceType]) {
+                        deviceTypeStats[deviceType] = { brandnew: 0, good: 0 };
+                      }
+                      const condition = device.condition?.toUpperCase() || "";
+                      if (
+                        condition === "BRANDNEW" ||
+                        condition === "BRAND NEW"
+                      ) {
+                        deviceTypeStats[deviceType].brandnew++;
+                      } else if (condition === "GOOD") {
+                        deviceTypeStats[deviceType].good++;
+                      }
+                    });
+
+                    return Object.values(deviceTypeStats).filter(
+                      (stats) => stats.brandnew + stats.good < 5
+                    ).length;
+                  })()}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontWeight: 500,
+                  }}
+                >
+                  Types Need Restocking
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Working Devices Table */}
+      <div
+        style={{
+          background: isDarkMode ? "#1f2937" : "#fff",
+          borderRadius: 12,
+          padding: 24,
+          border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
+          marginBottom: 32,
+        }}
+      >
+        <h3
+          style={{
+            margin: "0 0 16px 0",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
+            fontSize: 18,
+            fontWeight: 600,
+          }}
+        >
+          🔧 Working Devices
+        </h3>
+        <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
+          {workingDevices.length === 0 ? (
+            <div
+              style={{
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+                textAlign: "center",
+                padding: 20,
+                fontStyle: "italic",
+              }}
+            >
+              No working devices found
+            </div>
+          ) : (
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 14,
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#374151" : "#e0e7ef"
+                    }`,
+                  }}
+                >
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 8px",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                    }}
+                  >
+                    Device Tag
+                  </th>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 8px",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                    }}
+                  >
+                    Type
+                  </th>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 8px",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                    }}
+                  >
+                    Condition
+                  </th>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 8px",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                    }}
+                  >
+                    Assigned To
+                  </th>
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "12px 8px",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                    }}
+                  >
+                    Assigned Date
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {workingDevices.map((device, index) => (
+                  <tr
+                    key={device.id || index}
+                    style={{
+                      borderBottom: `1px solid ${
+                        isDarkMode ? "#374151" : "#f3f4f6"
+                      }`,
+                      backgroundColor:
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "#fafafa"
+                          : isDarkMode
+                          ? "#374151"
+                          : "#ffffff",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "12px 8px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                      }}
+                    >
+                      {device.deviceTag || device.deviceName || "N/A"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 8px",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                      }}
+                    >
+                      {device.deviceType || "N/A"}
+                    </td>
+                    <td style={{ padding: "12px 8px" }}>
+                      <span
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: 4,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          backgroundColor:
+                            device.condition === "BRANDNEW"
+                              ? isDarkMode
+                                ? "#064e3b"
+                                : "#f0fdf4"
+                              : isDarkMode
+                              ? "#1e3a8a"
+                              : "#eff6ff",
+                          color:
+                            device.condition === "BRANDNEW"
+                              ? isDarkMode
+                                ? "#22c55e"
+                                : "#15803d"
+                              : isDarkMode
+                              ? "#60a5fa"
+                              : "#1d4ed8",
+                        }}
+                      >
+                        {device.condition || "N/A"}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 8px",
+                        color: isDarkMode ? "#d1d5db" : "#6b7280",
+                      }}
+                    >
+                      {device.assignedTo
+                        ? employeeMap[
+                            device.assignedTo.toString().trim().toUpperCase()
+                          ] || device.assignedTo
+                        : "Not assigned"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 8px",
+                        color: isDarkMode ? "#d1d5db" : "#6b7280",
+                      }}
+                    >
+                      {device.assignmentDate
+                        ? new Date(device.assignmentDate).toLocaleDateString()
+                        : "N/A"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
       {/* Device Type Details Table */}
       {deviceTypes.length > 0 && (
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: 12,
             padding: 24,
-            border: "1px solid #e0e7ef",
+            border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             marginBottom: 32,
           }}
         >
           <h3
             style={{
               margin: "0 0 16px 0",
-              color: "#374151",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: 18,
               fontWeight: 600,
             }}
@@ -1433,14 +2107,20 @@ function Dashboard() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ backgroundColor: "#f8fafc" }}>
+                <tr
+                  style={{
+                    backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                  }}
+                >
                   <th
                     style={{
                       padding: "12px 16px",
                       textAlign: "left",
                       fontWeight: 600,
-                      color: "#374151",
-                      borderBottom: "2px solid #e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                     }}
                   >
                     Device Type
@@ -1450,8 +2130,10 @@ function Dashboard() {
                       padding: "12px 16px",
                       textAlign: "center",
                       fontWeight: 600,
-                      color: "#374151",
-                      borderBottom: "2px solid #e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                     }}
                   >
                     Total Count
@@ -1461,8 +2143,10 @@ function Dashboard() {
                       padding: "12px 16px",
                       textAlign: "center",
                       fontWeight: 600,
-                      color: "#374151",
-                      borderBottom: "2px solid #e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                     }}
                   >
                     Percentage
@@ -1472,8 +2156,10 @@ function Dashboard() {
                       padding: "12px 16px",
                       textAlign: "center",
                       fontWeight: 600,
-                      color: "#374151",
-                      borderBottom: "2px solid #e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                     }}
                   >
                     Status
@@ -1492,15 +2178,23 @@ function Dashboard() {
                     <tr
                       key={dt.type}
                       style={{
-                        borderBottom: "1px solid #f3f4f6",
+                        borderBottom: `1px solid ${
+                          isDarkMode ? "#374151" : "#f3f4f6"
+                        }`,
                         backgroundColor:
-                          index % 2 === 0 ? "#ffffff" : "#f8fafc",
+                          index % 2 === 0
+                            ? isDarkMode
+                              ? "#1f2937"
+                              : "#ffffff"
+                            : isDarkMode
+                            ? "#374151"
+                            : "#f8fafc",
                       }}
                     >
                       <td
                         style={{
                           padding: "12px 16px",
-                          color: "#374151",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                           fontWeight: 500,
                         }}
                       >
@@ -1510,7 +2204,7 @@ function Dashboard() {
                         style={{
                           padding: "12px 16px",
                           textAlign: "center",
-                          color: "#2563eb",
+                          color: isDarkMode ? "#60a5fa" : "#2563eb",
                           fontWeight: 600,
                         }}
                       >
@@ -1520,7 +2214,7 @@ function Dashboard() {
                         style={{
                           padding: "12px 16px",
                           textAlign: "center",
-                          color: "#6b7280",
+                          color: isDarkMode ? "#d1d5db" : "#6b7280",
                         }}
                       >
                         {percentage}%
@@ -1533,7 +2227,9 @@ function Dashboard() {
                               fontWeight: 600,
                               fontSize: 12,
                               padding: "4px 8px",
-                              backgroundColor: "#fef2f2",
+                              backgroundColor: isDarkMode
+                                ? "#7f1d1d"
+                                : "#fef2f2",
                               borderRadius: 4,
                             }}
                           >
@@ -1546,8 +2242,9 @@ function Dashboard() {
                               fontWeight: 600,
                               fontSize: 12,
                               padding: "4px 8px",
-                           
-                              backgroundColor: "#f0fdf4",
+                              backgroundColor: isDarkMode
+                                ? "#14532d"
+                                : "#f0fdf4",
                               borderRadius: 4,
                             }}
                           >
@@ -1569,10 +2266,10 @@ function Dashboard() {
         style={{
           textAlign: "center",
           padding: "12px 0",
-          borderTop: "1px solid #e5e7eb",
+          borderTop: `1px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
           marginTop: 20,
           marginBottom: -20,
-          color: "#6b7280",
+          color: isDarkMode ? "#d1d5db" : "#6b7280",
           fontSize: 14,
         }}
       >
@@ -1598,7 +2295,7 @@ function Dashboard() {
             width: "60px",
             height: "60px",
             borderRadius: "50%",
-            backgroundColor: "#2563eb",
+            backgroundColor: isDarkMode ? "#374151" : "#2563eb",
             color: "#fff",
             border: "2px solid #fff",
             fontSize: "24px",
@@ -1612,11 +2309,11 @@ function Dashboard() {
             outline: "none",
           }}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = "#1d4ed8";
+            e.target.style.backgroundColor = isDarkMode ? "#4b5563" : "#1d4ed8";
             e.target.style.transform = "scale(1.1)";
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = "#2563eb";
+            e.target.style.backgroundColor = isDarkMode ? "#374151" : "#2563eb";
             e.target.style.transform = "scale(1)";
           }}
           title="Scroll to top"

@@ -2,11 +2,14 @@ import React, { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 // ...existing code...
 import { FiLogOut } from "react-icons/fi";
+import { useTheme } from "../context/ThemeContext";
+import ThemeToggle from "../components/ThemeToggle";
 import "./Header.css";
 
 function Header({ user, onLogout }) {
   const navigate = useNavigate();
   const [showConfirm, setShowConfirm] = React.useState(false);
+  const { isDarkMode, toggleDarkMode } = useTheme();
 
   // Show confirmation modal before logout
   const handleLogoutClick = useCallback(() => {
@@ -27,23 +30,38 @@ function Header({ user, onLogout }) {
   }, []);
 
   return (
-    <header className="header">
+    <header
+      className="header"
+      style={{
+        backgroundColor: isDarkMode ? "#1f2937" : undefined,
+        borderBottom: isDarkMode ? "1px solid #374151" : undefined,
+      }}
+    >
       <div className="header-left">
         <img
           src={require("./joii.png")}
           alt="JOII Logo"
           className="header-logo"
         />
-        <span>Assets & Inventory Management System</span>
+        <span style={{ color: isDarkMode ? "#f3f4f6" : undefined }}>
+          Assets & Inventory Management System
+        </span>
       </div>
-      <button
-        onClick={handleLogoutClick}
-        className="header-logout"
-        title="Logout"
-        aria-label="Logout"
-      >
-        <FiLogOut size={20} />
-      </button>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
+        <button
+          onClick={handleLogoutClick}
+          className="header-logout"
+          title="Logout"
+          aria-label="Logout"
+          style={{
+            color: isDarkMode ? "#f3f4f6" : undefined,
+            backgroundColor: isDarkMode ? "#374151" : undefined,
+          }}
+        >
+          <FiLogOut size={20} />
+        </button>
+      </div>
 
       {/* Logout Confirmation Modal */}
       {showConfirm && (
@@ -63,10 +81,10 @@ function Header({ user, onLogout }) {
         >
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: 16,
               boxShadow: "0 4px 24px #2563eb18, 0 1.5px 6px #2563eb0a",
-              border: "1.5px solid #e0e7ef",
+              border: `1.5px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
               padding: 32,
               minWidth: 320,
               maxWidth: 400,
@@ -79,7 +97,7 @@ function Header({ user, onLogout }) {
               style={{
                 fontWeight: 700,
                 fontSize: 20,
-                color: "#233037",
+                color: isDarkMode ? "#f3f4f6" : "#233037",
                 marginBottom: 18,
               }}
             >
@@ -113,8 +131,8 @@ function Header({ user, onLogout }) {
               <button
                 onClick={cancelLogout}
                 style={{
-                  background: "#e0e7ef",
-                  color: "#233037",
+                  background: isDarkMode ? "#374151" : "#e0e7ef",
+                  color: isDarkMode ? "#f3f4f6" : "#233037",
                   border: "none",
                   borderRadius: 8,
                   padding: "10px 22px",

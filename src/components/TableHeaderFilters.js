@@ -1,4 +1,5 @@
 import React from "react";
+import { useTheme } from "../context/ThemeContext";
 
 /**
  * TableHeaderFilters Component
@@ -15,20 +16,24 @@ export const TextFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      className={isDarkMode ? "text-filter-dark" : "text-filter-light"}
       style={{
         width: "calc(100% - 4px)",
         maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
@@ -39,12 +44,12 @@ export const TextFilter = ({
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     />
@@ -60,6 +65,8 @@ export const DropdownFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <select
       value={value}
@@ -69,9 +76,10 @@ export const DropdownFilter = ({
         maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
@@ -83,12 +91,12 @@ export const DropdownFilter = ({
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     >
@@ -110,6 +118,8 @@ export const DateFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <input
       type="date"
@@ -121,9 +131,10 @@ export const DateFilter = ({
         maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
@@ -135,12 +146,12 @@ export const DateFilter = ({
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     />
@@ -154,6 +165,8 @@ export const ClearFilterButton = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <button
       type="button"
@@ -162,10 +175,22 @@ export const ClearFilterButton = ({
       style={{
         padding: "2px 6px",
         fontSize: "10px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "3px",
-        background: disabled ? "#f3f4f6" : "#ffffff",
-        color: disabled ? "#9ca3af" : "#374151",
+        background: disabled
+          ? isDarkMode
+            ? "#374151"
+            : "#f3f4f6"
+          : isDarkMode
+          ? "#1f2937"
+          : "#ffffff",
+        color: disabled
+          ? isDarkMode
+            ? "#6b7280"
+            : "#9ca3af"
+          : isDarkMode
+          ? "#f3f4f6"
+          : "#374151",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         cursor: disabled ? "not-allowed" : "pointer",
@@ -175,14 +200,14 @@ export const ClearFilterButton = ({
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
-          e.target.style.background = "#f3f4f6";
-          e.target.style.borderColor = "#9ca3af";
+          e.target.style.background = isDarkMode ? "#374151" : "#f3f4f6";
+          e.target.style.borderColor = isDarkMode ? "#6b7280" : "#9ca3af";
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled) {
-          e.target.style.background = "#ffffff";
-          e.target.style.borderColor = "#d1d5db";
+          e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
+          e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         }
       }}
       title="Clear filter"
@@ -201,6 +226,8 @@ export const FilterContainer = ({
   onClearAll = () => {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       style={{
@@ -222,7 +249,7 @@ export const FilterContainer = ({
             fontSize: "10px",
             border: "1px solid #dc2626",
             borderRadius: "3px",
-            background: "#ffffff",
+            background: isDarkMode ? "#1f2937" : "#ffffff",
             color: "#dc2626",
             fontFamily:
               "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -235,7 +262,7 @@ export const FilterContainer = ({
             e.target.style.color = "#ffffff";
           }}
           onMouseLeave={(e) => {
-            e.target.style.background = "#ffffff";
+            e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
             e.target.style.color = "#dc2626";
           }}
           title="Clear all filters"

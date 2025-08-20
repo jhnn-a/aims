@@ -1,5 +1,6 @@
-import { useState, useEffect , useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CurrentUserProvider, useCurrentUser } from "./CurrentUserContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
@@ -13,6 +14,7 @@ import { SnackbarProvider, SnackbarContainer } from "./components/Snackbar";
 // ...existing code...
 import LoginPage from "./pages/LoginPage";
 import "./App.css";
+import "./styles/theme.css";
 
 function App() {
   const navigate = useNavigate();
@@ -20,15 +22,17 @@ function App() {
   const [loginError, setLoginError] = useState("");
 
   return (
-    <CurrentUserProvider>
-      <AppContent
-        navigate={navigate}
-        isAuthenticated={isAuthenticated}
-        setIsAuthenticated={setIsAuthenticated}
-        loginError={loginError}
-        setLoginError={setLoginError}
-      />
-    </CurrentUserProvider>
+    <ThemeProvider>
+      <CurrentUserProvider>
+        <AppContent
+          navigate={navigate}
+          isAuthenticated={isAuthenticated}
+          setIsAuthenticated={setIsAuthenticated}
+          loginError={loginError}
+          setLoginError={setLoginError}
+        />
+      </CurrentUserProvider>
+    </ThemeProvider>
   );
   // ...existing code...
 

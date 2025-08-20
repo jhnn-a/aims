@@ -28,6 +28,7 @@ import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
 import DeviceHistory from "../components/DeviceHistory"; // Device history modal component
 import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
+import { useTheme } from "../context/ThemeContext"; // Dark mode theme context
 import {
   initialForm, // Default form data structure
   fieldLabels, // Display labels for form fields
@@ -57,6 +58,7 @@ function SearchableDropdown({
   valueKey = "clientName",
   style = {},
 }) {
+  const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
@@ -104,8 +106,9 @@ function SearchableDropdown({
       fontSize: 13,
       padding: "8px 32px 8px 12px",
       borderRadius: 5,
-      border: "1.2px solid #cbd5e1",
-      background: "#f1f5f9",
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
       height: "38px",
       boxSizing: "border-box",
       fontFamily:
@@ -124,49 +127,54 @@ function SearchableDropdown({
       transition: "transform 0.2s",
       pointerEvents: "none",
       fontSize: "12px",
-      color: "#6b7280",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
     },
     dropdown: {
       position: "absolute",
       top: "calc(100% + 2px)",
       left: 0,
       right: 0,
-      background: "#fff",
-      border: "1px solid #cbd5e1",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #cbd5e1",
       borderRadius: 5,
       maxHeight: "140px", // Height for search input (38px) + 3 options (34px each) = ~140px
       overflowY: "auto",
       zIndex: 1000,
-      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+      boxShadow: isDarkMode
+        ? "0 4px 12px rgba(0, 0, 0, 0.4)"
+        : "0 4px 12px rgba(0, 0, 0, 0.15)",
       minWidth: "200px",
       // Custom scrollbar styling
       scrollbarWidth: "thin",
-      scrollbarColor: "#cbd5e1 #f8fafc",
+      scrollbarColor: isDarkMode ? "#4b5563 #374151" : "#cbd5e1 #f8fafc",
     },
     searchInput: {
       width: "100%",
       padding: "8px 12px",
       border: "none",
-      borderBottom: "1px solid #e2e8f0",
+      borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
       outline: "none",
       fontSize: 13,
       fontFamily:
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      background: "#f8fafc",
+      background: isDarkMode ? "#1f2937" : "#f8fafc",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
       boxSizing: "border-box",
     },
     option: {
       padding: "10px 12px",
       cursor: "pointer",
       fontSize: 13,
-      borderBottom: "1px solid #f1f5f9",
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f1f5f9",
       fontFamily:
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       transition: "background-color 0.15s",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
     },
     noResults: {
       padding: "10px 12px",
-      color: "#6b7280",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
       fontStyle: "italic",
       fontSize: 13,
       fontFamily:
@@ -206,10 +214,14 @@ function SearchableDropdown({
                 key={option.id || index}
                 style={dropdownStyles.option}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f1f5f9";
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#4b5563"
+                    : "#f1f5f9";
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "#fff";
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#374151"
+                    : "#fff";
                 }}
                 onClick={() => handleSelectOption(option)}
               >
@@ -243,6 +255,109 @@ function DeviceFormModal({
   onSerialToggle,
   editingDevice,
 }) {
+  // === THEME CONTEXT ===
+  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+
+  // === MODAL STYLES ===
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: `1.2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"}`,
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#000000",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   const handleSerialToggle = (e) => {
     const checked = e.target.checked;
     onSerialToggle(checked);
@@ -271,7 +386,13 @@ function DeviceFormModal({
         style={{
           ...styles.inventoryModalContent,
           border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
-          backgroundColor: isEditMode ? "#fefbff" : "#ffffff",
+          backgroundColor: isEditMode
+            ? isDarkMode
+              ? "#374151"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
           animation: "modalFadeIn 0.2s ease-out",
         }}
         role="dialog"
@@ -341,7 +462,11 @@ function DeviceFormModal({
             id="modal-title"
             style={{
               ...styles.inventoryModalTitle,
-              color: isEditMode ? "#2563eb" : "#374151",
+              color: isEditMode
+                ? "#2563eb"
+                : isDarkMode
+                ? "#3b82f6"
+                : "#2563eb",
             }}
           >
             {isEditMode ? "Edit Device" : "Add Device"}
@@ -499,13 +624,27 @@ function DeviceFormModal({
                   flex: 1,
                   padding: "8px 12px",
                   borderRadius: 6,
-                  border: "1.5px solid #cbd5e1",
-                  background: editingDevice ? "#f5f5f5" : "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.5px solid #4b5563"
+                    : "1.5px solid #cbd5e1",
+                  background: editingDevice
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f5f5f5"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f1f5f9",
+                  color: editingDevice
+                    ? isDarkMode
+                      ? "#9ca3af"
+                      : "#666"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#000",
                   fontSize: 14,
                   height: "36px",
                   boxSizing: "border-box",
                   cursor: editingDevice ? "not-allowed" : "text",
-                  color: editingDevice ? "#666" : "#000",
                 }}
                 maxLength={64}
                 placeholder={
@@ -631,11 +770,11 @@ function DeviceFormModal({
         {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
           <div
             style={{
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               borderRadius: "6px",
               padding: "12px",
               marginBottom: 12,
-              background: "#f9fafb",
+              background: isDarkMode ? "#374151" : "#f9fafb",
               width: "100%",
               boxSizing: "border-box",
             }}
@@ -645,7 +784,7 @@ function DeviceFormModal({
                 margin: "0 0 10px 0",
                 fontSize: "13px",
                 fontWeight: "600",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
@@ -833,8 +972,6 @@ function DeviceFormModal({
               ...styles.inventoryModalButton,
               opacity: isValid ? 1 : 0.6,
               cursor: isValid ? "pointer" : "not-allowed",
-              padding: "10px 24px",
-              fontSize: 14,
             }}
             aria-label={
               isEditMode ? "Update device information" : "Save new device"
@@ -845,9 +982,20 @@ function DeviceFormModal({
           <button
             onClick={onCancel}
             style={{
-              ...styles.inventoryModalButtonSecondary,
-              padding: "10px 24px",
-              fontSize: 14,
+              background: "#6b7280",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 20px",
+              fontSize: 15,
+              fontWeight: 500,
+              cursor: "pointer",
+              marginLeft: 4,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              transition: "background 0.2s, box-shadow 0.2s",
+              outline: "none",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             }}
             aria-label="Cancel and close dialog"
           >
@@ -861,6 +1009,8 @@ function DeviceFormModal({
 
 // Delete Confirmation Modal Component
 function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       style={{
@@ -878,16 +1028,19 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
     >
       <div
         style={{
-          background: "#fff",
+          background: isDarkMode ? "#1f2937" : "#fff",
           padding: "36px 40px",
           borderRadius: 18,
           minWidth: "min(400px, 90vw)",
           maxWidth: "min(500px, 95vw)",
           width: "auto",
-          boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+          boxShadow: isDarkMode
+            ? "0 12px 48px rgba(0,0,0,0.4)"
+            : "0 12px 48px rgba(37,99,235,0.18)",
           position: "relative",
           margin: "20px",
           boxSizing: "border-box",
+          border: isDarkMode ? "1px solid #374151" : "none",
         }}
       >
         <h2
@@ -906,7 +1059,7 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
         <p
           style={{
             margin: "0 0 16px 0",
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 16,
             textAlign: "center",
           }}
@@ -948,8 +1101,8 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
           <button
             onClick={onCancel}
             style={{
-              background: "#e0e7ef",
-              color: "#233037",
+              background: isDarkMode ? "#4b5563" : "#e0e7ef",
+              color: isDarkMode ? "#f3f4f6" : "#233037",
               border: "none",
               borderRadius: 8,
               padding: "8px 18px",
@@ -1191,6 +1344,9 @@ function Inventory() {
   // === NOTIFICATION SYSTEM ===
   const { showSuccess, showError, showWarning, showUndoNotification } =
     useSnackbar(); // User feedback notifications
+
+  // === THEME CONTEXT ===
+  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
 
   // === FORM VALIDATION STATE ===
   const [tagError, setTagError] = useState(""); // Asset tag validation error messages
@@ -4032,13 +4188,430 @@ function Inventory() {
     setIsLastTagsMinimized(false);
   };
 
+  // === DYNAMIC STYLES WITH THEME SUPPORT ===
+  const styles = {
+    pageContainer: {
+      padding: "0", // Remove padding for fixed layout
+      maxWidth: "100%",
+      background: "transparent", // Let parent handle background
+      height: "100%", // Fill available height
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden", // Prevent page-level scrolling
+    },
+    headerBar: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16, // Reduced margin for fixed layout
+      padding: "16px 24px", // Added consistent padding
+      flexShrink: 0, // Prevent header from shrinking
+      background: isDarkMode ? "#1f2937" : "#fff", // Add background for visual separation
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: 700,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      letterSpacing: 1,
+      margin: 0,
+    },
+    headerBarGoogle: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 24,
+      padding: "0 24px",
+    },
+    googleTitle: {
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      fontWeight: 800,
+      fontSize: 28,
+      marginBottom: 18,
+      letterSpacing: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    googleSearchBar: {
+      display: "flex",
+      alignItems: "center",
+      background: isDarkMode ? "#374151" : "#fff",
+      borderRadius: 24,
+      boxShadow: isDarkMode
+        ? "0 2px 8px rgba(0,0,0,0.3)"
+        : "0 2px 8px rgba(68,95,109,0.10)",
+      border: isDarkMode ? "1.5px solid #4b5563" : "1.5px solid #e0e7ef",
+      padding: "2px 16px 2px 12px",
+      width: 320,
+      transition: "box-shadow  0.2s, border 0.2s",
+      marginBottom: 0,
+    },
+    googleSearchInput: {
+      border: "none",
+      outline: "none",
+      background: "transparent",
+      fontSize: 17,
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      padding: "10px 0 10px 8px",
+      width: "100%",
+      fontWeight: 500,
+    },
+    buttonBar: {
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 18,
+      padding: "0 24px",
+    },
+    button: {
+      background: "#70C1B3",
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      border: "none",
+      borderRadius: 8,
+      padding: "10px 22px",
+      fontSize: 16,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      margin: 0,
+    },
+    buttonDisabled: {
+      background: isDarkMode ? "#374151" : "#e9eef3",
+      color: isDarkMode ? "#9ca3af" : "#b0b8c1",
+      cursor: "not-allowed",
+    },
+    tableContainer: {
+      marginTop: 0,
+      overflowX: "auto",
+      overflowY: "auto", // Allow vertical scrolling
+      padding: "0",
+      flex: 1, // Take remaining space
+      minHeight: 0, // Allow shrinking
+      background: isDarkMode ? "#1f2937" : "#fff",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+    },
+    table: {
+      width: "100%",
+      minWidth: 900,
+      borderCollapse: "collapse",
+      borderSpacing: 0,
+      background: isDarkMode ? "#1f2937" : "#fff",
+      overflow: "hidden",
+      tableLayout: "auto",
+    },
+    th: {
+      padding: "12px 16px",
+      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+      color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+      fontWeight: 500,
+      fontSize: 12,
+      border: "none",
+      textAlign: "left",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      position: "sticky",
+      top: 0,
+      zIndex: 5,
+    },
+    td: {
+      padding: "12px 16px",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      fontSize: 14,
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      verticalAlign: "middle",
+      wordBreak: "break-word",
+    },
+    iconButton: {
+      background: "none",
+      border: "none",
+      color: isDarkMode ? "#9ca3af" : "#64748b",
+      fontSize: 18,
+      padding: 6,
+      borderRadius: 6,
+      cursor: "pointer",
+      marginRight: 4,
+      transition: "background 0.2s, color 0.2s",
+      outline: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconButtonHover: {
+      background: isDarkMode ? "#374151" : "#e0e7ef",
+      color: "#2563eb",
+    },
+    deletingText: {
+      marginLeft: 16,
+      color: "#e57373",
+      fontWeight: 500,
+      fontSize: 15,
+    },
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: isDarkMode
+        ? "rgba(0, 0, 0, 0.7)"
+        : "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    modalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 28,
+      borderRadius: 14,
+      minWidth: 260,
+      maxWidth: 340,
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.5)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      position: "relative",
+      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+      transition: "box-shadow 0.2s",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.5)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 16,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "inherit",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalButtonSmall: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 7,
+      padding: "7px 14px",
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: "pointer",
+      marginLeft: 4,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalButtonSecondary: {
+      background: isDarkMode ? "#374151" : "#e0e7ef",
+      color: isDarkMode ? "#f3f4f6" : "#2563eb",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      marginLeft: 4,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    modalCheckbox: {
+      accentColor: "#2563eb",
+      width: 18,
+      height: 18,
+      marginRight: 8,
+    },
+    modalSection: {
+      width: "100%",
+      marginBottom: 14,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+    },
+    modalLabel: {
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 5,
+      fontSize: 15,
+      textAlign: "left",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    actionEditButton: {
+      background: "transparent",
+      border: "none",
+      borderRadius: 4,
+      padding: "6px",
+      cursor: "pointer",
+      transition: "background 0.18s",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionEditButtonHover: {
+      background: isDarkMode ? "#374151" : "#dbeafe",
+    },
+    actionDeleteButton: {
+      background: "transparent",
+      border: "none",
+      borderRadius: 4,
+      padding: "6px",
+      cursor: "pointer",
+      transition: "background 0.18s",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionDeleteButtonHover: {
+      background: isDarkMode ? "#374151" : "#fef2f2",
+    },
+    // Tab styles for the New Acquisitions modal
+    tabButton: {
+      border: "none",
+      padding: "8px 12px",
+      fontSize: 13,
+      fontWeight: 500,
+      cursor: "pointer",
+      borderRadius: "6px 6px 0 0",
+      transition: "all 0.2s",
+      display: "flex",
+      alignItems: "center",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      minWidth: 80,
+      maxWidth: 120,
+      justifyContent: "space-between",
+      flexShrink: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    addTabButton: {
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#9ca3af" : "#64748b",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      borderRadius: 6,
+      width: 32,
+      height: 32,
+      fontSize: 16,
+      fontWeight: 600,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   return (
     <div
       style={{
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "transparent",
+        background: isDarkMode ? "#111827" : "transparent",
+        color: isDarkMode ? "#f3f4f6" : "inherit",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
@@ -4086,8 +4659,8 @@ function Inventory() {
           top: 0,
           zIndex: 10,
           flexShrink: 0,
-          background: "rgb(255, 255, 255)",
-          borderBottom: "1px solid #e5e7eb",
+          background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+          borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
         }}
       >
         <div
@@ -4104,9 +4677,9 @@ function Inventory() {
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#f9fafb",
+              background: isDarkMode ? "#374151" : "#f9fafb",
               borderRadius: "6px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               padding: "10px 14px",
               flex: 1,
               minWidth: "200px",
@@ -4115,7 +4688,10 @@ function Inventory() {
             <svg
               width="18"
               height="18"
-              style={{ color: "#6b7280", opacity: 0.8 }}
+              style={{
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+                opacity: 0.8,
+              }}
               fill="none"
               stroke="currentColor"
               strokeWidth={2}
@@ -4131,12 +4707,15 @@ function Inventory() {
               placeholder="Search inventory devices..."
               value={deviceSearch}
               onChange={(e) => setDeviceSearch(e.target.value)}
+              className={
+                isDarkMode ? "search-input-dark" : "search-input-light"
+              }
               style={{
                 border: "none",
                 outline: "none",
                 background: "transparent",
                 fontSize: "14px",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 padding: "0 0 0 10px",
                 width: "100%",
                 fontWeight: 400,
@@ -4152,11 +4731,11 @@ function Inventory() {
                 alignItems: "center",
                 gap: "6px",
                 padding: "6px 12px",
-                background: "#f0f9ff",
+                background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
                 borderRadius: "6px",
-                border: "1px solid #0ea5e9",
+                border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
                 fontSize: "12px",
-                color: "#0369a1",
+                color: isDarkMode ? "#dbeafe" : "#0369a1",
                 fontWeight: 500,
               }}
             >
@@ -4192,7 +4771,7 @@ function Inventory() {
                 setShowForm(true);
               }}
               style={{
-                background: "#3b82f6",
+                background: isDarkMode ? "#3b82f6" : "#3b82f6",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -4245,7 +4824,11 @@ function Inventory() {
                     .click()
                 }
                 style={{
-                  background: importing ? "#9ca3af" : "#10b981",
+                  background: importing
+                    ? "#9ca3af"
+                    : isDarkMode
+                    ? "#10b981"
+                    : "#10b981",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -4293,7 +4876,7 @@ function Inventory() {
               onClick={handleExportToExcel}
               title="Export all inventory data to Excel"
               style={{
-                background: "#f59e0b",
+                background: isDarkMode ? "#f59e0b" : "#f59e0b",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -4332,7 +4915,11 @@ function Inventory() {
               disabled={selectedIds.length === 0}
               onClick={() => handleBulkAssign()}
               style={{
-                background: selectedIds.length ? "#8b5cf6" : "#9ca3af",
+                background: selectedIds.length
+                  ? isDarkMode
+                    ? "#8b5cf6"
+                    : "#8b5cf6"
+                  : "#9ca3af",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -4377,7 +4964,9 @@ function Inventory() {
               style={{
                 background:
                   selectedIds.length && deleteProgress.total === 0
-                    ? "#ef4444"
+                    ? isDarkMode
+                      ? "#ef4444"
+                      : "#ef4444"
                     : "#9ca3af",
                 color: "#fff",
                 border: "none",
@@ -4466,7 +5055,7 @@ function Inventory() {
             <button
               onClick={getLastTagsForEachDeviceType}
               style={{
-                background: "#8b5cf6",
+                background: isDarkMode ? "#8b5cf6" : "#8b5cf6",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -4553,8 +5142,8 @@ function Inventory() {
       {hasActiveHeaderFilters && (
         <div
           style={{
-            background: "#f0f9ff",
-            border: "1px solid #0ea5e9",
+            background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
+            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
             borderRadius: "6px",
             padding: "12px 16px",
             margin: "0 24px 16px 24px",
@@ -4571,7 +5160,7 @@ function Inventory() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              color: "#0369a1",
+              color: isDarkMode ? "#dbeafe" : "#0369a1",
             }}
           >
             <svg
@@ -4600,13 +5189,15 @@ function Inventory() {
                   key={key}
                   style={{
                     display: "inline-block",
-                    background: "#ffffff",
-                    border: "1px solid #0ea5e9",
+                    background: isDarkMode ? "#1e3a8a" : "#ffffff",
+                    border: isDarkMode
+                      ? "1px solid #3b82f6"
+                      : "1px solid #0ea5e9",
                     borderRadius: "4px",
                     padding: "4px 8px",
                     margin: "0 4px 4px 0",
                     fontSize: "12px",
-                    color: "#0369a1",
+                    color: isDarkMode ? "#dbeafe" : "#0369a1",
                   }}
                 >
                   {key}: {value}
@@ -4621,7 +5212,7 @@ function Inventory() {
               fontSize: "12px",
               border: "1px solid #0ea5e9",
               borderRadius: "4px",
-              background: "#ffffff",
+              background: isDarkMode ? "#374151" : "#ffffff",
               color: "#0369a1",
               fontFamily:
                 "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -4637,7 +5228,7 @@ function Inventory() {
               e.target.style.color = "#ffffff";
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = "#ffffff";
+              e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
               e.target.style.color = "#0369a1";
             }}
           >
@@ -4666,10 +5257,11 @@ function Inventory() {
           style={{
             flex: 1,
             overflow: "hidden", // Prevent outer container overflow
-            background: "#fff",
-            border: "1px solid #d1d5db",
-            boxShadow:
-              "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+            background: isDarkMode ? "#1f2937" : "#fff",
+            border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+            boxShadow: isDarkMode
+              ? "0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2)"
+              : "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
             borderRadius: "8px", // Add border radius for better appearance
             position: "relative", // Enable positioning for sticky elements
             display: "flex",
@@ -4698,27 +5290,29 @@ function Inventory() {
                 width: "100%",
                 minWidth: "900px", // Increased for better laptop/desktop display
                 borderCollapse: "collapse",
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 fontSize: "14px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 tableLayout: "fixed", // Fixed layout for better column control
               }}
             >
               <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row */}
-                <tr style={{ background: "#f9fafb" }}>
+                <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
                   <th
                     style={{
                       width: "4%", // Percentage-based for responsiveness
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4735,12 +5329,14 @@ function Inventory() {
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4752,12 +5348,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4769,12 +5367,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4786,12 +5386,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4803,12 +5405,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4820,12 +5424,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4837,12 +5443,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4854,12 +5462,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4871,12 +5481,14 @@ function Inventory() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4888,12 +5500,14 @@ function Inventory() {
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4902,15 +5516,17 @@ function Inventory() {
                 </tr>
 
                 {/* Filter Row */}
-                <tr style={{ background: "#ffffff" }}>
+                <tr style={{ background: isDarkMode ? "#1f2937" : "#ffffff" }}>
                   <th
                     style={{
                       width: "4%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -4920,10 +5536,12 @@ function Inventory() {
                     style={{
                       width: "3%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -4933,10 +5551,12 @@ function Inventory() {
                     style={{
                       width: "13%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -4952,10 +5572,12 @@ function Inventory() {
                     style={{
                       width: "11%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -4976,10 +5598,12 @@ function Inventory() {
                     style={{
                       width: "10%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -4993,10 +5617,12 @@ function Inventory() {
                     style={{
                       width: "10%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5010,10 +5636,12 @@ function Inventory() {
                     style={{
                       width: "9%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5032,10 +5660,12 @@ function Inventory() {
                     style={{
                       width: "9%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5052,10 +5682,12 @@ function Inventory() {
                     style={{
                       width: "15%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5069,10 +5701,12 @@ function Inventory() {
                     style={{
                       width: "12%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5087,10 +5721,12 @@ function Inventory() {
                     style={{
                       width: "8%",
                       padding: "6px 4px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: "37px",
-                      background: "#ffffff",
+                      background: isDarkMode ? "#374151" : "#ffffff",
                       zIndex: 10,
                     }}
                   >
@@ -5126,10 +5762,12 @@ function Inventory() {
                           style={{
                             padding: "40px 20px",
                             textAlign: "center",
-                            color: "#9ca3af",
+                            color: isDarkMode ? "#9ca3af" : "#9ca3af",
                             fontSize: "14px",
                             fontWeight: "400",
-                            border: "1px solid #d1d5db",
+                            border: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #d1d5db",
                           }}
                         >
                           {deviceSearch || hasActiveHeaderFilters
@@ -5144,10 +5782,16 @@ function Inventory() {
                     <tr
                       key={device.id}
                       style={{
-                        borderBottom: "1px solid #d1d5db",
+                        borderBottom: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         background:
                           index % 2 === 0
-                            ? "rgb(250, 250, 252)"
+                            ? isDarkMode
+                              ? "#1f2937"
+                              : "rgb(250, 250, 252)"
+                            : isDarkMode
+                            ? "#111827"
                             : "rgb(240, 240, 243)",
                         cursor: "pointer",
                         transition: "background 0.15s",
@@ -5155,17 +5799,23 @@ function Inventory() {
                       onClick={() => handleSelectOne(device.id)}
                       onMouseEnter={(e) => {
                         if (index % 2 === 0) {
-                          e.currentTarget.style.background =
-                            "rgb(235, 235, 240)";
+                          e.currentTarget.style.background = isDarkMode
+                            ? "#374151"
+                            : "rgb(235, 235, 240)";
                         } else {
-                          e.currentTarget.style.background =
-                            "rgb(225, 225, 235)";
+                          e.currentTarget.style.background = isDarkMode
+                            ? "#1f2937"
+                            : "rgb(225, 225, 235)";
                         }
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background =
                           index % 2 === 0
-                            ? "rgb(250, 250, 252)"
+                            ? isDarkMode
+                              ? "#1f2937"
+                              : "rgb(250, 250, 252)"
+                            : isDarkMode
+                            ? "#111827"
                             : "rgb(240, 240, 243)";
                       }}
                     >
@@ -5174,7 +5824,9 @@ function Inventory() {
                           width: "4%",
                           padding: "8px 4px",
                           textAlign: "center",
-                          border: "1px solid #d1d5db",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
                         }}
                       >
                         <input
@@ -5192,8 +5844,10 @@ function Inventory() {
                           width: "3%",
                           padding: "8px 4px",
                           fontSize: "14px",
-                          color: "rgb(55, 65, 81)",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                         }}
                       >
@@ -5204,8 +5858,10 @@ function Inventory() {
                           width: "13%",
                           padding: "8px 6px",
                           fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5220,7 +5876,9 @@ function Inventory() {
                           }}
                           style={{
                             cursor: "pointer",
-                            color: "rgb(107, 114, 128)",
+                            color: isDarkMode
+                              ? "#f3f4f6"
+                              : "rgb(107, 114, 128)",
                             textDecoration: "none",
                             fontWeight: 400,
                             transition: "color 0.2s",
@@ -5231,10 +5889,14 @@ function Inventory() {
                             fontSize: "13px", // Slightly smaller to fit better
                           }}
                           onMouseEnter={(e) =>
-                            (e.currentTarget.style.color = "rgb(75, 85, 99)")
+                            (e.currentTarget.style.color = isDarkMode
+                              ? "#d1d5db"
+                              : "rgb(75, 85, 99)")
                           }
                           onMouseLeave={(e) =>
-                            (e.currentTarget.style.color = "rgb(107, 114, 128)")
+                            (e.currentTarget.style.color = isDarkMode
+                              ? "#f3f4f6"
+                              : "rgb(107, 114, 128)")
                           }
                           title={`Click to view device history: ${device.deviceTag}`}
                         >
@@ -5246,8 +5908,10 @@ function Inventory() {
                           width: "11%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5262,8 +5926,10 @@ function Inventory() {
                           width: "10%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5278,8 +5944,10 @@ function Inventory() {
                           width: "10%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5294,8 +5962,10 @@ function Inventory() {
                           width: "9%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5310,8 +5980,10 @@ function Inventory() {
                           width: "9%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           overflow: "hidden",
                         }}
@@ -5340,8 +6012,10 @@ function Inventory() {
                           width: "15%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5356,8 +6030,10 @@ function Inventory() {
                           width: "12%",
                           padding: "8px 6px",
                           fontSize: "13px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                           wordWrap: "break-word",
                           whiteSpace: "normal",
@@ -5379,8 +6055,10 @@ function Inventory() {
                           width: "8%",
                           padding: "4px 2px",
                           fontSize: "14px",
-                          color: "#374151",
-                          border: "1px solid #d1d5db",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
                           textAlign: "center",
                         }}
                       >
@@ -5540,11 +6218,13 @@ function Inventory() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 20px", // Reduced padding for fixed layout
-                  background: "#fff",
+                  background: isDarkMode ? "#1f2937" : "#fff",
                   borderRadius: "0",
                   boxShadow: "none",
                   border: "none",
-                  borderTop: "1px solid #e5e7eb",
+                  borderTop: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e5e7eb",
                   position: "sticky",
                   bottom: "0",
                   zIndex: "10",
@@ -5554,7 +6234,7 @@ function Inventory() {
                 {/* Left side - Device count and per page selector */}
                 <div
                   style={{
-                    color: "#445F6D",
+                    color: isDarkMode ? "#f3f4f6" : "#445F6D",
                     fontSize: "14px",
                     fontWeight: "600",
                     display: "flex",
@@ -5585,10 +6265,12 @@ function Inventory() {
                       style={{
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         fontSize: "13px",
-                        background: "#fff",
-                        color: "#445F6D",
+                        background: isDarkMode ? "#374151" : "#fff",
+                        color: isDarkMode ? "#f3f4f6" : "#445F6D",
                       }}
                     >
                       <option value={10}>10</option>
@@ -5615,9 +6297,25 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
+                        background:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -5648,9 +6346,25 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
+                        background:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -5699,10 +6413,21 @@ function Inventory() {
                             style={{
                               padding: "8px 12px",
                               borderRadius: "6px",
-                              border: "1px solid #e0e7ef",
+                              border: `1px solid ${
+                                isDarkMode ? "#4b5563" : "#e0e7ef"
+                              }`,
                               background:
-                                i === currentPage ? "#70C1B3" : "#fff",
-                              color: i === currentPage ? "#fff" : "#445F6D",
+                                i === currentPage
+                                  ? "#70C1B3"
+                                  : isDarkMode
+                                  ? "#1f2937"
+                                  : "#fff",
+                              color:
+                                i === currentPage
+                                  ? "#fff"
+                                  : isDarkMode
+                                  ? "#f3f4f6"
+                                  : "#445F6D",
                               cursor: "pointer",
                               fontSize: "14px",
                               fontWeight: "500",
@@ -5723,11 +6448,25 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         background:
-                          currentPage === totalPages ? "#f5f7fa" : "#fff",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
                         color:
-                          currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor:
                           currentPage === totalPages
                             ? "not-allowed"
@@ -5760,11 +6499,25 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         background:
-                          currentPage === totalPages ? "#f5f7fa" : "#fff",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
                         color:
-                          currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor:
                           currentPage === totalPages
                             ? "not-allowed"
@@ -5823,11 +6576,13 @@ function Inventory() {
                   style={{
                     width: "100%",
                     padding: "12px 16px",
-                    border: "1.5px solid #cbd5e1",
+                    border: isDarkMode
+                      ? "1.5px solid #4b5563"
+                      : "1.5px solid #cbd5e1",
                     borderRadius: 8,
                     fontSize: 15,
-                    background: "#f8fafc",
-                    color: "#1f2937",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
+                    color: isDarkMode ? "#f3f4f6" : "#1f2937",
                     marginBottom: 16,
                     boxSizing: "border-box",
                     outline: "none",
@@ -5837,11 +6592,15 @@ function Inventory() {
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#2563eb";
-                    e.target.style.background = "#fff";
+                    e.target.style.background = isDarkMode ? "#1f2937" : "#fff";
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = "#cbd5e1";
-                    e.target.style.background = "#f8fafc";
+                    e.target.style.borderColor = isDarkMode
+                      ? "#4b5563"
+                      : "#cbd5e1";
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f8fafc";
                   }}
                 />
                 <div
@@ -5851,9 +6610,11 @@ function Inventory() {
                     padding: 0,
                     margin: 0,
                     width: "100%",
-                    border: "1px solid #e2e8f0",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #e2e8f0",
                     borderRadius: 8,
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     marginBottom: 16,
                     scrollbarWidth: "none",
                     msOverflowStyle: "none",
@@ -5871,10 +6632,12 @@ function Inventory() {
                         <button
                           style={{
                             width: "100%",
-                            background: "#fff",
-                            color: "#374151",
+                            background: isDarkMode ? "#1f2937" : "#fff",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
                             border: "none",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #e5e7eb",
                             fontWeight: 500,
                             fontSize: 15,
                             padding: "12px 16px",
@@ -5885,12 +6648,18 @@ function Inventory() {
                               "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           }}
                           onMouseEnter={(e) => {
-                            e.target.style.background = "#f3f4f6";
+                            e.target.style.background = isDarkMode
+                              ? "#374151"
+                              : "#f3f4f6";
                             e.target.style.color = "#2563eb";
                           }}
                           onMouseLeave={(e) => {
-                            e.target.style.background = "#fff";
-                            e.target.style.color = "#374151";
+                            e.target.style.background = isDarkMode
+                              ? "#1f2937"
+                              : "#fff";
+                            e.target.style.color = isDarkMode
+                              ? "#f3f4f6"
+                              : "#374151";
                           }}
                           onClick={() => {
                             setSelectedAssignEmployee(emp);
@@ -5911,7 +6680,22 @@ function Inventory() {
                 >
                   <button
                     onClick={closeAssignModal}
-                    style={styles.inventoryModalButtonSecondary}
+                    style={{
+                      background: "#6b7280",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "9px 20px",
+                      fontSize: 15,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      marginLeft: 4,
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                      transition: "background 0.2s, box-shadow 0.2s",
+                      outline: "none",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
                   >
                     Cancel
                   </button>
@@ -5984,7 +6768,7 @@ function Inventory() {
                         alignItems: "center",
                         fontSize: 14,
                         fontWeight: 600,
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         marginBottom: 12,
                         cursor: "pointer",
                       }}
@@ -6060,7 +6844,7 @@ function Inventory() {
                         alignItems: "center",
                         fontSize: 14,
                         fontWeight: 600,
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         marginBottom: 12,
                         cursor: "pointer",
                       }}
@@ -6143,7 +6927,22 @@ function Inventory() {
                     </button>
                     <button
                       onClick={closeAssignModal}
-                      style={styles.inventoryModalButtonSecondary}
+                      style={{
+                        background: "#6b7280",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "9px 20px",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        marginLeft: 4,
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        transition: "background 0.2s, box-shadow 0.2s",
+                        outline: "none",
+                        fontFamily:
+                          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      }}
                     >
                       Cancel
                     </button>
@@ -6223,7 +7022,22 @@ function Inventory() {
                         )}
                         <button
                           onClick={closeAssignModal}
-                          style={styles.inventoryModalButtonSecondary}
+                          style={{
+                            background: "#6b7280",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: 8,
+                            padding: "9px 20px",
+                            fontSize: 15,
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            marginLeft: 4,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            outline: "none",
+                            fontFamily:
+                              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          }}
                         >
                           Cancel
                         </button>
@@ -6675,7 +7489,7 @@ function Inventory() {
                                 style={{
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  color: "#374151",
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
                                   marginBottom: 4,
                                 }}
                               >
@@ -7087,7 +7901,7 @@ function Inventory() {
                               style={{
                                 fontSize: 13,
                                 fontWeight: 600,
-                                color: "#374151",
+                                color: isDarkMode ? "#f3f4f6" : "#374151",
                                 marginBottom: 6,
                               }}
                             >
@@ -7258,7 +8072,9 @@ function Inventory() {
                                         ...styles.inventoryLabel,
                                         fontSize: 12,
                                         fontWeight: 600,
-                                        color: "#374151",
+                                        color: isDarkMode
+                                          ? "#f3f4f6"
+                                          : "#374151",
                                         marginBottom: 4,
                                         display: "block",
                                       }}
@@ -7417,17 +8233,20 @@ function Inventory() {
         >
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               padding: "36px 40px",
               borderRadius: 18,
               minWidth: "min(400px, 90vw)",
               maxWidth: "min(500px, 95vw)",
               width: "auto",
-              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              boxShadow: isDarkMode
+                ? "0 12px 48px rgba(0,0,0,0.4)"
+                : "0 12px 48px rgba(37,99,235,0.18)",
               position: "relative",
               margin: "20px",
               boxSizing: "border-box",
               fontFamily: "Maax, sans-serif",
+              border: isDarkMode ? "1px solid #374151" : "none",
             }}
           >
             <h2
@@ -7446,7 +8265,7 @@ function Inventory() {
             <p
               style={{
                 margin: "0 0 16px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 textAlign: "center",
               }}
@@ -7456,7 +8275,7 @@ function Inventory() {
             </p>
             <p
               style={{
-                color: "#666",
+                color: isDarkMode ? "#9ca3af" : "#666",
                 fontSize: "14px",
                 marginTop: 8,
                 textAlign: "center",
@@ -7501,8 +8320,8 @@ function Inventory() {
               <button
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 style={{
-                  background: "#e0e7ef",
-                  color: "#233037",
+                  background: isDarkMode ? "#4b5563" : "#e0e7ef",
+                  color: isDarkMode ? "#f3f4f6" : "#233037",
                   border: "none",
                   borderRadius: 8,
                   padding: "8px 18px",
@@ -7530,11 +8349,12 @@ function Inventory() {
             width: isLastTagsMinimized ? "250px" : "400px",
             height: isLastTagsMinimized ? "50px" : "auto",
             maxHeight: isLastTagsMinimized ? "50px" : "600px",
-            background: "#ffffff",
+            background: isDarkMode ? "#1f2937" : "#ffffff",
             borderRadius: "12px",
-            boxShadow:
-              "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
-            border: "2px solid #e5e7eb",
+            boxShadow: isDarkMode
+              ? "0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3)"
+              : "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+            border: isDarkMode ? "2px solid #374151" : "2px solid #e5e7eb",
             zIndex: 1000,
             fontFamily:
               "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -7554,7 +8374,11 @@ function Inventory() {
               borderRadius: "10px 10px 0 0",
               cursor: isDragging ? "grabbing" : "grab",
               userSelect: "none",
-              borderBottom: isLastTagsMinimized ? "none" : "2px solid #e5e7eb",
+              borderBottom: isLastTagsMinimized
+                ? "none"
+                : isDarkMode
+                ? "2px solid #374151"
+                : "2px solid #e5e7eb",
             }}
             onMouseDown={handleMouseDown}
           >
@@ -7688,20 +8512,39 @@ function Inventory() {
                       justifyContent: "space-between",
                       alignItems: "center",
                       padding: "12px",
-                      background: index % 2 === 0 ? "#f8fafc" : "#ffffff",
+                      background:
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f8fafc"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#ffffff",
                       borderRadius: "8px",
-                      border: "1px solid #e2e8f0",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e2e8f0",
                       transition: "all 0.2s",
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.background = "#ede9fe";
+                      e.target.style.background = isDarkMode
+                        ? "#4b5563"
+                        : "#ede9fe";
                       e.target.style.borderColor = "#8b5cf6";
                       e.target.style.transform = "translateY(-1px)";
                     }}
                     onMouseLeave={(e) => {
                       e.target.style.background =
-                        index % 2 === 0 ? "#f8fafc" : "#ffffff";
-                      e.target.style.borderColor = "#e2e8f0";
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f8fafc"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#ffffff";
+                      e.target.style.borderColor = isDarkMode
+                        ? "#4b5563"
+                        : "#e2e8f0";
                       e.target.style.transform = "translateY(0)";
                     }}
                   >
@@ -7731,7 +8574,7 @@ function Inventory() {
                       <span
                         style={{
                           fontWeight: "500",
-                          color: "#374151",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                           fontSize: "14px",
                         }}
                       >
@@ -7856,409 +8699,3 @@ function Inventory() {
 }
 
 export default Inventory;
-
-const styles = {
-  pageContainer: {
-    padding: "0", // Remove padding for fixed layout
-    maxWidth: "100%",
-    background: "transparent", // Let parent handle background
-    height: "100%", // Fill available height
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden", // Prevent page-level scrolling
-  },
-  headerBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16, // Reduced margin for fixed layout
-    padding: "16px 24px", // Added consistent padding
-    flexShrink: 0, // Prevent header from shrinking
-    background: "#fff", // Add background for visual separation
-    borderBottom: "1px solid #e5e7eb",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#222e3a",
-    letterSpacing: 1,
-    margin: 0,
-  },
-  headerBarGoogle: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    marginBottom: 24,
-    padding: "0 24px",
-  },
-  googleTitle: {
-    color: "#233037",
-    fontWeight: 800,
-    fontSize: 28,
-    marginBottom: 18,
-    letterSpacing: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  googleSearchBar: {
-    display: "flex",
-    alignItems: "center",
-    background: "#fff",
-    borderRadius: 24,
-    boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
-    border: "1.5px solid #e0e7ef",
-    padding: "2px 16px 2px 12px",
-    width: 320,
-    transition: "box-shadow  0.2s, border 0.2s",
-    marginBottom: 0,
-  },
-  googleSearchInput: {
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    fontSize: 17,
-    color: "#233037",
-    padding: "10px 0 10px 8px",
-    width: "100%",
-    fontWeight: 500,
-  },
-  buttonBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 18,
-    padding: "0 24px",
-  },
-  button: {
-    background: "#70C1B3",
-    color: "#233037",
-    border: "none",
-    borderRadius: 8,
-    padding: "10px 22px",
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    margin: 0,
-  },
-  buttonDisabled: {
-    background: "#e9eef3",
-    color: "#b0b8c1",
-    cursor: "not-allowed",
-  },
-  tableContainer: {
-    marginTop: 0,
-    overflowX: "auto",
-    overflowY: "auto", // Allow vertical scrolling
-    padding: "0",
-    flex: 1, // Take remaining space
-    minHeight: 0, // Allow shrinking
-    background: "#fff",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitScrollbar: { display: "none" },
-  },
-  table: {
-    width: "100%",
-    minWidth: 900,
-    borderCollapse: "collapse",
-    borderSpacing: 0,
-    background: "#fff",
-    overflow: "hidden",
-    tableLayout: "auto",
-  },
-  th: {
-    padding: "12px 16px",
-    background: "rgb(255, 255, 255)",
-    color: "rgb(55, 65, 81)",
-    fontWeight: 500,
-    fontSize: 12,
-    border: "none",
-    textAlign: "left",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    position: "sticky",
-    top: 0,
-    zIndex: 5,
-  },
-  td: {
-    padding: "12px 16px",
-    color: "#374151",
-    fontSize: 14,
-    borderBottom: "1px solid #e5e7eb",
-    background: "#fff",
-    verticalAlign: "middle",
-    wordBreak: "break-word",
-  },
-  iconButton: {
-    background: "none",
-    border: "none",
-    color: "#64748b",
-    fontSize: 18,
-    padding: 6,
-    borderRadius: 6,
-    cursor: "pointer",
-    marginRight: 4,
-    transition: "background 0.2s, color 0.2s",
-    outline: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconButtonHover: {
-    background: "#e0e7ef",
-    color: "#2563eb",
-  },
-  deletingText: {
-    marginLeft: 16,
-    color: "#e57373",
-    fontWeight: 500,
-    fontSize: 15,
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(34, 46, 58, 0.18)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2000,
-  },
-  modalContent: {
-    background: "#fff",
-    padding: 28,
-    borderRadius: 14,
-    minWidth: 260,
-    maxWidth: 340,
-    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    position: "relative",
-    border: "1.5px solid #e5e7eb",
-    transition: "box-shadow 0.2s",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalContent: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 12,
-    minWidth: 480,
-    maxWidth: 520,
-    width: "70vw",
-    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    position: "relative",
-    border: "1.5px solid #e5e7eb",
-    transition: "box-shadow 0.2s",
-    maxHeight: "85vh",
-    overflowY: "auto",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitScrollbar: { display: "none" },
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#2563eb",
-    marginBottom: 16,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#2563eb",
-    marginBottom: 14,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    width: "100%",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryInputGroup: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    marginBottom: 10,
-    width: "100%",
-    minWidth: 140,
-  },
-  inventoryLabel: {
-    alignSelf: "flex-start",
-    fontWeight: 500,
-    color: "#222e3a",
-    marginBottom: 3,
-    fontSize: 13,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryInput: {
-    width: "100%",
-    minWidth: 0,
-    fontSize: 13,
-    padding: "6px 8px",
-    borderRadius: 5,
-    border: "1.2px solid #cbd5e1",
-    background: "#f1f5f9",
-    height: "30px",
-    boxSizing: "border-box",
-    marginBottom: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    outline: "none",
-    transition: "border-color 0.2s, box-shadow 0.2s",
-  },
-  inventoryModalButton: {
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 15,
-    fontWeight: 500,
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalButtonSmall: {
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: 7,
-    padding: "7px 14px",
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: "pointer",
-    marginLeft: 4,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalButtonSecondary: {
-    background: "#e0e7ef",
-    color: "#2563eb",
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 15,
-    fontWeight: 500,
-    cursor: "pointer",
-    marginLeft: 4,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  modalCheckbox: {
-    accentColor: "#2563eb",
-    width: 18,
-    height: 18,
-    marginRight: 8,
-  },
-  modalSection: {
-    width: "100%",
-    marginBottom: 14,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-  },
-  modalLabel: {
-    fontWeight: 500,
-    color: "#222e3a",
-    marginBottom: 5,
-    fontSize: 15,
-    textAlign: "left",
-    width: "100%",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  actionEditButton: {
-    background: "transparent",
-    border: "none",
-    borderRadius: 4,
-    padding: "6px",
-    cursor: "pointer",
-    transition: "background 0.18s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionEditButtonHover: {
-    background: "#dbeafe",
-  },
-  actionDeleteButton: {
-    background: "transparent",
-    border: "none",
-    borderRadius: 4,
-    padding: "6px",
-    cursor: "pointer",
-    transition: "background 0.18s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionDeleteButtonHover: {
-    background: "#fef2f2",
-  },
-  // Tab styles for the New Acquisitions modal
-  tabButton: {
-    border: "none",
-    padding: "8px 12px",
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    borderRadius: "6px 6px 0 0",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    minWidth: 80,
-    maxWidth: 120,
-    justifyContent: "space-between",
-    flexShrink: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  addTabButton: {
-    background: "#f1f5f9",
-    color: "#64748b",
-    border: "1px solid #e2e8f0",
-    borderRadius: 6,
-    width: 32,
-    height: 32,
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-};

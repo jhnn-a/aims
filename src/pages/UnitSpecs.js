@@ -87,39 +87,59 @@ const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
   const cpuGeneration = cpuGen?.toLowerCase() || "";
   const ramSize = parseInt(ram) || 0;
   const hasHDD = drive?.toLowerCase().includes("hdd") || false;
-  const hasSSD = drive?.toLowerCase().includes("ssd") || drive?.toLowerCase().includes("nvme") || false;
-  const hasGPU = gpu && gpu.trim() !== "" && !gpu.toLowerCase().includes("integrated");
+  const hasSSD =
+    drive?.toLowerCase().includes("ssd") ||
+    drive?.toLowerCase().includes("nvme") ||
+    false;
+  const hasGPU =
+    gpu && gpu.trim() !== "" && !gpu.toLowerCase().includes("integrated");
 
   // High-end criteria: i7+, 16GB+ RAM, SSD/NVMe + GPU
-  if ((cpuGeneration === "i7" || cpuGeneration === "i9") && ramSize >= 16 && hasSSD && hasGPU) {
+  if (
+    (cpuGeneration === "i7" || cpuGeneration === "i9") &&
+    ramSize >= 16 &&
+    hasSSD &&
+    hasGPU
+  ) {
     return 5;
   }
-  
+
   // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
-  if ((cpuGeneration === "i5" || cpuGeneration === "i7") && ramSize >= 8 && hasSSD) {
+  if (
+    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
+    ramSize >= 8 &&
+    hasSSD
+  ) {
     return 4;
   }
-  
+
   // Low-end: everything else (i3, 4GB RAM, HDD)
   return 3;
 };
 
 // Helper function to calculate appraisal date
-const calculateAppraisalDate = (dateAdded, category, cpuGen, ram, drive, gpu) => {
+const calculateAppraisalDate = (
+  dateAdded,
+  category,
+  cpuGen,
+  ram,
+  drive,
+  gpu
+) => {
   if (!dateAdded) return "";
-  
+
   try {
     const addedDate = new Date(dateAdded);
     if (isNaN(addedDate.getTime())) return "";
-    
+
     const lifespanYears = getLifespanYears(category, cpuGen, ram, drive, gpu);
     const appraisalDate = new Date(addedDate);
     appraisalDate.setFullYear(appraisalDate.getFullYear() + lifespanYears);
-    
-    return appraisalDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
+
+    return appraisalDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
   } catch (error) {
     console.error("Error calculating appraisal date:", error);
@@ -133,7 +153,7 @@ const autoFillCategoryFromSpecs = (cpuGen, ram, drive, gpu) => {
   const ramSize = parseInt(ram) || 0;
   const driveString = drive?.toLowerCase() || "";
   const gpuString = gpu?.toLowerCase() || "";
-  
+
   // Extract CPU generation from strings like "Intel Core i7-8700K" or "i7-10700"
   let cpuGeneration = "";
   if (cpuString.includes("i9")) {
@@ -145,17 +165,18 @@ const autoFillCategoryFromSpecs = (cpuGen, ram, drive, gpu) => {
   } else if (cpuString.includes("i3")) {
     cpuGeneration = "i3";
   }
-  
+
   // Check drive types
   const hasHDD = driveString.includes("hdd");
   const hasSSD = driveString.includes("ssd") || driveString.includes("nvme");
-  
+
   // Check for dedicated GPU (not integrated)
-  const hasGPU = gpuString && 
-                 gpuString.trim() !== "" && 
-                 !gpuString.includes("integrated") && 
-                 !gpuString.includes("intel") && 
-                 !gpuString.includes("none");
+  const hasGPU =
+    gpuString &&
+    gpuString.trim() !== "" &&
+    !gpuString.includes("integrated") &&
+    !gpuString.includes("intel") &&
+    !gpuString.includes("none");
 
   console.log("Category Debug:", {
     cpuString,
@@ -165,19 +186,28 @@ const autoFillCategoryFromSpecs = (cpuGen, ram, drive, gpu) => {
     hasHDD,
     hasSSD,
     gpuString,
-    hasGPU
+    hasGPU,
   });
 
   // High-end criteria: i7+ (i7 or i9), 16GB+ RAM, SSD/NVMe + dedicated GPU
-  if ((cpuGeneration === "i7" || cpuGeneration === "i9") && ramSize >= 16 && hasSSD && hasGPU) {
+  if (
+    (cpuGeneration === "i7" || cpuGeneration === "i9") &&
+    ramSize >= 16 &&
+    hasSSD &&
+    hasGPU
+  ) {
     return "High-End";
   }
-  
+
   // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
-  if ((cpuGeneration === "i5" || cpuGeneration === "i7") && ramSize >= 8 && hasSSD) {
+  if (
+    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
+    ramSize >= 8 &&
+    hasSSD
+  ) {
     return "Mid-Range";
   }
-  
+
   // Low-end: everything else (i3, <8GB RAM, HDD, or doesn't meet above criteria)
   return "Low-End";
 };
@@ -201,7 +231,9 @@ const analyzeSpecs = (device) => {
   } else if (cpuString.includes("i5")) {
     recommendations.push("CPU is acceptable for most tasks (i5)");
   } else if (cpuString.includes("i3")) {
-    warnings.push("CPU below recommended baseline (i3) - consider i5 or higher");
+    warnings.push(
+      "CPU below recommended baseline (i3) - consider i5 or higher"
+    );
   } else {
     warnings.push("CPU information unclear - please verify specifications");
   }
@@ -225,16 +257,25 @@ const analyzeSpecs = (device) => {
   } else if (driveString.includes("ssd")) {
     goodPoints.push("Good storage speed (SSD)");
   } else if (driveString.includes("hdd")) {
-    warnings.push("HDD detected – recommend upgrade to SSD for better performance");
+    warnings.push(
+      "HDD detected – recommend upgrade to SSD for better performance"
+    );
   } else {
     warnings.push("Drive type unclear - please verify if SSD or HDD");
   }
 
   // GPU Analysis
-  if (gpuString && !gpuString.includes("integrated") && !gpuString.includes("intel") && gpuString.trim() !== "") {
+  if (
+    gpuString &&
+    !gpuString.includes("integrated") &&
+    !gpuString.includes("intel") &&
+    gpuString.trim() !== ""
+  ) {
     goodPoints.push("Dedicated GPU available for graphics-intensive tasks");
   } else {
-    recommendations.push("Using integrated graphics - adequate for basic tasks");
+    recommendations.push(
+      "Using integrated graphics - adequate for basic tasks"
+    );
   }
 
   return { recommendations, warnings, goodPoints };
@@ -243,8 +284,11 @@ const analyzeSpecs = (device) => {
 // Helper function to generate preventive maintenance checklist based on device
 const getMaintenanceChecklist = (device) => {
   const tasks = [];
-  const deviceAge = device.dateAdded ? 
-    Math.floor((new Date() - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 365)) : 0;
+  const deviceAge = device.dateAdded
+    ? Math.floor(
+        (new Date() - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 365)
+      )
+    : 0;
 
   // Universal tasks
   tasks.push({ task: "Clean internal fans and vents", critical: true });
@@ -256,20 +300,29 @@ const getMaintenanceChecklist = (device) => {
 
   // Device type specific tasks
   if (device.deviceType?.toLowerCase() === "laptop") {
-    tasks.push({ task: "Check battery health and calibration", critical: true });
+    tasks.push({
+      task: "Check battery health and calibration",
+      critical: true,
+    });
     tasks.push({ task: "Clean keyboard and touchpad", critical: false });
   }
 
   // Age-based tasks
   if (deviceAge >= 3) {
-    tasks.push({ task: "Thermal paste replacement (device is 3+ years old)", critical: true });
+    tasks.push({
+      task: "Thermal paste replacement (device is 3+ years old)",
+      critical: true,
+    });
     tasks.push({ task: "Deep hardware diagnostic", critical: true });
   }
 
   // Drive-specific tasks
   if (device.Drive?.toLowerCase().includes("hdd")) {
     tasks.push({ task: "Check HDD health (SMART status)", critical: true });
-    tasks.push({ task: "Consider SSD upgrade for better performance", critical: false });
+    tasks.push({
+      task: "Consider SSD upgrade for better performance",
+      critical: false,
+    });
   } else if (device.Drive?.toLowerCase().includes("ssd")) {
     tasks.push({ task: "Check SSD health and wear level", critical: true });
   }
@@ -464,10 +517,11 @@ const UnitSpecs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  
+
   // New modal states for Specs Report and Preventive Maintenance
   const [showSpecsReport, setShowSpecsReport] = useState(false);
-  const [showPreventiveMaintenance, setShowPreventiveMaintenance] = useState(false);
+  const [showPreventiveMaintenance, setShowPreventiveMaintenance] =
+    useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
 
   // Close filter popup when clicking outside
@@ -600,7 +654,10 @@ const UnitSpecs = () => {
             OS: device.os || device.operatingSystem || "",
             Remarks: device.remarks || "",
             lifespan: device.lifespan || "",
-            dateAdded: device.dateAdded || device.acquisitionDate || new Date().toISOString(), // Include date for appraisal calculation
+            dateAdded:
+              device.dateAdded ||
+              device.acquisitionDate ||
+              new Date().toISOString(), // Include date for appraisal calculation
           };
 
           // Determine target collection based on assignment status
@@ -701,7 +758,7 @@ const UnitSpecs = () => {
           newForm.GPU
         );
         newForm.category = suggestedCategory;
-        
+
         // Also update lifespan display (though it's calculated, we keep for consistency)
         const lifespanYears = getLifespanYears(
           suggestedCategory,
@@ -746,7 +803,9 @@ const UnitSpecs = () => {
       // Ensure RAM is stored with "GB" suffix
       RAM: form.RAM ? `${form.RAM}GB` : "",
       // Set dateAdded for new units (keep existing for edits)
-      dateAdded: editId ? form.dateAdded : (form.dateAdded || new Date().toISOString()),
+      dateAdded: editId
+        ? form.dateAdded
+        : form.dateAdded || new Date().toISOString(),
     };
 
     // --- Improved Validation ---
@@ -966,10 +1025,21 @@ const UnitSpecs = () => {
       return Array.from(new Set(data.map((u) => u.Remarks))).filter(Boolean);
     if (key === "Appraisal") {
       // For appraisal, we'll show calculated appraisal dates
-      return Array.from(new Set(data.map((u) => {
-        if (!u.dateAdded) return null;
-        return calculateAppraisalDate(u.dateAdded, u.category, u.cpuGen, u.RAM, u.Drive, u.GPU);
-      }))).filter(Boolean);
+      return Array.from(
+        new Set(
+          data.map((u) => {
+            if (!u.dateAdded) return null;
+            return calculateAppraisalDate(
+              u.dateAdded,
+              u.category,
+              u.cpuGen,
+              u.RAM,
+              u.Drive,
+              u.GPU
+            );
+          })
+        )
+      ).filter(Boolean);
     }
     return [];
   };
@@ -1003,9 +1073,16 @@ const UnitSpecs = () => {
           });
         } else if (key === "Appraisal") {
           filtered = filtered.filter((unit) => {
-            const appraisalDate = unit.dateAdded ? 
-              calculateAppraisalDate(unit.dateAdded, unit.category, unit.cpuGen, unit.RAM, unit.Drive, unit.GPU) : 
-              "";
+            const appraisalDate = unit.dateAdded
+              ? calculateAppraisalDate(
+                  unit.dateAdded,
+                  unit.category,
+                  unit.cpuGen,
+                  unit.RAM,
+                  unit.Drive,
+                  unit.GPU
+                )
+              : "";
             return filters.Appraisal.includes(appraisalDate);
           });
         } else if (key !== "Tag") {
@@ -2247,7 +2324,16 @@ const UnitSpecs = () => {
                         textAlign: "center",
                       }}
                     >
-                      {unit.dateAdded ? calculateAppraisalDate(unit.dateAdded, unit.category, unit.cpuGen, unit.RAM, unit.Drive, unit.GPU) : "No Date"}
+                      {unit.dateAdded
+                        ? calculateAppraisalDate(
+                            unit.dateAdded,
+                            unit.category,
+                            unit.cpuGen,
+                            unit.RAM,
+                            unit.Drive,
+                            unit.GPU
+                          )
+                        : "No Date"}
                     </td>
                     <td
                       style={{
@@ -3637,8 +3723,22 @@ const UnitSpecs = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ margin: 0, color: "#1f2937", fontSize: "24px", fontWeight: "600" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  color: "#1f2937",
+                  fontSize: "24px",
+                  fontWeight: "600",
+                }}
+              >
                 📤 Specifications Report
               </h2>
               <button
@@ -3661,94 +3761,178 @@ const UnitSpecs = () => {
                 ×
               </button>
             </div>
-            
+
             <div style={{ marginBottom: "20px" }}>
-              <p style={{ color: "#6b7280", fontSize: "16px", margin: "0 0 16px 0" }}>
-                Summary of current specifications with recommendations for devices that don't meet today's baseline standards.
+              <p
+                style={{
+                  color: "#6b7280",
+                  fontSize: "16px",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                Summary of current specifications with recommendations for
+                devices that don't meet today's baseline standards.
               </p>
             </div>
 
             <div style={{ marginBottom: "20px" }}>
-              <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "600", marginBottom: "12px" }}>
+              <h3
+                style={{
+                  color: "#1f2937",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                  marginBottom: "12px",
+                }}
+              >
                 📊 Overall Statistics
               </h3>
-              <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                gap: "12px",
-                marginBottom: "20px"
-              }}>
-                <div style={{
-                  background: "#f3f4f6",
-                  padding: "16px",
-                  borderRadius: "8px",
-                  textAlign: "center"
-                }}>
-                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1f2937" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "12px",
+                  marginBottom: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    background: "#f3f4f6",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                      color: "#1f2937",
+                    }}
+                  >
                     {inventory.length + deployed.length}
                   </div>
-                  <div style={{ fontSize: "14px", color: "#6b7280" }}>Total Devices</div>
-                </div>
-                <div style={{
-                  background: "#fef3c7",
-                  padding: "16px",
-                  borderRadius: "8px",
-                  textAlign: "center"
-                }}>
-                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#d97706" }}>
-                    {[...inventory, ...deployed].filter(device => {
-                      const analysis = analyzeSpecs(device);
-                      return analysis.warnings.length > 0;
-                    }).length}
+                  <div style={{ fontSize: "14px", color: "#6b7280" }}>
+                    Total Devices
                   </div>
-                  <div style={{ fontSize: "14px", color: "#92400e" }}>Need Attention</div>
                 </div>
-                <div style={{
-                  background: "#d1fae5",
-                  padding: "16px",
-                  borderRadius: "8px",
-                  textAlign: "center"
-                }}>
-                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#059669" }}>
-                    {[...inventory, ...deployed].filter(device => {
-                      const analysis = analyzeSpecs(device);
-                      return analysis.warnings.length === 0;
-                    }).length}
+                <div
+                  style={{
+                    background: "#fef3c7",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                      color: "#d97706",
+                    }}
+                  >
+                    {
+                      [...inventory, ...deployed].filter((device) => {
+                        const analysis = analyzeSpecs(device);
+                        return analysis.warnings.length > 0;
+                      }).length
+                    }
                   </div>
-                  <div style={{ fontSize: "14px", color: "#047857" }}>Meeting Standards</div>
+                  <div style={{ fontSize: "14px", color: "#92400e" }}>
+                    Need Attention
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: "#d1fae5",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                      color: "#059669",
+                    }}
+                  >
+                    {
+                      [...inventory, ...deployed].filter((device) => {
+                        const analysis = analyzeSpecs(device);
+                        return analysis.warnings.length === 0;
+                      }).length
+                    }
+                  </div>
+                  <div style={{ fontSize: "14px", color: "#047857" }}>
+                    Meeting Standards
+                  </div>
                 </div>
               </div>
             </div>
 
             <div style={{ marginBottom: "20px" }}>
-              <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "600", marginBottom: "12px" }}>
+              <h3
+                style={{
+                  color: "#1f2937",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                  marginBottom: "12px",
+                }}
+              >
                 ⚠️ Devices Requiring Attention
               </h3>
-              <div style={{ maxHeight: "300px", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+              <div
+                style={{
+                  maxHeight: "300px",
+                  overflow: "auto",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+              >
                 {[...inventory, ...deployed]
-                  .filter(device => {
+                  .filter((device) => {
                     const analysis = analyzeSpecs(device);
                     return analysis.warnings.length > 0;
                   })
                   .map((device, index) => {
                     const analysis = analyzeSpecs(device);
                     return (
-                      <div key={index} style={{
-                        padding: "16px",
-                        borderBottom: index < [...inventory, ...deployed].filter(d => analyzeSpecs(d).warnings.length > 0).length - 1 ? "1px solid #e5e7eb" : "none"
-                      }}>
-                        <div style={{ fontWeight: "600", color: "#1f2937", marginBottom: "8px" }}>
-                          {device.Tag || `Device ${index + 1}`} - {device.deviceType || "Unknown Type"}
+                      <div
+                        key={index}
+                        style={{
+                          padding: "16px",
+                          borderBottom:
+                            index <
+                            [...inventory, ...deployed].filter(
+                              (d) => analyzeSpecs(d).warnings.length > 0
+                            ).length -
+                              1
+                              ? "1px solid #e5e7eb"
+                              : "none",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: "600",
+                            color: "#1f2937",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          {device.Tag || `Device ${index + 1}`} -{" "}
+                          {device.deviceType || "Unknown Type"}
                         </div>
                         {analysis.warnings.map((warning, wIndex) => (
-                          <div key={wIndex} style={{ 
-                            color: "#dc2626", 
-                            fontSize: "14px", 
-                            marginBottom: "4px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px"
-                          }}>
+                          <div
+                            key={wIndex}
+                            style={{
+                              color: "#dc2626",
+                              fontSize: "14px",
+                              marginBottom: "4px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
                             <span style={{ color: "#f59e0b" }}>⚠️</span>
                             {warning}
                           </div>
@@ -3756,14 +3940,17 @@ const UnitSpecs = () => {
                         {analysis.goodPoints.length > 0 && (
                           <div style={{ marginTop: "8px" }}>
                             {analysis.goodPoints.map((point, pIndex) => (
-                              <div key={pIndex} style={{ 
-                                color: "#059669", 
-                                fontSize: "14px", 
-                                marginBottom: "4px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px"
-                              }}>
+                              <div
+                                key={pIndex}
+                                style={{
+                                  color: "#059669",
+                                  fontSize: "14px",
+                                  marginBottom: "4px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                }}
+                              >
                                 <span style={{ color: "#10b981" }}>✅</span>
                                 {point}
                               </div>
@@ -3773,15 +3960,30 @@ const UnitSpecs = () => {
                       </div>
                     );
                   })}
-                {[...inventory, ...deployed].filter(device => analyzeSpecs(device).warnings.length > 0).length === 0 && (
-                  <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+                {[...inventory, ...deployed].filter(
+                  (device) => analyzeSpecs(device).warnings.length > 0
+                ).length === 0 && (
+                  <div
+                    style={{
+                      padding: "40px",
+                      textAlign: "center",
+                      color: "#6b7280",
+                    }}
+                  >
                     🎉 All devices meet current baseline standards!
                   </div>
                 )}
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "24px",
+              }}
+            >
               <button
                 onClick={() => setShowSpecsReport(false)}
                 style={{
@@ -3848,8 +4050,22 @@ const UnitSpecs = () => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ margin: 0, color: "#1f2937", fontSize: "24px", fontWeight: "600" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "20px",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  color: "#1f2937",
+                  fontSize: "24px",
+                  fontWeight: "600",
+                }}
+              >
                 🔧 Preventive Maintenance Checklist
               </h2>
               <button
@@ -3872,93 +4088,176 @@ const UnitSpecs = () => {
                 ×
               </button>
             </div>
-            
+
             {selectedDevice ? (
               <div>
-                <div style={{ marginBottom: "20px", padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
-                  <h3 style={{ margin: "0 0 8px 0", color: "#1f2937", fontSize: "18px" }}>
+                <div
+                  style={{
+                    marginBottom: "20px",
+                    padding: "16px",
+                    background: "#f9fafb",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: "0 0 8px 0",
+                      color: "#1f2937",
+                      fontSize: "18px",
+                    }}
+                  >
                     Device: {selectedDevice.Tag || "Unknown"}
                   </h3>
-                  <p style={{ margin: "0", color: "#6b7280", fontSize: "14px" }}>
-                    Type: {selectedDevice.deviceType || "Unknown"} | 
-                    Category: {selectedDevice.category || "Unknown"} |
-                    Age: {selectedDevice.dateAdded ? 
-                      Math.floor((new Date() - new Date(selectedDevice.dateAdded)) / (1000 * 60 * 60 * 24 * 365)) + " years" : 
-                      "Unknown"
-                    }
+                  <p
+                    style={{ margin: "0", color: "#6b7280", fontSize: "14px" }}
+                  >
+                    Type: {selectedDevice.deviceType || "Unknown"} | Category:{" "}
+                    {selectedDevice.category || "Unknown"} | Age:{" "}
+                    {selectedDevice.dateAdded
+                      ? Math.floor(
+                          (new Date() - new Date(selectedDevice.dateAdded)) /
+                            (1000 * 60 * 60 * 24 * 365)
+                        ) + " years"
+                      : "Unknown"}
                   </p>
                 </div>
 
                 <div style={{ marginBottom: "20px" }}>
-                  <h4 style={{ color: "#1f2937", fontSize: "16px", fontWeight: "600", marginBottom: "12px" }}>
+                  <h4
+                    style={{
+                      color: "#1f2937",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      marginBottom: "12px",
+                    }}
+                  >
                     ✅ Maintenance Tasks
                   </h4>
-                  {getMaintenanceChecklist(selectedDevice).map((item, index) => (
-                    <div key={index} style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "12px",
-                      padding: "12px",
-                      marginBottom: "8px",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      backgroundColor: item.critical ? "#fef3c7" : "#f9fafb"
-                    }}>
-                      <input 
-                        type="checkbox" 
-                        style={{ marginTop: "2px" }}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            showSuccess(`Marked "${item.task}" as completed`);
-                          }
+                  {getMaintenanceChecklist(selectedDevice).map(
+                    (item, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "12px",
+                          padding: "12px",
+                          marginBottom: "8px",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          backgroundColor: item.critical
+                            ? "#fef3c7"
+                            : "#f9fafb",
                         }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          fontWeight: item.critical ? "600" : "normal",
-                          color: item.critical ? "#92400e" : "#374151",
-                          fontSize: "14px"
-                        }}>
-                          {item.task}
-                          {item.critical && <span style={{ color: "#dc2626", marginLeft: "8px" }}>⚠️ Critical</span>}
+                      >
+                        <input
+                          type="checkbox"
+                          style={{ marginTop: "2px" }}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              showSuccess(`Marked "${item.task}" as completed`);
+                            }
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div
+                            style={{
+                              fontWeight: item.critical ? "600" : "normal",
+                              color: item.critical ? "#92400e" : "#374151",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {item.task}
+                            {item.critical && (
+                              <span
+                                style={{ color: "#dc2626", marginLeft: "8px" }}
+                              >
+                                ⚠️ Critical
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  )}
                 </div>
               </div>
             ) : (
               <div>
-                <p style={{ color: "#6b7280", fontSize: "16px", marginBottom: "20px" }}>
-                  Select a device from the table below to generate a customized maintenance checklist.
+                <p
+                  style={{
+                    color: "#6b7280",
+                    fontSize: "16px",
+                    marginBottom: "20px",
+                  }}
+                >
+                  Select a device from the table below to generate a customized
+                  maintenance checklist.
                 </p>
-                
-                <div style={{ 
-                  maxHeight: "400px", 
-                  overflow: "auto", 
-                  border: "1px solid #e5e7eb", 
-                  borderRadius: "8px" 
-                }}>
+
+                <div
+                  style={{
+                    maxHeight: "400px",
+                    overflow: "auto",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                  }}
+                >
                   <table style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ background: "#f9fafb" }}>
-                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                        <th
+                          style={{
+                            padding: "12px",
+                            textAlign: "left",
+                            borderBottom: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                          }}
+                        >
                           Device Tag
                         </th>
-                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                        <th
+                          style={{
+                            padding: "12px",
+                            textAlign: "left",
+                            borderBottom: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                          }}
+                        >
                           Type
                         </th>
-                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                        <th
+                          style={{
+                            padding: "12px",
+                            textAlign: "left",
+                            borderBottom: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                          }}
+                        >
                           Category
                         </th>
-                        <th style={{ padding: "12px", textAlign: "center", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                        <th
+                          style={{
+                            padding: "12px",
+                            textAlign: "center",
+                            borderBottom: "1px solid #e5e7eb",
+                            fontSize: "14px",
+                            fontWeight: "600",
+                          }}
+                        >
                           Action
                         </th>
                       </tr>
                     </thead>
                     <tbody>
                       {[...inventory, ...deployed].map((device, index) => (
-                        <tr key={index} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                        <tr
+                          key={index}
+                          style={{ borderBottom: "1px solid #f3f4f6" }}
+                        >
                           <td style={{ padding: "12px", fontSize: "14px" }}>
                             {device.Tag || `Device ${index + 1}`}
                           </td>
@@ -3966,16 +4265,26 @@ const UnitSpecs = () => {
                             {device.deviceType || "Unknown"}
                           </td>
                           <td style={{ padding: "12px", fontSize: "14px" }}>
-                            <span style={{
-                              background: device.category === "High-End" ? "#dcfce7" : 
-                                         device.category === "Mid-Range" ? "#fef3c7" : "#fee2e2",
-                              color: device.category === "High-End" ? "#166534" : 
-                                     device.category === "Mid-Range" ? "#92400e" : "#991b1b",
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "500"
-                            }}>
+                            <span
+                              style={{
+                                background:
+                                  device.category === "High-End"
+                                    ? "#dcfce7"
+                                    : device.category === "Mid-Range"
+                                    ? "#fef3c7"
+                                    : "#fee2e2",
+                                color:
+                                  device.category === "High-End"
+                                    ? "#166534"
+                                    : device.category === "Mid-Range"
+                                    ? "#92400e"
+                                    : "#991b1b",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontSize: "12px",
+                                fontWeight: "500",
+                              }}
+                            >
                               {device.category || "Low-End"}
                             </span>
                           </td>
@@ -3990,7 +4299,7 @@ const UnitSpecs = () => {
                                 padding: "6px 12px",
                                 fontSize: "12px",
                                 cursor: "pointer",
-                                fontWeight: "500"
+                                fontWeight: "500",
                               }}
                             >
                               Select
@@ -4004,7 +4313,14 @@ const UnitSpecs = () => {
               </div>
             )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "24px",
+              }}
+            >
               {selectedDevice && (
                 <button
                   onClick={() => setSelectedDevice(null)}

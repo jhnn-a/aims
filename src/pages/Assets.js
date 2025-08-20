@@ -11,6 +11,7 @@ import {
 } from "../services/deviceService"; // Database operations for devices
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
+import { useTheme } from "../context/ThemeContext"; // Theme context for dark mode
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner"; // Loading indicators
@@ -99,6 +100,9 @@ function DeviceFormModal({
   editingDevice, // Boolean indicating if editing existing device
   deviceTypes, // Array of device types passed from parent component
 }) {
+  // === THEME INTEGRATION ===
+  const { isDarkMode } = useTheme();
+
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for devices
   const conditions = [
@@ -109,6 +113,7 @@ function DeviceFormModal({
 
   const isEditMode = Boolean(editingDevice);
 
+  // === MODAL STYLES ===
   const styles = {
     modalOverlay: {
       position: "fixed",
@@ -116,92 +121,27 @@ function DeviceFormModal({
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      backgroundColor: "rgba(0,0,0,0.18)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      zIndex: 2000,
+      zIndex: 1000,
     },
     inventoryModalContent: {
-      background: "#fff",
-      padding: 20,
-      borderRadius: 12,
-      minWidth: 480,
-      maxWidth: 520,
-      width: "70vw",
-      boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-start",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      borderRadius: "18px",
+      maxWidth: "min(800px, 95vw)",
+      width: "800px",
+      maxHeight: "min(90vh, 700px)",
+      overflow: "hidden",
+      boxShadow: isDarkMode
+        ? "0 20px 25px -5px rgba(0,0,0,0.4), 0 10px 10px -5px rgba(0,0,0,0.3)"
+        : "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+      fontFamily: "Maax, sans-serif",
       position: "relative",
-      border: "1.5px solid #e5e7eb",
-      transition: "box-shadow 0.2s",
-      maxHeight: "85vh",
-      overflowY: "auto",
-      scrollbarWidth: "none",
-      msOverflowStyle: "none",
-      WebkitScrollbar: { display: "none" },
-      fontFamily:
-        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    },
-    inventoryModalTitle: {
-      fontSize: 18,
-      fontWeight: 700,
-      color: "#2563eb",
-      marginBottom: 14,
-      letterSpacing: 0.5,
-      textAlign: "center",
-      width: "100%",
-      fontFamily:
-        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    },
-    inventoryInputGroup: {
+      margin: "20px",
       display: "flex",
       flexDirection: "column",
-      alignItems: "flex-start",
-      marginBottom: 10,
-      width: "100%",
-      minWidth: 140,
-    },
-    inventoryLabel: {
-      alignSelf: "flex-start",
-      fontWeight: 500,
-      color: "#222e3a",
-      marginBottom: 3,
-      fontSize: 13,
-      fontFamily:
-        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    },
-    inventoryInput: {
-      width: "100%",
-      minWidth: 0,
-      fontSize: 13,
-      padding: "6px 8px",
-      borderRadius: 5,
-      border: "1.2px solid #cbd5e1",
-      background: "#f1f5f9",
-      height: "30px",
-      boxSizing: "border-box",
-      marginBottom: 0,
-      fontFamily:
-        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      outline: "none",
-      transition: "border-color 0.2s, box-shadow 0.2s",
-    },
-    inventoryModalButton: {
-      background: "#2563eb",
-      color: "#fff",
-      border: "none",
-      borderRadius: 8,
-      padding: "9px 20px",
-      fontSize: 15,
-      fontWeight: 500,
-      cursor: "pointer",
-      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-      transition: "background 0.2s, box-shadow 0.2s",
-      outline: "none",
-      fontFamily:
-        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
   };
 
@@ -226,8 +166,18 @@ function DeviceFormModal({
         className="device-form-modal"
         style={{
           ...styles.inventoryModalContent,
-          border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
-          backgroundColor: isEditMode ? "#fefbff" : "#ffffff",
+          border: isEditMode
+            ? "2px solid #2563eb"
+            : isDarkMode
+            ? "1px solid #374151"
+            : "1px solid #e5e7eb",
+          backgroundColor: isEditMode
+            ? isDarkMode
+              ? "#1e293b"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
           animation: "modalFadeIn 0.2s ease-out",
         }}
         role="dialog"
@@ -413,9 +363,9 @@ function DeviceFormModal({
               onChange={onChange}
               style={{
                 ...styles.inventoryInput,
-                background: "#f5f5f5",
+                background: isDarkMode ? "#374151" : "#f5f5f5",
                 cursor: "not-allowed",
-                color: "#666",
+                color: isDarkMode ? "#9ca3af" : "#666",
               }}
               disabled
             />
@@ -509,6 +459,8 @@ function DeviceFormModal({
                 ...styles.inventoryModalButton,
                 opacity: isValid ? 1 : 0.6,
                 cursor: isValid ? "pointer" : "not-allowed",
+                background: isDarkMode ? "#3b82f6" : "#2563eb",
+                color: "#ffffff",
               }}
               disabled={!isValid}
             >
@@ -519,7 +471,8 @@ function DeviceFormModal({
               onClick={onCancel}
               style={{
                 ...styles.inventoryModalButton,
-                background: "#64748b",
+                background: isDarkMode ? "#6b7280" : "#64748b",
+                color: "#ffffff",
               }}
             >
               Cancel
@@ -547,6 +500,109 @@ function DeviceFormModal({
 // === MAIN ASSETS PAGE COMPONENT ===
 // This component manages the display and operations for assigned devices
 function Assets() {
+  // === THEME HOOK ===
+  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+
+  // === DYNAMIC STYLES OBJECT ===
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: `1.2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"}`,
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#000000",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   // === NOTIFICATION HOOKS ===
   const { showSuccess, showError, showWarning, showInfo } = useSnackbar(); // User feedback notifications
 
@@ -1643,6 +1699,7 @@ function Assets() {
             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           overflow: "hidden",
           boxSizing: "border-box",
+          color: isDarkMode ? "#f3f4f6" : "#222e3a",
         }}
       >
         {/* Fixed Header - Search bar and buttons section */}
@@ -1652,8 +1709,8 @@ function Assets() {
             top: 0,
             zIndex: 10,
             flexShrink: 0,
-            background: "rgb(255, 255, 255)",
-            borderBottom: "1px solid #e5e7eb",
+            background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+            borderBottom: `1px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
           }}
         >
           <div
@@ -1661,7 +1718,7 @@ function Assets() {
               display: "flex",
               alignItems: "center",
               padding: "16px 20px",
-              borderBottom: "1px solid #e5e7eb",
+              borderBottom: `1px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
               gap: "12px",
               flexWrap: "wrap",
             }}
@@ -1671,9 +1728,9 @@ function Assets() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                background: "#f9fafb",
+                background: isDarkMode ? "#374151" : "#f9fafb",
                 borderRadius: "6px",
-                border: "1px solid #d1d5db",
+                border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                 padding: "10px 14px",
                 flex: 1,
                 maxWidth: "400px",
@@ -1683,7 +1740,10 @@ function Assets() {
               <svg
                 width="18"
                 height="18"
-                style={{ color: "#6b7280", opacity: 0.8 }}
+                style={{
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  opacity: 0.8,
+                }}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1699,12 +1759,15 @@ function Assets() {
                 placeholder="Search assigned assets..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className={
+                  isDarkMode ? "search-input-dark" : "search-input-light"
+                }
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
                   fontSize: "14px",
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   padding: "0 0 0 10px",
                   width: "100%",
                   fontWeight: 400,
@@ -1725,10 +1788,18 @@ function Assets() {
                 onClick={handleBulkReassign}
                 style={{
                   padding: "9px 16px",
-                  border: "1px solid #d1d5db",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                   borderRadius: "6px",
-                  background: selectedDeviceIds.length ? "#3b82f6" : "#f3f4f6",
-                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  background: selectedDeviceIds.length
+                    ? "#3b82f6"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6",
+                  color: selectedDeviceIds.length
+                    ? "#fff"
+                    : isDarkMode
+                    ? "#6b7280"
+                    : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -1760,10 +1831,18 @@ function Assets() {
                 onClick={handleBulkUnassign}
                 style={{
                   padding: "9px 16px",
-                  border: "1px solid #d1d5db",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                   borderRadius: "6px",
-                  background: selectedDeviceIds.length ? "#ef4444" : "#f3f4f6",
-                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  background: selectedDeviceIds.length
+                    ? "#ef4444"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6",
+                  color: selectedDeviceIds.length
+                    ? "#fff"
+                    : isDarkMode
+                    ? "#6b7280"
+                    : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -1800,8 +1879,8 @@ function Assets() {
         {hasActiveHeaderFilters && (
           <div
             style={{
-              background: "#f0f9ff",
-              border: "1px solid #0ea5e9",
+              background: isDarkMode ? "#1e293b" : "#f0f9ff",
+              border: `1px solid ${isDarkMode ? "#475569" : "#0ea5e9"}`,
               borderRadius: "6px",
               padding: "12px 16px",
               margin: "0 24px 16px 24px",
@@ -1818,7 +1897,7 @@ function Assets() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                color: "#0369a1",
+                color: isDarkMode ? "#60a5fa" : "#0369a1",
               }}
             >
               <svg
@@ -1847,13 +1926,13 @@ function Assets() {
                     key={key}
                     style={{
                       display: "inline-block",
-                      background: "#ffffff",
-                      border: "1px solid #0ea5e9",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      border: `1px solid ${isDarkMode ? "#60a5fa" : "#0ea5e9"}`,
                       borderRadius: "4px",
                       padding: "4px 8px",
                       margin: "0 4px 4px 0",
                       fontSize: "12px",
-                      color: "#0369a1",
+                      color: isDarkMode ? "#60a5fa" : "#0369a1",
                     }}
                   >
                     {key}: {value}
@@ -1866,10 +1945,10 @@ function Assets() {
               style={{
                 padding: "6px 12px",
                 fontSize: "12px",
-                border: "1px solid #0ea5e9",
+                border: `1px solid ${isDarkMode ? "#60a5fa" : "#0ea5e9"}`,
                 borderRadius: "4px",
-                background: "#ffffff",
-                color: "#0369a1",
+                background: isDarkMode ? "#374151" : "#ffffff",
+                color: isDarkMode ? "#60a5fa" : "#0369a1",
                 fontFamily:
                   "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 cursor: "pointer",
@@ -1880,12 +1959,12 @@ function Assets() {
                 gap: "4px",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#0ea5e9";
-                e.target.style.color = "#ffffff";
+                e.target.style.background = isDarkMode ? "#60a5fa" : "#0ea5e9";
+                e.target.style.color = isDarkMode ? "#111827" : "#ffffff";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "#ffffff";
-                e.target.style.color = "#0369a1";
+                e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
+                e.target.style.color = isDarkMode ? "#60a5fa" : "#0369a1";
               }}
             >
               <svg
@@ -1909,7 +1988,7 @@ function Assets() {
         {/* Scrollable Table Container */}
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             border: "none",
             flex: "1",
             overflow: "auto",
@@ -1925,33 +2004,35 @@ function Assets() {
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 fontSize: "14px",
-                border: "1px solid #d1d5db",
+                border: `1px solid ${isDarkMode ? "#374151" : "#d1d5db"}`,
               }}
             >
               <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row with Column Titles */}
                 <tr
                   style={{
-                    background: "rgb(255, 255, 255)",
-                    borderBottom: "1px solid #e5e7eb",
+                    background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                    borderBottom: `1px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
                   }}
                 >
                   <th
                     style={{
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "40px",
                       textAlign: "center",
                       fontWeight: 500,
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -1965,8 +2046,10 @@ function Assets() {
                       style={{
                         width: 16,
                         height: 16,
-                        accentColor: "#3b82f6",
-                        border: "1px solid #d1d5db",
+                        accentColor: "#6b7280",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#d1d5db"
+                        }`,
                         borderRadius: "3px",
                       }}
                       title="Select all"
@@ -1974,17 +2057,17 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -1992,10 +2075,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2005,7 +2088,7 @@ function Assets() {
                       minWidth: "100px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2013,10 +2096,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2026,7 +2109,7 @@ function Assets() {
                       minWidth: "110px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2034,10 +2117,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2047,7 +2130,7 @@ function Assets() {
                       minWidth: "120px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2055,10 +2138,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2068,7 +2151,7 @@ function Assets() {
                       minWidth: "150px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2076,10 +2159,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2089,7 +2172,7 @@ function Assets() {
                       minWidth: "180px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2097,10 +2180,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2110,7 +2193,7 @@ function Assets() {
                       minWidth: "100px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2118,10 +2201,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2131,7 +2214,7 @@ function Assets() {
                       minWidth: "70px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2139,10 +2222,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2152,7 +2235,7 @@ function Assets() {
                       minWidth: "150px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2160,10 +2243,10 @@ function Assets() {
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -2171,7 +2254,7 @@ function Assets() {
                       width: "100px",
                       position: "sticky",
                       top: "0",
-                      background: "rgb(255, 255, 255)",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       zIndex: 10,
                     }}
                   >
@@ -2182,19 +2265,21 @@ function Assets() {
                 {/* Filter Row */}
                 <tr
                   style={{
-                    background: "#f8fafc",
-                    borderBottom: "2px solid #e5e7eb",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
                   }}
                 >
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "40px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2204,22 +2289,30 @@ function Assets() {
                         style={{
                           padding: "2px 4px",
                           fontSize: "10px",
-                          border: "1px solid #dc2626",
+                          border: `1px solid ${
+                            isDarkMode ? "#ef4444" : "#dc2626"
+                          }`,
                           borderRadius: "3px",
-                          background: "#ffffff",
-                          color: "#dc2626",
+                          background: isDarkMode ? "#374151" : "#ffffff",
+                          color: isDarkMode ? "#ef4444" : "#dc2626",
                           fontFamily:
                             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           cursor: "pointer",
                           transition: "all 0.2s",
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.background = "#dc2626";
+                          e.target.style.background = isDarkMode
+                            ? "#ef4444"
+                            : "#dc2626";
                           e.target.style.color = "#ffffff";
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.background = "#ffffff";
-                          e.target.style.color = "#dc2626";
+                          e.target.style.background = isDarkMode
+                            ? "#374151"
+                            : "#ffffff";
+                          e.target.style.color = isDarkMode
+                            ? "#ef4444"
+                            : "#dc2626";
                         }}
                         title="Clear all filters"
                       >
@@ -2230,11 +2323,11 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2243,14 +2336,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2265,14 +2358,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "130px",
                       maxWidth: "130px",
                       minWidth: "110px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2288,14 +2381,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "150px",
                       maxWidth: "150px",
                       minWidth: "120px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2308,14 +2401,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2328,14 +2421,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "200px",
                       maxWidth: "200px",
                       minWidth: "180px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2350,14 +2443,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2372,14 +2465,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "70px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2395,14 +2488,14 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2415,12 +2508,12 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "100px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
-                      background: "#f8fafc",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
                       zIndex: 10,
                     }}
                   >
@@ -2442,10 +2535,12 @@ function Assets() {
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
-                        color: "#9ca3af",
+                        color: isDarkMode ? "#6b7280" : "#9ca3af",
                         fontSize: "14px",
                         fontWeight: "400",
-                        border: "1px solid #d1d5db",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#d1d5db"
+                        }`,
                       }}
                     >
                       {search
@@ -2464,11 +2559,17 @@ function Assets() {
                         style={{
                           background:
                             index % 2 === 0
-                              ? "rgb(250, 250, 252)"
+                              ? isDarkMode
+                                ? "#1f2937"
+                                : "rgb(250, 250, 252)"
+                              : isDarkMode
+                              ? "#111827"
                               : "rgb(240, 240, 243)",
                           cursor: "pointer",
                           transition: "background 0.15s",
-                          borderBottom: "1px solid #f3f4f6",
+                          borderBottom: `1px solid ${
+                            isDarkMode ? "#374151" : "#f3f4f6"
+                          }`,
                         }}
                         onClick={(e) => {
                           if (e.target.type !== "checkbox") {
@@ -2477,17 +2578,23 @@ function Assets() {
                         }}
                         onMouseEnter={(e) => {
                           if (index % 2 === 0) {
-                            e.currentTarget.style.background =
-                              "rgb(235, 235, 240)";
+                            e.currentTarget.style.background = isDarkMode
+                              ? "#374151"
+                              : "rgb(235, 235, 240)";
                           } else {
-                            e.currentTarget.style.background =
-                              "rgb(225, 225, 235)";
+                            e.currentTarget.style.background = isDarkMode
+                              ? "#4b5563"
+                              : "rgb(225, 225, 235)";
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background =
                             index % 2 === 0
-                              ? "rgb(250, 250, 252)"
+                              ? isDarkMode
+                                ? "#1f2937"
+                                : "rgb(250, 250, 252)"
+                              : isDarkMode
+                              ? "#111827"
                               : "rgb(240, 240, 243)";
                         }}
                       >
@@ -2495,7 +2602,9 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                           }}
                         >
                           <input
@@ -2506,8 +2615,10 @@ function Assets() {
                             style={{
                               width: 16,
                               height: 16,
-                              accentColor: "#3b82f6",
-                              border: "1px solid #d1d5db",
+                              accentColor: "#6b7280",
+                              border: `1px solid ${
+                                isDarkMode ? "#6b7280" : "#d1d5db"
+                              }`,
                               borderRadius: "3px",
                             }}
                             title="Select device"
@@ -2516,10 +2627,12 @@ function Assets() {
                         <td
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#9ca3af" : "#6b7280",
                             fontSize: "14px",
                             fontWeight: "500",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             textAlign: "center",
                           }}
                         >
@@ -2529,9 +2642,13 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-tag"
                           style={{
                             padding: "12px 16px",
-                            color: "rgb(107, 114, 128)",
+                            color: isDarkMode
+                              ? "#d1d5db"
+                              : "rgb(107, 114, 128)",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2545,9 +2662,11 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-type"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2558,9 +2677,11 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-brand"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2571,9 +2692,11 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-model"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2584,9 +2707,11 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-assigned"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2600,9 +2725,11 @@ function Assets() {
                           className="assets-table-cell"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             maxWidth: "120px",
                             minWidth: "100px",
@@ -2624,7 +2751,9 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             maxWidth: "120px",
                             minWidth: "70px",
@@ -2655,9 +2784,11 @@ function Assets() {
                           className="assets-table-cell assets-table-cell-remarks"
                           style={{
                             padding: "12px 16px",
-                            color: "#6b7280",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             maxWidth: "180px",
                             minWidth: "150px",
@@ -2670,7 +2801,9 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                           }}
                         >
                           <div
@@ -2692,7 +2825,7 @@ function Assets() {
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "all 0.2s ease",
-                                color: "#6b7280",
+                                color: isDarkMode ? "#9ca3af" : "#6b7280",
                                 minWidth: "24px",
                                 minHeight: "24px",
                               }}
@@ -2711,7 +2844,9 @@ function Assets() {
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.background =
                                   "transparent";
-                                e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.color = isDarkMode
+                                  ? "#9ca3af"
+                                  : "#6b7280";
                                 e.currentTarget.style.transform = "scale(1)";
                                 e.currentTarget.style.boxShadow = "none";
                               }}
@@ -2757,11 +2892,13 @@ function Assets() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "12px 20px", // Reduced padding for fixed layout
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 borderRadius: "0",
                 boxShadow: "none",
                 border: "none",
-                borderTop: "1px solid #e5e7eb",
+                borderTop: isDarkMode
+                  ? "1px solid #374151"
+                  : "1px solid #e5e7eb",
                 position: "sticky",
                 bottom: "0",
                 zIndex: "10",
@@ -2770,7 +2907,7 @@ function Assets() {
             >
               <div
                 style={{
-                  color: "#445F6D",
+                  color: isDarkMode ? "#f3f4f6" : "#445F6D",
                   fontSize: "14px",
                   fontWeight: "600",
                   display: "flex",
@@ -2796,10 +2933,12 @@ function Assets() {
                     style={{
                       padding: "4px 8px",
                       borderRadius: "4px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       fontSize: "13px",
-                      background: "#fff",
-                      color: "#445F6D",
+                      background: isDarkMode ? "#374151" : "#fff",
+                      color: isDarkMode ? "#f3f4f6" : "#445F6D",
                     }}
                   >
                     <option value={10}>10</option>
@@ -2821,9 +2960,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
+                      background:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -2854,9 +3009,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
+                      background:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -2905,9 +3076,21 @@ function Assets() {
                           style={{
                             padding: "8px 12px",
                             borderRadius: "6px",
-                            border: "1px solid #e0e7ef",
-                            background: i === currentPage ? "#70C1B3" : "#fff",
-                            color: i === currentPage ? "#fff" : "#445F6D",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #e0e7ef",
+                            background:
+                              i === currentPage
+                                ? "#70C1B3"
+                                : isDarkMode
+                                ? "#1f2937"
+                                : "#fff",
+                            color:
+                              i === currentPage
+                                ? "#fff"
+                                : isDarkMode
+                                ? "#f3f4f6"
+                                : "#445F6D",
                             cursor: "pointer",
                             fontSize: "14px",
                             fontWeight: "500",
@@ -2928,10 +3111,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -2962,10 +3160,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -3014,12 +3227,13 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
                 maxWidth: 480,
                 width: "96vw",
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
               {!selectedTransferEmployee ? (
@@ -3217,10 +3431,11 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
               <h4>Unassign {selectedDeviceIds.length} Devices</h4>
@@ -3363,13 +3578,18 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
-              <h4>
+              <h4
+                style={{
+                  color: isDarkMode ? "#f3f4f6" : "#000",
+                }}
+              >
                 {assigningDevice && assigningDevice.assignedTo
                   ? "Reassign Device"
                   : "Assign Device"}
@@ -3630,13 +3850,16 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
-              <h4>Unassign Device: {unassignDevice.deviceTag}</h4>
+              <h4 style={{ color: isDarkMode ? "#f3f4f6" : "#000" }}>
+                Unassign Device: {unassignDevice.deviceTag}
+              </h4>
               <div style={{ marginBottom: 16 }}>
                 <label
                   style={{

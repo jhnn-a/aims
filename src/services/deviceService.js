@@ -57,7 +57,7 @@ export const addDevice = async (deviceData, tagPrefix = "DEV") => {
     ...dataToSave,
     deviceTag: deviceData.deviceTag, // e.g., JOIIKB0001
   });
-  
+
   // Log device creation to history
   try {
     await logDeviceHistory({
@@ -71,7 +71,7 @@ export const addDevice = async (deviceData, tagPrefix = "DEV") => {
   } catch (error) {
     console.error("Error logging device creation history:", error);
   }
-  
+
   // Return the device with its ID
   return { id: nextDevId, ...dataToSave, deviceTag: deviceData.deviceTag };
 };
@@ -110,7 +110,7 @@ export async function addMultipleDevices(deviceData, quantity, tagPrefix) {
       ...dataToSave,
       deviceTag,
     });
-    
+
     // Log each device creation to history
     try {
       await logDeviceHistory({
@@ -122,7 +122,10 @@ export async function addMultipleDevices(deviceData, quantity, tagPrefix) {
         date: new Date().toISOString(),
       });
     } catch (error) {
-      console.error(`Error logging device creation history for ${deviceTag}:`, error);
+      console.error(
+        `Error logging device creation history for ${deviceTag}:`,
+        error
+      );
     }
   }
 }
