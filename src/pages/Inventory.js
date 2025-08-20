@@ -672,7 +672,7 @@ function DeviceFormModal({
                 onChange={handleSerialToggle}
                 style={{
                   marginRight: 6,
-                  accentColor: "#2563eb",
+                  accentColor: "#6b7280",
                   cursor: editingDevice ? "not-allowed" : "pointer",
                 }}
                 disabled={editingDevice}
@@ -5320,7 +5320,13 @@ function Inventory() {
                       type="checkbox"
                       checked={selectAll}
                       onChange={handleSelectAll}
-                      style={{ width: 16, height: 16, margin: 0 }}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   </th>
                   <th
@@ -5836,7 +5842,13 @@ function Inventory() {
                             e.stopPropagation();
                             handleSelectOne(device.id);
                           }}
-                          style={{ width: 16, height: 16, margin: 0 }}
+                          style={{
+                            width: 16,
+                            height: 16,
+                            margin: 0,
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
                         />
                       </td>
                       <td
@@ -6143,7 +6155,7 @@ function Inventory() {
                               minHeight: "24px",
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#ef4444";
+                              e.currentTarget.style.background = "transparent";
                               e.currentTarget.style.transform = "scale(1.1)";
                               e.currentTarget.style.boxShadow =
                                 "0 4px 12px rgba(239, 68, 68, 0.3)";
@@ -6418,7 +6430,7 @@ function Inventory() {
                               }`,
                               background:
                                 i === currentPage
-                                  ? "#70C1B3"
+                                  ? "#2563eb"
                                   : isDarkMode
                                   ? "#1f2937"
                                   : "#fff",
@@ -6716,13 +6728,15 @@ function Inventory() {
                 {(assigningDevice || selectedIds.length > 0) && (
                   <div
                     style={{
-                      background: "#fef3c7",
-                      border: "1px solid #f59e0b",
+                      background: isDarkMode ? "#451a03" : "#fef3c7",
+                      border: isDarkMode
+                        ? "1px solid #92400e"
+                        : "1px solid #f59e0b",
                       borderRadius: 8,
                       padding: 12,
                       marginBottom: 16,
                       fontSize: 14,
-                      color: "#92400e",
+                      color: isDarkMode ? "#fbbf24" : "#92400e",
                     }}
                   >
                     {assigningDevice ? (
@@ -6753,10 +6767,12 @@ function Inventory() {
                 <div
                   style={{
                     ...styles.modalSection,
-                    background: "#f8fafc",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
                     padding: 16,
                     borderRadius: 8,
-                    border: "1px solid #e2e8f0",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #e2e8f0",
                     marginBottom: 16,
                   }}
                 >
@@ -6783,7 +6799,7 @@ function Inventory() {
                         style={{
                           marginRight: 8,
                           transform: "scale(1.2)",
-                          accentColor: "#2563eb",
+                          accentColor: "#6b7280",
                         }}
                       />
                       New Issue
@@ -6796,6 +6812,7 @@ function Inventory() {
                           fontSize: 14,
                           fontWeight: 500,
                           cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                         }}
                       >
                         <input
@@ -6806,7 +6823,7 @@ function Inventory() {
                           style={{
                             marginRight: 8,
                             transform: "scale(1.2)",
-                            accentColor: "#2563eb",
+                            accentColor: "#6b7280",
                           }}
                         />
                         Newly Purchased
@@ -6818,6 +6835,7 @@ function Inventory() {
                           fontSize: 14,
                           fontWeight: 500,
                           cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                         }}
                       >
                         <input
@@ -6828,7 +6846,7 @@ function Inventory() {
                           style={{
                             marginRight: 8,
                             transform: "scale(1.2)",
-                            accentColor: "#2563eb",
+                            accentColor: "#6b7280",
                           }}
                         />
                         Stock
@@ -6857,7 +6875,7 @@ function Inventory() {
                         style={{
                           marginRight: 8,
                           transform: "scale(1.2)",
-                          accentColor: "#2563eb",
+                          accentColor: "#6b7280",
                         }}
                       />
                       Work From Home/Borrowed
@@ -6870,6 +6888,7 @@ function Inventory() {
                           fontSize: 14,
                           fontWeight: 500,
                           cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                         }}
                       >
                         <input
@@ -6880,7 +6899,7 @@ function Inventory() {
                           style={{
                             marginRight: 8,
                             transform: "scale(1.2)",
-                            accentColor: "#2563eb",
+                            accentColor: "#6b7280",
                           }}
                         />
                         Newly Purchased
@@ -6892,6 +6911,7 @@ function Inventory() {
                           fontSize: 14,
                           fontWeight: 500,
                           cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
                         }}
                       >
                         <input
@@ -6902,7 +6922,7 @@ function Inventory() {
                           style={{
                             marginRight: 8,
                             transform: "scale(1.2)",
-                            accentColor: "#2563eb",
+                            accentColor: "#6b7280",
                           }}
                         />
                         Stock
@@ -7417,7 +7437,7 @@ function Inventory() {
                             type="checkbox"
                             checked={currentData.useManualSerial || false}
                             onChange={handleManualSerialToggle}
-                            style={{ marginRight: 6, accentColor: "#2563eb" }}
+                            style={{ marginRight: 6, accentColor: "#6b7280" }}
                           />
                           Assign Serial Manually for this Device Type
                         </label>

@@ -2051,6 +2051,7 @@ function Assets() {
                           isDarkMode ? "#4b5563" : "#d1d5db"
                         }`,
                         borderRadius: "3px",
+                        colorScheme: isDarkMode ? "dark" : "light",
                       }}
                       title="Select all"
                     />
@@ -2620,6 +2621,7 @@ function Assets() {
                                 isDarkMode ? "#6b7280" : "#d1d5db"
                               }`,
                               borderRadius: "3px",
+                              colorScheme: isDarkMode ? "dark" : "light",
                             }}
                             title="Select device"
                           />
@@ -3081,7 +3083,7 @@ function Assets() {
                               : "1px solid #e0e7ef",
                             background:
                               i === currentPage
-                                ? "#70C1B3"
+                                ? "#2563eb"
                                 : isDarkMode
                                 ? "#1f2937"
                                 : "#fff",
@@ -3464,7 +3466,7 @@ function Assets() {
                         value="working"
                         checked={bulkUnassignReason === "working"}
                         onChange={() => setBulkUnassignReason("working")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Working
                     </label>
@@ -3477,7 +3479,7 @@ function Assets() {
                         value="defective"
                         checked={bulkUnassignReason === "defective"}
                         onChange={() => setBulkUnassignReason("defective")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Defective
                     </label>
@@ -3880,7 +3882,7 @@ function Assets() {
                         value="working"
                         checked={unassignReason === "working"}
                         onChange={() => setUnassignReason("working")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Working
                     </label>
@@ -3893,7 +3895,7 @@ function Assets() {
                         value="defective"
                         checked={unassignReason === "defective"}
                         onChange={() => setUnassignReason("defective")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Defective
                     </label>

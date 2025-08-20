@@ -21,6 +21,8 @@ import {
   getConditionTextColor,
 } from "./InventoryConstants";
 import { generateNextDeviceTag } from "./InventoryUtils";
+// Import theme context for dark mode
+import { useTheme } from "../context/ThemeContext";
 
 const emptyUnit = {
   Tag: "",
@@ -331,15 +333,15 @@ const getMaintenanceChecklist = (device) => {
 };
 
 // --- Modern Table Styles (matching Assets.js design) ---
-const tableStyle = {
+const getTableStyle = (isDarkMode) => ({
   width: "100%",
   borderCollapse: "collapse",
-  background: "#fff",
+  background: isDarkMode ? "#1f2937" : "#fff",
   fontSize: "14px",
-};
+});
 
-const thStyle = {
-  color: "#374151",
+const getThStyle = (isDarkMode) => ({
+  color: isDarkMode ? "#f3f4f6" : "#374151",
   fontWeight: 500,
   padding: "12px 16px",
   border: "none",
@@ -347,33 +349,47 @@ const thStyle = {
   fontSize: "12px",
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  background: "rgb(255, 255, 255)",
-  borderBottom: "1px solid #e5e7eb",
+  background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
   cursor: "pointer",
-};
+});
 
-const tdStyle = {
+const getTdStyle = (isDarkMode) => ({
   padding: "12px 16px",
-  color: "#6b7280",
+  color: isDarkMode ? "#9ca3af" : "#6b7280",
   fontSize: "14px",
-  borderBottom: "1px solid #f3f4f6",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
   whiteSpace: "nowrap",
   textOverflow: "ellipsis",
   overflow: "hidden",
-};
+});
 
-const trStyle = (index) => ({
-  background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+const getTrStyle = (index, isDarkMode) => ({
+  background:
+    index % 2 === 0
+      ? isDarkMode
+        ? "#1f2937"
+        : "rgb(250, 250, 252)"
+      : isDarkMode
+      ? "#111827"
+      : "rgb(240, 240, 243)",
   cursor: "pointer",
   transition: "background 0.15s",
-  borderBottom: "1px solid #f3f4f6",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
 });
 
-const trHoverStyle = (index) => ({
-  background: index % 2 === 0 ? "rgb(235, 235, 240)" : "rgb(225, 225, 235)",
+const getTrHoverStyle = (index, isDarkMode) => ({
+  background:
+    index % 2 === 0
+      ? isDarkMode
+        ? "#374151"
+        : "rgb(235, 235, 240)"
+      : isDarkMode
+      ? "#1f2937"
+      : "rgb(225, 225, 235)",
 });
 
-const actionButtonStyle = {
+const getActionButtonStyle = (isDarkMode) => ({
   background: "transparent",
   border: "none",
   borderRadius: "6px",
@@ -384,10 +400,10 @@ const actionButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
   transition: "all 0.2s ease",
-  color: "#6b7280",
+  color: isDarkMode ? "#9ca3af" : "#6b7280",
   width: "32px",
   height: "32px",
-};
+});
 
 const moveButtonStyle = {
   background: "#3b82f6",
@@ -438,6 +454,9 @@ const deleteIcon = (
 );
 
 const UnitSpecs = () => {
+  // Initialize theme context for dark mode
+  const { isDarkMode } = useTheme();
+
   // Initialize snackbar hook
   const { showSuccess, showError, showInfo } = useSnackbar();
 
@@ -1294,8 +1313,8 @@ const UnitSpecs = () => {
     return (
       <div
         style={{
-          background: "#f9fafb",
-          borderTop: "1px solid #e5e7eb",
+          background: isDarkMode ? "#374151" : "#f9fafb",
+          borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
           padding: "12px 16px",
           display: "flex",
           alignItems: "center",
@@ -1309,7 +1328,11 @@ const UnitSpecs = () => {
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
-              style={{ fontSize: "14px", color: "#374151", fontWeight: 500 }}
+              style={{
+                fontSize: "14px",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontWeight: 500,
+              }}
             >
               Show:
             </span>
@@ -1324,10 +1347,10 @@ const UnitSpecs = () => {
               }}
               style={{
                 padding: "4px 8px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 borderRadius: "4px",
-                background: "#fff",
-                color: "#374151",
+                background: isDarkMode ? "#1f2937" : "#fff",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: "12px",
                 cursor: "pointer",
               }}
@@ -1340,7 +1363,12 @@ const UnitSpecs = () => {
             </select>
           </div>
 
-          <span style={{ color: "#6b7280", fontSize: "14px" }}>
+          <span
+            style={{
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
+              fontSize: "14px",
+            }}
+          >
             Showing {(currentPage - 1) * itemsPerPage + 1} -{" "}
             {Math.min(currentPage * itemsPerPage, sorted.length)} of{" "}
             {sorted.length} units
@@ -1355,9 +1383,23 @@ const UnitSpecs = () => {
               disabled={currentPage === 1}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === 1 ? "#f9fafb" : "#fff",
-                color: currentPage === 1 ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1371,9 +1413,23 @@ const UnitSpecs = () => {
               disabled={currentPage === 1}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === 1 ? "#f9fafb" : "#fff",
-                color: currentPage === 1 ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1386,7 +1442,7 @@ const UnitSpecs = () => {
             <span
               style={{
                 margin: "0 12px",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontWeight: 500,
                 fontSize: 14,
               }}
@@ -1399,9 +1455,23 @@ const UnitSpecs = () => {
               disabled={currentPage === totalPages}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1415,9 +1485,23 @@ const UnitSpecs = () => {
               disabled={currentPage === totalPages}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1452,7 +1536,7 @@ const UnitSpecs = () => {
       >
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             padding: "32px 36px",
             borderRadius: "16px",
             minWidth: 340,
@@ -1475,16 +1559,22 @@ const UnitSpecs = () => {
           >
             Confirm Delete
           </h2>
-          <div style={{ marginBottom: 18, color: "#18181a", fontWeight: 500 }}>
+          <div
+            style={{
+              marginBottom: 18,
+              color: isDarkMode ? "#f3f4f6" : "#18181a",
+              fontWeight: 500,
+            }}
+          >
             Are you sure you want to delete the following unit?
             <div
               style={{
                 margin: "12px 0",
                 padding: "10px",
-                background: "#fee2e2",
+                background: isDarkMode ? "#7f1d1d" : "#fee2e2",
                 borderRadius: "8px",
                 textAlign: "center",
-                color: "#b91c1c",
+                color: isDarkMode ? "#fca5a5" : "#b91c1c",
                 fontWeight: 700,
               }}
             >
@@ -1510,8 +1600,8 @@ const UnitSpecs = () => {
             </button>
             <button
               style={{
-                background: "#e2e8f0",
-                color: "#18181a",
+                background: isDarkMode ? "#4b5563" : "#e2e8f0",
+                color: isDarkMode ? "#f3f4f6" : "#18181a",
                 border: "none",
                 borderRadius: 8,
                 padding: "10px 22px",
@@ -1549,7 +1639,7 @@ const UnitSpecs = () => {
       >
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             padding: "32px 36px",
             borderRadius: "16px",
             minWidth: 340,
@@ -1572,17 +1662,23 @@ const UnitSpecs = () => {
           >
             Confirm Bulk Delete
           </h2>
-          <div style={{ marginBottom: 18, color: "#18181a", fontWeight: 500 }}>
+          <div
+            style={{
+              marginBottom: 18,
+              color: isDarkMode ? "#f3f4f6" : "#18181a",
+              fontWeight: 500,
+            }}
+          >
             Are you sure you want to delete the following {selectedItems.length}{" "}
             selected unit(s)?
             <div
               style={{
                 margin: "12px 0",
                 padding: "10px",
-                background: "#fee2e2",
+                background: isDarkMode ? "#7f1d1d" : "#fee2e2",
                 borderRadius: "8px",
                 textAlign: "center",
-                color: "#b91c1c",
+                color: isDarkMode ? "#fca5a5" : "#b91c1c",
                 fontWeight: 700,
               }}
             >
@@ -1608,8 +1704,8 @@ const UnitSpecs = () => {
             </button>
             <button
               style={{
-                background: "#e2e8f0",
-                color: "#18181a",
+                background: isDarkMode ? "#4b5563" : "#e2e8f0",
+                color: isDarkMode ? "#f3f4f6" : "#18181a",
                 border: "none",
                 borderRadius: 8,
                 padding: "10px 22px",
@@ -1660,8 +1756,10 @@ const UnitSpecs = () => {
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid #e5e7eb",
-            background: "#f9fafb",
+            borderBottom: isDarkMode
+              ? "1px solid #374151"
+              : "1px solid #e5e7eb",
+            background: isDarkMode ? "#374151" : "#f9fafb",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -1677,16 +1775,20 @@ const UnitSpecs = () => {
               style={{
                 width: "100%",
                 padding: "8px 12px 8px 36px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 borderRadius: "6px",
-                background: "#fff",
-                color: "#374151",
+                background: isDarkMode ? "#1f2937" : "#fff",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: "14px",
                 outline: "none",
                 transition: "border-color 0.2s",
               }}
               onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-              onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+              onBlur={(e) =>
+                (e.target.style.borderColor = isDarkMode
+                  ? "#4b5563"
+                  : "#d1d5db")
+              }
             />
             <svg
               style={{
@@ -1935,9 +2037,9 @@ const UnitSpecs = () => {
               width: "100%",
               minWidth: "900px",
               borderCollapse: "collapse",
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               fontSize: "14px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #374151" : "1px solid #d1d5db",
               tableLayout: "fixed",
             }}
           >
@@ -1945,11 +2047,11 @@ const UnitSpecs = () => {
               style={{
                 position: "sticky",
                 top: "0",
-                background: "#f9fafb",
+                background: isDarkMode ? "#374151" : "#f9fafb",
                 zIndex: 10,
               }}
             >
-              <tr style={{ background: "#f9fafb" }}>
+              <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
                 {/* Select All Checkbox Column */}
                 <th
                   style={{
@@ -1957,12 +2059,14 @@ const UnitSpecs = () => {
                     padding: "8px 4px",
                     fontSize: "12px",
                     fontWeight: "600",
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     textAlign: "center",
-                    border: "1px solid #d1d5db",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
                     position: "sticky",
                     top: 0,
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -1973,7 +2077,13 @@ const UnitSpecs = () => {
                       sorted.every((item) => selectedItems.includes(item.id))
                     }
                     onChange={() => handleSelectAll(sorted)}
-                    style={{ width: 16, height: 16, margin: 0 }}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      margin: 0,
+                      accentColor: "#6b7280",
+                      colorScheme: isDarkMode ? "dark" : "light",
+                    }}
                   />
                 </th>
                 {deleteMode.active && deleteMode.table === collectionName && (
@@ -1983,18 +2093,26 @@ const UnitSpecs = () => {
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
                     <input
                       type="checkbox"
-                      style={{ width: 16, height: 16, margin: 0 }}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   </th>
                 )}
@@ -2036,12 +2154,14 @@ const UnitSpecs = () => {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -2084,12 +2204,14 @@ const UnitSpecs = () => {
                     padding: "8px 4px",
                     fontSize: "12px",
                     fontWeight: "600",
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     textAlign: "center",
-                    border: "1px solid #d1d5db",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
                     position: "sticky",
                     top: 0,
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -2127,10 +2249,16 @@ const UnitSpecs = () => {
                   <tr
                     key={unit.id}
                     style={{
-                      borderBottom: "1px solid #d1d5db",
+                      borderBottom: isDarkMode
+                        ? "1px solid #374151"
+                        : "1px solid #d1d5db",
                       background:
                         index % 2 === 0
-                          ? "rgb(250, 250, 252)"
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "rgb(250, 250, 252)"
+                          : isDarkMode
+                          ? "#111827"
                           : "rgb(240, 240, 243)",
                       cursor: "pointer",
                       transition: "background 0.15s",
@@ -2141,16 +2269,24 @@ const UnitSpecs = () => {
                         collection: collectionName,
                       });
                       if (index % 2 === 0) {
-                        e.currentTarget.style.background = "rgb(235, 235, 240)";
+                        e.currentTarget.style.background = isDarkMode
+                          ? "#374151"
+                          : "rgb(235, 235, 240)";
                       } else {
-                        e.currentTarget.style.background = "rgb(225, 225, 235)";
+                        e.currentTarget.style.background = isDarkMode
+                          ? "#1f2937"
+                          : "rgb(225, 225, 235)";
                       }
                     }}
                     onMouseLeave={(e) => {
                       setHoveredRow({ id: null, collection: "" });
                       e.currentTarget.style.background =
                         index % 2 === 0
-                          ? "rgb(250, 250, 252)"
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "rgb(250, 250, 252)"
+                          : isDarkMode
+                          ? "#111827"
                           : "rgb(240, 240, 243)";
                     }}
                   >
@@ -2160,14 +2296,22 @@ const UnitSpecs = () => {
                         width: "4%",
                         padding: "8px 4px",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                       }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedItems.includes(unit.id)}
                         onChange={() => handleSelectItem(unit.id)}
-                        style={{ width: 16, height: 16, margin: 0 }}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          margin: 0,
+                          accentColor: "#6b7280",
+                          colorScheme: isDarkMode ? "dark" : "light",
+                        }}
                       />
                     </td>
                     {deleteMode.active &&
@@ -2177,14 +2321,22 @@ const UnitSpecs = () => {
                             width: "4%",
                             padding: "8px 4px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #d1d5db",
                           }}
                         >
                           <input
                             type="checkbox"
                             checked={selectedToDelete.includes(unit.id)}
                             onChange={() => handleSelectToDelete(unit.id)}
-                            style={{ width: 16, height: 16, margin: 0 }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              margin: 0,
+                              accentColor: "#6b7280",
+                              colorScheme: isDarkMode ? "dark" : "light",
+                            }}
                           />
                         </td>
                       )}
@@ -2193,8 +2345,10 @@ const UnitSpecs = () => {
                         width: "12%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -2207,8 +2361,10 @@ const UnitSpecs = () => {
                         width: "12%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -2221,8 +2377,10 @@ const UnitSpecs = () => {
                         width: "8%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         textAlign: "center",
                       }}
                     >
@@ -2234,8 +2392,10 @@ const UnitSpecs = () => {
                         width: "15%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -2248,8 +2408,10 @@ const UnitSpecs = () => {
                         width: "12%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -2262,8 +2424,10 @@ const UnitSpecs = () => {
                         width: "10%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         textAlign: "center",
                       }}
                     >
@@ -2295,8 +2459,10 @@ const UnitSpecs = () => {
                         width: "8%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         textAlign: "center",
                       }}
                     >
@@ -2307,8 +2473,10 @@ const UnitSpecs = () => {
                         width: "9%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         textAlign: "center",
                       }}
                     >
@@ -2319,8 +2487,10 @@ const UnitSpecs = () => {
                         width: "8%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         textAlign: "center",
                       }}
                     >
@@ -2340,8 +2510,10 @@ const UnitSpecs = () => {
                         width: "11%",
                         padding: "8px 6px",
                         fontSize: "14px",
-                        color: "#374151",
-                        border: "1px solid #d1d5db",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -2354,7 +2526,9 @@ const UnitSpecs = () => {
                         width: "13%",
                         padding: "8px 4px",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
                       }}
                     >
                       {!deleteMode.active && (
@@ -2586,7 +2760,7 @@ const UnitSpecs = () => {
       <div
         className="unit-form-modal"
         style={{
-          background: "#fff",
+          background: isDarkMode ? "#1f2937" : "#fff",
           padding: 20,
           borderRadius: 12,
           minWidth: 480,
@@ -2597,8 +2771,18 @@ const UnitSpecs = () => {
           flexDirection: "column",
           alignItems: "flex-start",
           position: "relative",
-          border: editId ? "2px solid #2563eb" : "1.5px solid #e5e7eb",
-          backgroundColor: editId ? "#fefbff" : "#ffffff",
+          border: editId
+            ? "2px solid #2563eb"
+            : isDarkMode
+            ? "1.5px solid #374151"
+            : "1.5px solid #e5e7eb",
+          backgroundColor: editId
+            ? isDarkMode
+              ? "#1e293b"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
           transition: "box-shadow 0.2s",
           maxHeight: "85vh",
           overflowY: "auto",
@@ -2668,7 +2852,7 @@ const UnitSpecs = () => {
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: editId ? "#2563eb" : "#374151",
+              color: editId ? "#2563eb" : isDarkMode ? "#f3f4f6" : "#374151",
               marginBottom: 0,
               letterSpacing: 0.5,
               width: "100%",
@@ -2729,7 +2913,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -2747,8 +2931,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -2788,7 +2975,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -2807,8 +2994,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -2843,7 +3033,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -2862,8 +3052,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -2908,7 +3101,7 @@ const UnitSpecs = () => {
                   style={{
                     alignSelf: "flex-start",
                     fontWeight: 500,
-                    color: "#222e3a",
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
                     marginBottom: 3,
                     fontSize: 13,
                     fontFamily:
@@ -2927,8 +3120,11 @@ const UnitSpecs = () => {
                     fontSize: 13,
                     padding: "6px 8px",
                     borderRadius: 5,
-                    border: "1.2px solid #cbd5e1",
-                    background: "#f1f5f9",
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     height: "30px",
                     boxSizing: "border-box",
                     marginBottom: 0,
@@ -2964,7 +3160,7 @@ const UnitSpecs = () => {
               style={{
                 alignSelf: "flex-start",
                 fontWeight: 500,
-                color: "#222e3a",
+                color: isDarkMode ? "#f3f4f6" : "#222e3a",
                 marginBottom: 3,
                 fontSize: 13,
                 fontFamily:
@@ -2986,9 +3182,11 @@ const UnitSpecs = () => {
                 fontSize: 13,
                 padding: "6px 8px",
                 borderRadius: 5,
-                border: "1.2px solid #cbd5e1",
-                background: "#e5e7eb", // Gray background since always disabled
-                color: "#6b7280", // Gray text since always disabled
+                border: isDarkMode
+                  ? "1.2px solid #4b5563"
+                  : "1.2px solid #cbd5e1",
+                background: isDarkMode ? "#4b5563" : "#e5e7eb", // Gray background since always disabled
+                color: isDarkMode ? "#9ca3af" : "#6b7280", // Gray text since always disabled
                 height: "30px",
                 boxSizing: "border-box",
                 marginBottom: 0,
@@ -3025,7 +3223,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3044,8 +3242,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3080,7 +3281,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3100,8 +3301,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3138,7 +3342,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3157,8 +3361,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3192,7 +3399,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3212,8 +3419,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3250,7 +3460,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3270,8 +3480,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3298,7 +3511,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3317,8 +3530,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3363,7 +3579,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3382,8 +3598,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3418,7 +3637,7 @@ const UnitSpecs = () => {
                 style={{
                   alignSelf: "flex-start",
                   fontWeight: 500,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   marginBottom: 3,
                   fontSize: 13,
                   fontFamily:
@@ -3438,8 +3657,11 @@ const UnitSpecs = () => {
                   fontSize: 13,
                   padding: "6px 8px",
                   borderRadius: 5,
-                  border: "1.2px solid #cbd5e1",
-                  background: "#f1f5f9",
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   height: "30px",
                   boxSizing: "border-box",
                   marginBottom: 0,
@@ -3535,7 +3757,7 @@ const UnitSpecs = () => {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "#f7f9fb",
+        background: isDarkMode ? "#111827" : "#f7f9fb",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
@@ -3547,7 +3769,7 @@ const UnitSpecs = () => {
         style={{
           fontSize: 28,
           fontWeight: 700,
-          color: "#222e3a",
+          color: isDarkMode ? "#ffffff" : "#222e3a",
           letterSpacing: 1,
           padding: "20px 24px 16px 24px",
           flexShrink: 0,
@@ -3561,7 +3783,7 @@ const UnitSpecs = () => {
         style={{
           display: "flex",
           alignItems: "flex-end",
-          borderBottom: "2px solid #e0e7ef",
+          borderBottom: isDarkMode ? "2px solid #374151" : "2px solid #e0e7ef",
           margin: "0 24px 0 24px",
           gap: 2,
           flexShrink: 0,
@@ -3572,8 +3794,20 @@ const UnitSpecs = () => {
           onClick={() => setActiveTab("InventoryUnits")}
           style={{
             border: "none",
-            background: activeTab === "InventoryUnits" ? "#fff" : "#e0e7ef",
-            color: activeTab === "InventoryUnits" ? "#2563eb" : "#64748b",
+            background:
+              activeTab === "InventoryUnits"
+                ? isDarkMode
+                  ? "#1f2937"
+                  : "#fff"
+                : isDarkMode
+                ? "#374151"
+                : "#e0e7ef",
+            color:
+              activeTab === "InventoryUnits"
+                ? "#2563eb"
+                : isDarkMode
+                ? "#9ca3af"
+                : "#64748b",
             fontWeight: activeTab === "InventoryUnits" ? 700 : 500,
             fontSize: 16,
             padding: "10px 32px",
@@ -3593,8 +3827,20 @@ const UnitSpecs = () => {
           onClick={() => setActiveTab("DeployedUnits")}
           style={{
             border: "none",
-            background: activeTab === "DeployedUnits" ? "#fff" : "#e0e7ef",
-            color: activeTab === "DeployedUnits" ? "#2563eb" : "#64748b",
+            background:
+              activeTab === "DeployedUnits"
+                ? isDarkMode
+                  ? "#1f2937"
+                  : "#fff"
+                : isDarkMode
+                ? "#374151"
+                : "#e0e7ef",
+            color:
+              activeTab === "DeployedUnits"
+                ? "#2563eb"
+                : isDarkMode
+                ? "#9ca3af"
+                : "#64748b",
             fontWeight: activeTab === "DeployedUnits" ? 700 : 500,
             fontSize: 16,
             padding: "10px 32px",
@@ -3618,7 +3864,7 @@ const UnitSpecs = () => {
       {/* Main Content: Tabbed Tables */}
       <div
         style={{
-          background: "#fff",
+          background: isDarkMode ? "#1f2937" : "#fff",
           borderRadius: 0,
           boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
           margin: "0 24px 24px 24px",
@@ -3712,7 +3958,7 @@ const UnitSpecs = () => {
         >
           <div
             style={{
-              backgroundColor: "#fff",
+              backgroundColor: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: "12px",
               padding: "24px",
               maxWidth: "800px",
@@ -3734,7 +3980,7 @@ const UnitSpecs = () => {
               <h2
                 style={{
                   margin: 0,
-                  color: "#1f2937",
+                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
                   fontSize: "24px",
                   fontWeight: "600",
                 }}
@@ -3778,7 +4024,7 @@ const UnitSpecs = () => {
             <div style={{ marginBottom: "20px" }}>
               <h3
                 style={{
-                  color: "#1f2937",
+                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
                   fontSize: "18px",
                   fontWeight: "600",
                   marginBottom: "12px",
@@ -3873,7 +4119,7 @@ const UnitSpecs = () => {
             <div style={{ marginBottom: "20px" }}>
               <h3
                 style={{
-                  color: "#1f2937",
+                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
                   fontSize: "18px",
                   fontWeight: "600",
                   marginBottom: "12px",
@@ -3885,8 +4131,11 @@ const UnitSpecs = () => {
                 style={{
                   maxHeight: "300px",
                   overflow: "auto",
-                  border: "1px solid #e5e7eb",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e5e7eb",
                   borderRadius: "8px",
+                  backgroundColor: isDarkMode ? "#374151" : "#ffffff",
                 }}
               >
                 {[...inventory, ...deployed]
@@ -3907,14 +4156,16 @@ const UnitSpecs = () => {
                               (d) => analyzeSpecs(d).warnings.length > 0
                             ).length -
                               1
-                              ? "1px solid #e5e7eb"
+                              ? isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e5e7eb"
                               : "none",
                         }}
                       >
                         <div
                           style={{
                             fontWeight: "600",
-                            color: "#1f2937",
+                            color: isDarkMode ? "#f3f4f6" : "#1f2937",
                             marginBottom: "8px",
                           }}
                         >
@@ -4039,7 +4290,7 @@ const UnitSpecs = () => {
         >
           <div
             style={{
-              backgroundColor: "#fff",
+              backgroundColor: isDarkMode ? "#1f2937" : "#fff",
               borderRadius: "12px",
               padding: "24px",
               maxWidth: "700px",
@@ -4061,7 +4312,7 @@ const UnitSpecs = () => {
               <h2
                 style={{
                   margin: 0,
-                  color: "#1f2937",
+                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
                   fontSize: "24px",
                   fontWeight: "600",
                 }}
@@ -4095,21 +4346,25 @@ const UnitSpecs = () => {
                   style={{
                     marginBottom: "20px",
                     padding: "16px",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     borderRadius: "8px",
                   }}
                 >
                   <h3
                     style={{
                       margin: "0 0 8px 0",
-                      color: "#1f2937",
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
                       fontSize: "18px",
                     }}
                   >
                     Device: {selectedDevice.Tag || "Unknown"}
                   </h3>
                   <p
-                    style={{ margin: "0", color: "#6b7280", fontSize: "14px" }}
+                    style={{
+                      margin: "0",
+                      color: isDarkMode ? "#9ca3af" : "#6b7280",
+                      fontSize: "14px",
+                    }}
                   >
                     Type: {selectedDevice.deviceType || "Unknown"} | Category:{" "}
                     {selectedDevice.category || "Unknown"} | Age:{" "}
@@ -4125,7 +4380,7 @@ const UnitSpecs = () => {
                 <div style={{ marginBottom: "20px" }}>
                   <h4
                     style={{
-                      color: "#1f2937",
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
                       fontSize: "16px",
                       fontWeight: "600",
                       marginBottom: "12px",
@@ -4143,16 +4398,26 @@ const UnitSpecs = () => {
                           gap: "12px",
                           padding: "12px",
                           marginBottom: "8px",
-                          border: "1px solid #e5e7eb",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #e5e7eb",
                           borderRadius: "8px",
                           backgroundColor: item.critical
-                            ? "#fef3c7"
+                            ? isDarkMode
+                              ? "#451a03"
+                              : "#fef3c7"
+                            : isDarkMode
+                            ? "#374151"
                             : "#f9fafb",
                         }}
                       >
                         <input
                           type="checkbox"
-                          style={{ marginTop: "2px" }}
+                          style={{
+                            marginTop: "2px",
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
                           onChange={(e) => {
                             if (e.target.checked) {
                               showSuccess(`Marked "${item.task}" as completed`);
@@ -4163,7 +4428,13 @@ const UnitSpecs = () => {
                           <div
                             style={{
                               fontWeight: item.critical ? "600" : "normal",
-                              color: item.critical ? "#92400e" : "#374151",
+                              color: item.critical
+                                ? isDarkMode
+                                  ? "#fbbf24"
+                                  : "#92400e"
+                                : isDarkMode
+                                ? "#f3f4f6"
+                                : "#374151",
                               fontSize: "14px",
                             }}
                           >
@@ -4210,9 +4481,13 @@ const UnitSpecs = () => {
                           style={{
                             padding: "12px",
                             textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #e5e7eb",
                             fontSize: "14px",
                             fontWeight: "600",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                           }}
                         >
                           Device Tag
@@ -4221,9 +4496,13 @@ const UnitSpecs = () => {
                           style={{
                             padding: "12px",
                             textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #e5e7eb",
                             fontSize: "14px",
                             fontWeight: "600",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                           }}
                         >
                           Type
@@ -4232,9 +4511,13 @@ const UnitSpecs = () => {
                           style={{
                             padding: "12px",
                             textAlign: "left",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #e5e7eb",
                             fontSize: "14px",
                             fontWeight: "600",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                           }}
                         >
                           Category
@@ -4243,9 +4526,13 @@ const UnitSpecs = () => {
                           style={{
                             padding: "12px",
                             textAlign: "center",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #e5e7eb",
                             fontSize: "14px",
                             fontWeight: "600",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                           }}
                         >
                           Action

@@ -8,6 +8,7 @@ import {
 } from "../services/clientService";
 import { useSnackbar } from "../components/Snackbar";
 import { TableLoadingSpinner } from "../components/LoadingSpinner";
+import { useTheme } from "../context/ThemeContext";
 
 function ClientFormModal({
   data,
@@ -17,6 +18,8 @@ function ClientFormModal({
   showError,
   isSaving,
 }) {
+  const { isDarkMode } = useTheme();
+
   const styles = {
     modalOverlay: {
       position: "fixed",
@@ -31,18 +34,20 @@ function ClientFormModal({
       zIndex: 2000,
     },
     modalContent: {
-      background: "#fff",
+      background: isDarkMode ? "#1f2937" : "#fff",
       padding: 20,
       borderRadius: 12,
       minWidth: 480,
       maxWidth: 520,
       width: "70vw",
-      boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.3)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
       display: "flex",
       flexDirection: "column",
       alignItems: "flex-start",
       position: "relative",
-      border: "1.5px solid #e5e7eb",
+      border: isDarkMode ? "1.5px solid #4b5563" : "1.5px solid #e5e7eb",
       transition: "box-shadow 0.2s",
       maxHeight: "85vh",
       overflowY: "auto",
@@ -70,7 +75,7 @@ function ClientFormModal({
     label: {
       alignSelf: "flex-start",
       fontWeight: 500,
-      color: "#222e3a",
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
       marginBottom: 6,
       fontSize: 13,
       fontFamily:
@@ -81,8 +86,9 @@ function ClientFormModal({
       fontSize: 13,
       padding: "8px 12px",
       borderRadius: 5,
-      border: "1.2px solid #cbd5e1",
-      background: "#f1f5f9",
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
       height: "38px",
       boxSizing: "border-box",
       fontFamily:
@@ -581,6 +587,7 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 
 function Clients() {
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
+  const { isDarkMode } = useTheme();
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -796,7 +803,7 @@ function Clients() {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "transparent",
+        background: isDarkMode ? "#111827" : "transparent",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
@@ -873,6 +880,12 @@ function Clients() {
             display: none;
           }
         }
+        
+        /* Dark mode search input placeholder */
+        .search-input-dark::placeholder {
+          color: #9ca3af;
+          opacity: 1;
+        }
       `}</style>
 
       {/* Header Section with Search and Actions */}
@@ -888,7 +901,7 @@ function Clients() {
             style={{
               fontSize: "28px",
               fontWeight: 700,
-              color: "#222e3a",
+              color: isDarkMode ? "#ffffff" : "#222e3a",
               margin: 0,
               fontFamily:
                 "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -906,9 +919,9 @@ function Clients() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                background: "#f9fafb",
+                background: isDarkMode ? "#374151" : "#f9fafb",
                 borderRadius: "6px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 padding: "10px 14px",
                 flex: "1 1 auto",
               }}
@@ -916,7 +929,10 @@ function Clients() {
               <svg
                 width="18"
                 height="18"
-                style={{ color: "#6b7280", opacity: 0.8 }}
+                style={{
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  opacity: 0.8,
+                }}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={2}
@@ -932,15 +948,17 @@ function Clients() {
                 placeholder="Search clients..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className={isDarkMode ? "search-input-dark" : ""}
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
                   fontSize: "14px",
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   padding: "0 0 0 10px",
                   width: "100%",
                   fontWeight: 400,
+                  colorScheme: isDarkMode ? "dark" : "light",
                 }}
               />
             </div>
@@ -1069,11 +1087,12 @@ function Clients() {
           display: "flex",
           flexDirection: "column",
           margin: "0 16px 16px 16px",
-          background: "#fff",
+          background: isDarkMode ? "#1f2937" : "#fff",
           borderRadius: "8px",
-          border: "1px solid #e5e7eb",
-          boxShadow:
-            "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+          border: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
+          boxShadow: isDarkMode
+            ? "0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2)"
+            : "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
         }}
       >
         {loading && (
@@ -1102,9 +1121,9 @@ function Clients() {
                 width: "100%",
                 minWidth: "900px",
                 borderCollapse: "collapse",
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 fontSize: "14px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 tableLayout: "fixed",
               }}
             >
@@ -1112,30 +1131,37 @@ function Clients() {
                 style={{
                   position: "sticky",
                   top: "0",
-                  background: "#f9fafb",
+                  background: isDarkMode ? "#374151" : "#f9fafb",
                   zIndex: 10,
                 }}
               >
-                <tr style={{ background: "#f9fafb" }}>
+                <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
                   <th
                     style={{
                       width: "4%",
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
                     <input
                       type="checkbox"
                       onChange={handleCheckAll}
-                      style={{ width: 16, height: 16, margin: 0 }}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   </th>
                   <th
@@ -1144,12 +1170,14 @@ function Clients() {
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -1161,12 +1189,14 @@ function Clients() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -1178,12 +1208,14 @@ function Clients() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -1195,12 +1227,14 @@ function Clients() {
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -1212,12 +1246,14 @@ function Clients() {
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       textAlign: "center",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
                       position: "sticky",
                       top: 0,
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#374151" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -1233,7 +1269,7 @@ function Clients() {
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
-                        color: "#9ca3af",
+                        color: isDarkMode ? "#9ca3af" : "#9ca3af",
                         fontSize: "14px",
                         fontWeight: "400",
                         border: "1px solid #d1d5db",
@@ -1249,28 +1285,43 @@ function Clients() {
                       <tr
                         key={client.id || index}
                         style={{
-                          borderBottom: "1px solid #d1d5db",
-                          background:
-                            index % 2 === 0
-                              ? "rgb(250, 250, 252)"
-                              : "rgb(240, 240, 243)",
+                          borderBottom: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          background: isDarkMode
+                            ? index % 2 === 0
+                              ? "#374151"
+                              : "#1f2937"
+                            : index % 2 === 0
+                            ? "rgb(250, 250, 252)"
+                            : "rgb(240, 240, 243)",
                           cursor: "pointer",
                           transition: "background 0.15s",
                         }}
                         onMouseEnter={(e) => {
-                          if (index % 2 === 0) {
+                          if (isDarkMode) {
                             e.currentTarget.style.background =
-                              "rgb(235, 235, 240)";
+                              index % 2 === 0 ? "#4b5563" : "#374151";
                           } else {
-                            e.currentTarget.style.background =
-                              "rgb(225, 225, 235)";
+                            if (index % 2 === 0) {
+                              e.currentTarget.style.background =
+                                "rgb(235, 235, 240)";
+                            } else {
+                              e.currentTarget.style.background =
+                                "rgb(225, 225, 235)";
+                            }
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background =
-                            index % 2 === 0
-                              ? "rgb(250, 250, 252)"
-                              : "rgb(240, 240, 243)";
+                          if (isDarkMode) {
+                            e.currentTarget.style.background =
+                              index % 2 === 0 ? "#374151" : "#1f2937";
+                          } else {
+                            e.currentTarget.style.background =
+                              index % 2 === 0
+                                ? "rgb(250, 250, 252)"
+                                : "rgb(240, 240, 243)";
+                          }
                         }}
                       >
                         <td
@@ -1278,14 +1329,21 @@ function Clients() {
                             width: "4%",
                             padding: "8px 4px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                           }}
                         >
                           <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={() => handleCheckboxChange(client.id)}
-                            style={{ width: 16, height: 16, margin: 0 }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              margin: 0,
+                              colorScheme: isDarkMode ? "dark" : "light",
+                            }}
                           />
                         </td>
                         <td
@@ -1293,8 +1351,10 @@ function Clients() {
                             width: "6%",
                             padding: "8px 4px",
                             fontSize: "14px",
-                            color: "rgb(55, 65, 81)",
-                            border: "1px solid #d1d5db",
+                            color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                             textAlign: "center",
                           }}
                         >
@@ -1305,8 +1365,10 @@ function Clients() {
                             width: "20%",
                             padding: "8px 6px",
                             fontSize: "14px",
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                             textAlign: "center",
                           }}
                         >
@@ -1326,8 +1388,12 @@ function Clients() {
                               textDecoration: "none",
                             }}
                             onMouseEnter={(e) => {
-                              e.target.style.background = "#dbeafe";
-                              e.target.style.color = "#1d4ed8";
+                              e.target.style.background = isDarkMode
+                                ? "#1e3a8a"
+                                : "#dbeafe";
+                              e.target.style.color = isDarkMode
+                                ? "#93c5fd"
+                                : "#1d4ed8";
                             }}
                             onMouseLeave={(e) => {
                               e.target.style.background = "none";
@@ -1343,8 +1409,10 @@ function Clients() {
                             width: "35%",
                             padding: "8px 6px",
                             fontSize: "14px",
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -1357,8 +1425,10 @@ function Clients() {
                             width: "15%",
                             padding: "8px 6px",
                             fontSize: "14px",
-                            color: "#374151",
-                            border: "1px solid #d1d5db",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                             textAlign: "center",
                           }}
                         >
@@ -1369,7 +1439,9 @@ function Clients() {
                             width: "15%",
                             padding: "8px 4px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
                           }}
                         >
                           <div
@@ -1475,8 +1547,8 @@ function Clients() {
           style={{
             position: "sticky",
             bottom: 0,
-            background: "#f9fafb",
-            borderTop: "1px solid #e5e7eb",
+            background: isDarkMode ? "#374151" : "#f9fafb",
+            borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
             borderRadius: "0 0 8px 8px",
             padding: "12px 16px",
             display: "flex",
@@ -1495,9 +1567,23 @@ function Clients() {
               disabled={currentPage === 1}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === 1 ? "#f9fafb" : "#fff",
-                color: currentPage === 1 ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#1f2937"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1511,9 +1597,23 @@ function Clients() {
               disabled={currentPage === 1}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === 1 ? "#f9fafb" : "#fff",
-                color: currentPage === 1 ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#1f2937"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1530,9 +1630,21 @@ function Clients() {
                 disabled={page === currentPage}
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid #d1d5db",
-                  background: page === currentPage ? "#2563eb" : "#fff",
-                  color: page === currentPage ? "#fff" : "#374151",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  background:
+                    page === currentPage
+                      ? "#2563eb"
+                      : isDarkMode
+                      ? "#1f2937"
+                      : "#fff",
+                  color:
+                    page === currentPage
+                      ? "#fff"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
                   borderRadius: "6px",
                   cursor: page === currentPage ? "default" : "pointer",
                   fontSize: "14px",
@@ -1541,12 +1653,14 @@ function Clients() {
                 }}
                 onMouseEnter={(e) => {
                   if (page !== currentPage) {
-                    e.target.style.background = "#f3f4f6";
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (page !== currentPage) {
-                    e.target.style.background = "#fff";
+                    e.target.style.background = isDarkMode ? "#1f2937" : "#fff";
                   }
                 }}
               >
@@ -1559,9 +1673,23 @@ function Clients() {
               disabled={currentPage === totalPages}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#1f2937"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1575,9 +1703,23 @@ function Clients() {
               disabled={currentPage === totalPages}
               style={{
                 padding: "6px 12px",
-                border: "1px solid #d1d5db",
-                background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#1f2937"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1590,11 +1732,23 @@ function Clients() {
 
           {/* Info and Controls */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <span style={{ color: "#6b7280", fontSize: "14px" }}>
+            <span
+              style={{
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+                fontSize: "14px",
+              }}
+            >
               Showing {startIdx} - {endIdx} of {filteredClients.length} clients
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ color: "#6b7280", fontSize: "14px" }}>Show:</span>
+              <span
+                style={{
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  fontSize: "14px",
+                }}
+              >
+                Show:
+              </span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => {
@@ -1603,12 +1757,15 @@ function Clients() {
                 }}
                 style={{
                   padding: "4px 8px",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: "4px",
-                  background: "#fff",
+                  background: isDarkMode ? "#374151" : "#fff",
                   fontSize: "14px",
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   cursor: "pointer",
+                  colorScheme: isDarkMode ? "dark" : "light",
                 }}
               >
                 {[10, 20, 50, 100].map((n) => (

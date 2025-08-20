@@ -12,18 +12,20 @@ import {
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
+// Import theme context for dark mode
+import { useTheme } from "../context/ThemeContext";
 
 function UserManagement() {
   const { currentUser } = useCurrentUser();
+  const { isDarkMode } = useTheme();
   // Bulk delete handler
   const handleBulkDelete = async () => {
     if (checkedRows.length === 0) return;
-    if (
-      !window.confirm(
-        `Delete ${checkedRows.length} selected user(s)? This cannot be undone.`
-      )
-    )
-      return;
+    setBulkDeleteModal({ open: true, count: checkedRows.length });
+  };
+
+  const confirmBulkDelete = async () => {
+    setBulkDeleteModal({ open: false, count: 0 });
     setUsersLoading(true);
     try {
       const db = getFirestore();
@@ -32,7 +34,7 @@ function UserManagement() {
       }
       setUsers((prev) => prev.filter((u) => !checkedRows.includes(u.uid)));
       setCheckedRows([]);
-      setStatus(`${checkedRows.length} user(s) deleted from Firestore.`);
+      setStatus(`${bulkDeleteModal.count} user(s) deleted from Firestore.`);
     } catch (err) {
       setStatus("Error deleting users: " + err.message);
       console.error("Firestore bulk delete error:", err);
@@ -40,7 +42,13 @@ function UserManagement() {
     setUsersLoading(false);
   };
   const [showModal, setShowModal] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    type: "success",
+    undoAction: null,
+    undoData: null,
+  });
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,6 +59,15 @@ function UserManagement() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editShowPassword, setEditShowPassword] = useState(false);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState({
+    open: false,
+    uid: null,
+    username: "",
+  });
+  const [bulkDeleteModal, setBulkDeleteModal] = useState({
+    open: false,
+    count: 0,
+  });
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
@@ -174,18 +191,33 @@ function UserManagement() {
     setLoading(true);
     try {
       const db = getFirestore();
-      await addDoc(collection(db, "users"), {
+      const docRef = await addDoc(collection(db, "users"), {
         username,
         email,
         password,
         createdAt: new Date().toISOString(),
       });
+
+      const createdUserData = {
+        uid: docRef.id,
+        username,
+        email,
+        password,
+        createdAt: new Date().toISOString(),
+      };
+
       setUsername("");
       setEmail("");
       setPassword("");
       setRePassword("");
       setShowModal(false);
-      setSnackbar({ open: true, message: "Account created." });
+      setSnackbar({
+        open: true,
+        message: "Account created successfully!",
+        type: "success",
+        undoAction: "deleteUser",
+        undoData: createdUserData,
+      });
       // Refresh users list
       const usersCol = collection(db, "users");
       const snapshot = await getDocs(usersCol);
@@ -204,7 +236,7 @@ function UserManagement() {
   const handleEditUser = async (e) => {
     e.preventDefault();
     setStatus("");
-    if (!editUsername.trim()) {
+    if (!editModal.user?.username?.trim()) {
       setStatus("Username is required.");
       return;
     }
@@ -219,12 +251,18 @@ function UserManagement() {
       // Use updateDoc from Firestore
       const { updateDoc } = await import("firebase/firestore");
       await updateDoc(userRef, {
-        username: editUsername,
-        email: editEmail,
+        username: editModal.user.username,
+        email: editModal.user.email,
         ...(editPassword !== "" ? { password: editPassword } : {}),
       });
-      setStatus("User updated.");
       setEditModal({ open: false, user: null });
+      setSnackbar({
+        open: true,
+        message: "User updated successfully!",
+        type: "success",
+        undoAction: null,
+        undoData: null,
+      });
       // Refresh users list
       const usersCol = collection(db, "users");
       const snapshot = await getDocs(usersCol);
@@ -241,12 +279,17 @@ function UserManagement() {
   };
 
   const handleDeleteUser = async (uid) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this user? This cannot be undone."
-      )
-    )
-      return;
+    const user = users.find((u) => u.uid === uid);
+    setDeleteConfirmModal({
+      open: true,
+      uid: uid,
+      username: user?.username || user?.email || "Unknown User",
+    });
+  };
+
+  const confirmDeleteUser = async () => {
+    const uid = deleteConfirmModal.uid;
+    setDeleteConfirmModal({ open: false, uid: null, username: "" });
     setUsersLoading(true);
     try {
       const db = getFirestore();
@@ -260,6 +303,58 @@ function UserManagement() {
     setUsersLoading(false);
   };
 
+  // Auto-dismiss snackbar after 8 seconds
+  useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        setSnackbar({
+          open: false,
+          message: "",
+          type: "success",
+          undoAction: null,
+          undoData: null,
+        });
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
+
+  // Undo action handler
+  const handleUndo = async () => {
+    if (!snackbar.undoAction || !snackbar.undoData) return;
+
+    setUsersLoading(true);
+    try {
+      const db = getFirestore();
+
+      if (snackbar.undoAction === "deleteUser") {
+        // Undo user creation by deleting the user
+        await deleteDoc(doc(db, "users", snackbar.undoData.uid));
+        setUsers((prev) => prev.filter((u) => u.uid !== snackbar.undoData.uid));
+      }
+
+      setSnackbar({
+        open: false,
+        message: "",
+        type: "success",
+        undoAction: null,
+        undoData: null,
+      });
+
+      // Refresh users list
+      const usersCol = collection(db, "users");
+      const snapshot = await getDocs(usersCol);
+      const usersList = snapshot.docs.map((doc) => ({
+        uid: doc.id,
+        ...doc.data(),
+      }));
+      setUsers(usersList);
+    } catch (err) {
+      console.error("Undo error:", err);
+    }
+    setUsersLoading(false);
+  };
+
   return (
     <div>
       <style>{`
@@ -267,7 +362,7 @@ function UserManagement() {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
-          background: #f8fafc;
+          background: ${isDarkMode ? "#111827" : "#f8fafc"};
           font-family: Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         
@@ -318,6 +413,14 @@ function UserManagement() {
             display: none;
           }
         }
+        
+        .search-input-dark::placeholder {
+          color: #ffffff !important;
+        }
+        
+        .search-input-light::placeholder {
+          color: #9ca3af !important;
+        }
       `}</style>
 
       <div className="user-management-page">
@@ -334,7 +437,7 @@ function UserManagement() {
               style={{
                 fontSize: "28px",
                 fontWeight: 700,
-                color: "#222e3a",
+                color: isDarkMode ? "#ffffff" : "#222e3a",
                 margin: 0,
                 fontFamily:
                   "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -353,9 +456,11 @@ function UserManagement() {
                   display: "flex",
                   alignItems: "center",
                   position: "relative",
-                  background: "#fff",
+                  background: isDarkMode ? "#374151" : "#fff",
                   borderRadius: "8px",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   overflow: "hidden",
                   boxShadow:
                     "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
@@ -367,7 +472,7 @@ function UserManagement() {
                     left: "12px",
                     top: "50%",
                     transform: "translateY(-50%)",
-                    color: "#9ca3af",
+                    color: isDarkMode ? "#ffffff" : "#9ca3af",
                     pointerEvents: "none",
                     zIndex: 1,
                   }}
@@ -391,13 +496,16 @@ function UserManagement() {
                   placeholder="Search by Email or Username..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  className={
+                    isDarkMode ? "search-input-dark" : "search-input-light"
+                  }
                   style={{
                     width: "100%",
                     border: "none",
                     outline: "none",
                     padding: "10px 12px 10px 40px",
                     fontSize: "14px",
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     background: "transparent",
                     fontFamily:
                       "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -541,13 +649,13 @@ function UserManagement() {
               top: 0,
               zIndex: 10,
               flexShrink: 0,
-              background: "#f0f9ff",
-              border: "1px solid #0ea5e9",
+              background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
+              border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
               borderLeft: "none",
               borderRight: "none",
               padding: "8px 16px",
               fontSize: "14px",
-              color: "#0369a1",
+              color: isDarkMode ? "#93c5fd" : "#0369a1",
               display: "flex",
               alignItems: "center",
               gap: "8px",
@@ -571,9 +679,9 @@ function UserManagement() {
             display: "flex",
             flexDirection: "column",
             margin: "0 16px 16px 16px",
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             borderRadius: "8px",
-            border: "1px solid #e5e7eb",
+            border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
             boxShadow:
               "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
           }}
@@ -604,9 +712,11 @@ function UserManagement() {
                   width: "100%",
                   minWidth: "900px",
                   borderCollapse: "collapse",
-                  background: "#fff",
+                  background: isDarkMode ? "#1f2937" : "#fff",
                   fontSize: "14px",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #d1d5db",
                   tableLayout: "fixed",
                 }}
               >
@@ -614,23 +724,27 @@ function UserManagement() {
                   style={{
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
-                  <tr style={{ background: "#f9fafb" }}>
+                  <tr
+                    style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}
+                  >
                     <th
                       style={{
                         width: "4%",
                         padding: "8px 4px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
                         position: "sticky",
                         top: 0,
-                        background: "#f9fafb",
+                        background: isDarkMode ? "#374151" : "#f9fafb",
                         zIndex: 10,
                       }}
                     >
@@ -642,7 +756,13 @@ function UserManagement() {
                           filteredUsers.length > 0
                         }
                         onChange={handleCheckAll}
-                        style={{ width: 16, height: 16, margin: 0 }}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          margin: 0,
+                          accentColor: isDarkMode ? "#6b7280" : undefined,
+                          colorScheme: isDarkMode ? "dark" : "light",
+                        }}
                       />
                     </th>
                     <th
@@ -651,12 +771,14 @@ function UserManagement() {
                         padding: "8px 6px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
                         position: "sticky",
                         top: 0,
-                        background: "#f9fafb",
+                        background: isDarkMode ? "#374151" : "#f9fafb",
                         zIndex: 10,
                       }}
                     >
@@ -668,12 +790,14 @@ function UserManagement() {
                         padding: "8px 6px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
                         position: "sticky",
                         top: 0,
-                        background: "#f9fafb",
+                        background: isDarkMode ? "#374151" : "#f9fafb",
                         zIndex: 10,
                       }}
                     >
@@ -685,12 +809,14 @@ function UserManagement() {
                         padding: "8px 6px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
                         position: "sticky",
                         top: 0,
-                        background: "#f9fafb",
+                        background: isDarkMode ? "#374151" : "#f9fafb",
                         zIndex: 10,
                       }}
                     >
@@ -702,12 +828,14 @@ function UserManagement() {
                         padding: "8px 4px",
                         fontSize: "12px",
                         fontWeight: "600",
-                        color: "#374151",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
                         textAlign: "center",
-                        border: "1px solid #d1d5db",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
                         position: "sticky",
                         top: 0,
-                        background: "#f9fafb",
+                        background: isDarkMode ? "#374151" : "#f9fafb",
                         zIndex: 10,
                       }}
                     >
@@ -723,10 +851,13 @@ function UserManagement() {
                         style={{
                           padding: "40px 20px",
                           textAlign: "center",
-                          color: "#9ca3af",
+                          color: isDarkMode ? "#9ca3af" : "#9ca3af",
                           fontSize: "14px",
                           fontWeight: "400",
-                          border: "1px solid #d1d5db",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
+                          backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
                         }}
                       >
                         No users found.
@@ -741,24 +872,36 @@ function UserManagement() {
                         <tr
                           key={u.uid}
                           style={{
-                            borderBottom: "1px solid #d1d5db",
+                            borderBottom: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #d1d5db",
                             background:
                               idx % 2 === 0
-                                ? "rgb(250, 250, 252)"
+                                ? isDarkMode
+                                  ? "#1f2937"
+                                  : "rgb(250, 250, 252)"
+                                : isDarkMode
+                                ? "#111827"
                                 : "rgb(240, 240, 243)",
                             cursor: "pointer",
                             transition: "background 0.15s",
                           }}
                           onMouseEnter={(e) => {
                             if (!isChecked) {
-                              e.currentTarget.style.background = "#f3f4f6";
+                              e.currentTarget.style.background = isDarkMode
+                                ? "#374151"
+                                : "#f3f4f6";
                             }
                           }}
                           onMouseLeave={(e) => {
                             if (!isChecked) {
                               e.currentTarget.style.background =
                                 idx % 2 === 0
-                                  ? "rgb(250, 250, 252)"
+                                  ? isDarkMode
+                                    ? "#1f2937"
+                                    : "rgb(250, 250, 252)"
+                                  : isDarkMode
+                                  ? "#111827"
                                   : "rgb(240, 240, 243)";
                             }
                           }}
@@ -768,7 +911,9 @@ function UserManagement() {
                               width: "4%",
                               padding: "8px 4px",
                               textAlign: "center",
-                              border: "1px solid #d1d5db",
+                              border: isDarkMode
+                                ? "1px solid #374151"
+                                : "1px solid #d1d5db",
                             }}
                           >
                             {isCurrentUser ? (
@@ -785,7 +930,13 @@ function UserManagement() {
                                 type="checkbox"
                                 checked={isChecked}
                                 onChange={() => handleCheckboxChange(u.uid)}
-                                style={{ width: 16, height: 16, margin: 0 }}
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  margin: 0,
+                                  accentColor: isDarkMode ? "#6b7280" : "",
+                                  colorScheme: isDarkMode ? "dark" : "light",
+                                }}
                               />
                             )}
                           </td>
@@ -794,8 +945,10 @@ function UserManagement() {
                               width: "25%",
                               padding: "8px 6px",
                               fontSize: "14px",
-                              color: "#374151",
-                              border: "1px solid #d1d5db",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              border: isDarkMode
+                                ? "1px solid #374151"
+                                : "1px solid #d1d5db",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -808,8 +961,10 @@ function UserManagement() {
                               width: "25%",
                               padding: "8px 6px",
                               fontSize: "14px",
-                              color: "#374151",
-                              border: "1px solid #d1d5db",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              border: isDarkMode
+                                ? "1px solid #374151"
+                                : "1px solid #d1d5db",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -822,8 +977,10 @@ function UserManagement() {
                               width: "25%",
                               padding: "8px 6px",
                               fontSize: "14px",
-                              color: "#374151",
-                              border: "1px solid #d1d5db",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              border: isDarkMode
+                                ? "1px solid #374151"
+                                : "1px solid #d1d5db",
                               textAlign: "center",
                             }}
                           >
@@ -836,7 +993,9 @@ function UserManagement() {
                               width: "21%",
                               padding: "8px 4px",
                               textAlign: "center",
-                              border: "1px solid #d1d5db",
+                              border: isDarkMode
+                                ? "1px solid #374151"
+                                : "1px solid #d1d5db",
                             }}
                           >
                             <div
@@ -858,7 +1017,7 @@ function UserManagement() {
                                   setEditShowPassword(false);
                                 }}
                                 style={{
-                                  background: "none",
+                                  background: "transparent",
                                   border: "none",
                                   cursor: "pointer",
                                   padding: "6px",
@@ -870,10 +1029,10 @@ function UserManagement() {
                                   color: "#059669",
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.target.style.background = "#d1fae5";
+                                  e.target.style.background = "transparent";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.target.style.background = "none";
+                                  e.target.style.background = "transparent";
                                 }}
                                 title="Edit user"
                               >
@@ -910,10 +1069,10 @@ function UserManagement() {
                                     color: "#dc2626",
                                   }}
                                   onMouseEnter={(e) => {
-                                    e.target.style.background = "#fee2e2";
+                                    e.target.style.background = "transparent";
                                   }}
                                   onMouseLeave={(e) => {
-                                    e.target.style.background = "none";
+                                    e.target.style.background = "transparent";
                                   }}
                                   title="Delete user"
                                 >
@@ -947,8 +1106,8 @@ function UserManagement() {
           {/* Pagination Footer */}
           <div
             style={{
-              background: "#f9fafb",
-              borderTop: "1px solid #e5e7eb",
+              background: isDarkMode ? "#1f2937" : "#f9fafb",
+              borderTop: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
               padding: "12px 16px",
               display: "flex",
               alignItems: "center",
@@ -965,9 +1124,25 @@ function UserManagement() {
                 disabled={currentPage === 1}
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid #d1d5db",
-                  background: currentPage === 1 ? "#f9fafb" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#374151",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  background:
+                    currentPage === 1
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f9fafb"
+                      : isDarkMode
+                      ? "#1f2937"
+                      : "#fff",
+                  color:
+                    currentPage === 1
+                      ? isDarkMode
+                        ? "#9ca3af"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
                   borderRadius: "6px",
                   cursor: currentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
@@ -981,9 +1156,25 @@ function UserManagement() {
                 disabled={currentPage === 1}
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid #d1d5db",
-                  background: currentPage === 1 ? "#f9fafb" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#374151",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  background:
+                    currentPage === 1
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f9fafb"
+                      : isDarkMode
+                      ? "#1f2937"
+                      : "#fff",
+                  color:
+                    currentPage === 1
+                      ? isDarkMode
+                        ? "#9ca3af"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
                   borderRadius: "6px",
                   cursor: currentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
@@ -1000,9 +1191,21 @@ function UserManagement() {
                   disabled={page === currentPage}
                   style={{
                     padding: "6px 12px",
-                    border: "1px solid #d1d5db",
-                    background: page === currentPage ? "#2563eb" : "#fff",
-                    color: page === currentPage ? "#fff" : "#374151",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    background:
+                      page === currentPage
+                        ? "#2563eb"
+                        : isDarkMode
+                        ? "#1f2937"
+                        : "#fff",
+                    color:
+                      page === currentPage
+                        ? "#fff"
+                        : isDarkMode
+                        ? "#f3f4f6"
+                        : "#374151",
                     borderRadius: "6px",
                     cursor: page === currentPage ? "default" : "pointer",
                     fontSize: "14px",
@@ -1011,12 +1214,16 @@ function UserManagement() {
                   }}
                   onMouseEnter={(e) => {
                     if (page !== currentPage) {
-                      e.target.style.background = "#f3f4f6";
+                      e.target.style.background = isDarkMode
+                        ? "#374151"
+                        : "#f3f4f6";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (page !== currentPage) {
-                      e.target.style.background = "#fff";
+                      e.target.style.background = isDarkMode
+                        ? "#1f2937"
+                        : "#fff";
                     }
                   }}
                 >
@@ -1031,9 +1238,25 @@ function UserManagement() {
                 disabled={currentPage === totalPages}
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid #d1d5db",
-                  background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  background:
+                    currentPage === totalPages
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f9fafb"
+                      : isDarkMode
+                      ? "#1f2937"
+                      : "#fff",
+                  color:
+                    currentPage === totalPages
+                      ? isDarkMode
+                        ? "#9ca3af"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
                   borderRadius: "6px",
                   cursor:
                     currentPage === totalPages ? "not-allowed" : "pointer",
@@ -1048,9 +1271,25 @@ function UserManagement() {
                 disabled={currentPage === totalPages}
                 style={{
                   padding: "6px 12px",
-                  border: "1px solid #d1d5db",
-                  background: currentPage === totalPages ? "#f9fafb" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#374151",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  background:
+                    currentPage === totalPages
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f9fafb"
+                      : isDarkMode
+                      ? "#1f2937"
+                      : "#fff",
+                  color:
+                    currentPage === totalPages
+                      ? isDarkMode
+                        ? "#9ca3af"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#374151",
                   borderRadius: "6px",
                   cursor:
                     currentPage === totalPages ? "not-allowed" : "pointer",
@@ -1064,13 +1303,23 @@ function UserManagement() {
 
             {/* Info and Controls */}
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <span style={{ color: "#6b7280", fontSize: "14px" }}>
+              <span
+                style={{
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  fontSize: "14px",
+                }}
+              >
                 Showing {startIdx} - {endIdx} of {filteredUsers.length} users
               </span>
               <div
                 style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
-                <span style={{ color: "#6b7280", fontSize: "14px" }}>
+                <span
+                  style={{
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    fontSize: "14px",
+                  }}
+                >
                   Show:
                 </span>
                 <select
@@ -1081,11 +1330,13 @@ function UserManagement() {
                   }}
                   style={{
                     padding: "4px 8px",
-                    border: "1px solid #d1d5db",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
                     borderRadius: "4px",
-                    background: "#fff",
+                    background: isDarkMode ? "#1f2937" : "#fff",
                     fontSize: "14px",
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     cursor: "pointer",
                   }}
                 >
@@ -1118,7 +1369,7 @@ function UserManagement() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 20,
                 borderRadius: 12,
                 minWidth: 480,
@@ -1129,7 +1380,9 @@ function UserManagement() {
                 flexDirection: "column",
                 alignItems: "flex-start",
                 position: "relative",
-                border: "1.5px solid #e5e7eb",
+                border: isDarkMode
+                  ? "1.5px solid #374151"
+                  : "1.5px solid #e5e7eb",
                 transition: "box-shadow 0.2s",
                 maxHeight: "85vh",
                 overflowY: "auto",
@@ -1147,18 +1400,20 @@ function UserManagement() {
                   border: "none",
                   fontSize: 24,
                   cursor: "pointer",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   lineHeight: 1,
                   padding: "4px",
                   borderRadius: "4px",
                   transition: "color 0.2s, background 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.color = "#374151";
-                  e.target.style.background = "#f3f4f6";
+                  e.target.style.color = isDarkMode ? "#f3f4f6" : "#374151";
+                  e.target.style.background = isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6";
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.color = "#6b7280";
+                  e.target.style.color = isDarkMode ? "#9ca3af" : "#6b7280";
                   e.target.style.background = "none";
                 }}
                 aria-label="Close"
@@ -1200,7 +1455,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1219,8 +1474,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1234,7 +1492,9 @@ function UserManagement() {
                         "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.borderColor = isDarkMode
+                        ? "#4b5563"
+                        : "#cbd5e1";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -1249,7 +1509,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1268,8 +1528,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1283,7 +1546,9 @@ function UserManagement() {
                         "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.borderColor = isDarkMode
+                        ? "#4b5563"
+                        : "#cbd5e1";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -1298,7 +1563,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1317,8 +1582,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1332,7 +1600,9 @@ function UserManagement() {
                         "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.borderColor = isDarkMode
+                        ? "#4b5563"
+                        : "#cbd5e1";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -1347,7 +1617,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1366,8 +1636,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1486,7 +1759,7 @@ function UserManagement() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 20,
                 borderRadius: 12,
                 minWidth: 480,
@@ -1497,7 +1770,9 @@ function UserManagement() {
                 flexDirection: "column",
                 alignItems: "flex-start",
                 position: "relative",
-                border: "1.5px solid #e5e7eb",
+                border: isDarkMode
+                  ? "1.5px solid #374151"
+                  : "1.5px solid #e5e7eb",
                 transition: "box-shadow 0.2s",
                 maxHeight: "85vh",
                 overflowY: "auto",
@@ -1515,18 +1790,20 @@ function UserManagement() {
                   border: "none",
                   fontSize: 24,
                   cursor: "pointer",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   lineHeight: 1,
                   padding: "4px",
                   borderRadius: "4px",
                   transition: "color 0.2s, background 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.color = "#374151";
-                  e.target.style.background = "#f3f4f6";
+                  e.target.style.color = isDarkMode ? "#f3f4f6" : "#374151";
+                  e.target.style.background = isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6";
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.color = "#6b7280";
+                  e.target.style.color = isDarkMode ? "#9ca3af" : "#6b7280";
                   e.target.style.background = "none";
                 }}
                 aria-label="Close"
@@ -1568,7 +1845,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1592,8 +1869,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1607,7 +1887,9 @@ function UserManagement() {
                         "0 0 0 3px rgba(37, 99, 235, 0.1)";
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = "#cbd5e1";
+                      e.target.style.borderColor = isDarkMode
+                        ? "#4b5563"
+                        : "#cbd5e1";
                       e.target.style.boxShadow = "none";
                     }}
                   />
@@ -1622,7 +1904,7 @@ function UserManagement() {
                   <label
                     style={{
                       fontWeight: 500,
-                      color: "#222e3a",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       fontSize: 13,
                       fontFamily:
                         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -1646,8 +1928,11 @@ function UserManagement() {
                       fontSize: 13,
                       padding: "8px 12px",
                       borderRadius: 5,
-                      border: "1.2px solid #cbd5e1",
-                      background: "#f1f5f9",
+                      border: isDarkMode
+                        ? "1.2px solid #4b5563"
+                        : "1.2px solid #cbd5e1",
+                      background: isDarkMode ? "#374151" : "#f1f5f9",
+                      color: isDarkMode ? "#f3f4f6" : "#222e3a",
                       height: "38px",
                       boxSizing: "border-box",
                       fontFamily:
@@ -1723,53 +2008,498 @@ function UserManagement() {
                     Cancel
                   </button>
                 </div>
-                {status && (
-                  <div
-                    style={{
-                      color: status.includes("success") ? "#059669" : "#dc2626",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      fontSize: 13,
-                      padding: "8px 12px",
-                      background: status.includes("success")
-                        ? "#d1fae5"
-                        : "#fee2e2",
-                      borderRadius: 6,
-                      border: `1px solid ${
-                        status.includes("success") ? "#059669" : "#dc2626"
-                      }`,
-                    }}
-                  >
-                    {status}
-                  </div>
-                )}
               </form>
             </div>
           </div>
         )}
 
-        {/* Snackbar */}
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmModal.open && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(34, 46, 58, 0.18)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2000,
+            }}
+          >
+            <div
+              style={{
+                background: isDarkMode ? "#1f2937" : "#fff",
+                padding: 24,
+                borderRadius: 12,
+                minWidth: 400,
+                maxWidth: 480,
+                width: "60vw",
+                boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                position: "relative",
+                border: isDarkMode
+                  ? "1.5px solid #374151"
+                  : "1.5px solid #e5e7eb",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              }}
+            >
+              {/* Warning Icon */}
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "#fef3cd",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="#f59e0b"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <path d="M12 9v4" />
+                  <path d="m12 17 .01 0" />
+                </svg>
+              </div>
+
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 12,
+                  textAlign: "center",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Delete User
+              </h3>
+
+              <p
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#d1d5db" : "#6b7280",
+                  textAlign: "center",
+                  marginBottom: 24,
+                  lineHeight: 1.5,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Are you sure you want to delete{" "}
+                <strong style={{ color: isDarkMode ? "#f3f4f6" : "#374151" }}>
+                  {deleteConfirmModal.username}
+                </strong>
+                ?
+                <br />
+                This action cannot be undone.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeleteConfirmModal({
+                      open: false,
+                      uid: null,
+                      username: "",
+                    })
+                  }
+                  style={{
+                    background: isDarkMode ? "#374151" : "#f3f4f6",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    flex: 1,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = isDarkMode
+                      ? "#4b5563"
+                      : "#e5e7eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6";
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteUser}
+                  style={{
+                    background: "#dc2626",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "background 0.2s",
+                    flex: 1,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "#b91c1c";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "#dc2626";
+                  }}
+                >
+                  Delete User
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Delete Confirmation Modal */}
+        {bulkDeleteModal.open && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(34, 46, 58, 0.18)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2000,
+            }}
+          >
+            <div
+              style={{
+                background: isDarkMode ? "#1f2937" : "#fff",
+                padding: 24,
+                borderRadius: 12,
+                minWidth: 400,
+                maxWidth: 500,
+                width: "65vw",
+                boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                position: "relative",
+                border: isDarkMode
+                  ? "1.5px solid #374151"
+                  : "1.5px solid #e5e7eb",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              }}
+            >
+              {/* Warning Icon */}
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "50%",
+                  background: "#fee2e2",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <polyline points="3,6 5,6 21,6" />
+                  <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+              </div>
+
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 12,
+                  textAlign: "center",
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Delete Multiple Users
+              </h3>
+
+              <p
+                style={{
+                  fontSize: 14,
+                  color: isDarkMode ? "#d1d5db" : "#6b7280",
+                  textAlign: "center",
+                  marginBottom: 24,
+                  lineHeight: 1.5,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Are you sure you want to delete{" "}
+                <strong style={{ color: isDarkMode ? "#f3f4f6" : "#374151" }}>
+                  {bulkDeleteModal.count} selected user
+                  {bulkDeleteModal.count === 1 ? "" : "s"}
+                </strong>
+                ?
+                <br />
+                This action cannot be undone and will permanently remove{" "}
+                {bulkDeleteModal.count === 1 ? "this user" : "these users"} from
+                the system.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  width: "100%",
+                  justifyContent: "center",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setBulkDeleteModal({ open: false, count: 0 })}
+                  style={{
+                    background: isDarkMode ? "#374151" : "#f3f4f6",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    flex: 1,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = isDarkMode
+                      ? "#4b5563"
+                      : "#e5e7eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6";
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmBulkDelete}
+                  style={{
+                    background: "#dc2626",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "10px 20px",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "background 0.2s",
+                    flex: 1,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "#b91c1c";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "#dc2626";
+                  }}
+                >
+                  Delete {bulkDeleteModal.count} User
+                  {bulkDeleteModal.count === 1 ? "" : "s"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Snackbar */}
         {snackbar.open && (
           <div
             style={{
               position: "fixed",
-              bottom: 32,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "#059669",
-              color: "#fff",
-              padding: "12px 32px",
-              borderRadius: 8,
-              fontWeight: 600,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.16)",
+              bottom: 24,
+              right: 24,
+              background: isDarkMode ? "#1f2937" : "#fff",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+              padding: "16px 20px",
+              borderRadius: 12,
+              fontWeight: 500,
+              boxShadow: isDarkMode
+                ? "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)"
+                : "0 8px 32px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.08)",
               zIndex: 9999,
-              cursor: "pointer",
               fontFamily:
                 "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+              minWidth: "320px",
+              maxWidth: "400px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
             }}
-            onClick={() => setSnackbar({ open: false, message: "" })}
           >
-            {snackbar.message}
+            {/* Success Icon */}
+            <div
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: "#059669",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                fill="none"
+                stroke="#fff"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="20,6 9,17 4,12" />
+              </svg>
+            </div>
+
+            {/* Message */}
+            <span style={{ flex: 1, fontSize: "14px" }}>
+              {snackbar.message}
+            </span>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {/* Undo Button */}
+              {snackbar.undoAction && (
+                <button
+                  onClick={handleUndo}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "transparent";
+                  }}
+                >
+                  Undo
+                </button>
+              )}
+
+              {/* Close Button */}
+              <button
+                onClick={() =>
+                  setSnackbar({
+                    open: false,
+                    message: "",
+                    type: "success",
+                    undoAction: null,
+                    undoData: null,
+                  })
+                }
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  cursor: "pointer",
+                  padding: "4px",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.color = isDarkMode ? "#f3f4f6" : "#374151";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = isDarkMode ? "#9ca3af" : "#6b7280";
+                }}
+                aria-label="Close"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </div>

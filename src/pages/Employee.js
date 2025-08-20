@@ -26,6 +26,7 @@ import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
 import undoManager from "../utils/undoManager";
+import { useTheme } from "../context/ThemeContext";
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
@@ -46,6 +47,8 @@ function EmployeeFormModal({
   isValid,
   clients,
 }) {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       style={{
@@ -65,7 +68,7 @@ function EmployeeFormModal({
     >
       <div
         style={{
-          backgroundColor: "white",
+          backgroundColor: isDarkMode ? "#1f2937" : "white",
           borderRadius: 12,
           padding: "clamp(16px, 2vw, 24px)",
           width: "100%",
@@ -85,7 +88,7 @@ function EmployeeFormModal({
           style={{
             fontSize: "clamp(18px, 2vw, 22px)",
             fontWeight: 700,
-            color: "#222e3a",
+            color: isDarkMode ? "#f3f4f6" : "#222e3a",
             marginBottom: "clamp(16px, 2vw, 20px)",
             marginTop: 0,
             textAlign: "center",
@@ -132,7 +135,7 @@ function EmployeeFormModal({
                   display: "block",
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontWeight: 600,
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   marginBottom: 4,
                 }}
               >
@@ -145,12 +148,16 @@ function EmployeeFormModal({
                 style={{
                   width: "100%",
                   padding: "clamp(6px, 0.8vw, 10px)",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
+                  backgroundColor: isDarkMode ? "#374151" : "white",
+                  color: isDarkMode ? "#f3f4f6" : "black",
                 }}
               />
             </div>
@@ -161,7 +168,7 @@ function EmployeeFormModal({
                   display: "block",
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontWeight: 600,
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   marginBottom: 4,
                 }}
               >
@@ -174,12 +181,16 @@ function EmployeeFormModal({
                 style={{
                   width: "100%",
                   padding: "clamp(6px, 0.8vw, 10px)",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
+                  backgroundColor: isDarkMode ? "#374151" : "white",
+                  color: isDarkMode ? "#f3f4f6" : "black",
                 }}
               />
             </div>
@@ -190,7 +201,7 @@ function EmployeeFormModal({
                   display: "block",
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontWeight: 600,
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   marginBottom: 4,
                 }}
               >
@@ -203,12 +214,16 @@ function EmployeeFormModal({
                 style={{
                   width: "100%",
                   padding: "clamp(6px, 0.8vw, 10px)",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
+                  backgroundColor: isDarkMode ? "#374151" : "white",
+                  color: isDarkMode ? "#f3f4f6" : "black",
                 }}
               />
             </div>
@@ -219,7 +234,7 @@ function EmployeeFormModal({
                   display: "block",
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontWeight: 600,
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   marginBottom: 4,
                 }}
               >
@@ -232,12 +247,15 @@ function EmployeeFormModal({
                 style={{
                   width: "100%",
                   padding: "clamp(6px, 0.8vw, 10px)",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontFamily: "inherit",
                   outline: "none",
-                  backgroundColor: "white",
+                  backgroundColor: isDarkMode ? "#374151" : "white",
+                  color: isDarkMode ? "#f3f4f6" : "black",
                   boxSizing: "border-box",
                 }}
               >
@@ -268,7 +286,7 @@ function EmployeeFormModal({
                     display: "block",
                     fontSize: "clamp(12px, 1.1vw, 14px)",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     marginBottom: 4,
                   }}
                 >
@@ -282,12 +300,16 @@ function EmployeeFormModal({
                   style={{
                     width: "100%",
                     padding: "clamp(6px, 0.8vw, 10px)",
-                    border: "1px solid #d1d5db",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
                     borderRadius: 6,
                     fontSize: "clamp(12px, 1.1vw, 14px)",
                     fontFamily: "inherit",
                     outline: "none",
                     boxSizing: "border-box",
+                    backgroundColor: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "black",
                   }}
                 />
               </div>
@@ -298,7 +320,7 @@ function EmployeeFormModal({
                     display: "block",
                     fontSize: "clamp(12px, 1.1vw, 14px)",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     marginBottom: 4,
                   }}
                 >
@@ -312,12 +334,16 @@ function EmployeeFormModal({
                   style={{
                     width: "100%",
                     padding: "clamp(6px, 0.8vw, 10px)",
-                    border: "1px solid #d1d5db",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
                     borderRadius: 6,
                     fontSize: "clamp(12px, 1.1vw, 14px)",
                     fontFamily: "inherit",
                     outline: "none",
                     boxSizing: "border-box",
+                    backgroundColor: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "black",
                   }}
                 />
               </div>
@@ -329,7 +355,7 @@ function EmployeeFormModal({
                   display: "block",
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontWeight: 600,
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   marginBottom: 4,
                 }}
               >
@@ -343,12 +369,17 @@ function EmployeeFormModal({
                 style={{
                   width: "100%",
                   padding: "clamp(6px, 0.8vw, 10px)",
-                  border: "1px solid #d1d5db",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
                   borderRadius: 6,
                   fontSize: "clamp(12px, 1.1vw, 14px)",
                   fontFamily: "inherit",
                   outline: "none",
                   boxSizing: "border-box",
+                  backgroundColor: isDarkMode ? "#374151" : "white",
+                  color: isDarkMode ? "#f3f4f6" : "black",
+                  colorScheme: isDarkMode ? "dark" : "light",
                 }}
               />
             </div>
@@ -365,17 +396,17 @@ function EmployeeFormModal({
             flexWrap: "wrap",
             flexShrink: 0,
             paddingTop: "clamp(8px, 1vw, 12px)",
-            borderTop: "1px solid #f3f4f6",
+            borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #f3f4f6",
           }}
         >
           <button
             onClick={onCancel}
             style={{
               padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               borderRadius: 6,
-              background: "white",
-              color: "#374151",
+              background: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: "clamp(12px, 1.1vw, 14px)",
               fontWeight: 500,
               cursor: "pointer",
@@ -623,6 +654,7 @@ function EmployeeAssetsModal({
   deviceHistory = [],
   onDeviceUpdate,
 }) {
+  const { isDarkMode } = useTheme();
   const { showSuccess, showError } = useSnackbar();
 
   // Modal states for action confirmations
@@ -1454,7 +1486,11 @@ function EmployeeAssetsModal({
                   ? handleSelectAllWfhDevices(e.target.checked)
                   : handleSelectAllDeployedDevices(e.target.checked)
               }
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                accentColor: "#6b7280",
+                colorScheme: isDarkMode ? "dark" : "light",
+              }}
             />
           </th>
         )}
@@ -1615,7 +1651,11 @@ function EmployeeAssetsModal({
                 ? handleSelectWfhDevice(device.id, e.target.checked)
                 : handleSelectDeployedDevice(device.id, e.target.checked)
             }
-            style={{ cursor: "pointer" }}
+            style={{
+              cursor: "pointer",
+              accentColor: "#6b7280",
+              colorScheme: isDarkMode ? "dark" : "light",
+            }}
           />
         </td>
       )}
@@ -1807,7 +1847,7 @@ function EmployeeAssetsModal({
     >
       <div
         style={{
-          backgroundColor: "white",
+          backgroundColor: isDarkMode ? "#1f2937" : "white",
           borderRadius: 12,
           width: "95%",
           maxWidth: 1200,
@@ -1824,7 +1864,9 @@ function EmployeeAssetsModal({
         <div
           style={{
             padding: "24px 32px",
-            borderBottom: "1px solid #e5e7eb",
+            borderBottom: isDarkMode
+              ? "1px solid #4b5563"
+              : "1px solid #e5e7eb",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -1835,7 +1877,7 @@ function EmployeeAssetsModal({
               style={{
                 fontSize: 24,
                 fontWeight: 700,
-                color: "#222e3a",
+                color: isDarkMode ? "#f3f4f6" : "#222e3a",
                 marginBottom: 4,
                 marginTop: 0,
               }}
@@ -1845,7 +1887,7 @@ function EmployeeAssetsModal({
             <p
               style={{
                 fontSize: 16,
-                color: "#6b7280",
+                color: isDarkMode ? "#d1d5db" : "#6b7280",
                 margin: 0,
               }}
             >
@@ -2521,6 +2563,8 @@ function EmployeeAssetsModal({
                               width: 16,
                               height: 16,
                               cursor: "pointer",
+                              accentColor: "#6b7280",
+                              colorScheme: isDarkMode ? "dark" : "light",
                             }}
                           />
                           <span style={{ color: "#059669" }}>
@@ -2560,6 +2604,8 @@ function EmployeeAssetsModal({
                               width: 16,
                               height: 16,
                               cursor: "pointer",
+                              accentColor: "#6b7280",
+                              colorScheme: isDarkMode ? "dark" : "light",
                             }}
                           />
                           <span style={{ color: "#dc2626" }}>
@@ -2665,6 +2711,8 @@ function EmployeeAssetsModal({
                                     width: 14,
                                     height: 14,
                                     cursor: "pointer",
+                                    accentColor: "#6b7280",
+                                    colorScheme: isDarkMode ? "dark" : "light",
                                   }}
                                 />
                                 <span style={{ color: "#059669" }}>GOOD</span>
@@ -2709,6 +2757,8 @@ function EmployeeAssetsModal({
                                     width: 14,
                                     height: 14,
                                     cursor: "pointer",
+                                    accentColor: "#6b7280",
+                                    colorScheme: isDarkMode ? "dark" : "light",
                                   }}
                                 />
                                 <span style={{ color: "#dc2626" }}>
@@ -2964,6 +3014,7 @@ function formatHistoryDate(dateValue) {
 }
 
 export default function Employee() {
+  const { isDarkMode } = useTheme();
   const [employees, setEmployees] = useState([]);
   const [resignedEmployees, setResignedEmployees] = useState([]);
   const [form, setForm] = useState({});
@@ -3912,7 +3963,7 @@ export default function Employee() {
         flexDirection: "column",
         width: "100%",
         height: "100vh",
-        background: "#f7f9fb",
+        background: isDarkMode ? "#1f2937" : "#f7f9fb",
         fontFamily:
           'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         overflow: "hidden",
@@ -3924,7 +3975,7 @@ export default function Employee() {
         style={{
           fontSize: 28,
           fontWeight: 700,
-          color: "#222e3a",
+          color: isDarkMode ? "#f3f4f6" : "#222e3a",
           letterSpacing: 1,
           padding: "20px 24px 0px 24px",
           flexShrink: 0,
@@ -3947,7 +3998,12 @@ export default function Employee() {
             padding: "12px 20px",
             border: "none",
             background: "transparent",
-            color: activeTab === "active" ? "#2563eb" : "#6b7280",
+            color:
+              activeTab === "active"
+                ? "#2563eb"
+                : isDarkMode
+                ? "#d1d5db"
+                : "#6b7280",
             fontSize: 14,
             fontWeight: 600,
             cursor: "pointer",
@@ -3967,7 +4023,12 @@ export default function Employee() {
             padding: "12px 20px",
             border: "none",
             background: "transparent",
-            color: activeTab === "resigned" ? "#2563eb" : "#6b7280",
+            color:
+              activeTab === "resigned"
+                ? "#2563eb"
+                : isDarkMode
+                ? "#d1d5db"
+                : "#6b7280",
             fontSize: 14,
             fontWeight: 600,
             cursor: "pointer",
@@ -4006,16 +4067,18 @@ export default function Employee() {
                   setSearchTerm("");
                 }
               }}
+              className={isDarkMode ? "search-input-dark" : ""}
               style={{
                 padding: "8px 12px 8px 36px",
                 paddingRight: searchTerm ? "36px" : "12px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 borderRadius: 6,
                 fontSize: 14,
                 fontFamily: "inherit",
                 outline: "none",
                 width: 200,
-                backgroundColor: "white",
+                backgroundColor: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "#000",
               }}
             />
             <div
@@ -4024,11 +4087,23 @@ export default function Employee() {
                 left: 10,
                 top: "50%",
                 transform: "translateY(-50%)",
-                color: "#6b7280",
+                color: isDarkMode ? "#d1d5db" : "#6b7280",
                 fontSize: 16,
               }}
             >
-              🔍
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
             </div>
             {searchTerm && (
               <button
@@ -4040,7 +4115,7 @@ export default function Employee() {
                   transform: "translateY(-50%)",
                   background: "none",
                   border: "none",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#d1d5db" : "#6b7280",
                   fontSize: 16,
                   cursor: "pointer",
                   padding: "2px",
@@ -4061,12 +4136,13 @@ export default function Employee() {
             onChange={(e) => setSortBy(e.target.value)}
             style={{
               padding: "8px 12px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               borderRadius: 6,
               fontSize: 14,
               fontFamily: "inherit",
               outline: "none",
-              backgroundColor: "white",
+              backgroundColor: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#000",
             }}
           >
             <option value="default">Sort: Default</option>
@@ -4101,10 +4177,10 @@ export default function Employee() {
             <label
               style={{
                 padding: "8px 16px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 borderRadius: 6,
-                background: "white",
-                color: "#374151",
+                background: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
@@ -4150,10 +4226,10 @@ export default function Employee() {
             onClick={exportToExcel}
             style={{
               padding: "8px 16px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               borderRadius: 6,
-              background: "white",
-              color: "#374151",
+              background: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
@@ -4211,9 +4287,9 @@ export default function Employee() {
         style={{
           flex: 1,
           margin: "0 24px",
-          background: "white",
+          background: isDarkMode ? "#374151" : "white",
           // borderRadius: "12px 12px 0 0", // Only top corners rounded
-          border: "1px solid #e5e7eb",
+          border: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
           borderBottom: "none", // Remove bottom border to connect with pagination
           overflow: "hidden",
           display: "flex",
@@ -4233,16 +4309,18 @@ export default function Employee() {
               width: "100%",
               borderCollapse: "collapse",
               fontSize: "clamp(12px, 1vw, 14px)",
-              color: "#374151",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               tableLayout: "fixed", // Fixed layout for better control
-              border: "1px solid #e5e7eb", // Add outer border
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb", // Add outer border
             }}
           >
             <thead>
               <tr
                 style={{
-                  background: "#f9fafb",
-                  borderBottom: "1px solid #e5e7eb",
+                  background: isDarkMode ? "#4b5563" : "#f9fafb",
+                  borderBottom: isDarkMode
+                    ? "1px solid #6b7280"
+                    : "1px solid #e5e7eb",
                   position: "sticky",
                   top: 0,
                   zIndex: 10,
@@ -4253,13 +4331,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: "3%",
                     minWidth: "40px",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4271,7 +4351,11 @@ export default function Employee() {
                         if (el) el.indeterminate = isIndeterminate;
                       }}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      style={{ cursor: "pointer" }}
+                      style={{
+                        cursor: "pointer",
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   )}
                   {activeTab === "resigned" && (
@@ -4282,7 +4366,11 @@ export default function Employee() {
                         if (el) el.indeterminate = isIndeterminate;
                       }}
                       onChange={(e) => handleSelectAll(e.target.checked)}
-                      style={{ cursor: "pointer" }}
+                      style={{
+                        cursor: "pointer",
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   )}
                 </th>
@@ -4291,13 +4379,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "8%" : "8%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4308,13 +4398,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "16%" : "15%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4325,13 +4417,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "13%" : "12%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4342,13 +4436,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "10%" : "9%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4359,13 +4455,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "11%" : "10%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4376,13 +4474,15 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     width: activeTab === "active" ? "16%" : "15%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4393,14 +4493,18 @@ export default function Employee() {
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
-                    color: "#9c2b2bff",
+                    color: isDarkMode ? "#ef4444" : "#9c2b2bff",
                     width: activeTab === "active" ? "10%" : "9%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: "1px solid #e5e7eb", // Add cell borders
-                    borderRight: "1px solid #e5e7eb", // Standard border for separation
+                    border: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Add cell borders
+                    borderRight: isDarkMode
+                      ? "1px solid #6b7280"
+                      : "1px solid #e5e7eb", // Standard border for separation
                     position: "sticky",
                     top: "0",
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#4b5563" : "#f9fafb",
                     zIndex: 10,
                   }}
                 >
@@ -4412,14 +4516,18 @@ export default function Employee() {
                       padding: "clamp(8px, 1vw, 16px)",
                       textAlign: "center",
                       fontWeight: 600,
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       width: "10%",
                       fontSize: "clamp(11px, 0.9vw, 14px)",
-                      border: "1px solid #e5e7eb", // Add cell borders
-                      borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      borderLeft: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Standard border for separation
                       position: "sticky",
                       top: "0",
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4432,14 +4540,18 @@ export default function Employee() {
                       padding: "clamp(8px, 1vw, 16px)",
                       textAlign: "center",
                       fontWeight: 600,
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       width: "10%",
                       fontSize: "clamp(11px, 0.9vw, 14px)",
-                      border: "1px solid #e5e7eb", // Add cell borders
-                      borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      borderLeft: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Standard border for separation
                       position: "sticky",
                       top: "0",
-                      background: "#f9fafb",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
@@ -4456,7 +4568,10 @@ export default function Employee() {
                     style={{
                       padding: 40,
                       textAlign: "center",
-                      border: "1px solid #e5e7eb",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e5e7eb",
+                      color: isDarkMode ? "#d1d5db" : "#6b7280",
                     }}
                   >
                     <TableLoadingSpinner />
@@ -4469,8 +4584,10 @@ export default function Employee() {
                     style={{
                       padding: 40,
                       textAlign: "center",
-                      color: "#6b7280",
-                      border: "1px solid #e5e7eb",
+                      color: isDarkMode ? "#d1d5db" : "#6b7280",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e5e7eb",
                     }}
                   >
                     {searchTerm ? (
@@ -4506,10 +4623,14 @@ export default function Employee() {
                   <tr
                     key={employee.id}
                     style={{
-                      borderBottom: "1px solid #f3f4f6",
+                      borderBottom: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #f3f4f6",
                       backgroundColor:
                         hoveredRowId === employee.id
-                          ? "#e5e7eb"
+                          ? isDarkMode
+                            ? "#4b5563"
+                            : "#e5e7eb"
                           : "transparent",
                       transition: "background-color 0.2s ease",
                       cursor: "pointer",
@@ -4521,7 +4642,9 @@ export default function Employee() {
                       style={{
                         padding: "clamp(8px, 1vw, 16px)",
                         overflow: "hidden",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                     >
                       {activeTab === "active" && (
@@ -4531,7 +4654,11 @@ export default function Employee() {
                           onChange={(e) =>
                             handleSelectEmployee(employee.id, e.target.checked)
                           }
-                          style={{ cursor: "pointer" }}
+                          style={{
+                            cursor: "pointer",
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
                         />
                       )}
                       {activeTab === "resigned" && (
@@ -4541,7 +4668,11 @@ export default function Employee() {
                           onChange={(e) =>
                             handleSelectEmployee(employee.id, e.target.checked)
                           }
-                          style={{ cursor: "pointer" }}
+                          style={{
+                            cursor: "pointer",
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
                         />
                       )}
                     </td>
@@ -4552,9 +4683,11 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        color: "#6b7280",
+                        color: isDarkMode ? "#d1d5db" : "#6b7280",
                         fontFamily: "monospace",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                       title={employee.id}
                     >
@@ -4568,13 +4701,15 @@ export default function Employee() {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                     >
                       <span
                         onClick={() => handleEmployeeNameClick(employee)}
                         style={{
-                          color: "#2563eb",
+                          color: isDarkMode ? "#f3f4f6" : "#2563eb",
                           cursor: "pointer",
                           textDecoration: "underline",
                           textDecorationColor: "transparent",
@@ -4582,7 +4717,9 @@ export default function Employee() {
                           fontSize: "clamp(12px, 1vw, 14px)",
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.textDecorationColor = "#2563eb";
+                          e.target.style.textDecorationColor = isDarkMode
+                            ? "#f3f4f6"
+                            : "#2563eb";
                         }}
                         onMouseLeave={(e) => {
                           e.target.style.textDecorationColor = "transparent";
@@ -4599,7 +4736,9 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                       title={employee.position}
                     >
@@ -4612,7 +4751,9 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                       title={employee.department}
                     >
@@ -4625,7 +4766,9 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                       title={getClientName(employee.clientId)}
                     >
@@ -4638,7 +4781,9 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        border: "1px solid #e5e7eb", // Add cell borders
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Add cell borders
                       }}
                       title={employee.corporateEmail || "-"}
                     >
@@ -4651,8 +4796,12 @@ export default function Employee() {
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                         fontSize: "clamp(12px, 1vw, 14px)",
-                        border: "1px solid #e5e7eb",
-                        borderRight: "1px solid #e5e7eb", // Standard border for separation
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb",
+                        borderRight: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb", // Standard border for separation
                       }}
                     >
                       {activeTab === "active"
@@ -4667,8 +4816,12 @@ export default function Employee() {
                           padding: "clamp(8px, 1vw, 16px)",
                           textAlign: "center",
                           overflow: "hidden",
-                          border: "1px solid #e5e7eb",
-                          borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb",
+                          borderLeft: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Standard border for separation
                         }}
                       >
                         <button
@@ -4678,8 +4831,8 @@ export default function Employee() {
                               "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
                             border: "1px solid #059669",
                             borderRadius: 4,
-                            background: "white",
-                            color: "#059669",
+                            background: isDarkMode ? "#6b7280" : "white",
+                            color: isDarkMode ? "#f3f4f6" : "#059669",
                             fontSize: "clamp(10px, 0.8vw, 12px)",
                             cursor: "pointer",
                             fontFamily: "inherit",
@@ -4696,8 +4849,12 @@ export default function Employee() {
                           padding: "clamp(8px, 1vw, 16px)",
                           textAlign: "center",
                           overflow: "hidden",
-                          border: "1px solid #e5e7eb",
-                          borderLeft: "1px solid #e5e7eb", // Standard border for separation
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb",
+                          borderLeft: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Standard border for separation
                         }}
                       >
                         <div
@@ -4737,10 +4894,12 @@ export default function Employee() {
                             style={{
                               padding:
                                 "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
-                              border: "1px solid #d1d5db",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #d1d5db",
                               borderRadius: 4,
-                              background: "white",
-                              color: "#374151",
+                              background: isDarkMode ? "#6b7280" : "#f3f4f6",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
                               fontSize: "clamp(10px, 0.8vw, 12px)",
                               cursor: "pointer",
                               fontFamily: "inherit",
@@ -4756,8 +4915,8 @@ export default function Employee() {
                                 "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
                               border: "1px solid #dc2626",
                               borderRadius: 4,
-                              background: "white",
-                              color: "#dc2626",
+                              background: isDarkMode ? "#6b7280" : "white",
+                              color: isDarkMode ? "#f3f4f6" : "#dc2626",
                               fontSize: "clamp(10px, 0.8vw, 12px)",
                               cursor: "pointer",
                               fontFamily: "inherit",
@@ -4785,8 +4944,8 @@ export default function Employee() {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "16px 24px",
-            background: "#fff",
-            borderTop: "1px solid #e5e7eb",
+            background: isDarkMode ? "#374151" : "#fff",
+            borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
             margin: "0 24px",
             borderBottomLeftRadius: 12,
             borderBottomRightRadius: 12,
@@ -4795,7 +4954,12 @@ export default function Employee() {
         >
           {/* Left side - Results info and items per page */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <span style={{ fontSize: "14px", color: "#6b7280" }}>
+            <span
+              style={{
+                fontSize: "14px",
+                color: isDarkMode ? "#d1d5db" : "#6b7280",
+              }}
+            >
               Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)}{" "}
               of {allEmployees.length} {activeTab} employees
               {searchTerm && (
@@ -4806,19 +4970,28 @@ export default function Employee() {
             </span>
 
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "14px", color: "#6b7280" }}>Show:</span>
+              <span
+                style={{
+                  fontSize: "14px",
+                  color: isDarkMode ? "#d1d5db" : "#6b7280",
+                }}
+              >
+                Show:
+              </span>
               <select
                 value={employeesPerPage}
                 onChange={(e) => setEmployeesPerPage(Number(e.target.value))}
                 style={{
                   padding: "6px 8px",
-                  border: "1px solid #e0e7ef",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e0e7ef",
                   borderRadius: "4px",
                   fontSize: "14px",
                   fontFamily: "inherit",
                   outline: "none",
-                  background: "#fff",
-                  color: "#445F6D",
+                  background: isDarkMode ? "#374151" : "#fff",
+                  color: isDarkMode ? "#f3f4f6" : "#445F6D",
                 }}
               >
                 <option value={10}>10</option>
@@ -4839,9 +5012,25 @@ export default function Employee() {
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: validCurrentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: validCurrentPage === 1 ? "#9ca3af" : "#445F6D",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e0e7ef",
+                  background:
+                    validCurrentPage === 1
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f5f7fa"
+                      : isDarkMode
+                      ? "#4b5563"
+                      : "#fff",
+                  color:
+                    validCurrentPage === 1
+                      ? isDarkMode
+                        ? "#6b7280"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#445F6D",
                   cursor: validCurrentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
@@ -4873,9 +5062,25 @@ export default function Employee() {
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: validCurrentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: validCurrentPage === 1 ? "#9ca3af" : "#445F6D",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e0e7ef",
+                  background:
+                    validCurrentPage === 1
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f5f7fa"
+                      : isDarkMode
+                      ? "#4b5563"
+                      : "#fff",
+                  color:
+                    validCurrentPage === 1
+                      ? isDarkMode
+                        ? "#6b7280"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#445F6D",
                   cursor: validCurrentPage === 1 ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: "500",
@@ -4925,9 +5130,21 @@ export default function Employee() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: i === validCurrentPage ? "#2563eb" : "#fff",
-                        color: i === validCurrentPage ? "#fff" : "#445F6D",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e0e7ef",
+                        background:
+                          i === validCurrentPage
+                            ? "#2563eb"
+                            : isDarkMode
+                            ? "#4b5563"
+                            : "#fff",
+                        color:
+                          i === validCurrentPage
+                            ? "#fff"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor: "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -4949,11 +5166,25 @@ export default function Employee() {
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e0e7ef",
                   background:
-                    validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                    validCurrentPage === totalPages
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f5f7fa"
+                      : isDarkMode
+                      ? "#4b5563"
+                      : "#fff",
                   color:
-                    validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    validCurrentPage === totalPages
+                      ? isDarkMode
+                        ? "#6b7280"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#445F6D",
                   cursor:
                     validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
@@ -4985,11 +5216,25 @@ export default function Employee() {
                 style={{
                   padding: "8px 12px",
                   borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e0e7ef",
                   background:
-                    validCurrentPage === totalPages ? "#f5f7fa" : "#fff",
+                    validCurrentPage === totalPages
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f5f7fa"
+                      : isDarkMode
+                      ? "#4b5563"
+                      : "#fff",
                   color:
-                    validCurrentPage === totalPages ? "#9ca3af" : "#445F6D",
+                    validCurrentPage === totalPages
+                      ? isDarkMode
+                        ? "#6b7280"
+                        : "#9ca3af"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#445F6D",
                   cursor:
                     validCurrentPage === totalPages ? "not-allowed" : "pointer",
                   fontSize: "14px",
