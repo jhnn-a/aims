@@ -21,6 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  LabelList,
 } from "recharts";
 
 // Enhanced Chart Components
@@ -292,6 +293,7 @@ function Dashboard() {
   const [utilizationRate, setUtilizationRate] = useState(0);
   const [totalAdmins, setTotalAdmins] = useState(0);
   const [workingDevices, setWorkingDevices] = useState([]);
+  const [stockroomData, setStockroomData] = useState([]);
   const [employeeMap, setEmployeeMap] = useState({});
   const [timeRange, setTimeRange] = useState("30days");
   const [loading, setLoading] = useState(true);
@@ -351,6 +353,38 @@ function Dashboard() {
         (d) => d.condition === "GOOD" || d.condition === "BRANDNEW"
       );
       setWorkingDevices(workingDevicesList);
+
+      // Calculate stockroom data (usable devices that are NOT assigned)
+      const stockroomMap = {};
+      const availableDevices = devices.filter(
+        (d) =>
+          (d.condition === "GOOD" || d.condition === "BRANDNEW") &&
+          (!d.assignedTo || d.assignedTo.trim() === "")
+      );
+
+      availableDevices.forEach((device) => {
+        const type = device.deviceType || "Unknown";
+        if (!stockroomMap[type]) {
+          stockroomMap[type] = {
+            deviceType: type,
+            brandNew: 0,
+            good: 0,
+            total: 0,
+          };
+        }
+
+        if (device.condition === "BRANDNEW") {
+          stockroomMap[type].brandNew++;
+        } else if (device.condition === "GOOD") {
+          stockroomMap[type].good++;
+        }
+        stockroomMap[type].total++;
+      });
+
+      const stockroomArray = Object.values(stockroomMap).sort(
+        (a, b) => b.total - a.total
+      );
+      setStockroomData(stockroomArray);
       setAllDevices(devices); // Store all devices for later use
 
       // Build employeeId → employeeName map
@@ -666,10 +700,25 @@ function Dashboard() {
     { name: "RETIRED", value: retiredCount, color: "#6b7280" },
   ].filter((item) => item.value > 0);
 
-  const deviceTypeData = deviceTypes.map((dt) => ({
-    type: dt.type,
-    count: dt.count,
-  }));
+  const deviceTypeData = (() => {
+    // Calculate deployed devices by type (only assigned/in use devices)
+    const deployedTypeMap = {};
+    allDevices.forEach((device) => {
+      // Only count devices that are deployed/assigned
+      if (
+        device.status === "In Use" ||
+        device.status === "Deployed" ||
+        (device.assignedTo && device.assignedTo.trim() !== "")
+      ) {
+        const type = device.deviceType || "Unknown";
+        deployedTypeMap[type] = (deployedTypeMap[type] || 0) + 1;
+      }
+    });
+
+    return Object.entries(deployedTypeMap)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([type, count]) => ({ type, count }));
+  })();
 
   return (
     <div
@@ -896,10 +945,10 @@ function Dashboard() {
           isDarkMode={isDarkMode}
         />
 
-        {/* Device Type Distribution */}
+        {/* Device Type Distribution - Deployed Assets */}
         <CustomBarChart
           data={deviceTypeData}
-          title="📦 Device Type Distribution"
+          title="📦 Deployed Assets by Device Type"
           xKey="type"
           yKey="count"
           height={350}
@@ -1891,7 +1940,7 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Working Devices Table */}
+      {/* Stockroom Table */}
       <div
         style={{
           background: isDarkMode ? "#1f2937" : "#fff",
@@ -1909,10 +1958,10 @@ function Dashboard() {
             fontWeight: 600,
           }}
         >
-          🔧 Working Devices
+          � Stockroom
         </h3>
         <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
-          {workingDevices.length === 0 ? (
+          {stockroomData.length === 0 ? (
             <div
               style={{
                 color: isDarkMode ? "#9ca3af" : "#6b7280",
@@ -1921,7 +1970,7 @@ function Dashboard() {
                 fontStyle: "italic",
               }}
             >
-              No working devices found
+              No devices available for deployment in stockroom
             </div>
           ) : (
             <table
@@ -1947,65 +1996,55 @@ function Dashboard() {
                       color: isDarkMode ? "#f3f4f6" : "#374151",
                     }}
                   >
-                    Device Tag
+                    Device Type
                   </th>
                   <th
                     style={{
-                      textAlign: "left",
+                      textAlign: "center",
                       padding: "12px 8px",
                       fontWeight: 600,
                       color: isDarkMode ? "#f3f4f6" : "#374151",
                     }}
                   >
-                    Type
+                    Brand New
                   </th>
                   <th
                     style={{
-                      textAlign: "left",
+                      textAlign: "center",
                       padding: "12px 8px",
                       fontWeight: 600,
                       color: isDarkMode ? "#f3f4f6" : "#374151",
                     }}
                   >
-                    Condition
+                    Good Condition
                   </th>
                   <th
                     style={{
-                      textAlign: "left",
+                      textAlign: "center",
                       padding: "12px 8px",
                       fontWeight: 600,
                       color: isDarkMode ? "#f3f4f6" : "#374151",
                     }}
                   >
-                    Assigned To
-                  </th>
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "12px 8px",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                    }}
-                  >
-                    Assigned Date
+                    Total Usable
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {workingDevices.map((device, index) => (
+                {stockroomData.map((item, index) => (
                   <tr
-                    key={device.id || index}
+                    key={item.deviceType}
                     style={{
                       borderBottom: `1px solid ${
-                        isDarkMode ? "#374151" : "#f3f4f6"
+                        isDarkMode ? "#374151" : "#e0e7ef"
                       }`,
                       backgroundColor:
                         index % 2 === 0
                           ? isDarkMode
                             ? "#1f2937"
-                            : "#fafafa"
+                            : "#f8fafc"
                           : isDarkMode
-                          ? "#374151"
+                          ? "#111827"
                           : "#ffffff",
                     }}
                   >
@@ -2013,67 +2052,41 @@ function Dashboard() {
                       style={{
                         padding: "12px 8px",
                         color: isDarkMode ? "#f3f4f6" : "#374151",
+                        fontWeight: 500,
                       }}
                     >
-                      {device.deviceTag || device.deviceName || "N/A"}
+                      {item.deviceType}
                     </td>
                     <td
                       style={{
                         padding: "12px 8px",
-                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        textAlign: "center",
+                        color: isDarkMode ? "#34d399" : "#059669",
+                        fontWeight: 600,
                       }}
                     >
-                      {device.deviceType || "N/A"}
-                    </td>
-                    <td style={{ padding: "12px 8px" }}>
-                      <span
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          backgroundColor:
-                            device.condition === "BRANDNEW"
-                              ? isDarkMode
-                                ? "#064e3b"
-                                : "#f0fdf4"
-                              : isDarkMode
-                              ? "#1e3a8a"
-                              : "#eff6ff",
-                          color:
-                            device.condition === "BRANDNEW"
-                              ? isDarkMode
-                                ? "#22c55e"
-                                : "#15803d"
-                              : isDarkMode
-                              ? "#60a5fa"
-                              : "#1d4ed8",
-                        }}
-                      >
-                        {device.condition || "N/A"}
-                      </span>
+                      {item.brandNew}
                     </td>
                     <td
                       style={{
                         padding: "12px 8px",
-                        color: isDarkMode ? "#d1d5db" : "#6b7280",
+                        textAlign: "center",
+                        color: isDarkMode ? "#60a5fa" : "#2563eb",
+                        fontWeight: 600,
                       }}
                     >
-                      {device.assignedTo
-                        ? employeeMap[
-                            device.assignedTo.toString().trim().toUpperCase()
-                          ] || device.assignedTo
-                        : "Not assigned"}
+                      {item.good}
                     </td>
                     <td
                       style={{
                         padding: "12px 8px",
-                        color: isDarkMode ? "#d1d5db" : "#6b7280",
+                        textAlign: "center",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        fontWeight: 700,
+                        fontSize: "16px",
                       }}
                     >
-                      {device.assignmentDate
-                        ? new Date(device.assignmentDate).toLocaleDateString()
-                        : "N/A"}
+                      {item.total}
                     </td>
                   </tr>
                 ))}
@@ -2083,13 +2096,14 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Device Type Details Table */}
-      {deviceTypes.length > 0 && (
+      {/* Assets - Bar Chart for Available Devices by Type */}
+      {stockroomData.length > 0 && (
         <div
           style={{
-            background: isDarkMode ? "#1f2937" : "#fff",
+            backgroundColor: isDarkMode ? "#1f2937" : "#ffffff",
             borderRadius: 12,
             padding: 24,
+            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
             border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
             marginBottom: 32,
           }}
@@ -2102,161 +2116,65 @@ function Dashboard() {
               fontWeight: 600,
             }}
           >
-            🖥️ Device Inventory by Type
+            📊 Assets - Number of Usable Devices
           </h3>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr
-                  style={{
-                    backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+          <div style={{ height: 450, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={stockroomData.map((item, index) => ({
+                  type: item.deviceType,
+                  count: item.total,
+                  color: COLORS[index % COLORS.length],
+                }))}
+                margin={{ top: 30, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke={isDarkMode ? "#374151" : "#e5e7eb"}
+                />
+                <XAxis
+                  dataKey="type"
+                  tick={{
+                    fill: isDarkMode ? "#f3f4f6" : "#374151",
+                    fontSize: 12,
                   }}
-                >
-                  <th
+                  axisLine={{ stroke: isDarkMode ? "#374151" : "#d1d5db" }}
+                />
+                <YAxis
+                  tick={{
+                    fill: isDarkMode ? "#f3f4f6" : "#374151",
+                    fontSize: 12,
+                  }}
+                  axisLine={{ stroke: isDarkMode ? "#374151" : "#d1d5db" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: isDarkMode ? "#374151" : "#ffffff",
+                    border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+                    borderRadius: 8,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                  }}
+                  labelStyle={{ color: isDarkMode ? "#f3f4f6" : "#374151" }}
+                />
+                <Bar dataKey="count" name="Total Count" radius={[4, 4, 0, 0]}>
+                  {stockroomData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                  <LabelList
+                    dataKey="count"
+                    position="top"
                     style={{
-                      padding: "12px 16px",
-                      textAlign: "left",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
+                      fill: isDarkMode ? "#f3f4f6" : "#374151",
+                      fontSize: "12px",
+                      fontWeight: "600",
                     }}
-                  >
-                    Device Type
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 16px",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
-                    }}
-                  >
-                    Total Count
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 16px",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
-                    }}
-                  >
-                    Percentage
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 16px",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
-                    }}
-                  >
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {deviceTypes.map((dt, index) => {
-                  const percentage =
-                    deviceCount > 0
-                      ? Math.round((dt.count / deviceCount) * 100)
-                      : 0;
-                  const needsRestock = dt.count < 5; // Consider restock if less than 5 units
-
-                  return (
-                    <tr
-                      key={dt.type}
-                      style={{
-                        borderBottom: `1px solid ${
-                          isDarkMode ? "#374151" : "#f3f4f6"
-                        }`,
-                        backgroundColor:
-                          index % 2 === 0
-                            ? isDarkMode
-                              ? "#1f2937"
-                              : "#ffffff"
-                            : isDarkMode
-                            ? "#374151"
-                            : "#f8fafc",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "12px 16px",
-                          color: isDarkMode ? "#f3f4f6" : "#374151",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {dt.type}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 16px",
-                          textAlign: "center",
-                          color: isDarkMode ? "#60a5fa" : "#2563eb",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {dt.count}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 16px",
-                          textAlign: "center",
-                          color: isDarkMode ? "#d1d5db" : "#6b7280",
-                        }}
-                      >
-                        {percentage}%
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                        {needsRestock ? (
-                          <span
-                            style={{
-                              color: "#ef4444",
-                              fontWeight: 600,
-                              fontSize: 12,
-                              padding: "4px 8px",
-                              backgroundColor: isDarkMode
-                                ? "#7f1d1d"
-                                : "#fef2f2",
-                              borderRadius: 4,
-                            }}
-                          >
-                            ⚠️ Low Stock
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              color: "#22c55e",
-                              fontWeight: 600,
-                              fontSize: 12,
-                              padding: "4px 8px",
-                              backgroundColor: isDarkMode
-                                ? "#14532d"
-                                : "#f0fdf4",
-                              borderRadius: 4,
-                            }}
-                          >
-                            ✅ Sufficient
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
