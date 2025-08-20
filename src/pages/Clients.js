@@ -439,6 +439,9 @@ function BulkDeleteConfirmationModal({
 }
 
 function EmployeesModal({ open, onClose, employees, clientId }) {
+  const { isDarkMode } = useTheme();
+  const [isButtonHovered, setIsButtonHovered] = useState(false);
+
   if (!open) return null;
 
   const styles = {
@@ -455,16 +458,18 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
       zIndex: 2000,
     },
     modalContent: {
-      background: "#fff",
+      background: isDarkMode ? "#1f2937" : "#fff",
       padding: 20,
       borderRadius: 12,
       minWidth: 500,
       maxWidth: 600,
       width: "80vw",
-      boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.3)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
       display: "flex",
       flexDirection: "column",
-      border: "1.5px solid #e5e7eb",
+      border: isDarkMode ? "1.5px solid #4b5563" : "1.5px solid #e5e7eb",
       maxHeight: "80vh",
       fontFamily:
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -481,18 +486,18 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
       maxHeight: 400,
       overflowY: "auto",
       margin: "16px 0",
-      border: "1px solid #d1d5db",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
       borderRadius: 6,
     },
     table: {
       width: "100%",
       borderCollapse: "collapse",
-      background: "#fff",
+      background: isDarkMode ? "#1f2937" : "#fff",
       fontSize: 14,
     },
     tableHeader: {
-      background: "#f9fafb",
-      borderBottom: "1px solid #d1d5db",
+      background: isDarkMode ? "#4b5563" : "#f9fafb",
+      borderBottom: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
       position: "sticky",
       top: "0",
       zIndex: 10,
@@ -501,29 +506,35 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
       padding: "12px 16px",
       fontSize: 12,
       fontWeight: 600,
-      color: "#374151",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
       textAlign: "left",
-      borderRight: "1px solid #d1d5db",
+      borderRight: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
       position: "sticky",
       top: "0",
-      background: "#f9fafb",
+      background: isDarkMode ? "#4b5563" : "#f9fafb",
       zIndex: 10,
     },
     td: {
       padding: "12px 16px",
       fontSize: 14,
-      color: "#374151",
-      borderRight: "1px solid #d1d5db",
-      borderBottom: "1px solid #d1d5db",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      borderRight: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+      borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
     },
     emptyState: {
-      color: "#6b7280",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
       textAlign: "center",
       padding: "40px 20px",
       fontSize: 14,
     },
     button: {
-      background: "#64748b",
+      background: isButtonHovered
+        ? isDarkMode
+          ? "#475569"
+          : "#475569"
+        : isDarkMode
+        ? "#64748b"
+        : "#64748b",
       color: "#fff",
       border: "none",
       borderRadius: 8,
@@ -531,9 +542,15 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
       fontSize: 14,
       fontWeight: 500,
       cursor: "pointer",
-      transition: "background 0.2s",
+      transition: "all 0.2s ease",
       alignSelf: "center",
       marginTop: 16,
+      transform: isButtonHovered ? "translateY(-1px)" : "translateY(0)",
+      boxShadow: isButtonHovered
+        ? isDarkMode
+          ? "0 4px 12px rgba(0, 0, 0, 0.3)"
+          : "0 4px 12px rgba(0, 0, 0, 0.15)"
+        : "none",
     },
   };
 
@@ -561,7 +578,14 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
                   <tr
                     key={emp.id}
                     style={{
-                      background: index % 2 === 0 ? "#ffffff" : "#f9fafb",
+                      background:
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "#ffffff"
+                          : isDarkMode
+                          ? "#374151"
+                          : "#f9fafb",
                     }}
                   >
                     <td style={styles.td}>
@@ -577,7 +601,12 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
             </table>
           )}
         </div>
-        <button style={styles.button} onClick={onClose}>
+        <button
+          style={styles.button}
+          onClick={onClose}
+          onMouseEnter={() => setIsButtonHovered(true)}
+          onMouseLeave={() => setIsButtonHovered(false)}
+        >
           Close
         </button>
       </div>

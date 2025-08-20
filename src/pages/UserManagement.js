@@ -302,14 +302,14 @@ function UserManagement() {
   const confirmDeleteUser = async () => {
     const uid = deleteConfirmModal.uid;
     const userToDelete = users.find((u) => u.uid === uid);
-    
+
     setDeleteConfirmModal({ open: false, uid: null, username: "" });
     setUsersLoading(true);
     try {
       const db = getFirestore();
       await deleteDoc(doc(db, "users", uid));
       setUsers((prev) => prev.filter((u) => u.uid !== uid));
-      
+
       // Show snackbar with undo functionality
       setSnackbar({
         open: true,

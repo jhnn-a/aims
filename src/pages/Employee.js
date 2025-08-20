@@ -1440,8 +1440,8 @@ function EmployeeAssetsModal({
     <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
       <tr
         style={{
-          background: "#f9fafb",
-          borderBottom: "1px solid #e5e7eb",
+          background: isDarkMode ? "#4b5563" : "#f9fafb",
+          borderBottom: isDarkMode ? "1px solid #6b7280" : "1px solid #e5e7eb",
         }}
       >
         {!isReturned && (
@@ -1450,12 +1450,12 @@ function EmployeeAssetsModal({
               padding: "12px 16px",
               textAlign: "center",
               fontWeight: 600,
-              color: "#374151",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: 12,
               width: "40px",
               position: "sticky",
               top: "0",
-              background: "#f9fafb",
+              background: isDarkMode ? "#4b5563" : "#f9fafb",
               zIndex: 10,
             }}
           >
@@ -1499,13 +1499,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1516,13 +1516,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1533,13 +1533,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1550,13 +1550,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1567,13 +1567,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1584,13 +1584,13 @@ function EmployeeAssetsModal({
             padding: "12px 16px",
             textAlign: "left",
             fontWeight: 600,
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 12,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             position: "sticky",
             top: "0",
-            background: "#f9fafb",
+            background: isDarkMode ? "#4b5563" : "#f9fafb",
             zIndex: 10,
           }}
         >
@@ -1602,13 +1602,13 @@ function EmployeeAssetsModal({
               padding: "12px 16px",
               textAlign: "center",
               fontWeight: 600,
-              color: "#374151",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: 12,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
               position: "sticky",
               top: "0",
-              background: "#f9fafb",
+              background: isDarkMode ? "#4b5563" : "#f9fafb",
               zIndex: 10,
             }}
           >
@@ -1629,7 +1629,7 @@ function EmployeeAssetsModal({
   }) => (
     <tr
       style={{
-        borderBottom: "1px solid #f3f4f6",
+        borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #f3f4f6",
       }}
     >
       {!isReturned && (
@@ -1667,6 +1667,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "120px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {device.deviceTag || "-"}
@@ -1679,6 +1680,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "100px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {device.deviceType || "-"}
@@ -1691,6 +1693,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "100px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {device.brand || "-"}
@@ -1703,6 +1706,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "120px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {device.model || "-"}
@@ -1715,6 +1719,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "80px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         <span
@@ -1774,6 +1779,7 @@ function EmployeeAssetsModal({
           overflow: "hidden",
           textOverflow: "ellipsis",
           maxWidth: "100px",
+          color: isDarkMode ? "#f3f4f6" : "#374151",
         }}
       >
         {isReturned
@@ -1941,7 +1947,7 @@ function EmployeeAssetsModal({
                   style={{
                     fontSize: 18,
                     fontWeight: 600,
-                    color: "#222e3a",
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
                     margin: 0,
                   }}
                 >
@@ -2020,12 +2026,14 @@ function EmployeeAssetsModal({
               <div
                 style={{
                   textAlign: "center",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   fontSize: 14,
                   padding: "32px 16px",
-                  backgroundColor: "#f9fafb",
+                  backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                   borderRadius: 8,
-                  border: "1px dashed #d1d5db",
+                  border: isDarkMode
+                    ? "1px dashed #6b7280"
+                    : "1px dashed #d1d5db",
                 }}
               >
                 No assets currently deployed to this employee
@@ -2033,7 +2041,9 @@ function EmployeeAssetsModal({
             ) : (
               <div
                 style={{
-                  border: "1px solid #e5e7eb",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e5e7eb",
                   borderRadius: 8,
                   overflow: "hidden",
                 }}
@@ -2043,7 +2053,7 @@ function EmployeeAssetsModal({
                     width: "100%",
                     borderCollapse: "collapse",
                     fontSize: 14,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                   }}
                 >
                   <TableHeader isReturned={false} isWfh={false} />
@@ -2081,7 +2091,7 @@ function EmployeeAssetsModal({
                   style={{
                     fontSize: 18,
                     fontWeight: 600,
-                    color: "#222e3a",
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
                     margin: 0,
                   }}
                 >
@@ -2160,12 +2170,14 @@ function EmployeeAssetsModal({
               <div
                 style={{
                   textAlign: "center",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   fontSize: 14,
                   padding: "32px 16px",
-                  backgroundColor: "#f9fafb",
+                  backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                   borderRadius: 8,
-                  border: "1px dashed #d1d5db",
+                  border: isDarkMode
+                    ? "1px dashed #6b7280"
+                    : "1px dashed #d1d5db",
                 }}
               >
                 No work from home or borrowed assets assigned to this employee
@@ -2173,7 +2185,9 @@ function EmployeeAssetsModal({
             ) : (
               <div
                 style={{
-                  border: "1px solid #e5e7eb",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e5e7eb",
                   borderRadius: 8,
                   overflow: "hidden",
                 }}
@@ -2183,7 +2197,7 @@ function EmployeeAssetsModal({
                     width: "100%",
                     borderCollapse: "collapse",
                     fontSize: 14,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                   }}
                 >
                   <TableHeader isReturned={false} isWfh={true} />
@@ -2218,7 +2232,7 @@ function EmployeeAssetsModal({
                 style={{
                   fontSize: 18,
                   fontWeight: 600,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   margin: 0,
                 }}
               >
@@ -2242,12 +2256,14 @@ function EmployeeAssetsModal({
               <div
                 style={{
                   textAlign: "center",
-                  color: "#6b7280",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
                   fontSize: 14,
                   padding: "32px 16px",
-                  backgroundColor: "#f9fafb",
+                  backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
                   borderRadius: 8,
-                  border: "1px dashed #d1d5db",
+                  border: isDarkMode
+                    ? "1px dashed #6b7280"
+                    : "1px dashed #d1d5db",
                 }}
               >
                 No assets have been returned by this employee
@@ -2255,7 +2271,9 @@ function EmployeeAssetsModal({
             ) : (
               <div
                 style={{
-                  border: "1px solid #e5e7eb",
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #e5e7eb",
                   borderRadius: 8,
                   overflow: "hidden",
                 }}
@@ -2265,7 +2283,7 @@ function EmployeeAssetsModal({
                     width: "100%",
                     borderCollapse: "collapse",
                     fontSize: 14,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                   }}
                 >
                   <TableHeader isReturned={true} />
