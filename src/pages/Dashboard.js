@@ -342,10 +342,11 @@ function Dashboard() {
       ).length;
       setDeployedCount(deployed);
 
-      // Calculate inventory total (all active devices excluding retired)
-      const inventory = devices.filter(
-        (d) => d.status !== "Retired" && d.status !== "Disposed"
-      ).length;
+      // Calculate inventory total (unassigned devices - matching Inventory.js logic exactly)
+      const inventory = devices.filter((device) => {
+        // Only show devices that are NOT assigned (matching getUnassignedDevices function)
+        return !device.assignedTo || device.assignedTo === "";
+      }).length;
       setInventoryCount(inventory);
 
       // Get working devices (GOOD or BRANDNEW condition)
@@ -1960,7 +1961,7 @@ function Dashboard() {
         >
           � Stockroom
         </h3>
-        <div style={{ overflowX: "auto", maxHeight: 400, overflowY: "auto" }}>
+        <div style={{ overflowX: "auto" }}>
           {stockroomData.length === 0 ? (
             <div
               style={{

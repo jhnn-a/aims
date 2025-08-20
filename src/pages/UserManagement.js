@@ -8,6 +8,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  setDoc,
 } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
@@ -25,6 +26,9 @@ function UserManagement() {
   };
 
   const confirmBulkDelete = async () => {
+    const deletedCount = bulkDeleteModal.count;
+    const usersToDelete = users.filter((u) => checkedRows.includes(u.uid));
+
     setBulkDeleteModal({ open: false, count: 0 });
     setUsersLoading(true);
     try {
@@ -34,7 +38,15 @@ function UserManagement() {
       }
       setUsers((prev) => prev.filter((u) => !checkedRows.includes(u.uid)));
       setCheckedRows([]);
-      setStatus(`${bulkDeleteModal.count} user(s) deleted from Firestore.`);
+
+      // Show snackbar with undo functionality
+      setSnackbar({
+        open: true,
+        message: `${deletedCount} user(s) deleted from the database.`,
+        type: "success",
+        undoAction: "bulkDeleteUsers",
+        undoData: usersToDelete,
+      });
     } catch (err) {
       setStatus("Error deleting users: " + err.message);
       console.error("Firestore bulk delete error:", err);
@@ -289,13 +301,23 @@ function UserManagement() {
 
   const confirmDeleteUser = async () => {
     const uid = deleteConfirmModal.uid;
+    const userToDelete = users.find((u) => u.uid === uid);
+    
     setDeleteConfirmModal({ open: false, uid: null, username: "" });
     setUsersLoading(true);
     try {
       const db = getFirestore();
       await deleteDoc(doc(db, "users", uid));
       setUsers((prev) => prev.filter((u) => u.uid !== uid));
-      setStatus("User deleted from Firestore.");
+      
+      // Show snackbar with undo functionality
+      setSnackbar({
+        open: true,
+        message: "1 user deleted from the database.",
+        type: "success",
+        undoAction: "deleteUser",
+        undoData: userToDelete,
+      });
     } catch (err) {
       setStatus("Error deleting user: " + err.message);
       console.error("Firestore delete error:", err);
@@ -328,9 +350,31 @@ function UserManagement() {
       const db = getFirestore();
 
       if (snackbar.undoAction === "deleteUser") {
-        // Undo user creation by deleting the user
-        await deleteDoc(doc(db, "users", snackbar.undoData.uid));
-        setUsers((prev) => prev.filter((u) => u.uid !== snackbar.undoData.uid));
+        // Undo single user deletion by restoring the user
+        await setDoc(doc(db, "users", snackbar.undoData.uid), {
+          username: snackbar.undoData.username,
+          email: snackbar.undoData.email,
+          password: snackbar.undoData.password,
+          isAdmin: snackbar.undoData.isAdmin || false,
+          createdAt: snackbar.undoData.createdAt,
+          updatedAt: new Date(),
+        });
+        // Add the restored user back to the users state
+        setUsers((prev) => [...prev, snackbar.undoData]);
+      } else if (snackbar.undoAction === "bulkDeleteUsers") {
+        // Undo bulk delete by restoring all deleted users
+        for (const user of snackbar.undoData) {
+          await setDoc(doc(db, "users", user.uid), {
+            username: user.username,
+            email: user.email,
+            password: user.password,
+            isAdmin: user.isAdmin || false,
+            createdAt: user.createdAt,
+            updatedAt: new Date(),
+          });
+        }
+        // Add the restored users back to the users state
+        setUsers((prev) => [...prev, ...snackbar.undoData]);
       }
 
       setSnackbar({
