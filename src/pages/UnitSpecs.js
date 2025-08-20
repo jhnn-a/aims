@@ -37,6 +37,7 @@ const emptyUnit = {
   OS: "",
   Remarks: "",
   lifespan: "", // New field for lifespan
+  dateAdded: "", // New field for dateAdded to calculate appraisal date
 };
 
 const cpuGenOptions = ["i3", "i5", "i7", "i9"];
@@ -64,6 +65,217 @@ const statusOptions = [
   { label: "GOOD", value: "GOOD" },
   { label: "DEFECTIVE", value: "DEFECTIVE" },
 ];
+
+// === APPRAISAL DATE CALCULATION FUNCTIONS ===
+// Helper function to get lifespan years based on category/specs
+const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
+  // If category is explicitly set, use it
+  if (category) {
+    switch (category) {
+      case "Low-End":
+        return 3;
+      case "Mid-Range":
+        return 4;
+      case "High-End":
+        return 5;
+      default:
+        return 3; // Default to low-end
+    }
+  }
+
+  // Auto-determine based on specs if no category
+  const cpuGeneration = cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(ram) || 0;
+  const hasHDD = drive?.toLowerCase().includes("hdd") || false;
+  const hasSSD = drive?.toLowerCase().includes("ssd") || drive?.toLowerCase().includes("nvme") || false;
+  const hasGPU = gpu && gpu.trim() !== "" && !gpu.toLowerCase().includes("integrated");
+
+  // High-end criteria: i7+, 16GB+ RAM, SSD/NVMe + GPU
+  if ((cpuGeneration === "i7" || cpuGeneration === "i9") && ramSize >= 16 && hasSSD && hasGPU) {
+    return 5;
+  }
+  
+  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
+  if ((cpuGeneration === "i5" || cpuGeneration === "i7") && ramSize >= 8 && hasSSD) {
+    return 4;
+  }
+  
+  // Low-end: everything else (i3, 4GB RAM, HDD)
+  return 3;
+};
+
+// Helper function to calculate appraisal date
+const calculateAppraisalDate = (dateAdded, category, cpuGen, ram, drive, gpu) => {
+  if (!dateAdded) return "";
+  
+  try {
+    const addedDate = new Date(dateAdded);
+    if (isNaN(addedDate.getTime())) return "";
+    
+    const lifespanYears = getLifespanYears(category, cpuGen, ram, drive, gpu);
+    const appraisalDate = new Date(addedDate);
+    appraisalDate.setFullYear(appraisalDate.getFullYear() + lifespanYears);
+    
+    return appraisalDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  } catch (error) {
+    console.error("Error calculating appraisal date:", error);
+    return "";
+  }
+};
+
+// Helper function to auto-fill category based on specs
+const autoFillCategoryFromSpecs = (cpuGen, ram, drive, gpu) => {
+  const cpuString = cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(ram) || 0;
+  const driveString = drive?.toLowerCase() || "";
+  const gpuString = gpu?.toLowerCase() || "";
+  
+  // Extract CPU generation from strings like "Intel Core i7-8700K" or "i7-10700"
+  let cpuGeneration = "";
+  if (cpuString.includes("i9")) {
+    cpuGeneration = "i9";
+  } else if (cpuString.includes("i7")) {
+    cpuGeneration = "i7";
+  } else if (cpuString.includes("i5")) {
+    cpuGeneration = "i5";
+  } else if (cpuString.includes("i3")) {
+    cpuGeneration = "i3";
+  }
+  
+  // Check drive types
+  const hasHDD = driveString.includes("hdd");
+  const hasSSD = driveString.includes("ssd") || driveString.includes("nvme");
+  
+  // Check for dedicated GPU (not integrated)
+  const hasGPU = gpuString && 
+                 gpuString.trim() !== "" && 
+                 !gpuString.includes("integrated") && 
+                 !gpuString.includes("intel") && 
+                 !gpuString.includes("none");
+
+  console.log("Category Debug:", {
+    cpuString,
+    cpuGeneration,
+    ramSize,
+    driveString,
+    hasHDD,
+    hasSSD,
+    gpuString,
+    hasGPU
+  });
+
+  // High-end criteria: i7+ (i7 or i9), 16GB+ RAM, SSD/NVMe + dedicated GPU
+  if ((cpuGeneration === "i7" || cpuGeneration === "i9") && ramSize >= 16 && hasSSD && hasGPU) {
+    return "High-End";
+  }
+  
+  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
+  if ((cpuGeneration === "i5" || cpuGeneration === "i7") && ramSize >= 8 && hasSSD) {
+    return "Mid-Range";
+  }
+  
+  // Low-end: everything else (i3, <8GB RAM, HDD, or doesn't meet above criteria)
+  return "Low-End";
+};
+
+// Helper function to analyze specs and generate recommendations
+const analyzeSpecs = (device) => {
+  const recommendations = [];
+  const warnings = [];
+  const goodPoints = [];
+
+  const cpuString = device.cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(device.RAM) || 0;
+  const driveString = device.Drive?.toLowerCase() || "";
+  const gpuString = device.GPU?.toLowerCase() || "";
+
+  // CPU Analysis
+  if (cpuString.includes("i9")) {
+    goodPoints.push("Excellent CPU performance (i9)");
+  } else if (cpuString.includes("i7")) {
+    goodPoints.push("Good CPU performance (i7)");
+  } else if (cpuString.includes("i5")) {
+    recommendations.push("CPU is acceptable for most tasks (i5)");
+  } else if (cpuString.includes("i3")) {
+    warnings.push("CPU below recommended baseline (i3) - consider i5 or higher");
+  } else {
+    warnings.push("CPU information unclear - please verify specifications");
+  }
+
+  // RAM Analysis
+  if (ramSize >= 16) {
+    goodPoints.push(`Excellent RAM capacity (${ramSize}GB)`);
+  } else if (ramSize >= 8) {
+    goodPoints.push(`Adequate RAM for most tasks (${ramSize}GB)`);
+  } else if (ramSize === 4) {
+    warnings.push("RAM below minimum (Only 4GB, recommend 8GB or higher)");
+  } else if (ramSize > 0) {
+    warnings.push(`Low RAM capacity (${ramSize}GB, recommend 8GB or higher)`);
+  } else {
+    warnings.push("RAM information missing - please verify specifications");
+  }
+
+  // Drive Analysis
+  if (driveString.includes("nvme")) {
+    goodPoints.push("Excellent storage speed (NVMe SSD)");
+  } else if (driveString.includes("ssd")) {
+    goodPoints.push("Good storage speed (SSD)");
+  } else if (driveString.includes("hdd")) {
+    warnings.push("HDD detected – recommend upgrade to SSD for better performance");
+  } else {
+    warnings.push("Drive type unclear - please verify if SSD or HDD");
+  }
+
+  // GPU Analysis
+  if (gpuString && !gpuString.includes("integrated") && !gpuString.includes("intel") && gpuString.trim() !== "") {
+    goodPoints.push("Dedicated GPU available for graphics-intensive tasks");
+  } else {
+    recommendations.push("Using integrated graphics - adequate for basic tasks");
+  }
+
+  return { recommendations, warnings, goodPoints };
+};
+
+// Helper function to generate preventive maintenance checklist based on device
+const getMaintenanceChecklist = (device) => {
+  const tasks = [];
+  const deviceAge = device.dateAdded ? 
+    Math.floor((new Date() - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 365)) : 0;
+
+  // Universal tasks
+  tasks.push({ task: "Clean internal fans and vents", critical: true });
+  tasks.push({ task: "Run disk cleanup and defragmentation", critical: false });
+  tasks.push({ task: "Clear temp files and browser cache", critical: false });
+  tasks.push({ task: "Windows and driver updates", critical: true });
+  tasks.push({ task: "Antivirus software status check", critical: true });
+  tasks.push({ task: "Backup verification", critical: true });
+
+  // Device type specific tasks
+  if (device.deviceType?.toLowerCase() === "laptop") {
+    tasks.push({ task: "Check battery health and calibration", critical: true });
+    tasks.push({ task: "Clean keyboard and touchpad", critical: false });
+  }
+
+  // Age-based tasks
+  if (deviceAge >= 3) {
+    tasks.push({ task: "Thermal paste replacement (device is 3+ years old)", critical: true });
+    tasks.push({ task: "Deep hardware diagnostic", critical: true });
+  }
+
+  // Drive-specific tasks
+  if (device.Drive?.toLowerCase().includes("hdd")) {
+    tasks.push({ task: "Check HDD health (SMART status)", critical: true });
+    tasks.push({ task: "Consider SSD upgrade for better performance", critical: false });
+  } else if (device.Drive?.toLowerCase().includes("ssd")) {
+    tasks.push({ task: "Check SSD health and wear level", critical: true });
+  }
+
+  return tasks.sort((a, b) => b.critical - a.critical);
+};
 
 // --- Modern Table Styles (matching Assets.js design) ---
 const tableStyle = {
@@ -222,7 +434,7 @@ const UnitSpecs = () => {
     OS: [],
     Category: [],
     Remarks: [],
-    Lifespan: [],
+    Appraisal: [],
   });
   const [deployedFilters, setDeployedFilters] = useState({
     Tag: [],
@@ -234,7 +446,7 @@ const UnitSpecs = () => {
     OS: [],
     Category: [],
     Remarks: [],
-    Lifespan: [],
+    Appraisal: [],
   });
 
   // Track which table's filter popup is open
@@ -252,6 +464,11 @@ const UnitSpecs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  
+  // New modal states for Specs Report and Preventive Maintenance
+  const [showSpecsReport, setShowSpecsReport] = useState(false);
+  const [showPreventiveMaintenance, setShowPreventiveMaintenance] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState(null);
 
   // Close filter popup when clicking outside
   useEffect(() => {
@@ -383,6 +600,7 @@ const UnitSpecs = () => {
             OS: device.os || device.operatingSystem || "",
             Remarks: device.remarks || "",
             lifespan: device.lifespan || "",
+            dateAdded: device.dateAdded || device.acquisitionDate || new Date().toISOString(), // Include date for appraisal calculation
           };
 
           // Determine target collection based on assignment status
@@ -474,64 +692,37 @@ const UnitSpecs = () => {
         newForm.CPU = `${newForm.cpuGen} - ${newForm.cpuModel}`.trim();
       }
 
-      // Auto-fill category based on specs (CPU, RAM, Drive)
-      const autoFillCategory = () => {
-        const cpuGen = newForm.cpuGen.toLowerCase();
-        const ramValue = parseInt(newForm.RAM) || 0;
-        const drive = newForm.Drive.toLowerCase();
-        const hasGPU = newForm.GPU && newForm.GPU.trim() !== "";
-
-        // High-End: i7+, 16GB+ RAM, SSD/NVMe + GPU
-        if (
-          (cpuGen === "i7" || cpuGen === "i9") &&
-          ramValue >= 16 &&
-          (drive.includes("ssd") || drive.includes("nvme")) &&
-          hasGPU
-        ) {
-          return "High-End";
-        }
-        // Mid-Range: i5/i7, 8GB+ RAM, SSD
-        else if (
-          (cpuGen === "i5" || cpuGen === "i7") &&
-          ramValue >= 8 &&
-          (drive.includes("ssd") || drive.includes("nvme"))
-        ) {
-          return "Mid-Range";
-        }
-        // Low-End: i3, 4GB RAM, HDD
-        else if (cpuGen === "i3" && ramValue >= 4 && drive.includes("hdd")) {
-          return "Low-End";
-        }
-        // If specs don't match criteria exactly, keep current category
-        return newForm.category;
-      };
-
-      // Auto-fill lifespan based on category
-      const getLifespanFromCategory = (category) => {
-        switch (category) {
-          case "Low-End":
-            return "3 years";
-          case "Mid-Range":
-            return "4 years";
-          case "High-End":
-            return "5 years";
-          default:
-            return "";
-        }
-      };
-
-      // Apply auto-fill when relevant fields change
+      // Auto-fill category based on specs when relevant fields change
       if (["cpuGen", "RAM", "Drive", "GPU"].includes(name)) {
-        const suggestedCategory = autoFillCategory();
-        if (suggestedCategory && suggestedCategory !== newForm.category) {
-          newForm.category = suggestedCategory;
-          newForm.lifespan = getLifespanFromCategory(suggestedCategory);
-        }
+        const suggestedCategory = autoFillCategoryFromSpecs(
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.category = suggestedCategory;
+        
+        // Also update lifespan display (though it's calculated, we keep for consistency)
+        const lifespanYears = getLifespanYears(
+          suggestedCategory,
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.lifespan = `${lifespanYears} years`;
       }
 
       // Update lifespan when category is manually changed
       if (name === "category") {
-        newForm.lifespan = getLifespanFromCategory(value);
+        const lifespanYears = getLifespanYears(
+          value,
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.lifespan = `${lifespanYears} years`;
       }
 
       return newForm;
@@ -554,6 +745,8 @@ const UnitSpecs = () => {
       ...form,
       // Ensure RAM is stored with "GB" suffix
       RAM: form.RAM ? `${form.RAM}GB` : "",
+      // Set dateAdded for new units (keep existing for edits)
+      dateAdded: editId ? form.dateAdded : (form.dateAdded || new Date().toISOString()),
     };
 
     // --- Improved Validation ---
@@ -653,6 +846,7 @@ const UnitSpecs = () => {
       OS: unit.OS || "",
       Remarks: unit.Remarks || "",
       lifespan: unit.lifespan || "", // Include lifespan for editing
+      dateAdded: unit.dateAdded || "", // Include dateAdded for editing
     });
     setEditId(unit.id);
     setEditCollection(collectionName);
@@ -770,8 +964,13 @@ const UnitSpecs = () => {
     // if (key === 'Tag') return Array.from(new Set(data.map(u => u.Tag))).filter(Boolean);
     if (key === "Remarks")
       return Array.from(new Set(data.map((u) => u.Remarks))).filter(Boolean);
-    if (key === "Lifespan")
-      return Array.from(new Set(data.map((u) => u.lifespan))).filter(Boolean);
+    if (key === "Appraisal") {
+      // For appraisal, we'll show calculated appraisal dates
+      return Array.from(new Set(data.map((u) => {
+        if (!u.dateAdded) return null;
+        return calculateAppraisalDate(u.dateAdded, u.category, u.cpuGen, u.RAM, u.Drive, u.GPU);
+      }))).filter(Boolean);
+    }
     return [];
   };
 
@@ -801,6 +1000,13 @@ const UnitSpecs = () => {
           filtered = filtered.filter((unit) => {
             const ramVal = (unit.RAM || "").replace(/[^0-9]/g, "");
             return filters.RAM.includes(ramVal);
+          });
+        } else if (key === "Appraisal") {
+          filtered = filtered.filter((unit) => {
+            const appraisalDate = unit.dateAdded ? 
+              calculateAppraisalDate(unit.dateAdded, unit.category, unit.cpuGen, unit.RAM, unit.Drive, unit.GPU) : 
+              "";
+            return filters.Appraisal.includes(appraisalDate);
           });
         } else if (key !== "Tag") {
           // Don't filter by Tag
@@ -1506,6 +1712,115 @@ const UnitSpecs = () => {
             </button>
             <button
               style={{
+                background: "#f59e0b",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              onClick={() => setShowSpecsReport(true)}
+              title="Generate specifications report with recommendations"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ marginRight: "8px", verticalAlign: "middle" }}
+              >
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <polyline
+                  points="14,2 14,8 20,8"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <line
+                  x1="16"
+                  y1="13"
+                  x2="8"
+                  y2="13"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <line
+                  x1="16"
+                  y1="17"
+                  x2="8"
+                  y2="17"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <polyline
+                  points="10,9 9,9 8,9"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Generate Specs Report
+            </button>
+            <button
+              style={{
+                background: "#8b5cf6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              onClick={() => setShowPreventiveMaintenance(true)}
+              title="Open preventive maintenance checklist"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ marginRight: "8px", verticalAlign: "middle" }}
+              >
+                <path
+                  d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <polyline
+                  points="9,12 10,10 16,16"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Preventive
+            </button>
+            <button
+              style={{
                 background: "#3b82f6",
                 color: "#fff",
                 border: "none",
@@ -1615,7 +1930,7 @@ const UnitSpecs = () => {
                   "Status",
                   "OS",
                   "Category",
-                  "Lifespan",
+                  "Appraisal",
                   "Remarks",
                 ].map((col) => (
                   <th
@@ -1638,7 +1953,7 @@ const UnitSpecs = () => {
                           ? "7%"
                           : col === "Category"
                           ? "9%"
-                          : col === "Lifespan"
+                          : col === "Appraisal"
                           ? "8%"
                           : "11%", // Remarks
                       padding: "8px 6px",
@@ -1932,7 +2247,7 @@ const UnitSpecs = () => {
                         textAlign: "center",
                       }}
                     >
-                      {unit.lifespan || ""}
+                      {unit.dateAdded ? calculateAppraisalDate(unit.dateAdded, unit.category, unit.cpuGen, unit.RAM, unit.Drive, unit.GPU) : "No Date"}
                     </td>
                     <td
                       style={{
@@ -3291,6 +3606,442 @@ const UnitSpecs = () => {
 
       {/* Bulk delete confirmation modal */}
       {bulkDeleteConfirm && renderBulkDeleteConfirmModal()}
+
+      {/* Specs Report Modal */}
+      {showSpecsReport && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowSpecsReport(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "800px",
+              width: "90%",
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ margin: 0, color: "#1f2937", fontSize: "24px", fontWeight: "600" }}>
+                📤 Specifications Report
+              </h2>
+              <button
+                onClick={() => setShowSpecsReport(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  padding: "0",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{ marginBottom: "20px" }}>
+              <p style={{ color: "#6b7280", fontSize: "16px", margin: "0 0 16px 0" }}>
+                Summary of current specifications with recommendations for devices that don't meet today's baseline standards.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "600", marginBottom: "12px" }}>
+                📊 Overall Statistics
+              </h3>
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                gap: "12px",
+                marginBottom: "20px"
+              }}>
+                <div style={{
+                  background: "#f3f4f6",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1f2937" }}>
+                    {inventory.length + deployed.length}
+                  </div>
+                  <div style={{ fontSize: "14px", color: "#6b7280" }}>Total Devices</div>
+                </div>
+                <div style={{
+                  background: "#fef3c7",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#d97706" }}>
+                    {[...inventory, ...deployed].filter(device => {
+                      const analysis = analyzeSpecs(device);
+                      return analysis.warnings.length > 0;
+                    }).length}
+                  </div>
+                  <div style={{ fontSize: "14px", color: "#92400e" }}>Need Attention</div>
+                </div>
+                <div style={{
+                  background: "#d1fae5",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: "24px", fontWeight: "bold", color: "#059669" }}>
+                    {[...inventory, ...deployed].filter(device => {
+                      const analysis = analyzeSpecs(device);
+                      return analysis.warnings.length === 0;
+                    }).length}
+                  </div>
+                  <div style={{ fontSize: "14px", color: "#047857" }}>Meeting Standards</div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <h3 style={{ color: "#1f2937", fontSize: "18px", fontWeight: "600", marginBottom: "12px" }}>
+                ⚠️ Devices Requiring Attention
+              </h3>
+              <div style={{ maxHeight: "300px", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                {[...inventory, ...deployed]
+                  .filter(device => {
+                    const analysis = analyzeSpecs(device);
+                    return analysis.warnings.length > 0;
+                  })
+                  .map((device, index) => {
+                    const analysis = analyzeSpecs(device);
+                    return (
+                      <div key={index} style={{
+                        padding: "16px",
+                        borderBottom: index < [...inventory, ...deployed].filter(d => analyzeSpecs(d).warnings.length > 0).length - 1 ? "1px solid #e5e7eb" : "none"
+                      }}>
+                        <div style={{ fontWeight: "600", color: "#1f2937", marginBottom: "8px" }}>
+                          {device.Tag || `Device ${index + 1}`} - {device.deviceType || "Unknown Type"}
+                        </div>
+                        {analysis.warnings.map((warning, wIndex) => (
+                          <div key={wIndex} style={{ 
+                            color: "#dc2626", 
+                            fontSize: "14px", 
+                            marginBottom: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px"
+                          }}>
+                            <span style={{ color: "#f59e0b" }}>⚠️</span>
+                            {warning}
+                          </div>
+                        ))}
+                        {analysis.goodPoints.length > 0 && (
+                          <div style={{ marginTop: "8px" }}>
+                            {analysis.goodPoints.map((point, pIndex) => (
+                              <div key={pIndex} style={{ 
+                                color: "#059669", 
+                                fontSize: "14px", 
+                                marginBottom: "4px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px"
+                              }}>
+                                <span style={{ color: "#10b981" }}>✅</span>
+                                {point}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                {[...inventory, ...deployed].filter(device => analyzeSpecs(device).warnings.length > 0).length === 0 && (
+                  <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+                    🎉 All devices meet current baseline standards!
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+              <button
+                onClick={() => setShowSpecsReport(false)}
+                style={{
+                  background: "#6b7280",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "10px 16px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  // TODO: Implement PDF export functionality
+                  showInfo("PDF export feature coming soon!");
+                }}
+                style={{
+                  background: "#f59e0b",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "10px 16px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Export as PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Preventive Maintenance Modal */}
+      {showPreventiveMaintenance && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowPreventiveMaintenance(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "700px",
+              width: "90%",
+              maxHeight: "80vh",
+              overflow: "auto",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ margin: 0, color: "#1f2937", fontSize: "24px", fontWeight: "600" }}>
+                🔧 Preventive Maintenance Checklist
+              </h2>
+              <button
+                onClick={() => setShowPreventiveMaintenance(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: "24px",
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  padding: "0",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            {selectedDevice ? (
+              <div>
+                <div style={{ marginBottom: "20px", padding: "16px", background: "#f9fafb", borderRadius: "8px" }}>
+                  <h3 style={{ margin: "0 0 8px 0", color: "#1f2937", fontSize: "18px" }}>
+                    Device: {selectedDevice.Tag || "Unknown"}
+                  </h3>
+                  <p style={{ margin: "0", color: "#6b7280", fontSize: "14px" }}>
+                    Type: {selectedDevice.deviceType || "Unknown"} | 
+                    Category: {selectedDevice.category || "Unknown"} |
+                    Age: {selectedDevice.dateAdded ? 
+                      Math.floor((new Date() - new Date(selectedDevice.dateAdded)) / (1000 * 60 * 60 * 24 * 365)) + " years" : 
+                      "Unknown"
+                    }
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: "20px" }}>
+                  <h4 style={{ color: "#1f2937", fontSize: "16px", fontWeight: "600", marginBottom: "12px" }}>
+                    ✅ Maintenance Tasks
+                  </h4>
+                  {getMaintenanceChecklist(selectedDevice).map((item, index) => (
+                    <div key={index} style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                      padding: "12px",
+                      marginBottom: "8px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      backgroundColor: item.critical ? "#fef3c7" : "#f9fafb"
+                    }}>
+                      <input 
+                        type="checkbox" 
+                        style={{ marginTop: "2px" }}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            showSuccess(`Marked "${item.task}" as completed`);
+                          }
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontWeight: item.critical ? "600" : "normal",
+                          color: item.critical ? "#92400e" : "#374151",
+                          fontSize: "14px"
+                        }}>
+                          {item.task}
+                          {item.critical && <span style={{ color: "#dc2626", marginLeft: "8px" }}>⚠️ Critical</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p style={{ color: "#6b7280", fontSize: "16px", marginBottom: "20px" }}>
+                  Select a device from the table below to generate a customized maintenance checklist.
+                </p>
+                
+                <div style={{ 
+                  maxHeight: "400px", 
+                  overflow: "auto", 
+                  border: "1px solid #e5e7eb", 
+                  borderRadius: "8px" 
+                }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#f9fafb" }}>
+                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                          Device Tag
+                        </th>
+                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                          Type
+                        </th>
+                        <th style={{ padding: "12px", textAlign: "left", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                          Category
+                        </th>
+                        <th style={{ padding: "12px", textAlign: "center", borderBottom: "1px solid #e5e7eb", fontSize: "14px", fontWeight: "600" }}>
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...inventory, ...deployed].map((device, index) => (
+                        <tr key={index} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                          <td style={{ padding: "12px", fontSize: "14px" }}>
+                            {device.Tag || `Device ${index + 1}`}
+                          </td>
+                          <td style={{ padding: "12px", fontSize: "14px" }}>
+                            {device.deviceType || "Unknown"}
+                          </td>
+                          <td style={{ padding: "12px", fontSize: "14px" }}>
+                            <span style={{
+                              background: device.category === "High-End" ? "#dcfce7" : 
+                                         device.category === "Mid-Range" ? "#fef3c7" : "#fee2e2",
+                              color: device.category === "High-End" ? "#166534" : 
+                                     device.category === "Mid-Range" ? "#92400e" : "#991b1b",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              fontWeight: "500"
+                            }}>
+                              {device.category || "Low-End"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            <button
+                              onClick={() => setSelectedDevice(device)}
+                              style={{
+                                background: "#8b5cf6",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 12px",
+                                fontSize: "12px",
+                                cursor: "pointer",
+                                fontWeight: "500"
+                              }}
+                            >
+                              Select
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+              {selectedDevice && (
+                <button
+                  onClick={() => setSelectedDevice(null)}
+                  style={{
+                    background: "#6b7280",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "10px 16px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                  }}
+                >
+                  Back to Device List
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowPreventiveMaintenance(false);
+                  setSelectedDevice(null);
+                }}
+                style={{
+                  background: "#3b82f6",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "10px 16px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

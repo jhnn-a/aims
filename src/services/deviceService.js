@@ -8,6 +8,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
+import { logDeviceHistory } from "./deviceHistoryService";
 
 // Helper to get next available DEV ID
 export async function getNextDevId() {
@@ -57,6 +58,20 @@ export const addDevice = async (deviceData, tagPrefix = "DEV") => {
     deviceTag: deviceData.deviceTag, // e.g., JOIIKB0001
   });
   
+  // Log device creation to history
+  try {
+    await logDeviceHistory({
+      employeeId: null,
+      employeeName: null,
+      deviceId: nextDevId,
+      deviceTag: deviceData.deviceTag,
+      action: "created",
+      date: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error logging device creation history:", error);
+  }
+  
   // Return the device with its ID
   return { id: nextDevId, ...dataToSave, deviceTag: deviceData.deviceTag };
 };
@@ -95,6 +110,20 @@ export async function addMultipleDevices(deviceData, quantity, tagPrefix) {
       ...dataToSave,
       deviceTag,
     });
+    
+    // Log each device creation to history
+    try {
+      await logDeviceHistory({
+        employeeId: null,
+        employeeName: null,
+        deviceId: devId,
+        deviceTag: deviceTag,
+        action: "created",
+        date: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error(`Error logging device creation history for ${deviceTag}:`, error);
+    }
   }
 }
 

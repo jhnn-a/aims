@@ -237,6 +237,221 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [systemHistory, setSystemHistory] = useState([]);
   const [allDevices, setAllDevices] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Extract fetchData as a standalone function for reuse
+  const fetchData = async () => {
+    console.log('🔄 fetchData function called!');
+    const isRefresh = !loading; // If not loading, it's a refresh
+    if (isRefresh) {
+      console.log('📊 Setting refreshing to true');
+      setRefreshing(true);
+    }
+    
+    try {
+      console.log('📡 Fetching data from services...');
+      const [employees, devices, clients] = await Promise.all([
+        getAllEmployees(),
+        getAllDevices(),
+        getAllClients(),
+      ]);
+
+      console.log(`📊 Data fetched - Employees: ${employees.length}, Devices: ${devices.length}, Clients: ${clients.length}`);
+
+      // Fetch total admins from users collection
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const totalAdminsCount = usersSnapshot.size;
+      setTotalAdmins(totalAdminsCount);
+
+      setEmployeeCount(employees.length);
+      setDeviceCount(devices.length);
+      setClientCount(clients.length);
+      setStockCount(devices.filter((d) => d.status === "Stock Room").length);
+      setRetiredCount(devices.filter((d) => d.status === "Retired").length);
+
+      // Calculate deployed assets (devices that are assigned/in use)
+      const deployed = devices.filter(
+        (d) =>
+          d.status === "In Use" ||
+          d.status === "Deployed" ||
+          (d.assignedTo && d.assignedTo.trim() !== "")
+      ).length;
+      setDeployedCount(deployed);
+
+      // Calculate inventory total (all active devices excluding retired)
+      const inventory = devices.filter(
+        (d) => d.status !== "Retired" && d.status !== "Disposed"
+      ).length;
+      setInventoryCount(inventory);
+
+      // Get working devices (GOOD or BRANDNEW condition)
+      const workingDevicesList = devices.filter(
+        (d) => d.condition === "GOOD" || d.condition === "BRANDNEW"
+      );
+      setWorkingDevices(workingDevicesList);
+      setAllDevices(devices); // Store all devices for later use
+
+      // Build employeeId → employeeName map
+      const empMap = {};
+      employees.forEach((emp) => {
+        const docId = (emp.id || emp.employeeId || "")
+          .toString()
+          .trim()
+          .toUpperCase();
+        if (docId && emp.fullName) {
+          empMap[docId] = emp.fullName.trim();
+        }
+      });
+      setEmployeeMap(empMap); // Store employee map in state
+
+      // Count device types
+      const typeMap = {};
+      devices.forEach((d) => {
+        const type = d.deviceType || "Unknown";
+        typeMap[type] = (typeMap[type] || 0) + 1;
+      });
+      const sortedTypes = Object.entries(typeMap)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([type, count]) => ({ type, count }));
+      setDeviceTypes(sortedTypes);
+
+      // Count device conditions
+      setGoodCount(devices.filter((d) => d.condition === "GOOD").length);
+      setNeedsRepairCount(
+        devices.filter((d) => d.condition === "NEEDS REPAIR").length
+      );
+      setBrandNewCount(
+        devices.filter((d) => d.condition === "BRANDNEW").length
+      );
+      setDefectiveCount(
+        devices.filter((d) => d.condition === "DEFECTIVE").length
+      );
+      setRetiredCount(
+        devices.filter((d) => d.condition === "RETIRED").length
+      );
+      setAllDevices(devices);
+
+      // Enhanced metrics calculations
+
+      // Client allocation calculation
+      const clientMap = {};
+      clients.forEach((client) => {
+        clientMap[client.id || client.name] = client.name || client.id;
+      });
+
+      const clientAllocationMap = {};
+      devices.forEach((device) => {
+        if (device.assignedTo && device.status === "In Use") {
+          const employee = employees.find(
+            (emp) => emp.id === device.assignedTo
+          );
+          if (employee && employee.clientAssigned) {
+            const clientName =
+              clientMap[employee.clientAssigned] ||
+              employee.clientAssigned ||
+              "Unassigned";
+            clientAllocationMap[clientName] =
+              (clientAllocationMap[clientName] || 0) + 1;
+          } else {
+            clientAllocationMap["Internal"] =
+              (clientAllocationMap["Internal"] || 0) + 1;
+          }
+        }
+      });
+
+      const clientAllocationData = Object.entries(clientAllocationMap)
+        .map(([client, count]) => ({ client, count }))
+        .sort((a, b) => b.count - a.count);
+      setClientAllocation(clientAllocationData);
+
+      // Utilization rate calculation
+      const totalDevices = devices.length;
+      const devicesInUse = devices.filter(
+        (d) => d.status === "In Use"
+      ).length;
+      const utilization =
+        totalDevices > 0
+          ? Math.round((devicesInUse / totalDevices) * 100)
+          : 0;
+      setUtilizationRate(utilization);
+
+      // Fetch system history
+      try {
+        const history = await getDeviceHistory();
+        console.log("=== Device History Debug ===");
+        console.log("Raw history data:", history);
+        console.log("History count:", history.length);
+        
+        // Check for recent history (last 24 hours)
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const recentHistory = history.filter(entry => {
+          const entryDate = new Date(entry.date);
+          return entryDate > oneDayAgo;
+        });
+        console.log("Recent history (last 24h):", recentHistory);
+        
+        const sorted = history.sort(
+          (a, b) => new Date(b.date) - new Date(a.date)
+        );
+        console.log("Sorted history (first 5):", sorted.slice(0, 5));
+        
+        const last10 = sorted.slice(0, 10);
+        const formatted = last10.map((entry) => ({
+          event: formatHistoryEvent(entry, empMap),
+          date: formatShortDate(entry.date),
+          rawEntry: entry, // Keep raw entry for debugging
+        }));
+        console.log("Formatted history:", formatted);
+
+        // If no history data, provide fallback
+        if (formatted.length === 0) {
+          console.log("No history found, showing fallback");
+          const fallbackHistory = [
+            {
+              event: "No recent activity found",
+              date: formatShortDate(new Date().toISOString()),
+            },
+            {
+              event: "System monitoring active",
+              date: formatShortDate(new Date().toISOString()),
+            },
+          ];
+          setSystemHistory(fallbackHistory);
+        } else {
+          console.log("Setting system history with", formatted.length, "entries");
+          setSystemHistory(formatted);
+        }
+      } catch (historyError) {
+        console.error("Error fetching device history:", historyError);
+        // Provide fallback sample data if no history exists
+        const fallbackHistory = [
+          {
+            event: "System initialized",
+            date: formatShortDate(new Date().toISOString()),
+          },
+          {
+            event: "Dashboard loaded",
+            date: formatShortDate(new Date().toISOString()),
+          },
+        ];
+        setSystemHistory(fallbackHistory);
+      }
+
+      setLoading(false);
+      if (isRefresh) {
+        console.log('✅ Data fetch complete, setting refreshing to false');
+        setRefreshing(false);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      setLoading(false);
+      if (isRefresh) {
+        console.log('❌ Data fetch error, setting refreshing to false');
+        setRefreshing(false);
+      }
+    }
+  };
 
   // Scroll event handler for scroll-to-top button
   useEffect(() => {
@@ -351,191 +566,23 @@ function Dashboard() {
   };
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [employees, devices, clients] = await Promise.all([
-          getAllEmployees(),
-          getAllDevices(),
-          getAllClients(),
-        ]);
-
-        // Fetch total admins from users collection
-        const usersSnapshot = await getDocs(collection(db, "users"));
-        const totalAdminsCount = usersSnapshot.size;
-        setTotalAdmins(totalAdminsCount);
-
-        setEmployeeCount(employees.length);
-        setDeviceCount(devices.length);
-        setClientCount(clients.length);
-        setStockCount(devices.filter((d) => d.status === "Stock Room").length);
-        setRetiredCount(devices.filter((d) => d.status === "Retired").length);
-
-        // Calculate deployed assets (devices that are assigned/in use)
-        const deployed = devices.filter(
-          (d) =>
-            d.status === "In Use" ||
-            d.status === "Deployed" ||
-            (d.assignedTo && d.assignedTo.trim() !== "")
-        ).length;
-        setDeployedCount(deployed);
-
-        // Calculate inventory total (all active devices excluding retired)
-        const inventory = devices.filter(
-          (d) => d.status !== "Retired" && d.status !== "Disposed"
-        ).length;
-        setInventoryCount(inventory);
-
-        // Get working devices (GOOD or BRANDNEW condition)
-        const workingDevicesList = devices.filter(
-          (d) => d.condition === "GOOD" || d.condition === "BRANDNEW"
-        );
-        setWorkingDevices(workingDevicesList);
-        setAllDevices(devices); // Store all devices for later use
-
-        // Build employeeId → employeeName map
-        const empMap = {};
-        employees.forEach((emp) => {
-          const docId = (emp.id || emp.employeeId || "")
-            .toString()
-            .trim()
-            .toUpperCase();
-          if (docId && emp.fullName) {
-            empMap[docId] = emp.fullName.trim();
-          }
-        });
-        setEmployeeMap(empMap); // Store employee map in state
-
-        // Count device types
-        const typeMap = {};
-        devices.forEach((d) => {
-          const type = d.deviceType || "Unknown";
-          typeMap[type] = (typeMap[type] || 0) + 1;
-        });
-        const sortedTypes = Object.entries(typeMap)
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-          .map(([type, count]) => ({ type, count }));
-        setDeviceTypes(sortedTypes);
-
-        // Count device conditions
-        setGoodCount(devices.filter((d) => d.condition === "GOOD").length);
-        setNeedsRepairCount(
-          devices.filter((d) => d.condition === "NEEDS REPAIR").length
-        );
-        setBrandNewCount(
-          devices.filter((d) => d.condition === "BRANDNEW").length
-        );
-        setDefectiveCount(
-          devices.filter((d) => d.condition === "DEFECTIVE").length
-        );
-        setRetiredCount(
-          devices.filter((d) => d.condition === "RETIRED").length
-        );
-        setAllDevices(devices);
-
-        // Enhanced metrics calculations
-
-        // Client allocation calculation
-        const clientMap = {};
-        clients.forEach((client) => {
-          clientMap[client.id || client.name] = client.name || client.id;
-        });
-
-        const clientAllocationMap = {};
-        devices.forEach((device) => {
-          if (device.assignedTo && device.status === "In Use") {
-            const employee = employees.find(
-              (emp) => emp.id === device.assignedTo
-            );
-            if (employee && employee.clientAssigned) {
-              const clientName =
-                clientMap[employee.clientAssigned] ||
-                employee.clientAssigned ||
-                "Unassigned";
-              clientAllocationMap[clientName] =
-                (clientAllocationMap[clientName] || 0) + 1;
-            } else {
-              clientAllocationMap["Internal"] =
-                (clientAllocationMap["Internal"] || 0) + 1;
-            }
-          }
-        });
-
-        const clientAllocationData = Object.entries(clientAllocationMap)
-          .map(([client, count]) => ({ client, count }))
-          .sort((a, b) => b.count - a.count);
-        setClientAllocation(clientAllocationData);
-
-        // Utilization rate calculation
-        const totalDevices = devices.length;
-        const devicesInUse = devices.filter(
-          (d) => d.status === "In Use"
-        ).length;
-        const utilization =
-          totalDevices > 0
-            ? Math.round((devicesInUse / totalDevices) * 100)
-            : 0;
-        setUtilizationRate(utilization);
-
-        // Fetch system history
-        try {
-          const history = await getDeviceHistory();
-          console.log("Device history data:", history); // Debug log
-          const sorted = history.sort(
-            (a, b) => new Date(b.date) - new Date(a.date)
-          );
-          const last10 = sorted.slice(0, 10);
-          const formatted = last10.map((entry) => ({
-            event: formatHistoryEvent(entry, empMap),
-            date: formatShortDate(entry.date),
-          }));
-          console.log("Formatted history:", formatted); // Debug log
-
-          // If no history data, provide fallback
-          if (formatted.length === 0) {
-            const fallbackHistory = [
-              {
-                event: "No recent activity found",
-                date: formatShortDate(new Date().toISOString()),
-              },
-              {
-                event: "System monitoring active",
-                date: formatShortDate(new Date().toISOString()),
-              },
-            ];
-            setSystemHistory(fallbackHistory);
-          } else {
-            setSystemHistory(formatted);
-          }
-        } catch (historyError) {
-          console.error("Error fetching device history:", historyError);
-          // Provide fallback sample data if no history exists
-          const fallbackHistory = [
-            {
-              event: "System initialized",
-              date: formatShortDate(new Date().toISOString()),
-            },
-            {
-              event: "Dashboard loaded",
-              date: formatShortDate(new Date().toISOString()),
-            },
-          ];
-          setSystemHistory(fallbackHistory);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setLoading(false);
-      }
-    }
     fetchData();
-  }, []);
+    
+    // Set up automatic refresh every 30 seconds for recent activity
+    const refreshInterval = setInterval(() => {
+      if (!refreshing) {
+        fetchData();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(refreshInterval);
+  }, [refreshing]);
 
   if (loading) {
     return (
       <div
         style={{
-          padding: "40px 48px 80px 48px",
+          padding: "40px 48px 20px 40px",
           width: "100%",
           minHeight: "100vh",
           display: "flex",
@@ -568,7 +615,7 @@ function Dashboard() {
     <div
       id="dashboard-container"
       style={{
-        padding: "40px 48px 80px 48px",
+        padding: "40px 48px 20px 48px",
         width: "100%",
         height: "100%",
         boxSizing: "border-box",
@@ -770,7 +817,7 @@ function Dashboard() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
+          gridTemplateColumns: "1fr 2fr",
           gap: 24,
           marginBottom: 32,
         }}
@@ -881,16 +928,6 @@ function Dashboard() {
                         color: "#374151",
                       }}
                     >
-                      Status
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "12px 8px",
-                        fontWeight: 600,
-                        color: "#374151",
-                      }}
-                    >
                       Condition
                     </th>
                     <th
@@ -902,6 +939,16 @@ function Dashboard() {
                       }}
                     >
                       Assigned To
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontWeight: 600,
+                        color: "#374151",
+                      }}
+                    >
+                      Assigned Date
                     </th>
                   </tr>
                 </thead>
@@ -920,26 +967,6 @@ function Dashboard() {
                       </td>
                       <td style={{ padding: "12px 8px", color: "#6b7280" }}>
                         {device.deviceType || "N/A"}
-                      </td>
-                      <td style={{ padding: "12px 8px" }}>
-                        <span
-                          style={{
-                            padding: "4px 8px",
-                            borderRadius: 4,
-                            fontSize: 12,
-                            fontWeight: 500,
-                            backgroundColor:
-                              device.status === "In Use"
-                                ? "#dcfce7"
-                                : "#e0e7ff",
-                            color:
-                              device.status === "In Use"
-                                ? "#166534"
-                                : "#1e40af",
-                          }}
-                        >
-                          {device.status || "N/A"}
-                        </span>
                       </td>
                       <td style={{ padding: "12px 8px" }}>
                         <span
@@ -968,6 +995,11 @@ function Dashboard() {
                             ] || device.assignedTo
                           : "Not assigned"}
                       </td>
+                      <td style={{ padding: "12px 8px", color: "#6b7280" }}>
+                        {device.assignmentDate
+                          ? new Date(device.assignmentDate).toLocaleDateString()
+                          : "N/A"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -995,16 +1027,109 @@ function Dashboard() {
             border: "1px solid #e0e7ef",
           }}
         >
-          <h3
+          <div
             style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               margin: "0 0 16px 0",
-              color: "#374151",
-              fontSize: 18,
-              fontWeight: 600,
             }}
           >
-            📋 Recent Activity
-          </h3>
+            <h3
+              style={{
+                margin: 0,
+                color: "#374151",
+                fontSize: 18,
+                fontWeight: 600,
+              }}
+            >
+              📋 Recent Activity
+            </h3>
+            <button
+              onClick={() => {
+                console.log('🔄 Refresh button clicked!');
+                fetchData();
+              }}
+              disabled={refreshing}
+              style={{
+                padding: "6px 12px",
+                backgroundColor: "#2563eb",
+                background: "#2563eb",
+                color: "#ffffff",
+                border: "1px solid #2563eb",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: refreshing ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                transition: "all 0.2s ease",
+                outline: "none",
+                opacity: refreshing ? 0.7 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!refreshing) {
+                  console.log('🖱️ Mouse enter refresh button');
+                  e.target.style.backgroundColor = "#1d4ed8";
+                  e.target.style.color = "#ffffff";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!refreshing) {
+                  console.log('🖱️ Mouse leave refresh button');
+                  e.target.style.backgroundColor = "#2563eb";
+                  e.target.style.color = "#ffffff";
+                }
+              }}
+              title={refreshing ? "Refreshing..." : "Refresh activity"}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ 
+                  marginRight: "6px",
+                  transform: refreshing ? "rotate(360deg)" : "rotate(0deg)",
+                  transition: "transform 1s linear",
+                  display: "inline-block",
+                  verticalAlign: "middle"
+                }}
+              >
+                <path
+                  d="M1 4v6h6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M23 20v-6h-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
           <div style={{ maxHeight: 400, overflowY: "auto" }}>
             {systemHistory.length === 0 ? (
               <div
@@ -1421,6 +1546,7 @@ function Dashboard() {
                               fontWeight: 600,
                               fontSize: 12,
                               padding: "4px 8px",
+                           
                               backgroundColor: "#f0fdf4",
                               borderRadius: 4,
                             }}
@@ -1442,9 +1568,10 @@ function Dashboard() {
       <div
         style={{
           textAlign: "center",
-          padding: "20px 0",
+          padding: "12px 0",
           borderTop: "1px solid #e5e7eb",
-          marginTop: 32,
+          marginTop: 20,
+          marginBottom: -20,
           color: "#6b7280",
           fontSize: 14,
         }}

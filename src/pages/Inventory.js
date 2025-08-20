@@ -3,7 +3,7 @@
 // Main features: Add/edit devices, assign to employees/clients, search/filter, device history, bulk operations
 
 // === IMPORTS ===
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
@@ -45,6 +45,183 @@ import {
   getUnassignedDevices, // Filter devices without assignment
   generateNextDeviceTag, // Auto-generate next available tag
 } from "./InventoryUtils";
+
+// === SEARCHABLE DROPDOWN COMPONENT ===
+// Reusable searchable dropdown for client selection
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Search and select client...",
+  displayKey = "clientName",
+  valueKey = "clientName",
+  style = {},
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef(null);
+
+  // Filter options based on search term
+  const filteredOptions = options.filter((option) =>
+    option[displayKey]?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputClick = () => {
+    setIsOpen(!isOpen);
+    setSearchTerm("");
+  };
+
+  const handleSelectOption = (option) => {
+    onChange({ target: { name: "client", value: option[valueKey] } });
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  const dropdownStyles = {
+    container: {
+      position: "relative",
+      width: "100%",
+      ...style,
+    },
+    inputContainer: {
+      position: "relative",
+      width: "100%",
+    },
+    input: {
+      width: "100%",
+      fontSize: 13,
+      padding: "8px 32px 8px 12px",
+      borderRadius: 5,
+      border: "1.2px solid #cbd5e1",
+      background: "#f1f5f9",
+      height: "38px",
+      boxSizing: "border-box",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+      cursor: "pointer",
+    },
+    dropdownArrow: {
+      position: "absolute",
+      right: "12px",
+      top: "50%",
+      transform: `translateY(-50%) ${
+        isOpen ? "rotate(180deg)" : "rotate(0deg)"
+      }`,
+      transition: "transform 0.2s",
+      pointerEvents: "none",
+      fontSize: "12px",
+      color: "#6b7280",
+    },
+    dropdown: {
+      position: "absolute",
+      top: "calc(100% + 2px)",
+      left: 0,
+      right: 0,
+      background: "#fff",
+      border: "1px solid #cbd5e1",
+      borderRadius: 5,
+      maxHeight: "140px", // Height for search input (38px) + 3 options (34px each) = ~140px
+      overflowY: "auto",
+      zIndex: 1000,
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+      minWidth: "200px",
+      // Custom scrollbar styling
+      scrollbarWidth: "thin",
+      scrollbarColor: "#cbd5e1 #f8fafc",
+    },
+    searchInput: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "none",
+      borderBottom: "1px solid #e2e8f0",
+      outline: "none",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      background: "#f8fafc",
+      boxSizing: "border-box",
+    },
+    option: {
+      padding: "10px 12px",
+      cursor: "pointer",
+      fontSize: 13,
+      borderBottom: "1px solid #f1f5f9",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      transition: "background-color 0.15s",
+    },
+    noResults: {
+      padding: "10px 12px",
+      color: "#6b7280",
+      fontStyle: "italic",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
+  return (
+    <div ref={dropdownRef} style={dropdownStyles.container}>
+      <div style={dropdownStyles.inputContainer}>
+        <input
+          type="text"
+          value={value || ""}
+          onClick={handleInputClick}
+          placeholder={placeholder}
+          style={dropdownStyles.input}
+          readOnly
+        />
+        <span style={dropdownStyles.dropdownArrow}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div style={dropdownStyles.dropdown}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to search clients..."
+            style={dropdownStyles.searchInput}
+            autoFocus
+          />
+          {filteredOptions.length === 0 ? (
+            <div style={dropdownStyles.noResults}>No clients found</div>
+          ) : (
+            filteredOptions.map((option, index) => (
+              <div
+                key={option.id || index}
+                style={dropdownStyles.option}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = "#fff";
+                }}
+                onClick={() => handleSelectOption(option)}
+              >
+                {option[displayKey]}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // === DEVICE FORM MODAL COMPONENT ===
 // Modal component for adding/editing device information
@@ -429,12 +606,13 @@ function DeviceFormModal({
         {/* Row 4: Client */}
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Client:</label>
-          <input
-            name="client"
+          <SearchableDropdown
             value={data.client}
             onChange={onChange}
-            style={styles.inventoryInput}
-            placeholder="Enter client name"
+            options={clients}
+            placeholder="Search and select client..."
+            displayKey="clientName"
+            valueKey="clientName"
           />
         </div>
 
