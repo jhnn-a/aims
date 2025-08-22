@@ -7,30 +7,51 @@ const testUnitsSpecs = [
   {
     Tag: "JOIIPC0001",
     deviceType: "PC",
-    lastMaintenanceDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)), // 2 months ago
+    lastMaintenanceDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000), // 2 months ago
     maintenanceChecklist: {
-      "Physical inspection for damage": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Update operating system": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Run antivirus scan": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Check power supply connections": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Monitor CPU and GPU temperatures": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) }
+      "Physical inspection for damage": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Update operating system": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Run antivirus scan": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Check power supply connections": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Monitor CPU and GPU temperatures": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
     },
     Drive: "SSD 256GB",
-    Condition: "GOOD" // Device condition
+    Condition: "GOOD", // Device condition
   },
   {
-    Tag: "JOIIPC0002", 
+    Tag: "JOIIPC0002",
     deviceType: "Laptop",
-    lastMaintenanceDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)), // 4 months ago
+    lastMaintenanceDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000), // 4 months ago
     maintenanceChecklist: {
-      "Physical inspection for damage": { completed: true, completedDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)) },
+      "Physical inspection for damage": {
+        completed: true,
+        completedDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000),
+      },
       "Update operating system": { completed: false },
-      "Run antivirus scan": { completed: true, completedDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)) },
-      "Check battery health": { completed: false }
+      "Run antivirus scan": {
+        completed: true,
+        completedDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Check battery health": { completed: false },
     },
     Drive: "HDD 500GB",
-    Condition: "GOOD" // Device condition
-  }
+    Condition: "GOOD", // Device condition
+  },
 ];
 
 // Copy the maintenance calculation functions from UnitSpecs
@@ -124,10 +145,10 @@ const calculateMaintenanceStatus = (device) => {
   const currentlyCompletedCriticalTasks = criticalTasks.filter((reqTask) => {
     const task = maintenanceChecklist[reqTask.task];
     if (!task || !task.completed) return false;
-    
+
     // Check if this task needs reset
     if (tasksNeedingReset.includes(reqTask.task)) return false;
-    
+
     return true;
   });
 
@@ -164,19 +185,21 @@ const calculateMaintenanceStatus = (device) => {
 console.log("📊 Testing Dashboard calculation logic with UnitSpecs data:\n");
 
 const specsStatusMap = {
-  "Healthy": 0,
+  Healthy: 0,
   "Needs Maintenance": 0,
-  "Critical": 0
+  Critical: 0,
 };
 
 testUnitsSpecs.forEach((unit, index) => {
   const maintenanceStatus = calculateMaintenanceStatus(unit);
   specsStatusMap[maintenanceStatus]++;
-  
+
   console.log(`Unit ${index + 1} (${unit.Tag}):`);
   console.log(`  Device Type: ${unit.deviceType}`);
   console.log(`  Device Condition: ${unit.Condition} (physical condition)`);
-  console.log(`  Calculated Maintenance Status: ${maintenanceStatus} (from checklist)`);
+  console.log(
+    `  Calculated Maintenance Status: ${maintenanceStatus} (from checklist)`
+  );
   console.log("");
 });
 
@@ -185,10 +208,17 @@ console.log(JSON.stringify(specsStatusMap, null, 2));
 
 console.log("\n📋 Summary:");
 Object.entries(specsStatusMap).forEach(([status, count]) => {
-  const total = Object.values(specsStatusMap).reduce((sum, val) => sum + val, 0);
+  const total = Object.values(specsStatusMap).reduce(
+    (sum, val) => sum + val,
+    0
+  );
   const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
   console.log(`  ${status}: ${count} devices (${percentage}%)`);
 });
 
-console.log("\n✅ Dashboard now calculates maintenance status from UnitSpecs data correctly!");
-console.log("🎯 This should match what you see in UnitSpecs maintenance badges.");
+console.log(
+  "\n✅ Dashboard now calculates maintenance status from UnitSpecs data correctly!"
+);
+console.log(
+  "🎯 This should match what you see in UnitSpecs maintenance badges."
+);

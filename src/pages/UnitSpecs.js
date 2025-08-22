@@ -760,7 +760,7 @@ const UnitSpecs = () => {
           lastMaintenanceDate: null,
           maintenanceChecklist: {},
         };
-        
+
         await setDoc(doc(db, targetTable, unit.Tag), unit);
       }
       fetchData();

@@ -7,53 +7,74 @@ const testDevices = [
   {
     Tag: "JOIIPC0001",
     deviceType: "PC",
-    lastMaintenanceDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)), // 2 months ago
+    lastMaintenanceDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000), // 2 months ago
     maintenanceChecklist: {
-      "Physical inspection for damage": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Update operating system": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Run antivirus scan": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Check power supply connections": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) },
-      "Monitor CPU and GPU temperatures": { completed: true, completedDate: new Date(Date.now() - (2 * 30 * 24 * 60 * 60 * 1000)) }
+      "Physical inspection for damage": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Update operating system": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Run antivirus scan": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Check power supply connections": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Monitor CPU and GPU temperatures": {
+        completed: true,
+        completedDate: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000),
+      },
     },
-    Drive: "SSD 256GB"
+    Drive: "SSD 256GB",
   },
   {
-    Tag: "JOIIPC0002", 
+    Tag: "JOIIPC0002",
     deviceType: "Laptop",
-    lastMaintenanceDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)), // 4 months ago
+    lastMaintenanceDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000), // 4 months ago
     maintenanceChecklist: {
-      "Physical inspection for damage": { completed: true, completedDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)) },
+      "Physical inspection for damage": {
+        completed: true,
+        completedDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000),
+      },
       "Update operating system": { completed: false },
-      "Run antivirus scan": { completed: true, completedDate: new Date(Date.now() - (4 * 30 * 24 * 60 * 60 * 1000)) },
-      "Check battery health": { completed: false }
+      "Run antivirus scan": {
+        completed: true,
+        completedDate: new Date(Date.now() - 4 * 30 * 24 * 60 * 60 * 1000),
+      },
+      "Check battery health": { completed: false },
     },
-    Drive: "HDD 500GB"
+    Drive: "HDD 500GB",
   },
   {
     Tag: "JOIIPC0003",
-    deviceType: "PC", 
-    lastMaintenanceDate: new Date(Date.now() - (8 * 30 * 24 * 60 * 60 * 1000)), // 8 months ago - Critical!
+    deviceType: "PC",
+    lastMaintenanceDate: new Date(Date.now() - 8 * 30 * 24 * 60 * 60 * 1000), // 8 months ago - Critical!
     maintenanceChecklist: {},
-    Drive: "SSD 512GB"
+    Drive: "SSD 512GB",
   },
   {
     Tag: "JOIIPC0004",
     deviceType: "Laptop",
-    dateAdded: new Date(Date.now() - (1 * 30 * 24 * 60 * 60 * 1000)), // 1 month old
+    dateAdded: new Date(Date.now() - 1 * 30 * 24 * 60 * 60 * 1000), // 1 month old
     maintenanceChecklist: {},
-    Drive: "SSD 256GB"
+    Drive: "SSD 256GB",
   },
   {
     Tag: "JOIIPC0005",
     deviceType: "PC",
-    lastMaintenanceDate: new Date(Date.now() - (5 * 30 * 24 * 60 * 60 * 1000)), // 5 months ago
+    lastMaintenanceDate: new Date(Date.now() - 5 * 30 * 24 * 60 * 60 * 1000), // 5 months ago
     maintenanceChecklist: {
       "Physical inspection for damage": { completed: false },
       "Update operating system": { completed: false },
-      "Run antivirus scan": { completed: false }
+      "Run antivirus scan": { completed: false },
     },
-    Drive: "HDD 1TB"
-  }
+    Drive: "HDD 1TB",
+  },
 ];
 
 // Copy the maintenance calculation functions from Dashboard.js
@@ -147,10 +168,10 @@ const calculateMaintenanceStatus = (device) => {
   const currentlyCompletedCriticalTasks = criticalTasks.filter((reqTask) => {
     const task = maintenanceChecklist[reqTask.task];
     if (!task || !task.completed) return false;
-    
+
     // Check if this task needs reset
     if (tasksNeedingReset.includes(reqTask.task)) return false;
-    
+
     return true;
   });
 
@@ -187,56 +208,66 @@ const calculateMaintenanceStatus = (device) => {
 console.log("📊 Testing maintenance status calculation for test devices:\n");
 
 const MAINTENANCE_COLORS = {
-  "Healthy": "#16a34a",      // Green
+  Healthy: "#16a34a", // Green
   "Needs Maintenance": "#ea580c", // Orange
-  "Critical": "#dc2626",     // Red
+  Critical: "#dc2626", // Red
 };
 
 const specsStatusMap = {
-  "Healthy": 0,
+  Healthy: 0,
   "Needs Maintenance": 0,
-  "Critical": 0
+  Critical: 0,
 };
 
 testDevices.forEach((device, index) => {
   const status = calculateMaintenanceStatus(device);
   specsStatusMap[status]++;
-  
+
   console.log(`Device ${index + 1} (${device.Tag}):`);
   console.log(`  Device Type: ${device.deviceType}`);
-  console.log(`  Maintenance Status: ${status} (${MAINTENANCE_COLORS[status]})`);
-  
+  console.log(
+    `  Maintenance Status: ${status} (${MAINTENANCE_COLORS[status]})`
+  );
+
   if (device.lastMaintenanceDate) {
-    const monthsAgo = Math.round((Date.now() - device.lastMaintenanceDate) / (1000 * 60 * 60 * 24 * 30));
+    const monthsAgo = Math.round(
+      (Date.now() - device.lastMaintenanceDate) / (1000 * 60 * 60 * 24 * 30)
+    );
     console.log(`  Last Maintenance: ${monthsAgo} months ago`);
   } else if (device.dateAdded) {
-    const monthsOld = Math.round((Date.now() - device.dateAdded) / (1000 * 60 * 60 * 24 * 30));
+    const monthsOld = Math.round(
+      (Date.now() - device.dateAdded) / (1000 * 60 * 60 * 24 * 30)
+    );
     console.log(`  Device Age: ${monthsOld} months old`);
   } else {
     console.log(`  No maintenance or date information`);
   }
-  
+
   const checklist = Object.keys(device.maintenanceChecklist || {});
   console.log(`  Checklist Items: ${checklist.length} tasks recorded`);
   console.log("");
 });
 
 // Convert to chart data format
-const specsReportData = Object.entries(specsStatusMap).map(([status, count]) => ({
-  name: status,
-  value: count,
-  color: MAINTENANCE_COLORS[status]
-}));
+const specsReportData = Object.entries(specsStatusMap).map(
+  ([status, count]) => ({
+    name: status,
+    value: count,
+    color: MAINTENANCE_COLORS[status],
+  })
+);
 
 console.log("📈 Final Specifications Report Data for Dashboard:");
 console.log(JSON.stringify(specsReportData, null, 2));
 
 console.log("\n📋 Summary:");
-specsReportData.forEach(item => {
+specsReportData.forEach((item) => {
   const total = specsReportData.reduce((sum, entry) => sum + entry.value, 0);
   const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : 0;
   console.log(`  ${item.name}: ${item.value} devices (${percentage}%)`);
 });
 
 console.log("\n✅ Specifications Report implementation is working correctly!");
-console.log("🎯 The Dashboard will now show a pie chart with device health status distribution.");
+console.log(
+  "🎯 The Dashboard will now show a pie chart with device health status distribution."
+);
