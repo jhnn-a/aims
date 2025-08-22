@@ -1901,27 +1901,133 @@ function Inventory() {
         return; // Skip non-PC/Laptop devices
       }
 
+      // Extract data for appraisal calculation
+      const cpuGen = extractCpuGen(
+        deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || ""
+      );
+      const ram = extractRamSize(deviceData.ram) || "";
+      const drive = deviceData.drive1 || deviceData.mainDrive || "";
+      const gpu = deviceData.gpu || "";
+      const category = deviceData.category || "";
+      const dateAdded =
+        deviceData.acquisitionDate ||
+        deviceData.dateAdded ||
+        new Date().toISOString();
+
+      // Calculate appraisal date (same logic as UnitSpecs)
+      const calculateAppraisalDate = (
+        dateAdded,
+        category,
+        cpuGen,
+        ram,
+        drive,
+        gpu
+      ) => {
+        if (!dateAdded) return "";
+
+        try {
+          const addedDate = new Date(dateAdded);
+          if (isNaN(addedDate.getTime())) return "";
+
+          // Get lifespan years based on specs
+          const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
+            if (category) {
+              switch (category) {
+                case "Low-End":
+                  return 3;
+                case "Mid-Range":
+                  return 4;
+                case "High-End":
+                  return 5;
+                default:
+                  return 3;
+              }
+            }
+
+            // Auto-detect based on specs
+            const cpuString = cpuGen?.toLowerCase() || "";
+            const ramSize = parseInt(ram) || 0;
+            const driveString = drive?.toLowerCase() || "";
+            const gpuString = gpu?.toLowerCase() || "";
+
+            // High-end criteria
+            if (
+              cpuString.includes("i7") &&
+              ramSize >= 16 &&
+              (driveString.includes("ssd") || driveString.includes("nvme")) &&
+              gpuString &&
+              !gpuString.includes("integrated")
+            ) {
+              return 5;
+            }
+
+            // Mid-range criteria
+            if (
+              cpuString.includes("i5") &&
+              ramSize >= 8 &&
+              (driveString.includes("ssd") || ramSize >= 12)
+            ) {
+              return 4;
+            }
+
+            // Low-end: everything else
+            return 3;
+          };
+
+          const lifespanYears = getLifespanYears(
+            category,
+            cpuGen,
+            ram,
+            drive,
+            gpu
+          );
+          const appraisalDate = new Date(addedDate);
+          appraisalDate.setFullYear(
+            appraisalDate.getFullYear() + lifespanYears
+          );
+
+          return appraisalDate.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+        } catch (error) {
+          console.error("Error calculating appraisal date:", error);
+          return "";
+        }
+      };
+
+      const appraisalDate = calculateAppraisalDate(
+        dateAdded,
+        category,
+        cpuGen,
+        ram,
+        drive,
+        gpu
+      );
+
       // Map inventory fields to UnitSpecs format with enhanced data extraction
       const unitSpecData = {
         Tag: deviceData.deviceTag || "",
         deviceType: deviceData.deviceType || "",
-        category: deviceData.category || "",
-        cpuGen: extractCpuGen(
-          deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || ""
-        ),
+        category: category,
+        cpuGen: cpuGen,
         cpuModel: extractCpuModel(deviceData.cpuGen || deviceData.cpu || ""),
         CPU:
           deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || "",
-        RAM: extractRamSize(deviceData.ram) || "",
-        Drive: deviceData.drive1 || deviceData.mainDrive || "",
-        GPU: deviceData.gpu || "",
+        RAM: ram,
+        Drive: drive,
+        GPU: gpu,
         Status: deviceData.condition || "",
+        Condition: deviceData.condition || "", // Add both for compatibility
         OS: deviceData.os || deviceData.operatingSystem || "",
         Remarks: deviceData.remarks || "",
         lifespan: deviceData.lifespan || "",
         brand: deviceData.brand || "",
         model: deviceData.model || "",
         acquisitionDate: deviceData.acquisitionDate || "",
+        dateAdded: dateAdded, // Add dateAdded field
+        appraisalDate: appraisalDate, // Add calculated appraisal date
         assignedTo: deviceData.assignedTo || "",
         assignmentDate: deviceData.assignmentDate || "",
       };
@@ -1939,7 +2045,7 @@ function Inventory() {
       await setDoc(doc(db, collection, deviceData.deviceTag), unitSpecData);
 
       console.log(
-        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection}`
+        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection} with appraisal date: ${appraisalDate}`
       );
     } catch (error) {
       console.error("Error syncing to UnitSpecs:", error);

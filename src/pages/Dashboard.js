@@ -2821,7 +2821,7 @@ function Dashboard() {
           title="Scroll to top"
           aria-label="Scroll to top"
         >
-          ↑
+          ⬆
         </button>
       </div>
     </div>

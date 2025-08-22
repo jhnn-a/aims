@@ -748,6 +748,26 @@ const UnitSpecs = () => {
       for (const row of data) {
         if (!row.Tag) continue;
         const conditionValue = row.Condition || row.Status || "";
+        const dateAdded = row.dateAdded || new Date().toISOString();
+
+        // Extract values for appraisal calculation
+        const cpuGen =
+          row.cpuGen || row.CPU?.match(/(i[357])/i)?.[1]?.toLowerCase() || "";
+        const ram = row.RAM?.toString().replace(/[^\d]/g, "") || "";
+        const drive = row.Drive || "";
+        const gpu = row.GPU || "";
+        const category = row.category || "";
+
+        // Calculate appraisal date
+        const appraisalDate = calculateAppraisalDate(
+          dateAdded,
+          category,
+          cpuGen,
+          ram,
+          drive,
+          gpu
+        );
+
         const unit = {
           Tag: row.Tag || "",
           CPU: row.CPU || "",
@@ -757,6 +777,10 @@ const UnitSpecs = () => {
           Condition: conditionValue, // Save to new field name
           Status: conditionValue, // Save to old field name for backward compatibility
           OS: row.OS || "",
+          dateAdded: dateAdded,
+          appraisalDate: appraisalDate, // Add calculated appraisal date
+          cpuGen: cpuGen,
+          category: category,
           lastMaintenanceDate: null,
           maintenanceChecklist: {},
         };
@@ -836,24 +860,43 @@ const UnitSpecs = () => {
           };
 
           // Map inventory fields to UnitSpecs format
+          const dateAdded =
+            device.dateAdded ||
+            device.acquisitionDate ||
+            new Date().toISOString();
+
+          const cpuGen = extractCpuGen(device.cpuGen || device.cpu || "");
+          const ram = extractRamSize(device.ram) || "";
+          const drive = device.drive1 || device.mainDrive || "";
+          const gpu = device.gpu || "";
+          const category = device.category || "";
+
+          // Calculate appraisal date based on specs and date added
+          const appraisalDate = calculateAppraisalDate(
+            dateAdded,
+            category,
+            cpuGen,
+            ram,
+            drive,
+            gpu
+          );
+
           const unitSpecData = {
             Tag: device.deviceTag || "",
             deviceType: device.deviceType || "",
-            category: device.category || "",
-            cpuGen: extractCpuGen(device.cpuGen || device.cpu || ""),
+            category: category,
+            cpuGen: cpuGen,
             cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
             CPU: device.cpuGen || device.cpu || "",
-            RAM: extractRamSize(device.ram) || "",
-            Drive: device.drive1 || device.mainDrive || "",
-            GPU: device.gpu || "",
+            RAM: ram,
+            Drive: drive,
+            GPU: gpu,
             Status: device.condition || "",
             OS: device.os || device.operatingSystem || "",
             Remarks: device.remarks || "",
             lifespan: device.lifespan || "",
-            dateAdded:
-              device.dateAdded ||
-              device.acquisitionDate ||
-              new Date().toISOString(), // Include date for appraisal calculation
+            dateAdded: dateAdded,
+            appraisalDate: appraisalDate, // Add calculated appraisal date
           };
 
           // Determine target collection based on assignment status
@@ -975,14 +1018,28 @@ const UnitSpecs = () => {
     }
 
     // --- Create a new object for submission with formatted RAM ---
+    const dateAdded = editId
+      ? form.dateAdded
+      : form.dateAdded || new Date().toISOString();
+
+    // Calculate appraisal date based on specs and date added
+    const appraisalDate = calculateAppraisalDate(
+      dateAdded,
+      form.category,
+      form.cpuGen,
+      form.RAM,
+      form.Drive,
+      form.GPU
+    );
+
     const unitData = {
       ...form,
       // Ensure RAM is stored with "GB" suffix
       RAM: form.RAM ? `${form.RAM}GB` : "",
       // Set dateAdded for new units (keep existing for edits)
-      dateAdded: editId
-        ? form.dateAdded
-        : form.dateAdded || new Date().toISOString(),
+      dateAdded: dateAdded,
+      // Add calculated appraisal date
+      appraisalDate: appraisalDate,
       // Ensure backward compatibility by saving condition to both fields
       Status: form.Condition, // Save to old field name for backward compatibility
       Condition: form.Condition, // Save to new field name
@@ -2643,16 +2700,17 @@ const UnitSpecs = () => {
                         textAlign: "center",
                       }}
                     >
-                      {unit.dateAdded
-                        ? calculateAppraisalDate(
-                            unit.dateAdded,
-                            unit.category,
-                            unit.cpuGen,
-                            unit.RAM,
-                            unit.Drive,
-                            unit.GPU
-                          )
-                        : "No Date"}
+                      {unit.appraisalDate ||
+                        (unit.dateAdded
+                          ? calculateAppraisalDate(
+                              unit.dateAdded,
+                              unit.category,
+                              unit.cpuGen,
+                              unit.RAM,
+                              unit.Drive,
+                              unit.GPU
+                            )
+                          : "No Date")}
                     </td>
                     <td
                       style={{
