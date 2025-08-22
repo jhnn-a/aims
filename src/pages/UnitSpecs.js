@@ -6,6 +6,7 @@ import {
   setDoc,
   deleteDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
@@ -35,11 +36,13 @@ const emptyUnit = {
   RAM: "",
   Drive: "",
   GPU: "",
-  Status: "",
+  Condition: "", // Renamed from Status to Condition
   OS: "",
-  Remarks: "",
+  Status: "", // New field for maintenance status (Healthy, Needs Maintenance, Critical)
   lifespan: "", // New field for lifespan
   dateAdded: "", // New field for dateAdded to calculate appraisal date
+  lastMaintenanceDate: "", // New field for last maintenance date
+  maintenanceChecklist: [], // Array to store completed maintenance tasks
 };
 
 const cpuGenOptions = ["i3", "i5", "i7", "i9"];
@@ -62,7 +65,7 @@ const osOptions = [
   { label: "Windows 11", value: "WIN11" },
 ];
 
-const statusOptions = [
+const conditionOptions = [
   { label: "BRANDNEW", value: "BRANDNEW" },
   { label: "GOOD", value: "GOOD" },
   { label: "DEFECTIVE", value: "DEFECTIVE" },
@@ -332,6 +335,118 @@ const getMaintenanceChecklist = (device) => {
   return tasks.sort((a, b) => b.critical - a.critical);
 };
 
+// Helper function to calculate maintenance status based on checklist completion and timing
+const calculateMaintenanceStatus = (device) => {
+  if (!device) return "Critical";
+
+  const now = new Date();
+  const lastMaintenance = device.lastMaintenanceDate
+    ? new Date(
+        device.lastMaintenanceDate.seconds
+          ? device.lastMaintenanceDate.seconds * 1000
+          : device.lastMaintenanceDate
+      )
+    : null;
+  const maintenanceChecklist = device.maintenanceChecklist || {};
+
+  // Get the required checklist for this device
+  const requiredTasks = getMaintenanceChecklist(device);
+  const criticalTasks = requiredTasks.filter((task) => task.critical);
+
+  // Check if device hasn't been maintained for 6+ months (critical)
+  if (lastMaintenance) {
+    const monthsSinceLastMaintenance =
+      (now - lastMaintenance) / (1000 * 60 * 60 * 24 * 30);
+    if (monthsSinceLastMaintenance >= 6) {
+      return "Critical";
+    }
+  } else {
+    // No maintenance record - check if device is older than 6 months
+    const deviceAge = device.dateAdded
+      ? (now - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 30)
+      : 0;
+    if (deviceAge >= 6) {
+      return "Critical";
+    }
+  }
+
+  // Check if maintenance tasks need to be reset (every 3 months)
+  const tasksNeedingReset = [];
+  Object.keys(maintenanceChecklist).forEach((taskName) => {
+    const task = maintenanceChecklist[taskName];
+    if (task.completed && task.completedDate) {
+      const completedDate = new Date(
+        task.completedDate.seconds
+          ? task.completedDate.seconds * 1000
+          : task.completedDate
+      );
+      const monthsSinceCompletion =
+        (now - completedDate) / (1000 * 60 * 60 * 24 * 30);
+      if (monthsSinceCompletion >= 3) {
+        tasksNeedingReset.push(taskName);
+      }
+    }
+  });
+
+  // Count currently completed critical tasks (excluding those that need reset)
+  const currentlyCompletedCriticalTasks = criticalTasks.filter((reqTask) => {
+    const task = maintenanceChecklist[reqTask.task];
+    if (!task || !task.completed) return false;
+
+    // Check if this task needs reset
+    if (tasksNeedingReset.includes(reqTask.task)) return false;
+
+    return true;
+  });
+
+  const criticalCompletionRate =
+    criticalTasks.length > 0
+      ? currentlyCompletedCriticalTasks.length / criticalTasks.length
+      : 1;
+
+  // For new devices with no maintenance data, return "Healthy" if no maintenance is overdue
+  if (Object.keys(maintenanceChecklist).length === 0) {
+    // Check if device is older than 6 months
+    const deviceAge = device.dateAdded
+      ? (now - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 30)
+      : 0;
+    if (deviceAge >= 6) {
+      return "Needs Maintenance"; // Old device with no maintenance
+    }
+    return "Healthy"; // New device, no maintenance needed yet
+  }
+
+  // Determine status based on completion rate
+  if (criticalCompletionRate >= 0.8) {
+    // 80% of critical tasks completed and not needing reset
+    return "Healthy";
+  } else if (criticalCompletionRate >= 0.5) {
+    // 50-79% completion
+    return "Needs Maintenance";
+  } else {
+    return "Critical"; // Less than 50% completion
+  }
+};
+
+// Helper function to get status badge color
+const getMaintenanceStatusColor = (status) => {
+  switch (status) {
+    case "Healthy":
+      return "#16a34a"; // Green
+    case "Needs Maintenance":
+      return "#ea580c"; // Orange
+    case "Critical":
+      return "#dc2626"; // Red
+    default:
+      return "#6b7280"; // Gray
+  }
+};
+
+// Helper function to get status badge text color
+const getMaintenanceStatusTextColor = (status) => {
+  return "#ffffff"; // Always white text for good contrast
+};
+
 // --- Modern Table Styles (matching Assets.js design) ---
 const getTableStyle = (isDarkMode) => ({
   width: "100%",
@@ -542,6 +657,64 @@ const UnitSpecs = () => {
   const [showPreventiveMaintenance, setShowPreventiveMaintenance] =
     useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
+  const [maintenanceChecklist, setMaintenanceChecklist] = useState({});
+
+  // Handle maintenance task completion
+  const handleTaskCompletion = async (deviceTag, taskName, isCompleted) => {
+    try {
+      const currentDevice = selectedDevice;
+      if (!currentDevice) return;
+
+      // Determine which collection the device belongs to
+      const isInInventory = inventory.some(
+        (device) => device.Tag === deviceTag
+      );
+      const targetCollection = isInInventory
+        ? "InventoryUnits"
+        : "DeployedUnits";
+
+      // Update local state immediately for UI responsiveness
+      const updatedChecklist = {
+        ...currentDevice.maintenanceChecklist,
+        [taskName]: {
+          completed: isCompleted,
+          completedDate: isCompleted ? new Date() : null,
+          lastResetDate:
+            currentDevice.maintenanceChecklist?.[taskName]?.lastResetDate ||
+            new Date(),
+        },
+      };
+
+      // Update selected device state
+      const updatedDevice = {
+        ...currentDevice,
+        maintenanceChecklist: updatedChecklist,
+        lastMaintenanceDate: isCompleted
+          ? new Date()
+          : currentDevice.lastMaintenanceDate,
+      };
+      setSelectedDevice(updatedDevice);
+
+      // Save to database
+      const deviceRef = doc(db, targetCollection, deviceTag);
+      await updateDoc(deviceRef, {
+        maintenanceChecklist: updatedChecklist,
+        lastMaintenanceDate: isCompleted
+          ? new Date()
+          : currentDevice.lastMaintenanceDate,
+      });
+
+      // Refresh the main data to update the status badges
+      fetchData();
+
+      if (isCompleted) {
+        showSuccess(`Marked "${taskName}" as completed`);
+      }
+    } catch (error) {
+      console.error("Error updating maintenance task:", error);
+      showError("Failed to update maintenance task");
+    }
+  };
 
   // Close filter popup when clicking outside
   useEffect(() => {
@@ -571,19 +744,23 @@ const UnitSpecs = () => {
       const ws = wb.Sheets[wsname];
       const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-      // Expect columns: Tag, CPU, RAM, Drive, GPU, Status, OS, Remarks
+      // Expect columns: Tag, CPU, RAM, Drive, GPU, Condition, OS, Status
       for (const row of data) {
         if (!row.Tag) continue;
+        const conditionValue = row.Condition || row.Status || "";
         const unit = {
           Tag: row.Tag || "",
           CPU: row.CPU || "",
           RAM: row.RAM || "",
           Drive: row.Drive || "",
           GPU: row.GPU || "",
-          Status: row.Status || "",
+          Condition: conditionValue, // Save to new field name
+          Status: conditionValue, // Save to old field name for backward compatibility
           OS: row.OS || "",
-          Remarks: row.Remarks || "",
+          lastMaintenanceDate: null,
+          maintenanceChecklist: {},
         };
+        
         await setDoc(doc(db, targetTable, unit.Tag), unit);
       }
       fetchData();
@@ -722,36 +899,9 @@ const UnitSpecs = () => {
       // Auto-generate tag when device type changes (for new units only)
       if (name === "deviceType" && !editId && value) {
         if (value === "PC") {
-          // For PC, don't generate tag until CPU System Unit is selected
-          newForm.Tag = "";
-          newForm.cpuSystemUnit = ""; // Reset CPU System Unit when device type changes
-        } else {
-          // For non-PC devices, generate tag immediately
+          // For PC, generate tag immediately when PC is selected
           const allDevices = [...inventory, ...deployed];
-          const generatedTag = generateNextDeviceTag(value, allDevices);
-          newForm.Tag = generatedTag;
-          console.log(`Generated tag for ${value}:`, generatedTag); // Debug log
-          console.log("Existing devices count:", allDevices.length); // Debug log
-        }
-      }
-
-      // Auto-generate tag when CPU System Unit changes for PC (for new units only)
-      if (
-        name === "cpuSystemUnit" &&
-        !editId &&
-        newForm.deviceType === "PC" &&
-        value
-      ) {
-        const cpuMap = {
-          i3: "I3",
-          i5: "I5",
-          i7: "I7",
-          i9: "I9",
-        };
-        const cpuCode = cpuMap[value];
-        if (cpuCode) {
-          const allDevices = [...inventory, ...deployed];
-          const prefix = `JOIIPC${cpuCode}`;
+          const prefix = "JOIIPC";
           const ids = allDevices
             .map((d) => d.Tag)
             .filter((tag) => tag && tag.startsWith(prefix))
@@ -759,7 +909,15 @@ const UnitSpecs = () => {
             .filter((num) => !isNaN(num));
           const max = ids.length > 0 ? Math.max(...ids) : 0;
           newForm.Tag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-          console.log(`Generated PC ${value} tag:`, newForm.Tag); // Debug log
+          console.log(`Generated PC tag:`, newForm.Tag); // Debug log
+          newForm.cpuGen = ""; // Reset CPU System Unit when device type changes
+        } else {
+          // For non-PC devices, generate tag immediately
+          const allDevices = [...inventory, ...deployed];
+          const generatedTag = generateNextDeviceTag(value, allDevices);
+          newForm.Tag = generatedTag;
+          console.log(`Generated tag for ${value}:`, generatedTag); // Debug log
+          console.log("Existing devices count:", allDevices.length); // Debug log
         }
       }
 
@@ -825,6 +983,9 @@ const UnitSpecs = () => {
       dateAdded: editId
         ? form.dateAdded
         : form.dateAdded || new Date().toISOString(),
+      // Ensure backward compatibility by saving condition to both fields
+      Status: form.Condition, // Save to old field name for backward compatibility
+      Condition: form.Condition, // Save to new field name
     };
 
     // --- Improved Validation ---
@@ -892,39 +1053,23 @@ const UnitSpecs = () => {
     const cpuGen = cpuParts[0] || "";
     const cpuModel = cpuParts.length > 1 ? cpuParts.slice(1).join(" - ") : "";
 
-    // Extract CPU System Unit for PC devices
-    let extractedCpuSystemUnit = "";
-    if (unit.deviceType === "PC" && unit.Tag) {
-      // Extract CPU type from tag format like JOIIPCI30001, JOIIPCI50001, etc.
-      const pcMatch = unit.Tag.match(/^JOIIPC(I[3579])/);
-      if (pcMatch) {
-        const cpuType = pcMatch[1]; // e.g., "I3", "I5", "I7", "I9"
-        const cpuMap = {
-          I3: "i3",
-          I5: "i5",
-          I7: "i7",
-          I9: "i9",
-        };
-        extractedCpuSystemUnit = cpuMap[cpuType] || "";
-      }
-    }
-
     setForm({
       Tag: unit.Tag || "",
       deviceType: unit.deviceType || "", // Include device type for editing
       category: unit.category || "", // Include category for editing
-      cpuSystemUnit: extractedCpuSystemUnit, // Add extracted CPU System Unit
-      cpuGen: cpuGen,
+      cpuSystemUnit: "", // No longer used
+      cpuGen: cpuGen, // This now serves as CPU - System Unit
       cpuModel: cpuModel,
       CPU: unit.CPU || "",
       RAM: parseRam(unit.RAM) || "",
       Drive: unit.Drive || "",
       GPU: unit.GPU || "",
-      Status: unit.Status || "",
+      Condition: unit.Condition || unit.Status || "", // Support both old and new field names
       OS: unit.OS || "",
-      Remarks: unit.Remarks || "",
       lifespan: unit.lifespan || "", // Include lifespan for editing
       dateAdded: unit.dateAdded || "", // Include dateAdded for editing
+      lastMaintenanceDate: unit.lastMaintenanceDate || null,
+      maintenanceChecklist: unit.maintenanceChecklist || {},
     });
     setEditId(unit.id);
     setEditCollection(collectionName);
@@ -2122,11 +2267,11 @@ const UnitSpecs = () => {
                   "RAM",
                   "Drive",
                   "GPU",
-                  "Status",
+                  "Condition",
                   "OS",
                   "Category",
                   "Appraisal",
-                  "Remarks",
+                  "Status",
                 ].map((col) => (
                   <th
                     key={col}
@@ -2142,7 +2287,7 @@ const UnitSpecs = () => {
                           ? "13%"
                           : col === "GPU"
                           ? "11%"
-                          : col === "Status"
+                          : col === "Condition"
                           ? "9%"
                           : col === "OS"
                           ? "7%"
@@ -2150,7 +2295,7 @@ const UnitSpecs = () => {
                           ? "9%"
                           : col === "Appraisal"
                           ? "8%"
-                          : "11%", // Remarks
+                          : "11%", // Status
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
@@ -2431,12 +2576,16 @@ const UnitSpecs = () => {
                         textAlign: "center",
                       }}
                     >
-                      {unit.Status ? (
+                      {unit.Condition || unit.Status ? (
                         <div
                           style={{
                             display: "inline-block",
-                            background: getConditionColor(unit.Status),
-                            color: getConditionTextColor(unit.Status),
+                            background: getConditionColor(
+                              unit.Condition || unit.Status
+                            ),
+                            color: getConditionTextColor(
+                              unit.Condition || unit.Status
+                            ),
                             padding: "4px 8px",
                             borderRadius: "4px",
                             fontSize: "12px",
@@ -2448,7 +2597,7 @@ const UnitSpecs = () => {
                             boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                           }}
                         >
-                          {unit.Status}
+                          {unit.Condition || unit.Status}
                         </div>
                       ) : (
                         ""
@@ -2517,9 +2666,32 @@ const UnitSpecs = () => {
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textAlign: "center", // Center the content
                       }}
                     >
-                      {unit.Remarks}
+                      {(() => {
+                        const status = calculateMaintenanceStatus(unit);
+                        return (
+                          <div
+                            style={{
+                              display: "inline-block",
+                              background: getMaintenanceStatusColor(status),
+                              color: getMaintenanceStatusTextColor(status),
+                              padding: "4px 8px",
+                              borderRadius: "4px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              textAlign: "center",
+                              minWidth: "70px",
+                              lineHeight: "1.2",
+                              whiteSpace: "nowrap",
+                              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                            }}
+                          >
+                            {status}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td
                       style={{
@@ -3076,75 +3248,6 @@ const UnitSpecs = () => {
             </div>
           </div>
 
-          {/* Row 2.5: CPU - System Unit (for PC devices only) */}
-          {form.deviceType === "PC" && (
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                width: "100%",
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  marginBottom: 0,
-                  width: "100%",
-                  minWidth: 140,
-                  flex: 1,
-                }}
-              >
-                <label
-                  style={{
-                    alignSelf: "flex-start",
-                    fontWeight: 500,
-                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                    marginBottom: 3,
-                    fontSize: 13,
-                    fontFamily:
-                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  }}
-                >
-                  CPU - System Unit:
-                </label>
-                <select
-                  name="cpuSystemUnit"
-                  value={form.cpuSystemUnit}
-                  onChange={handleChange}
-                  style={{
-                    width: "100%",
-                    minWidth: 0,
-                    fontSize: 13,
-                    padding: "6px 8px",
-                    borderRadius: 5,
-                    border: isDarkMode
-                      ? "1.2px solid #4b5563"
-                      : "1.2px solid #cbd5e1",
-                    background: isDarkMode ? "#374151" : "#f1f5f9",
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    height: "30px",
-                    boxSizing: "border-box",
-                    marginBottom: 0,
-                    fontFamily:
-                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                    outline: "none",
-                    transition: "border-color 0.2s, box-shadow 0.2s",
-                  }}
-                  required
-                >
-                  <option value="">Select CPU Type</option>
-                  <option value="i3">i3</option>
-                  <option value="i5">i5</option>
-                  <option value="i7">i7</option>
-                  <option value="i9">i9</option>
-                </select>
-              </div>
-            </div>
-          )}
-
           {/* Row 3: TAG */}
           <div
             style={{
@@ -3230,7 +3333,7 @@ const UnitSpecs = () => {
                     "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
-                CPU Generation:
+                CPU - System Unit:
               </label>
               <select
                 name="cpuGen"
@@ -3257,7 +3360,7 @@ const UnitSpecs = () => {
                 }}
                 required
               >
-                <option value="">Select Generation</option>
+                <option value="">Select CPU System Unit</option>
                 {cpuGenOptions.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt.toUpperCase()}
@@ -3518,11 +3621,11 @@ const UnitSpecs = () => {
                     "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
-                Status:
+                Condition:
               </label>
               <select
-                name="Status"
-                value={form.Status}
+                name="Condition"
+                value={form.Condition}
                 onChange={handleChange}
                 style={{
                   width: "100%",
@@ -3545,8 +3648,8 @@ const UnitSpecs = () => {
                 }}
                 required
               >
-                <option value="">Select Status</option>
-                {statusOptions.map((opt) => (
+                <option value="">Select Condition</option>
+                {conditionOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -4413,15 +4516,21 @@ const UnitSpecs = () => {
                       >
                         <input
                           type="checkbox"
+                          checked={
+                            selectedDevice?.maintenanceChecklist?.[item.task]
+                              ?.completed || false
+                          }
                           style={{
                             marginTop: "2px",
                             accentColor: "#6b7280",
                             colorScheme: isDarkMode ? "dark" : "light",
                           }}
                           onChange={(e) => {
-                            if (e.target.checked) {
-                              showSuccess(`Marked "${item.task}" as completed`);
-                            }
+                            handleTaskCompletion(
+                              selectedDevice.Tag,
+                              item.task,
+                              e.target.checked
+                            );
                           }}
                         />
                         <div style={{ flex: 1 }}>

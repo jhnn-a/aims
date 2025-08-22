@@ -548,28 +548,6 @@ function DeviceFormModal({
                 <option value="64GB">64 GB RAM</option>
               </select>
             </div>
-          ) : data.deviceType === "PC" ? (
-            <div
-              style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
-              }}
-            >
-              <label style={styles.inventoryLabel}>CPU - System Unit:</label>
-              <select
-                name="cpuSystemUnit"
-                value={data.cpuSystemUnit}
-                onChange={onChange}
-                style={styles.inventoryInput}
-              >
-                <option value="">Select CPU Type</option>
-                <option value="i3">i3</option>
-                <option value="i5">i5</option>
-                <option value="i7">i7</option>
-                <option value="i9">i9</option>
-              </select>
-            </div>
           ) : (
             <div
               style={{
@@ -663,7 +641,11 @@ function DeviceFormModal({
                 alignItems: "center",
                 fontWeight: 400,
                 fontSize: 13,
-                color: editingDevice ? "#999" : "#222e3a",
+                color: editingDevice
+                  ? "#999"
+                  : isDarkMode
+                  ? "#f3f4f6"
+                  : "#222e3a",
               }}
             >
               <input
@@ -817,14 +799,20 @@ function DeviceFormModal({
                   marginBottom: 0,
                 }}
               >
-                <label style={styles.inventoryLabel}>CPU Gen:</label>
-                <input
+                <label style={styles.inventoryLabel}>CPU - System Unit:</label>
+                <select
                   name="cpuGen"
                   value={data.cpuGen || ""}
                   onChange={onChange}
                   style={styles.inventoryInput}
-                  placeholder="e.g., Intel i5 12th Gen"
-                />
+                >
+                  <option value="">Select CPU System Unit</option>
+                  {cpuGenOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div
@@ -1120,6 +1108,9 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
   );
 }
 
+// CPU Generation options for dropdown
+const cpuGenOptions = ["i3", "i5", "i7", "i9"];
+
 // === MAIN INVENTORY PAGE COMPONENT ===
 // This component manages the display and operations for unassigned inventory devices
 function Inventory() {
@@ -1323,7 +1314,7 @@ function Inventory() {
     acquisitionDate: getCurrentDate(),
     ramSize: "", // Size dropdown for RAM devices
     // PC/Laptop specific fields
-    cpuSystemUnit: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
+    cpuGen: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
     cpuGen: "",
     ram: "",
     drive1: "",
@@ -1573,14 +1564,24 @@ function Inventory() {
           ramSize: "", // Reset RAM size when device type changes
         }));
       } else if (value === "PC") {
-        // For PC, don't generate tag until CPU System Unit is selected
-        setForm((prev) => ({
-          ...prev,
-          deviceType: value,
-          deviceTag: "",
-          cpuSystemUnit: "", // Reset CPU System Unit when device type changes
-          brand: "", // Reset brand for PC devices
-        }));
+        // For PC, generate tag immediately when PC is selected
+        const prefix = "JOIIPC";
+        getAllDevices().then((allDevices) => {
+          const ids = allDevices
+            .map((d) => d.deviceTag)
+            .filter((tag) => tag && tag.startsWith(prefix))
+            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          setForm((prev) => ({
+            ...prev,
+            deviceType: value,
+            deviceTag: newTag,
+            cpuGen: "", // Reset CPU System Unit when device type changes
+            brand: "", // Reset brand for PC devices
+          }));
+        });
       } else {
         // For non-RAM and non-PC devices, generate tag immediately
         let newTag = "";
@@ -1608,46 +1609,18 @@ function Inventory() {
       setTagError("");
       return;
     }
-    if (name === "cpuSystemUnit") {
-      // When CPU System Unit is selected for PC, generate the specific PC tag
+    if (name === "cpuGen") {
+      // When CPU System Unit is selected for PC, just set the brand
       if (form.deviceType === "PC" && value) {
-        const cpuMap = {
-          i3: "I3",
-          i5: "I5",
-          i7: "I7",
-          i9: "I9",
-        };
-        const cpuCode = cpuMap[value];
-        if (cpuCode) {
-          const prefix = `JOIIPC${cpuCode}`;
-          // Find max existing tag for this PC CPU type
-          getAllDevices().then((allDevices) => {
-            const ids = allDevices
-              .map((d) => d.deviceTag)
-              .filter((tag) => tag && tag.startsWith(prefix))
-              .map((tag) => parseInt(tag.replace(prefix, "")))
-              .filter((num) => !isNaN(num));
-            const max = ids.length > 0 ? Math.max(...ids) : 0;
-            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-            setForm((prev) => ({
-              ...prev,
-              cpuSystemUnit: value,
-              deviceTag: newTag,
-              brand: value, // Set brand to CPU System Unit value for PC devices
-            }));
-          });
-        } else {
-          setForm((prev) => ({
-            ...prev,
-            cpuSystemUnit: value,
-            deviceTag: "",
-            brand: value, // Set brand to CPU System Unit value for PC devices
-          }));
-        }
+        setForm((prev) => ({
+          ...prev,
+          cpuGen: value,
+          brand: value, // Set brand to CPU System Unit value for PC devices
+        }));
       } else {
         setForm((prev) => ({
           ...prev,
-          cpuSystemUnit: value,
+          cpuGen: value,
           brand: form.deviceType === "PC" ? value : prev.brand, // Only set brand for PC devices
         }));
       }
@@ -2219,21 +2192,9 @@ function Inventory() {
     // Extract CPU System Unit for PC devices
     let extractedCpuSystemUnit = "";
     if (matchedType === "PC" && deviceData.deviceTag) {
-      // Extract CPU type from tag format like JOIIPCI30001, JOIIPCI50001, etc.
-      // The format is JOIIPC[CPU_TYPE][NUMBER] where CPU_TYPE can be I3, I5, I7, I9
-      const pcMatch = deviceData.deviceTag.match(/^JOIIPC(I[3579])/);
-      if (pcMatch) {
-        const cpuType = pcMatch[1]; // e.g., "I3", "I5", "I7", "I9"
-
-        // Map the extracted CPU type to the dropdown option format
-        const cpuMap = {
-          I3: "i3",
-          I5: "i5",
-          I7: "i7",
-          I9: "i9",
-        };
-        extractedCpuSystemUnit = cpuMap[cpuType] || "";
-      }
+      // For simple PC tags (JOIIPC0001), CPU System Unit should be extracted from other fields
+      // Use cpuGen field if available, or extract from brand
+      extractedCpuSystemUnit = deviceData.cpuGen || deviceData.brand || "";
     }
 
     // Map all device fields to the form, ensuring all fields are included
@@ -2248,7 +2209,7 @@ function Inventory() {
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
       ramSize: extractedRamSize, // Add extracted RAM size
-      cpuSystemUnit: extractedCpuSystemUnit, // Add extracted CPU System Unit
+      cpuGen: extractedCpuSystemUnit || deviceData.cpuGen || "", // Use extracted CPU System Unit or existing cpuGen
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
       // PC/Laptop specifications
@@ -2400,30 +2361,6 @@ function Inventory() {
           const sizeCode = sizeMap[form.ramSize];
           if (sizeCode) {
             const prefix = `JOIIRAM${sizeCode}`;
-            getAllDevices().then((allDevices) => {
-              const ids = allDevices
-                .map((d) => d.deviceTag)
-                .filter((tag) => tag && tag.startsWith(prefix))
-                .map((tag) => parseInt(tag.replace(prefix, "")))
-                .filter((num) => !isNaN(num));
-              const max = ids.length > 0 ? Math.max(...ids) : 0;
-              const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-              setForm((prev) => ({ ...prev, deviceTag: newTag }));
-            });
-          }
-        }
-      } else if (form.deviceType === "PC") {
-        // For PC, re-generate based on selected CPU System Unit
-        if (form.cpuSystemUnit) {
-          const cpuMap = {
-            i3: "I3",
-            i5: "I5",
-            i7: "I7",
-            i9: "I9",
-          };
-          const cpuCode = cpuMap[form.cpuSystemUnit];
-          if (cpuCode) {
-            const prefix = `JOIIPC${cpuCode}`;
             getAllDevices().then((allDevices) => {
               const ids = allDevices
                 .map((d) => d.deviceTag)
@@ -4004,13 +3941,8 @@ function Inventory() {
         { label: "Webcam", code: "W" },
       ];
 
-      // PC CPU types to track separately
-      const pcCpuTypes = [
-        { label: "PC i3", code: "PCI3", prefix: "JOIIPCI3" },
-        { label: "PC i5", code: "PCI5", prefix: "JOIIPCI5" },
-        { label: "PC i7", code: "PCI7", prefix: "JOIIPCI7" },
-        { label: "PC i9", code: "PCI9", prefix: "JOIIPCI9" },
-      ];
+      // PC types tracked with simple format
+      const pcCpuTypes = [{ label: "PC", code: "PC", prefix: "JOIIPC" }];
 
       // RAM sizes to track separately
       const ramSizes = [
