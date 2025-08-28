@@ -447,6 +447,7 @@ function Dashboard() {
   const [workingDevices, setWorkingDevices] = useState([]);
   const [stockroomData, setStockroomData] = useState([]);
   const [specsReportData, setSpecsReportData] = useState([]);
+  const [cpuSpecifications, setCpuSpecifications] = useState([]);
   const [employeeMap, setEmployeeMap] = useState({});
   const [timeRange, setTimeRange] = useState("30days");
   const [loading, setLoading] = useState(true);
@@ -559,164 +560,92 @@ function Dashboard() {
       setStockroomData(stockroomArray);
       setAllDevices(devices); // Store all devices for later use
 
-      // Calculate Specifications Report - Device Maintenance Status
-      const specsStatusMap = {
-        Healthy: 0,
-        "Needs Maintenance": 0,
-        Critical: 0,
-      };
+      // Calculate CPU Specifications - count CPU generations from UnitSpecs collections
+      const cpuGenMap = { i3: 0, i5: 0, i7: 0, Other: 0 };
 
-      console.log("📋 Processing UnitSpecs data for specifications report...");
+      console.log("� Processing UnitSpecs data for CPU specifications...");
       console.log(`📊 Total UnitSpecs records: ${allUnitsSpecs.length}`);
 
       // Log a sample of the data to see what we're working with
       if (allUnitsSpecs.length > 0) {
         console.log(
-          "📋 Sample UnitSpecs data:",
+          "� Sample UnitSpecs data:",
           JSON.stringify(allUnitsSpecs[0], null, 2)
         );
       }
 
       let processedCount = 0;
 
-      // Process ALL UnitSpecs devices based on their Condition column
-      let healthyCount = 0;
-      let needsMaintenanceCount = 0;
-      let criticalCount = 0;
-      let devicesWithMaintenance = [];
-      let devicesWithoutMaintenance = [];
-
-      // First pass: categorize devices
-      allUnitsSpecs.forEach((unit, index) => {
-        const condition =
-          unit.condition || unit.Condition || unit.Status || "GOOD";
-
-        if (condition === "DEFECTIVE") {
-          // DEFECTIVE devices are automatically Critical
-          devicesWithMaintenance.push({
-            unit,
-            index,
-            forcedStatus: "Critical",
-          });
-        } else if (
-          unit.maintenanceChecklist &&
-          Object.keys(unit.maintenanceChecklist).length > 0
-        ) {
-          // Devices with maintenance checklists
-          devicesWithMaintenance.push({ unit, index, forcedStatus: null });
-        } else {
-          // Devices without maintenance data
-          devicesWithoutMaintenance.push({ unit, index });
-        }
-      });
-
-      console.log(
-        `📊 Device categorization: ${devicesWithMaintenance.length} with maintenance, ${devicesWithoutMaintenance.length} without maintenance`
-      );
-
-      // Second pass: assign statuses to meet target distribution
+      // Process ALL UnitSpecs devices to count CPU generations
       allUnitsSpecs.forEach((unit, index) => {
         processedCount++;
 
-        const condition =
-          unit.condition || unit.Condition || unit.Status || "GOOD";
-        let maintenanceStatus;
+        const cpuGen =
+          unit.cpuGen?.toLowerCase() || unit.CPU?.toLowerCase() || "";
 
-        if (condition === "DEFECTIVE") {
-          maintenanceStatus = "Critical";
-          criticalCount++;
-        } else if (
-          unit.maintenanceChecklist &&
-          Object.keys(unit.maintenanceChecklist).length > 0
-        ) {
-          // For devices with maintenance checklists, calculate based on completion
-          const checklistKeys = Object.keys(unit.maintenanceChecklist);
-          const completedTasks = checklistKeys.filter(
-            (key) =>
-              unit.maintenanceChecklist[key] &&
-              unit.maintenanceChecklist[key].completed
-          );
-          const completionRate =
-            checklistKeys.length > 0
-              ? completedTasks.length / checklistKeys.length
-              : 1;
-
-          // Assign based on current counts to reach target: 194 Healthy + 1 Needs Maintenance + 1 Critical
-          if (criticalCount === 0 && completionRate < 0.5) {
-            maintenanceStatus = "Critical";
-            criticalCount++;
-          } else if (needsMaintenanceCount === 0 && completionRate < 0.8) {
-            maintenanceStatus = "Needs Maintenance";
-            needsMaintenanceCount++;
-          } else {
-            maintenanceStatus = "Healthy";
-            healthyCount++;
-          }
-
-          console.log(`Unit ${processedCount} (${
-            unit.Tag || "No Tag"
-          }) WITH MAINTENANCE: 
-            - Condition: ${condition}
-            - Checklist: ${completedTasks.length}/${checklistKeys.length} (${(
-            completionRate * 100
-          ).toFixed(1)}%)
-            - Status: "${maintenanceStatus}" (Critical: ${criticalCount}, Needs: ${needsMaintenanceCount})`);
-        } else {
-          // For devices without maintenance data, strategically assign to reach exact target
-          if (criticalCount === 0) {
-            maintenanceStatus = "Critical";
-            criticalCount++;
-          } else if (needsMaintenanceCount === 0) {
-            maintenanceStatus = "Needs Maintenance";
-            needsMaintenanceCount++;
-          } else {
-            maintenanceStatus = "Healthy";
-            healthyCount++;
-          }
-
-          console.log(`Unit ${processedCount} (${
-            unit.Tag || "No Tag"
-          }) NO MAINTENANCE: 
-            - Condition: ${condition}
-            - Strategic: "${maintenanceStatus}" (Critical: ${criticalCount}, Needs: ${needsMaintenanceCount})`);
+        if (cpuGen.includes("i3")) {
+          cpuGenMap["i3"]++;
+        } else if (cpuGen.includes("i5")) {
+          cpuGenMap["i5"]++;
+        } else if (cpuGen.includes("i7") || cpuGen.includes("i9")) {
+          cpuGenMap["i7"]++;
+        } else if (cpuGen.trim() !== "") {
+          cpuGenMap["Other"]++;
         }
 
-        if (specsStatusMap.hasOwnProperty(maintenanceStatus)) {
-          specsStatusMap[maintenanceStatus]++;
-        } else {
-          console.log(
-            `Unknown status "${maintenanceStatus}" for unit ${unit.Tag}, defaulting to Healthy`
-          );
-          specsStatusMap["Healthy"]++;
-          healthyCount++;
-        }
+        console.log(
+          `Unit ${processedCount} (${
+            unit.Tag || "No Tag"
+          }): CPU Gen: "${cpuGen}" -> Category: ${
+            cpuGen.includes("i3")
+              ? "i3"
+              : cpuGen.includes("i5")
+              ? "i5"
+              : cpuGen.includes("i7") || cpuGen.includes("i9")
+              ? "i7"
+              : cpuGen.trim() !== ""
+              ? "Other"
+              : "No CPU data"
+          }`
+        );
       });
 
+      console.log(`\n💻 CPU GENERATION SUMMARY:`);
       console.log(
-        `\n🎯 TARGET: 194 Healthy + 1 Needs Maintenance + 1 Critical = 196 total`
-      );
-      console.log(
-        `📊 ACTUAL: ${healthyCount} Healthy + ${needsMaintenanceCount} Needs Maintenance + ${criticalCount} Critical = ${
-          healthyCount + needsMaintenanceCount + criticalCount
+        `📊 ACTUAL: ${cpuGenMap.i3} i3 + ${cpuGenMap.i5} i5 + ${
+          cpuGenMap.i7
+        } i7 + ${cpuGenMap.Other} Other = ${
+          cpuGenMap.i3 + cpuGenMap.i5 + cpuGenMap.i7 + cpuGenMap.Other
         } total`
       );
 
       console.log(`\n📊 FINAL SUMMARY:`);
       console.log(`Total devices processed: ${processedCount}`);
-      console.log(`Status distribution:`, specsStatusMap);
+      console.log(`CPU generation distribution:`, cpuGenMap);
 
-      console.log("📊 Final specifications status counts:", specsStatusMap);
+      console.log("� Final CPU generation counts:", cpuGenMap);
+
+      // CPU Colors for chart
+      const CPU_COLORS = {
+        i3: "#ef4444", // Red
+        i5: "#f59e0b", // Orange
+        i7: "#22c55e", // Green
+        Other: "#6b7280", // Gray
+      };
 
       // Convert to array format for chart
-      const specsReportData = Object.entries(specsStatusMap).map(
-        ([status, count]) => ({
-          name: status,
+      const cpuSpecsData = Object.entries(cpuGenMap)
+        .map(([generation, count]) => ({
+          name: generation,
           value: count,
-          color: MAINTENANCE_COLORS[status],
-        })
-      );
+          color: CPU_COLORS[generation],
+        }))
+        .filter((item) => item.value > 0);
 
-      setSpecsReportData(specsReportData);
+      setCpuSpecifications(cpuSpecsData);
+
+      // Still set specsReportData for compatibility, but now it contains CPU data
+      setSpecsReportData(cpuSpecsData);
 
       // Build employeeId → employeeName map
       const empMap = {};
@@ -2530,7 +2459,7 @@ function Dashboard() {
               fontWeight: 600,
             }}
           >
-            🔧 Specifications Report - Device Health Status
+            � PC CPU Specification Chart
           </h3>
 
           <div
@@ -2691,7 +2620,7 @@ function Dashboard() {
                     fontWeight: 600,
                   }}
                 >
-                  Status Definitions:
+                  CPU Generation Breakdown:
                 </h5>
                 <div
                   style={{ display: "flex", flexDirection: "column", gap: 8 }}
@@ -2704,7 +2633,7 @@ function Dashboard() {
                         width: 8,
                         height: 8,
                         borderRadius: "50%",
-                        backgroundColor: "#16a34a",
+                        backgroundColor: "#dc2626",
                       }}
                     />
                     <span
@@ -2713,7 +2642,7 @@ function Dashboard() {
                         fontSize: 12,
                       }}
                     >
-                      Healthy: 80%+ maintenance tasks completed
+                      i3 Processors: Basic performance CPUs
                     </span>
                   </div>
                   <div
@@ -2733,7 +2662,7 @@ function Dashboard() {
                         fontSize: 12,
                       }}
                     >
-                      Needs Maintenance: 50-79% tasks completed
+                      i5 Processors: Mid-range performance CPUs
                     </span>
                   </div>
                   <div
@@ -2744,7 +2673,7 @@ function Dashboard() {
                         width: 8,
                         height: 8,
                         borderRadius: "50%",
-                        backgroundColor: "#dc2626",
+                        backgroundColor: "#16a34a",
                       }}
                     />
                     <span
@@ -2753,7 +2682,27 @@ function Dashboard() {
                         fontSize: 12,
                       }}
                     >
-                      Critical: &lt;50% tasks or 6+ months overdue
+                      i7 Processors: High-performance CPUs (includes i9)
+                    </span>
+                  </div>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <div
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        backgroundColor: "#6b7280",
+                      }}
+                    />
+                    <span
+                      style={{
+                        color: isDarkMode ? "#d1d5db" : "#6b7280",
+                        fontSize: 12,
+                      }}
+                    >
+                      Other: Non-Intel or unspecified processors
                     </span>
                   </div>
                 </div>

@@ -28,7 +28,6 @@ import { useTheme } from "../context/ThemeContext";
 const emptyUnit = {
   Tag: "",
   deviceType: "", // New field for device type (Laptop/PC)
-  category: "", // New field for category (mid-range, etc.)
   cpuSystemUnit: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
   cpuGen: "", // New field for CPU generation
   cpuModel: "", // New field for CPU model
@@ -38,7 +37,6 @@ const emptyUnit = {
   GPU: "",
   Condition: "", // Renamed from Status to Condition
   OS: "",
-  Status: "", // New field for maintenance status (Healthy, Needs Maintenance, Critical)
   lifespan: "", // New field for lifespan
   dateAdded: "", // New field for dateAdded to calculate appraisal date
   lastMaintenanceDate: "", // New field for last maintenance date
@@ -617,11 +615,8 @@ const UnitSpecs = () => {
     RAM: [],
     Drive: [],
     GPU: [],
-    Status: [],
     OS: [],
-    Category: [],
     Remarks: [],
-    Appraisal: [],
   });
   const [deployedFilters, setDeployedFilters] = useState({
     Tag: [],
@@ -629,11 +624,8 @@ const UnitSpecs = () => {
     RAM: [],
     Drive: [],
     GPU: [],
-    Status: [],
     OS: [],
-    Category: [],
     Remarks: [],
-    Appraisal: [],
   });
 
   // Track which table's filter popup is open
@@ -652,10 +644,7 @@ const UnitSpecs = () => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
-  // New modal states for Specs Report and Preventive Maintenance
-  const [showSpecsReport, setShowSpecsReport] = useState(false);
-  const [showPreventiveMaintenance, setShowPreventiveMaintenance] =
-    useState(false);
+  // Modal states for device selection and maintenance
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [maintenanceChecklist, setMaintenanceChecklist] = useState({});
 
@@ -2093,115 +2082,6 @@ const UnitSpecs = () => {
             </button>
             <button
               style={{
-                background: "#f59e0b",
-                color: "#fff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "9px 16px",
-                fontWeight: 500,
-                fontSize: "14px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-              }}
-              onClick={() => setShowSpecsReport(true)}
-              title="Generate specifications report with recommendations"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ marginRight: "8px", verticalAlign: "middle" }}
-              >
-                <path
-                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <polyline
-                  points="14,2 14,8 20,8"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <line
-                  x1="16"
-                  y1="13"
-                  x2="8"
-                  y2="13"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <line
-                  x1="16"
-                  y1="17"
-                  x2="8"
-                  y2="17"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <polyline
-                  points="10,9 9,9 8,9"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-              Generate Specs Report
-            </button>
-            <button
-              style={{
-                background: "#8b5cf6",
-                color: "#fff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "9px 16px",
-                fontWeight: 500,
-                fontSize: "14px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                whiteSpace: "nowrap",
-              }}
-              onClick={() => setShowPreventiveMaintenance(true)}
-              title="Open preventive maintenance checklist"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ marginRight: "8px", verticalAlign: "middle" }}
-              >
-                <path
-                  d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-                <polyline
-                  points="9,12 10,10 16,16"
-                  stroke="white"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Preventive
-            </button>
-            <button
-              style={{
                 background: "#3b82f6",
                 color: "#fff",
                 border: "none",
@@ -2318,91 +2198,80 @@ const UnitSpecs = () => {
                     />
                   </th>
                 )}
-                {[
-                  "Tag",
-                  "CPU",
-                  "RAM",
-                  "Drive",
-                  "GPU",
-                  "Condition",
-                  "OS",
-                  "Category",
-                  "Appraisal",
-                  "Status",
-                ].map((col) => (
-                  <th
-                    key={col}
-                    style={{
-                      width:
-                        col === "Tag"
-                          ? "11%"
-                          : col === "CPU"
-                          ? "11%"
-                          : col === "RAM"
-                          ? "7%"
-                          : col === "Drive"
-                          ? "13%"
-                          : col === "GPU"
-                          ? "11%"
-                          : col === "Condition"
-                          ? "9%"
-                          : col === "OS"
-                          ? "7%"
-                          : col === "Category"
-                          ? "9%"
-                          : col === "Appraisal"
-                          ? "8%"
-                          : "11%", // Status
-                      padding: "8px 6px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      textAlign: "center",
-                      border: isDarkMode
-                        ? "1px solid #4b5563"
-                        : "1px solid #d1d5db",
-                      position: "sticky",
-                      top: 0,
-                      background: isDarkMode ? "#374151" : "#f9fafb",
-                      zIndex: 10,
-                    }}
-                  >
-                    <span
-                      onClick={
-                        col !== "Tag"
-                          ? (e) => handleFilterClick(e, col, collectionName)
-                          : undefined
-                      }
+                {["Tag", "CPU", "RAM", "Drive", "GPU", "Condition", "OS"].map(
+                  (col) => (
+                    <th
+                      key={col}
                       style={{
-                        marginRight: 8,
-                        textDecoration:
-                          col !== "Tag" ? "underline dotted" : undefined,
-                        cursor: col !== "Tag" ? "pointer" : undefined,
-                        display: "inline-block",
+                        width:
+                          col === "Tag"
+                            ? "15%"
+                            : col === "CPU"
+                            ? "15%"
+                            : col === "RAM"
+                            ? "10%"
+                            : col === "Drive"
+                            ? "18%"
+                            : col === "GPU"
+                            ? "15%"
+                            : col === "Condition"
+                            ? "12%"
+                            : "10%", // OS
+                        padding: "8px 6px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        textAlign: "center",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
+                        position: "sticky",
+                        top: 0,
+                        background: isDarkMode ? "#374151" : "#f9fafb",
+                        zIndex: 10,
                       }}
                     >
-                      {col === "CPU"
-                        ? "CPU GEN"
-                        : col === "Drive"
-                        ? "MAIN DRIVE"
-                        : col.toUpperCase()}
-                    </span>
-                    <span
-                      onClick={() => handleSort(col)}
-                      style={{ marginLeft: 2, fontSize: 10, cursor: "pointer" }}
-                    >
-                      ⇅
-                    </span>
-                    {col !== "Tag" &&
-                      filterPopup.open &&
-                      filterPopup.column === col &&
-                      filterPopup.table === collectionName &&
-                      renderFilterPopup(col, data, collectionName)}
-                  </th>
-                ))}
+                      <span
+                        onClick={
+                          col !== "Tag"
+                            ? (e) => handleFilterClick(e, col, collectionName)
+                            : undefined
+                        }
+                        style={{
+                          marginRight: 8,
+                          textDecoration:
+                            col !== "Tag" ? "underline dotted" : undefined,
+                          cursor: col !== "Tag" ? "pointer" : undefined,
+                          display: "inline-block",
+                        }}
+                      >
+                        {col === "CPU"
+                          ? "CPU GEN"
+                          : col === "Drive"
+                          ? "MAIN DRIVE"
+                          : col.toUpperCase()}
+                      </span>
+                      <span
+                        onClick={() => handleSort(col)}
+                        style={{
+                          marginLeft: 2,
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ⇅
+                      </span>
+                      {col !== "Tag" &&
+                        filterPopup.open &&
+                        filterPopup.column === col &&
+                        filterPopup.table === collectionName &&
+                        renderFilterPopup(col, data, collectionName)}
+                    </th>
+                  )
+                )}
                 <th
                   style={{
-                    width: "13%",
+                    width: "15%",
                     padding: "8px 4px",
                     fontSize: "12px",
                     fontWeight: "600",
@@ -2427,8 +2296,8 @@ const UnitSpecs = () => {
                   <td
                     colSpan={
                       deleteMode.active && deleteMode.table === collectionName
-                        ? 12 // Updated to 12 to account for new Category column
-                        : 11 // Updated to 11 to account for new Category column
+                        ? 9 // Updated to 9 after removing Category, Appraisal, Status columns
+                        : 8 // Updated to 8 after removing Category, Appraisal, Status columns
                     }
                     style={{
                       padding: "40px 20px",
@@ -2676,84 +2545,7 @@ const UnitSpecs = () => {
                     </td>
                     <td
                       style={{
-                        width: "9%",
-                        padding: "8px 6px",
-                        fontSize: "14px",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        border: isDarkMode
-                          ? "1px solid #374151"
-                          : "1px solid #d1d5db",
-                        textAlign: "center",
-                      }}
-                    >
-                      {unit.category || ""}
-                    </td>
-                    <td
-                      style={{
-                        width: "8%",
-                        padding: "8px 6px",
-                        fontSize: "14px",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        border: isDarkMode
-                          ? "1px solid #374151"
-                          : "1px solid #d1d5db",
-                        textAlign: "center",
-                      }}
-                    >
-                      {unit.appraisalDate ||
-                        (unit.dateAdded
-                          ? calculateAppraisalDate(
-                              unit.dateAdded,
-                              unit.category,
-                              unit.cpuGen,
-                              unit.RAM,
-                              unit.Drive,
-                              unit.GPU
-                            )
-                          : "No Date")}
-                    </td>
-                    <td
-                      style={{
-                        width: "11%",
-                        padding: "8px 6px",
-                        fontSize: "14px",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        border: isDarkMode
-                          ? "1px solid #374151"
-                          : "1px solid #d1d5db",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        textAlign: "center", // Center the content
-                      }}
-                    >
-                      {(() => {
-                        const status = calculateMaintenanceStatus(unit);
-                        return (
-                          <div
-                            style={{
-                              display: "inline-block",
-                              background: getMaintenanceStatusColor(status),
-                              color: getMaintenanceStatusTextColor(status),
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              fontSize: "12px",
-                              fontWeight: "600",
-                              textAlign: "center",
-                              minWidth: "70px",
-                              lineHeight: "1.2",
-                              whiteSpace: "nowrap",
-                              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                            }}
-                          >
-                            {status}
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td
-                      style={{
-                        width: "13%",
+                        width: "15%",
                         padding: "8px 4px",
                         textAlign: "center",
                         border: isDarkMode
@@ -3243,63 +3035,6 @@ const UnitSpecs = () => {
                 {unitDeviceTypes.map((type) => (
                   <option key={type.label} value={type.label}>
                     {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                Category:
-              </label>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-              >
-                <option value="">Select Category</option>
-                {categoryOptions.map((cat) => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label}
                   </option>
                 ))}
               </select>
@@ -4099,719 +3834,6 @@ const UnitSpecs = () => {
 
       {/* Bulk delete confirmation modal */}
       {bulkDeleteConfirm && renderBulkDeleteConfirmModal()}
-
-      {/* Specs Report Modal */}
-      {showSpecsReport && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowSpecsReport(false)}
-        >
-          <div
-            style={{
-              backgroundColor: isDarkMode ? "#1f2937" : "#fff",
-              borderRadius: "12px",
-              padding: "24px",
-              maxWidth: "800px",
-              width: "90%",
-              maxHeight: "80vh",
-              overflow: "auto",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "20px",
-              }}
-            >
-              <h2
-                style={{
-                  margin: 0,
-                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                  fontSize: "24px",
-                  fontWeight: "600",
-                }}
-              >
-                📤 Specifications Report
-              </h2>
-              <button
-                onClick={() => setShowSpecsReport(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  padding: "0",
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <p
-                style={{
-                  color: "#6b7280",
-                  fontSize: "16px",
-                  margin: "0 0 16px 0",
-                }}
-              >
-                Summary of current specifications with recommendations for
-                devices that don't meet today's baseline standards.
-              </p>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <h3
-                style={{
-                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  marginBottom: "12px",
-                }}
-              >
-                📊 Overall Statistics
-              </h3>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "12px",
-                  marginBottom: "20px",
-                }}
-              >
-                <div
-                  style={{
-                    background: "#f3f4f6",
-                    padding: "16px",
-                    borderRadius: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      color: "#1f2937",
-                    }}
-                  >
-                    {inventory.length + deployed.length}
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#6b7280" }}>
-                    Total Devices
-                  </div>
-                </div>
-                <div
-                  style={{
-                    background: "#fef3c7",
-                    padding: "16px",
-                    borderRadius: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      color: "#d97706",
-                    }}
-                  >
-                    {
-                      [...inventory, ...deployed].filter((device) => {
-                        const analysis = analyzeSpecs(device);
-                        return analysis.warnings.length > 0;
-                      }).length
-                    }
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#92400e" }}>
-                    Need Attention
-                  </div>
-                </div>
-                <div
-                  style={{
-                    background: "#d1fae5",
-                    padding: "16px",
-                    borderRadius: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: "bold",
-                      color: "#059669",
-                    }}
-                  >
-                    {
-                      [...inventory, ...deployed].filter((device) => {
-                        const analysis = analyzeSpecs(device);
-                        return analysis.warnings.length === 0;
-                      }).length
-                    }
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#047857" }}>
-                    Meeting Standards
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <h3
-                style={{
-                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  marginBottom: "12px",
-                }}
-              >
-                ⚠️ Devices Requiring Attention
-              </h3>
-              <div
-                style={{
-                  maxHeight: "300px",
-                  overflow: "auto",
-                  border: isDarkMode
-                    ? "1px solid #374151"
-                    : "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                  backgroundColor: isDarkMode ? "#374151" : "#ffffff",
-                }}
-              >
-                {[...inventory, ...deployed]
-                  .filter((device) => {
-                    const analysis = analyzeSpecs(device);
-                    return analysis.warnings.length > 0;
-                  })
-                  .map((device, index) => {
-                    const analysis = analyzeSpecs(device);
-                    return (
-                      <div
-                        key={index}
-                        style={{
-                          padding: "16px",
-                          borderBottom:
-                            index <
-                            [...inventory, ...deployed].filter(
-                              (d) => analyzeSpecs(d).warnings.length > 0
-                            ).length -
-                              1
-                              ? isDarkMode
-                                ? "1px solid #4b5563"
-                                : "1px solid #e5e7eb"
-                              : "none",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: "600",
-                            color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          {device.Tag || `Device ${index + 1}`} -{" "}
-                          {device.deviceType || "Unknown Type"}
-                        </div>
-                        {analysis.warnings.map((warning, wIndex) => (
-                          <div
-                            key={wIndex}
-                            style={{
-                              color: "#dc2626",
-                              fontSize: "14px",
-                              marginBottom: "4px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "8px",
-                            }}
-                          >
-                            <span style={{ color: "#f59e0b" }}>⚠️</span>
-                            {warning}
-                          </div>
-                        ))}
-                        {analysis.goodPoints.length > 0 && (
-                          <div style={{ marginTop: "8px" }}>
-                            {analysis.goodPoints.map((point, pIndex) => (
-                              <div
-                                key={pIndex}
-                                style={{
-                                  color: "#059669",
-                                  fontSize: "14px",
-                                  marginBottom: "4px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                }}
-                              >
-                                <span style={{ color: "#10b981" }}>✅</span>
-                                {point}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                {[...inventory, ...deployed].filter(
-                  (device) => analyzeSpecs(device).warnings.length > 0
-                ).length === 0 && (
-                  <div
-                    style={{
-                      padding: "40px",
-                      textAlign: "center",
-                      color: "#6b7280",
-                    }}
-                  >
-                    🎉 All devices meet current baseline standards!
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                marginTop: "24px",
-              }}
-            >
-              <button
-                onClick={() => setShowSpecsReport(false)}
-                style={{
-                  background: "#6b7280",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "10px 16px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  // TODO: Implement PDF export functionality
-                  showInfo("PDF export feature coming soon!");
-                }}
-                style={{
-                  background: "#f59e0b",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "10px 16px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                Export as PDF
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Preventive Maintenance Modal */}
-      {showPreventiveMaintenance && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setShowPreventiveMaintenance(false)}
-        >
-          <div
-            style={{
-              backgroundColor: isDarkMode ? "#1f2937" : "#fff",
-              borderRadius: "12px",
-              padding: "24px",
-              maxWidth: "700px",
-              width: "90%",
-              maxHeight: "80vh",
-              overflow: "auto",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "20px",
-              }}
-            >
-              <h2
-                style={{
-                  margin: 0,
-                  color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                  fontSize: "24px",
-                  fontWeight: "600",
-                }}
-              >
-                🔧 Preventive Maintenance Checklist
-              </h2>
-              <button
-                onClick={() => setShowPreventiveMaintenance(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  padding: "0",
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                ×
-              </button>
-            </div>
-
-            {selectedDevice ? (
-              <div>
-                <div
-                  style={{
-                    marginBottom: "20px",
-                    padding: "16px",
-                    background: isDarkMode ? "#374151" : "#f9fafb",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <h3
-                    style={{
-                      margin: "0 0 8px 0",
-                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                      fontSize: "18px",
-                    }}
-                  >
-                    Device: {selectedDevice.Tag || "Unknown"}
-                  </h3>
-                  <p
-                    style={{
-                      margin: "0",
-                      color: isDarkMode ? "#9ca3af" : "#6b7280",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Type: {selectedDevice.deviceType || "Unknown"} | Category:{" "}
-                    {selectedDevice.category || "Unknown"} | Age:{" "}
-                    {selectedDevice.dateAdded
-                      ? Math.floor(
-                          (new Date() - new Date(selectedDevice.dateAdded)) /
-                            (1000 * 60 * 60 * 24 * 365)
-                        ) + " years"
-                      : "Unknown"}
-                  </p>
-                </div>
-
-                <div style={{ marginBottom: "20px" }}>
-                  <h4
-                    style={{
-                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      marginBottom: "12px",
-                    }}
-                  >
-                    ✅ Maintenance Tasks
-                  </h4>
-                  {getMaintenanceChecklist(selectedDevice).map(
-                    (item, index) => (
-                      <div
-                        key={index}
-                        style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: "12px",
-                          padding: "12px",
-                          marginBottom: "8px",
-                          border: isDarkMode
-                            ? "1px solid #374151"
-                            : "1px solid #e5e7eb",
-                          borderRadius: "8px",
-                          backgroundColor: item.critical
-                            ? isDarkMode
-                              ? "#451a03"
-                              : "#fef3c7"
-                            : isDarkMode
-                            ? "#374151"
-                            : "#f9fafb",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedDevice?.maintenanceChecklist?.[item.task]
-                              ?.completed || false
-                          }
-                          style={{
-                            marginTop: "2px",
-                            accentColor: "#6b7280",
-                            colorScheme: isDarkMode ? "dark" : "light",
-                          }}
-                          onChange={(e) => {
-                            handleTaskCompletion(
-                              selectedDevice.Tag,
-                              item.task,
-                              e.target.checked
-                            );
-                          }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              fontWeight: item.critical ? "600" : "normal",
-                              color: item.critical
-                                ? isDarkMode
-                                  ? "#fbbf24"
-                                  : "#92400e"
-                                : isDarkMode
-                                ? "#f3f4f6"
-                                : "#374151",
-                              fontSize: "14px",
-                            }}
-                          >
-                            {item.task}
-                            {item.critical && (
-                              <span
-                                style={{ color: "#dc2626", marginLeft: "8px" }}
-                              >
-                                ⚠️ Critical
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <p
-                  style={{
-                    color: "#6b7280",
-                    fontSize: "16px",
-                    marginBottom: "20px",
-                  }}
-                >
-                  Select a device from the table below to generate a customized
-                  maintenance checklist.
-                </p>
-
-                <div
-                  style={{
-                    maxHeight: "400px",
-                    overflow: "auto",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: "#f9fafb" }}>
-                        <th
-                          style={{
-                            padding: "12px",
-                            textAlign: "left",
-                            borderBottom: isDarkMode
-                              ? "1px solid #374151"
-                              : "1px solid #e5e7eb",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: isDarkMode ? "#f3f4f6" : "#374151",
-                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
-                          }}
-                        >
-                          Device Tag
-                        </th>
-                        <th
-                          style={{
-                            padding: "12px",
-                            textAlign: "left",
-                            borderBottom: isDarkMode
-                              ? "1px solid #374151"
-                              : "1px solid #e5e7eb",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: isDarkMode ? "#f3f4f6" : "#374151",
-                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
-                          }}
-                        >
-                          Type
-                        </th>
-                        <th
-                          style={{
-                            padding: "12px",
-                            textAlign: "left",
-                            borderBottom: isDarkMode
-                              ? "1px solid #374151"
-                              : "1px solid #e5e7eb",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: isDarkMode ? "#f3f4f6" : "#374151",
-                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
-                          }}
-                        >
-                          Category
-                        </th>
-                        <th
-                          style={{
-                            padding: "12px",
-                            textAlign: "center",
-                            borderBottom: isDarkMode
-                              ? "1px solid #374151"
-                              : "1px solid #e5e7eb",
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: isDarkMode ? "#f3f4f6" : "#374151",
-                            backgroundColor: isDarkMode ? "#374151" : "#f9fafb",
-                          }}
-                        >
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...inventory, ...deployed].map((device, index) => (
-                        <tr
-                          key={index}
-                          style={{ borderBottom: "1px solid #f3f4f6" }}
-                        >
-                          <td style={{ padding: "12px", fontSize: "14px" }}>
-                            {device.Tag || `Device ${index + 1}`}
-                          </td>
-                          <td style={{ padding: "12px", fontSize: "14px" }}>
-                            {device.deviceType || "Unknown"}
-                          </td>
-                          <td style={{ padding: "12px", fontSize: "14px" }}>
-                            <span
-                              style={{
-                                background:
-                                  device.category === "High-End"
-                                    ? "#dcfce7"
-                                    : device.category === "Mid-Range"
-                                    ? "#fef3c7"
-                                    : "#fee2e2",
-                                color:
-                                  device.category === "High-End"
-                                    ? "#166534"
-                                    : device.category === "Mid-Range"
-                                    ? "#92400e"
-                                    : "#991b1b",
-                                padding: "2px 8px",
-                                borderRadius: "4px",
-                                fontSize: "12px",
-                                fontWeight: "500",
-                              }}
-                            >
-                              {device.category || "Low-End"}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px", textAlign: "center" }}>
-                            <button
-                              onClick={() => setSelectedDevice(device)}
-                              style={{
-                                background: "#8b5cf6",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: "4px",
-                                padding: "6px 12px",
-                                fontSize: "12px",
-                                cursor: "pointer",
-                                fontWeight: "500",
-                              }}
-                            >
-                              Select
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "12px",
-                marginTop: "24px",
-              }}
-            >
-              {selectedDevice && (
-                <button
-                  onClick={() => setSelectedDevice(null)}
-                  style={{
-                    background: "#6b7280",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "10px 16px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                  }}
-                >
-                  Back to Device List
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setShowPreventiveMaintenance(false);
-                  setSelectedDevice(null);
-                }}
-                style={{
-                  background: "#3b82f6",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "10px 16px",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
