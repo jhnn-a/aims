@@ -95,7 +95,13 @@ function EmployeeFormModal({
             flexShrink: 0,
           }}
         >
-          {data.id ? "Edit Employee" : "Add Employee"}
+          {data.id
+            ? data.isEntity
+              ? "Edit Entity"
+              : "Edit Employee"
+            : data.isEntity
+            ? "Add Entity"
+            : "Add Employee"}
         </h2>
 
         {/* Hidden fields for First Name, Last Name, Middle Name */}
@@ -3011,6 +3017,187 @@ function formatAssignmentDate(dateValue) {
   return "";
 }
 
+// Entity Form Modal Component
+function EntityFormModal({
+  data,
+  onChange,
+  onSave,
+  onCancel,
+  isValid,
+  clients,
+}) {
+  const { isDarkMode } = useTheme();
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(34, 46, 58, 0.18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+        padding: "clamp(16px, 2vw, 20px)",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: isDarkMode ? "#1f2937" : "white",
+          borderRadius: 12,
+          padding: "clamp(16px, 2vw, 24px)",
+          width: "100%",
+          maxWidth: "min(480px, 90vw)",
+          maxHeight: "95vh",
+          overflow: "auto",
+          fontFamily:
+            'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
+          margin: "auto",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "clamp(18px, 2vw, 22px)",
+            fontWeight: 700,
+            color: isDarkMode ? "#f3f4f6" : "#222e3a",
+            marginBottom: "clamp(16px, 2vw, 20px)",
+            marginTop: 0,
+            textAlign: "center",
+            flexShrink: 0,
+          }}
+        >
+          {data.id ? "Edit Entity" : "Add Entity"}
+        </h2>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "clamp(10px, 1.2vw, 16px)",
+            flex: 1,
+            overflow: "auto",
+          }}
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                marginBottom: 4,
+              }}
+            >
+              Description:
+            </label>
+            <input
+              name="description"
+              value={data.description || ""}
+              onChange={onChange}
+              placeholder="Full Name or Room Name"
+              style={{
+                width: "100%",
+                padding: "clamp(6px, 0.8vw, 10px)",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: 6,
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontFamily: "inherit",
+                outline: "none",
+                boxSizing: "border-box",
+                backgroundColor: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "black",
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontWeight: 600,
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                marginBottom: 4,
+              }}
+            >
+              Department:
+            </label>
+            <input
+              name="department"
+              value={data.department || ""}
+              onChange={onChange}
+              style={{
+                width: "100%",
+                padding: "clamp(6px, 0.8vw, 10px)",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: 6,
+                fontSize: "clamp(12px, 1.1vw, 14px)",
+                fontFamily: "inherit",
+                outline: "none",
+                boxSizing: "border-box",
+                backgroundColor: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "black",
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "clamp(8px, 1vw, 12px)",
+            marginTop: "clamp(16px, 2vw, 20px)",
+            flexShrink: 0,
+          }}
+        >
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "clamp(8px, 1vw, 12px) clamp(16px, 2vw, 20px)",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: 6,
+              background: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!isValid}
+            style={{
+              padding: "clamp(8px, 1vw, 12px) clamp(16px, 2vw, 20px)",
+              border: "none",
+              borderRadius: 6,
+              background: isValid ? "#2563eb" : "#9ca3af",
+              color: "white",
+              fontSize: "clamp(12px, 1.1vw, 14px)",
+              fontWeight: 500,
+              cursor: isValid ? "pointer" : "not-allowed",
+              fontFamily: "inherit",
+            }}
+          >
+            {data.id ? "Update" : "Add"} Entity
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Helper to format history date (handles Firestore timestamps)
 function formatHistoryDate(dateValue) {
   if (!dateValue) return "";
@@ -3033,6 +3220,7 @@ export default function Employee() {
   const { isDarkMode } = useTheme();
   const [employees, setEmployees] = useState([]);
   const [resignedEmployees, setResignedEmployees] = useState([]);
+  const [entities, setEntities] = useState([]);
   const [form, setForm] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [clients, setClients] = useState([]);
@@ -3087,12 +3275,18 @@ export default function Employee() {
       setClients(clientsData);
       setDevices(devicesData);
 
-      // Separate active and resigned employees
-      const activeEmployees = employeesData.filter((emp) => !emp.isResigned);
-      const resignedEmployees = employeesData.filter((emp) => emp.isResigned);
+      // Separate active employees, resigned employees, and entities
+      const activeEmployees = employeesData.filter(
+        (emp) => !emp.isResigned && !emp.isEntity
+      );
+      const resignedEmployees = employeesData.filter(
+        (emp) => emp.isResigned && !emp.isEntity
+      );
+      const entitiesData = employeesData.filter((emp) => emp.isEntity);
 
       setEmployees(activeEmployees);
       setResignedEmployees(resignedEmployees);
+      setEntities(entitiesData);
     } catch (error) {
       showError("Error loading data: " + error.message);
     } finally {
@@ -3160,20 +3354,63 @@ export default function Employee() {
       setIsTableLoading(true);
       const dataToSave = { ...form };
 
+      // For entities, generate auto-increment ID if it's a new entity
+      if (form.isEntity && !form.id) {
+        // Generate next ID for entities
+        const existingEntities = entities || [];
+        const maxId =
+          existingEntities.length > 0
+            ? Math.max(
+                ...existingEntities.map((e) => {
+                  const numId = parseInt(e.id);
+                  return isNaN(numId) ? 0 : numId;
+                })
+              )
+            : 0;
+        dataToSave.id = (maxId + 1).toString();
+
+        // For entities, use description as fullName for compatibility
+        dataToSave.fullName = dataToSave.description;
+        // Set a default position for entities
+        dataToSave.position = "Entity";
+        // Set clientId to null or empty for entities (no client assignment needed)
+        dataToSave.clientId = "";
+        // Ensure isEntity flag is set
+        dataToSave.isEntity = true;
+      }
+
       if (form.id) {
-        console.log("Updating employee with ID:", form.id, "Data:", dataToSave);
+        console.log(
+          "Updating employee/entity with ID:",
+          form.id,
+          "Data:",
+          dataToSave
+        );
         await updateEmployee(form.id, dataToSave);
-        showSuccess("Employee updated successfully!");
+        showSuccess(
+          form.isEntity
+            ? "Entity updated successfully!"
+            : "Employee updated successfully!"
+        );
       } else {
-        console.log("Adding new employee with data:", dataToSave);
+        console.log("Adding new employee/entity with data:", dataToSave);
         await addEmployee(dataToSave);
-        showSuccess("Employee added successfully!");
+        showSuccess(
+          form.isEntity
+            ? "Entity added successfully!"
+            : "Employee added successfully!"
+        );
       }
 
       loadClientsAndEmployees();
     } catch (error) {
       console.error("Error in handleSave:", error);
-      showError("Error saving employee: " + error.message);
+      showError(
+        "Error saving " +
+          (form.isEntity ? "entity" : "employee") +
+          ": " +
+          error.message
+      );
     } finally {
       setIsTableLoading(false);
     }
@@ -3382,6 +3619,34 @@ export default function Employee() {
     } catch (error) {
       console.error("Error deleting employees permanently:", error);
       showError("Failed to delete employees permanently: " + error.message);
+    } finally {
+      setIsTableLoading(false);
+    }
+  };
+
+  // Delete entity function
+  const handleDeleteEntity = async (entityId) => {
+    try {
+      setIsTableLoading(true);
+
+      // Find the entity to delete
+      const entityToDelete = entities.find((entity) => entity.id === entityId);
+      if (!entityToDelete) {
+        throw new Error("Entity not found");
+      }
+
+      // Delete the entity from Firebase
+      await deleteEmployee(entityId);
+
+      // Refresh the data
+      await loadClientsAndEmployees();
+
+      showSuccess(
+        `Entity "${entityToDelete.description}" deleted successfully`
+      );
+    } catch (error) {
+      console.error("Error deleting entity:", error);
+      showError("Failed to delete entity: " + error.message);
     } finally {
       setIsTableLoading(false);
     }
@@ -3876,14 +4141,20 @@ export default function Employee() {
   const isFormValid = () => {
     console.log("Form validation check:", {
       fullName: form.fullName,
+      description: form.description,
       position: form.position,
       department: form.department,
       clientId: form.clientId,
+      isEntity: form.isEntity,
       allFormData: form,
-      isValid: form.fullName && form.position && form.clientId,
     });
-    // Only require fullName, position, and clientId for now
-    // Department can be optional to allow editing existing employees
+
+    // For entities, only require description and department
+    if (form.isEntity) {
+      return form.description && form.department;
+    }
+
+    // For regular employees, require fullName, position, and clientId
     return form.fullName && form.position && form.clientId;
   };
 
@@ -3910,6 +4181,7 @@ export default function Employee() {
 
     return employeeList.filter((employee) => {
       const fullName = (employee.fullName || "").toLowerCase();
+      const description = (employee.description || "").toLowerCase(); // For entities
       const position = (employee.position || "").toLowerCase();
       const department = (employee.department || "").toLowerCase();
       const corporateEmail = (employee.corporateEmail || "").toLowerCase();
@@ -3921,7 +4193,7 @@ export default function Employee() {
       if (term.length > 0) {
         console.log(
           "Employee:",
-          employee.fullName,
+          employee.fullName || employee.description,
           "ID:",
           employee.id,
           "Searching for:",
@@ -3933,6 +4205,7 @@ export default function Employee() {
 
       const matches =
         fullName.includes(term) ||
+        description.includes(term) || // Include description for entities
         position.includes(term) ||
         department.includes(term) ||
         corporateEmail.includes(term) ||
@@ -3945,7 +4218,12 @@ export default function Employee() {
   };
 
   // Apply search and sort
-  const baseEmployees = activeTab === "active" ? employees : resignedEmployees;
+  const baseEmployees =
+    activeTab === "active"
+      ? employees
+      : activeTab === "resigned"
+      ? resignedEmployees
+      : entities;
   const searchedEmployees = searchEmployees(baseEmployees, searchTerm);
   const allEmployees = sortEmployees(searchedEmployees);
 
@@ -4057,6 +4335,31 @@ export default function Employee() {
           }}
         >
           Resigned Employees ({resignedEmployees.length})
+        </button>
+        <button
+          onClick={() => handleTabChange("others")}
+          style={{
+            padding: "12px 20px",
+            border: "none",
+            background: "transparent",
+            color:
+              activeTab === "others"
+                ? "#2563eb"
+                : isDarkMode
+                ? "#d1d5db"
+                : "#6b7280",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            borderBottom:
+              activeTab === "others"
+                ? "2px solid #2563eb"
+                : "2px solid transparent",
+            transition: "all 0.2s ease",
+          }}
+        >
+          Others ({entities.length})
         </button>
       </div>
 
@@ -4295,6 +4598,32 @@ export default function Employee() {
               Add Employee
             </button>
           )}
+          {/* Show Add Entity only for others tab */}
+          {activeTab === "others" && (
+            <button
+              onClick={() => {
+                setForm({
+                  description: "",
+                  department: "",
+                  isEntity: true,
+                });
+                setShowForm(true);
+              }}
+              style={{
+                padding: "8px 16px",
+                border: "none",
+                borderRadius: 6,
+                background: "#2563eb",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Add Entity
+            </button>
+          )}
         </div>
       </div>
 
@@ -4342,54 +4671,56 @@ export default function Employee() {
                   zIndex: 10,
                 }}
               >
-                <th
-                  style={{
-                    padding: "clamp(8px, 1vw, 16px)",
-                    textAlign: "left",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: "3%",
-                    minWidth: "40px",
-                    border: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Add cell borders
-                    position: "sticky",
-                    top: "0",
-                    background: isDarkMode ? "#4b5563" : "#f9fafb",
-                    zIndex: 10,
-                  }}
-                >
-                  {activeTab === "active" && (
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
-                      }}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      style={{
-                        cursor: "pointer",
-                        accentColor: "#6b7280",
-                        colorScheme: isDarkMode ? "dark" : "light",
-                      }}
-                    />
-                  )}
-                  {activeTab === "resigned" && (
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
-                      }}
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                      style={{
-                        cursor: "pointer",
-                        accentColor: "#6b7280",
-                        colorScheme: isDarkMode ? "dark" : "light",
-                      }}
-                    />
-                  )}
-                </th>
+                {activeTab !== "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      width: "3%",
+                      minWidth: "40px",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    {activeTab === "active" && (
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate;
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        style={{
+                          cursor: "pointer",
+                          accentColor: "#6b7280",
+                          colorScheme: isDarkMode ? "dark" : "light",
+                        }}
+                      />
+                    )}
+                    {activeTab === "resigned" && (
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = isIndeterminate;
+                        }}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        style={{
+                          cursor: "pointer",
+                          accentColor: "#6b7280",
+                          colorScheme: isDarkMode ? "dark" : "light",
+                        }}
+                      />
+                    )}
+                  </th>
+                )}
                 <th
                   style={{
                     padding: "clamp(8px, 1vw, 16px)",
@@ -4407,7 +4738,7 @@ export default function Employee() {
                     zIndex: 10,
                   }}
                 >
-                  Employee ID
+                  {activeTab === "others" ? "ID" : "Employee ID"}
                 </th>
                 <th
                   style={{
@@ -4415,7 +4746,12 @@ export default function Employee() {
                     textAlign: "left",
                     fontWeight: 600,
                     color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: activeTab === "active" ? "16%" : "15%",
+                    width:
+                      activeTab === "active"
+                        ? "16%"
+                        : activeTab === "others"
+                        ? "30%"
+                        : "15%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: isDarkMode
                       ? "1px solid #6b7280"
@@ -4426,34 +4762,41 @@ export default function Employee() {
                     zIndex: 10,
                   }}
                 >
-                  Full Name
+                  {activeTab === "others" ? "Description" : "Full Name"}
                 </th>
+                {activeTab !== "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      width: activeTab === "active" ? "13%" : "12%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    Position
+                  </th>
+                )}
                 <th
                   style={{
                     padding: "clamp(8px, 1vw, 16px)",
                     textAlign: "left",
                     fontWeight: 600,
                     color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: activeTab === "active" ? "13%" : "12%",
-                    fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Add cell borders
-                    position: "sticky",
-                    top: "0",
-                    background: isDarkMode ? "#4b5563" : "#f9fafb",
-                    zIndex: 10,
-                  }}
-                >
-                  Position
-                </th>
-                <th
-                  style={{
-                    padding: "clamp(8px, 1vw, 16px)",
-                    textAlign: "left",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: activeTab === "active" ? "10%" : "9%",
+                    width:
+                      activeTab === "active"
+                        ? "10%"
+                        : activeTab === "others"
+                        ? "25%"
+                        : "9%",
                     fontSize: "clamp(11px, 0.9vw, 14px)",
                     border: isDarkMode
                       ? "1px solid #6b7280"
@@ -4466,66 +4809,93 @@ export default function Employee() {
                 >
                   Department
                 </th>
-                <th
-                  style={{
-                    padding: "clamp(8px, 1vw, 16px)",
-                    textAlign: "left",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: activeTab === "active" ? "11%" : "10%",
-                    fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Add cell borders
-                    position: "sticky",
-                    top: "0",
-                    background: isDarkMode ? "#4b5563" : "#f9fafb",
-                    zIndex: 10,
-                  }}
-                >
-                  Client
-                </th>
-                <th
-                  style={{
-                    padding: "clamp(8px, 1vw, 16px)",
-                    textAlign: "left",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    width: activeTab === "active" ? "16%" : "15%",
-                    fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Add cell borders
-                    position: "sticky",
-                    top: "0",
-                    background: isDarkMode ? "#4b5563" : "#f9fafb",
-                    zIndex: 10,
-                  }}
-                >
-                  Corporate Email
-                </th>
-                <th
-                  style={{
-                    padding: "clamp(8px, 1vw, 16px)",
-                    textAlign: "left",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#ef4444" : "#9c2b2bff",
-                    width: activeTab === "active" ? "10%" : "9%",
-                    fontSize: "clamp(11px, 0.9vw, 14px)",
-                    border: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Add cell borders
-                    borderRight: isDarkMode
-                      ? "1px solid #6b7280"
-                      : "1px solid #e5e7eb", // Standard border for separation
-                    position: "sticky",
-                    top: "0",
-                    background: isDarkMode ? "#4b5563" : "#f9fafb",
-                    zIndex: 10,
-                  }}
-                >
-                  {activeTab === "active" ? "Date Hired" : "Date Resigned"}
-                </th>
+                {activeTab !== "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      width: activeTab === "active" ? "11%" : "10%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    Client
+                  </th>
+                )}
+                {activeTab !== "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      width: activeTab === "active" ? "16%" : "15%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    Corporate Email
+                  </th>
+                )}
+                {activeTab !== "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#ef4444" : "#9c2b2bff",
+                      width: activeTab === "active" ? "10%" : "9%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Add cell borders
+                      borderRight: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb", // Standard border for separation
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    {activeTab === "active" ? "Date Hired" : "Date Resigned"}
+                  </th>
+                )}
+                {activeTab === "others" && (
+                  <th
+                    style={{
+                      padding: "clamp(8px, 1vw, 16px)",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      width: "15%",
+                      fontSize: "clamp(11px, 0.9vw, 14px)",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #e5e7eb",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#4b5563" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    Actions
+                  </th>
+                )}
                 {activeTab === "resigned" && (
                   <th
                     style={{
@@ -4580,7 +4950,13 @@ export default function Employee() {
               {isTableLoading ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "active" ? "9" : "10"}
+                    colSpan={
+                      activeTab === "others"
+                        ? "4"
+                        : activeTab === "active"
+                        ? "9"
+                        : "10"
+                    }
                     style={{
                       padding: 40,
                       textAlign: "center",
@@ -4596,7 +4972,13 @@ export default function Employee() {
               ) : currentEmployees.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={activeTab === "active" ? "9" : "10"}
+                    colSpan={
+                      activeTab === "others"
+                        ? "4"
+                        : activeTab === "active"
+                        ? "9"
+                        : "10"
+                    }
                     style={{
                       padding: 40,
                       textAlign: "center",
@@ -4608,7 +4990,11 @@ export default function Employee() {
                   >
                     {searchTerm ? (
                       <>
-                        No {activeTab} employees found matching "{searchTerm}"
+                        No{" "}
+                        {activeTab === "others"
+                          ? "entities"
+                          : activeTab + " employees"}{" "}
+                        found matching "{searchTerm}"
                         <br />
                         <button
                           onClick={() => setSearchTerm("")}
@@ -4629,8 +5015,10 @@ export default function Employee() {
                       </>
                     ) : activeTab === "active" ? (
                       "No active employees found"
-                    ) : (
+                    ) : activeTab === "resigned" ? (
                       "No resigned employees found"
+                    ) : (
+                      "No entities found"
                     )}
                   </td>
                 </tr>
@@ -4654,16 +5042,16 @@ export default function Employee() {
                     onMouseEnter={() => setHoveredRowId(employee.id)}
                     onMouseLeave={() => setHoveredRowId(null)}
                   >
-                    <td
-                      style={{
-                        padding: "clamp(8px, 1vw, 16px)",
-                        overflow: "hidden",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb", // Add cell borders
-                      }}
-                    >
-                      {activeTab === "active" && (
+                    {activeTab !== "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Add cell borders
+                        }}
+                      >
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(employee.id)}
@@ -4676,22 +5064,8 @@ export default function Employee() {
                             colorScheme: isDarkMode ? "dark" : "light",
                           }}
                         />
-                      )}
-                      {activeTab === "resigned" && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(employee.id)}
-                          onChange={(e) =>
-                            handleSelectEmployee(employee.id, e.target.checked)
-                          }
-                          style={{
-                            cursor: "pointer",
-                            accentColor: "#6b7280",
-                            colorScheme: isDarkMode ? "dark" : "light",
-                          }}
-                        />
-                      )}
-                    </td>
+                      </td>
+                    )}
                     <td
                       style={{
                         padding: "clamp(8px, 1vw, 16px)",
@@ -4740,26 +5114,34 @@ export default function Employee() {
                         onMouseLeave={(e) => {
                           e.target.style.textDecorationColor = "transparent";
                         }}
-                        title={employee.fullName} // Show full name on hover
+                        title={
+                          activeTab === "others"
+                            ? employee.description
+                            : employee.fullName
+                        } // Show description for entities, fullName for employees
                       >
-                        {employee.fullName}
+                        {activeTab === "others"
+                          ? employee.description
+                          : employee.fullName}
                       </span>
                     </td>
-                    <td
-                      style={{
-                        padding: "clamp(8px, 1vw, 16px)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "clamp(12px, 1vw, 14px)",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb", // Add cell borders
-                      }}
-                      title={employee.position}
-                    >
-                      {employee.position}
-                    </td>
+                    {activeTab !== "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Add cell borders
+                        }}
+                        title={employee.position}
+                      >
+                        {employee.position}
+                      </td>
+                    )}
                     <td
                       style={{
                         padding: "clamp(8px, 1vw, 16px)",
@@ -4775,57 +5157,63 @@ export default function Employee() {
                     >
                       {employee.department}
                     </td>
-                    <td
-                      style={{
-                        padding: "clamp(8px, 1vw, 16px)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "clamp(12px, 1vw, 14px)",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb", // Add cell borders
-                      }}
-                      title={getClientName(employee.clientId)}
-                    >
-                      {getClientName(employee.clientId)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "clamp(8px, 1vw, 16px)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "clamp(12px, 1vw, 14px)",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb", // Add cell borders
-                      }}
-                      title={employee.corporateEmail || "-"}
-                    >
-                      {employee.corporateEmail || "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "clamp(8px, 1vw, 16px)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontSize: "clamp(12px, 1vw, 14px)",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb",
-                        borderRight: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #e5e7eb", // Standard border for separation
-                      }}
-                    >
-                      {activeTab === "active"
-                        ? formatDisplayDate(employee.dateHired)
-                        : formatDisplayDate(
-                            employee.dateResigned || employee.dateHired
-                          )}
-                    </td>
+                    {activeTab !== "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Add cell borders
+                        }}
+                        title={getClientName(employee.clientId)}
+                      >
+                        {getClientName(employee.clientId)}
+                      </td>
+                    )}
+                    {activeTab !== "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Add cell borders
+                        }}
+                        title={employee.corporateEmail || "-"}
+                      >
+                        {employee.corporateEmail || "-"}
+                      </td>
+                    )}
+                    {activeTab !== "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontSize: "clamp(12px, 1vw, 14px)",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb",
+                          borderRight: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Standard border for separation
+                        }}
+                      >
+                        {activeTab === "active"
+                          ? formatDisplayDate(employee.dateHired)
+                          : formatDisplayDate(
+                              employee.dateResigned || employee.dateHired
+                            )}
+                      </td>
+                    )}
                     {activeTab === "resigned" && (
                       <td
                         style={{
@@ -4940,6 +5328,94 @@ export default function Employee() {
                             }}
                           >
                             Resign
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                    {activeTab === "others" && (
+                      <td
+                        style={{
+                          padding: "clamp(8px, 1vw, 16px)",
+                          textAlign: "center",
+                          overflow: "hidden",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb",
+                          borderLeft: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #e5e7eb", // Standard border for separation
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "clamp(4px, 0.5vw, 8px)",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <button
+                            onClick={() => {
+                              console.log(
+                                "Edit button clicked for entity:",
+                                employee
+                              );
+
+                              // Format entity data for editing
+                              const formattedEntity = {
+                                ...employee,
+                                isEntity: true,
+                                description: employee.description || "",
+                                department: employee.department || "",
+                              };
+
+                              console.log(
+                                "Formatted entity data for form:",
+                                formattedEntity
+                              );
+                              setForm(formattedEntity);
+                              setShowForm(true);
+                            }}
+                            style={{
+                              padding:
+                                "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #d1d5db",
+                              borderRadius: 4,
+                              background: isDarkMode ? "#6b7280" : "#f3f4f6",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              fontSize: "clamp(10px, 0.8vw, 12px)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Are you sure you want to delete the entity "${employee.description}"? This action cannot be undone.`
+                                )
+                              ) {
+                                handleDeleteEntity(employee.id);
+                              }
+                            }}
+                            style={{
+                              padding:
+                                "clamp(3px, 0.5vw, 4px) clamp(6px, 0.8vw, 8px)",
+                              border: "1px solid #dc2626",
+                              borderRadius: 4,
+                              background: isDarkMode ? "#6b7280" : "white",
+                              color: isDarkMode ? "#f3f4f6" : "#dc2626",
+                              fontSize: "clamp(10px, 0.8vw, 12px)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -5285,7 +5761,17 @@ export default function Employee() {
       <div style={{ height: 24, flexShrink: 0 }} />
 
       {/* Modals */}
-      {showForm && (
+      {showForm && form.isEntity && (
+        <EntityFormModal
+          data={form}
+          onChange={handleFormChange}
+          onSave={handleSave}
+          onCancel={() => setShowForm(false)}
+          isValid={isFormValid()}
+          clients={clients}
+        />
+      )}
+      {showForm && !form.isEntity && (
         <EmployeeFormModal
           data={form}
           onChange={handleFormChange}

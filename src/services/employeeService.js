@@ -28,45 +28,68 @@ export async function getNextEmpId() {
 
 // Helper to update the employee count for a client
 export async function updateClientEmployeeCount(clientId) {
-  if (!clientId) return;
-  // Count active employees (not resigned) with this clientId
-  const employeesSnap = await getDocs(collection(db, "employees"));
-  const count = employeesSnap.docs.filter(
-    (docSnap) => {
+  if (!clientId || clientId === "" || clientId === "entity") return;
+
+  try {
+    // Count active employees (not resigned and not entities) with this clientId
+    const employeesSnap = await getDocs(collection(db, "employees"));
+    const count = employeesSnap.docs.filter((docSnap) => {
       const data = docSnap.data();
-      return data.clientId === clientId && !data.isResigned;
+      return data.clientId === clientId && !data.isResigned && !data.isEntity;
+    }).length;
+
+    // Update the client document only if it exists
+    const clientRef = doc(db, "clients", clientId);
+    const clientSnap = await getDoc(clientRef);
+    if (clientSnap.exists()) {
+      await updateDoc(clientRef, { employeeCount: count });
     }
-  ).length;
-  // Update the client document
-  const clientRef = doc(db, "clients", clientId);
-  await updateDoc(clientRef, { employeeCount: count });
+  } catch (error) {
+    console.error(`Error updating client count for ${clientId}:`, error);
+    // Don't throw the error to prevent blocking the main operation
+  }
 }
 
 export const addEmployee = async (employeeData) => {
-  // Remove id field if present
-  const { id, ...dataToSave } = employeeData;
   // Always add a dateAdded field if not present
-  if (!dataToSave.dateAdded) {
+  if (!employeeData.dateAdded) {
     const now = new Date();
     const offset = now.getTimezoneOffset();
-    dataToSave.dateAdded = new Date(
+    employeeData.dateAdded = new Date(
       now.getTime() - offset * 60 * 1000
     ).toISOString();
   }
-  // Generate EMP ID
-  const snapshot = await getDocs(employeesRef);
-  let maxEmpNum = 0;
-  snapshot.forEach((docSnap) => {
-    const id = docSnap.id;
-    if (id.startsWith("EMP")) {
-      const num = parseInt(id.replace("EMP", ""), 10);
-      if (!isNaN(num) && num > maxEmpNum) maxEmpNum = num;
-    }
-  });
-  const nextEmpId = `EMP${String(maxEmpNum + 1).padStart(4, "0")}`;
-  await setDoc(doc(db, "employees", nextEmpId), dataToSave);
-  // After adding:
-  if (employeeData.clientId) {
+
+  let documentId;
+  let dataToSave;
+
+  // Handle entities differently from employees
+  if (employeeData.isEntity) {
+    // For entities, use the provided ID and don't generate EMP ID
+    documentId = employeeData.id;
+    dataToSave = { ...employeeData };
+  } else {
+    // For regular employees, remove id field and generate EMP ID
+    const { id, ...restData } = employeeData;
+    dataToSave = restData;
+
+    // Generate EMP ID
+    const snapshot = await getDocs(employeesRef);
+    let maxEmpNum = 0;
+    snapshot.forEach((docSnap) => {
+      const id = docSnap.id;
+      if (id.startsWith("EMP")) {
+        const num = parseInt(id.replace("EMP", ""), 10);
+        if (!isNaN(num) && num > maxEmpNum) maxEmpNum = num;
+      }
+    });
+    documentId = `EMP${String(maxEmpNum + 1).padStart(4, "0")}`;
+  }
+
+  await setDoc(doc(db, "employees", documentId), dataToSave);
+
+  // After adding: Only update client count for employees with valid clientId
+  if (employeeData.clientId && !employeeData.isEntity) {
     await updateClientEmployeeCount(employeeData.clientId);
   }
 };
@@ -102,12 +125,16 @@ export const updateEmployee = async (id, updatedData) => {
     oldClientId = empSnap.data().clientId;
   }
   await updateDoc(empRef, updatedData);
-  // If clientId changed, update both old and new client counts
-  if (updatedData.clientId && updatedData.clientId !== oldClientId) {
-    if (oldClientId) await updateClientEmployeeCount(oldClientId);
-    await updateClientEmployeeCount(updatedData.clientId);
-  } else if (updatedData.clientId) {
-    await updateClientEmployeeCount(updatedData.clientId);
+
+  // Only update client counts for employees, not entities
+  if (!updatedData.isEntity) {
+    // If clientId changed, update both old and new client counts
+    if (updatedData.clientId && updatedData.clientId !== oldClientId) {
+      if (oldClientId) await updateClientEmployeeCount(oldClientId);
+      await updateClientEmployeeCount(updatedData.clientId);
+    } else if (updatedData.clientId) {
+      await updateClientEmployeeCount(updatedData.clientId);
+    }
   }
 };
 
@@ -115,13 +142,13 @@ export const undoResignation = async (id) => {
   // Get the employee data first
   const empRef = doc(db, "employees", id);
   const empSnap = await getDoc(empRef);
-  
+
   if (!empSnap.exists()) {
     throw new Error("Employee not found");
   }
 
   const employeeData = empSnap.data();
-  
+
   if (!employeeData.isResigned) {
     throw new Error("Employee is not resigned");
   }
@@ -133,7 +160,7 @@ export const undoResignation = async (id) => {
     ...employeeData,
     isResigned: false,
   };
-  
+
   // Remove resignation-specific fields
   delete restoredData.dateResigned;
   delete restoredData.resignationReason;
@@ -150,7 +177,7 @@ export const resignEmployee = async (id, reason = "") => {
   // Get the employee data first
   const empRef = doc(db, "employees", id);
   const empSnap = await getDoc(empRef);
-  
+
   if (!empSnap.exists()) {
     throw new Error("Employee not found");
   }

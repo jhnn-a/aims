@@ -22,6 +22,8 @@ import {
   getConditionTextColor,
 } from "./InventoryConstants";
 import { generateNextDeviceTag } from "./InventoryUtils";
+// Import client service
+import { getAllClients } from "../services/clientService";
 // Import theme context for dark mode
 import { useTheme } from "../context/ThemeContext";
 
@@ -37,6 +39,7 @@ const emptyUnit = {
   GPU: "",
   Condition: "", // Renamed from Status to Condition
   OS: "",
+  client: "", // New field for client assignment
   lifespan: "", // New field for lifespan
   dateAdded: "", // New field for dateAdded to calculate appraisal date
   lastMaintenanceDate: "", // New field for last maintenance date
@@ -575,6 +578,7 @@ const UnitSpecs = () => {
 
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyUnit);
   const [addTo, setAddTo] = useState("InventoryUnits");
@@ -787,14 +791,25 @@ const UnitSpecs = () => {
   // Fetch data from Firestore on mount and after changes
   const fetchData = async () => {
     setLoading(true);
-    const inventorySnapshot = await getDocs(collection(db, "InventoryUnits"));
-    setInventory(
-      inventorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    );
-    const deployedSnapshot = await getDocs(collection(db, "DeployedUnits"));
-    setDeployed(
-      deployedSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    );
+    try {
+      const [inventorySnapshot, deployedSnapshot, clientsData] =
+        await Promise.all([
+          getDocs(collection(db, "InventoryUnits")),
+          getDocs(collection(db, "DeployedUnits")),
+          getAllClients(),
+        ]);
+
+      setInventory(
+        inventorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
+      setDeployed(
+        deployedSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      showError("Failed to fetch data");
+    }
     setLoading(false);
   };
 
@@ -880,8 +895,9 @@ const UnitSpecs = () => {
             RAM: ram,
             Drive: drive,
             GPU: gpu,
-            Status: device.condition || "",
+            Condition: device.condition || "", // Map to Condition field
             OS: device.os || device.operatingSystem || "",
+            client: device.client || "", // Add client field mapping
             Remarks: device.remarks || "",
             lifespan: device.lifespan || "",
             dateAdded: dateAdded,
@@ -2198,80 +2214,89 @@ const UnitSpecs = () => {
                     />
                   </th>
                 )}
-                {["Tag", "CPU", "RAM", "Drive", "GPU", "Condition", "OS"].map(
-                  (col) => (
-                    <th
-                      key={col}
+                {[
+                  "Tag",
+                  "CPU",
+                  "RAM",
+                  "Drive",
+                  "GPU",
+                  "Condition",
+                  "OS",
+                  "Client",
+                ].map((col) => (
+                  <th
+                    key={col}
+                    style={{
+                      width:
+                        col === "Tag"
+                          ? "12%"
+                          : col === "CPU"
+                          ? "12%"
+                          : col === "RAM"
+                          ? "8%"
+                          : col === "Drive"
+                          ? "15%"
+                          : col === "GPU"
+                          ? "12%"
+                          : col === "Condition"
+                          ? "10%"
+                          : col === "OS"
+                          ? "8%"
+                          : "13%", // Client
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    <span
+                      onClick={
+                        col !== "Tag"
+                          ? (e) => handleFilterClick(e, col, collectionName)
+                          : undefined
+                      }
                       style={{
-                        width:
-                          col === "Tag"
-                            ? "15%"
-                            : col === "CPU"
-                            ? "15%"
-                            : col === "RAM"
-                            ? "10%"
-                            : col === "Drive"
-                            ? "18%"
-                            : col === "GPU"
-                            ? "15%"
-                            : col === "Condition"
-                            ? "12%"
-                            : "10%", // OS
-                        padding: "8px 6px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        textAlign: "center",
-                        border: isDarkMode
-                          ? "1px solid #4b5563"
-                          : "1px solid #d1d5db",
-                        position: "sticky",
-                        top: 0,
-                        background: isDarkMode ? "#374151" : "#f9fafb",
-                        zIndex: 10,
+                        marginRight: 8,
+                        textDecoration:
+                          col !== "Tag" ? "underline dotted" : undefined,
+                        cursor: col !== "Tag" ? "pointer" : undefined,
+                        display: "inline-block",
                       }}
                     >
-                      <span
-                        onClick={
-                          col !== "Tag"
-                            ? (e) => handleFilterClick(e, col, collectionName)
-                            : undefined
-                        }
-                        style={{
-                          marginRight: 8,
-                          textDecoration:
-                            col !== "Tag" ? "underline dotted" : undefined,
-                          cursor: col !== "Tag" ? "pointer" : undefined,
-                          display: "inline-block",
-                        }}
-                      >
-                        {col === "CPU"
-                          ? "CPU GEN"
-                          : col === "Drive"
-                          ? "MAIN DRIVE"
-                          : col.toUpperCase()}
-                      </span>
-                      <span
-                        onClick={() => handleSort(col)}
-                        style={{
-                          marginLeft: 2,
-                          fontSize: 10,
-                          cursor: "pointer",
-                        }}
-                      >
-                        ⇅
-                      </span>
-                      {col !== "Tag" &&
-                        filterPopup.open &&
-                        filterPopup.column === col &&
-                        filterPopup.table === collectionName &&
-                        renderFilterPopup(col, data, collectionName)}
-                    </th>
-                  )
-                )}
+                      {col === "CPU"
+                        ? "CPU GEN"
+                        : col === "Drive"
+                        ? "MAIN DRIVE"
+                        : col.toUpperCase()}
+                    </span>
+                    <span
+                      onClick={() => handleSort(col)}
+                      style={{
+                        marginLeft: 2,
+                        fontSize: 10,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ⇅
+                    </span>
+                    {col !== "Tag" &&
+                      filterPopup.open &&
+                      filterPopup.column === col &&
+                      filterPopup.table === collectionName &&
+                      renderFilterPopup(col, data, collectionName)}
+                  </th>
+                ))}
                 <th
                   style={{
-                    width: "15%",
+                    width: "10%",
                     padding: "8px 4px",
                     fontSize: "12px",
                     fontWeight: "600",
@@ -2296,8 +2321,8 @@ const UnitSpecs = () => {
                   <td
                     colSpan={
                       deleteMode.active && deleteMode.table === collectionName
-                        ? 9 // Updated to 9 after removing Category, Appraisal, Status columns
-                        : 8 // Updated to 8 after removing Category, Appraisal, Status columns
+                        ? 10 // Updated to 10 after adding Client column
+                        : 9 // Updated to 9 after adding Client column
                     }
                     style={{
                       padding: "40px 20px",
@@ -2542,6 +2567,22 @@ const UnitSpecs = () => {
                       }}
                     >
                       {unit.OS}
+                    </td>
+                    <td
+                      style={{
+                        width: "13%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.client || ""}
                     </td>
                     <td
                       style={{
@@ -3513,6 +3554,63 @@ const UnitSpecs = () => {
                 {osOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
+              }}
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Client:
+              </label>
+              <select
+                name="client"
+                value={form.client}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              >
+                <option value="">Select Client</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.clientName}>
+                    {client.clientName}
                   </option>
                 ))}
               </select>

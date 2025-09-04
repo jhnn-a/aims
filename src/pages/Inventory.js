@@ -2021,6 +2021,7 @@ function Inventory() {
         Status: deviceData.condition || "",
         Condition: deviceData.condition || "", // Add both for compatibility
         OS: deviceData.os || deviceData.operatingSystem || "",
+        client: deviceData.client || "", // Add client field mapping
         Remarks: deviceData.remarks || "",
         lifespan: deviceData.lifespan || "",
         brand: deviceData.brand || "",
