@@ -271,25 +271,81 @@ const LastTagsFloatingWindow = () => {
                 >
                   <div
                     style={{
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      marginBottom: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      marginBottom: "8px",
                     }}
                   >
-                    {item.deviceType}
+                    <span
+                      style={{
+                        background:
+                          "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "#fff",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        minWidth: "50px",
+                        textAlign: "center",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      {item.code}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                      }}
+                    >
+                      {item.deviceType}
+                    </span>
                   </div>
                   <div
                     style={{
-                      fontSize: "12px",
-                      color: isDarkMode ? "#d1d5db" : "#6b7280",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                     }}
                   >
-                    <span>Last Tag: {item.lastTag}</span>
-                    <span>{item.totalCount} used</span>
+                    <span
+                      style={{
+                        background:
+                          item.lastTag === "No tags used yet"
+                            ? "#fee2e2"
+                            : "#dbeafe",
+                        color:
+                          item.lastTag === "No tags used yet"
+                            ? "#dc2626"
+                            : "#1d4ed8",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        fontFamily: "monospace",
+                        border:
+                          item.lastTag === "No tags used yet"
+                            ? "1px solid #fecaca"
+                            : "1px solid #93c5fd",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      }}
+                    >
+                      {item.lastTag}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        fontWeight: "500",
+                        background: isDarkMode ? "#4b5563" : "#f1f5f9",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      {item.totalCount} used
+                    </span>
                   </div>
                 </div>
               ))}
