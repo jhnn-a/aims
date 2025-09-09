@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import {
   addEmployee,
@@ -37,6 +37,194 @@ const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 const getCurrentDate = () => {
   return new Date().toISOString().slice(0, 10);
 };
+
+// === SEARCHABLE DROPDOWN COMPONENT ===
+// Reusable searchable dropdown for client selection
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Search and select client...",
+  displayKey = "clientName",
+  valueKey = "id",
+  style = {},
+}) {
+  const { isDarkMode } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef(null);
+
+  // Filter options based on search term
+  const filteredOptions = options.filter((option) =>
+    option[displayKey]?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputClick = () => {
+    setIsOpen(!isOpen);
+    setSearchTerm("");
+  };
+
+  const handleSelectOption = (option) => {
+    onChange({ target: { name: "clientId", value: option[valueKey] } });
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  // Find the selected option to display its name
+  const selectedOption = options.find((option) => option[valueKey] === value);
+
+  const dropdownStyles = {
+    container: {
+      position: "relative",
+      width: "100%",
+      ...style,
+    },
+    inputContainer: {
+      position: "relative",
+      width: "100%",
+    },
+    input: {
+      width: "100%",
+      fontSize: "clamp(12px, 1.1vw, 14px)",
+      padding: "clamp(6px, 0.8vw, 10px)",
+      paddingRight: "32px",
+      borderRadius: 6,
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+      background: isDarkMode ? "#374151" : "white",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      height: "auto",
+      boxSizing: "border-box",
+      fontFamily: "inherit",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+      cursor: "pointer",
+    },
+    dropdownArrow: {
+      position: "absolute",
+      right: "8px",
+      top: "50%",
+      transform: `translateY(-50%) ${
+        isOpen ? "rotate(180deg)" : "rotate(0deg)"
+      }`,
+      transition: "transform 0.2s",
+      pointerEvents: "none",
+      fontSize: "12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+    },
+    dropdown: {
+      position: "absolute",
+      top: "calc(100% + 2px)",
+      left: 0,
+      right: 0,
+      background: isDarkMode ? "#1f2937" : "#fff",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #cbd5e1",
+      borderRadius: 6,
+      maxHeight: "140px",
+      overflowY: "auto",
+      zIndex: 1000,
+      boxShadow: isDarkMode
+        ? "0 4px 12px rgba(0, 0, 0, 0.4)"
+        : "0 4px 12px rgba(0, 0, 0, 0.15)",
+      minWidth: "200px",
+    },
+    searchInput: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "none",
+      borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      outline: "none",
+      fontSize: "clamp(12px, 1.1vw, 14px)",
+      fontFamily: "inherit",
+      background: isDarkMode ? "#1f2937" : "#f8fafc",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      boxSizing: "border-box",
+    },
+    option: {
+      padding: "8px 12px",
+      cursor: "pointer",
+      fontSize: "clamp(12px, 1.1vw, 14px)",
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f1f5f9",
+      fontFamily: "inherit",
+      transition: "background-color 0.15s",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+    },
+    noResults: {
+      padding: "8px 12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+      fontStyle: "italic",
+      fontSize: "clamp(12px, 1.1vw, 14px)",
+      fontFamily: "inherit",
+    },
+  };
+
+  return (
+    <div ref={dropdownRef} style={dropdownStyles.container}>
+      <div style={dropdownStyles.inputContainer}>
+        <input
+          type="text"
+          value={selectedOption ? selectedOption[displayKey] : ""}
+          onClick={handleInputClick}
+          placeholder={placeholder}
+          style={dropdownStyles.input}
+          readOnly
+        />
+        <span style={dropdownStyles.dropdownArrow}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div style={dropdownStyles.dropdown}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to search clients..."
+            style={dropdownStyles.searchInput}
+            autoFocus
+          />
+          {filteredOptions.length === 0 ? (
+            <div style={dropdownStyles.noResults}>No clients found</div>
+          ) : (
+            filteredOptions
+              .slice()
+              .sort((a, b) => a[displayKey].localeCompare(b[displayKey]))
+              .map((option, index) => (
+                <div
+                  key={option[valueKey] || index}
+                  style={dropdownStyles.option}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = isDarkMode
+                      ? "#4b5563"
+                      : "#f1f5f9";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = isDarkMode
+                      ? "#1f2937"
+                      : "#fff";
+                  }}
+                  onClick={() => handleSelectOption(option)}
+                >
+                  {option[displayKey]}
+                </div>
+              ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Simple Modal Component with CompanyAssets styling
 function EmployeeFormModal({
@@ -246,37 +434,14 @@ function EmployeeFormModal({
               >
                 Client:
               </label>
-              <select
-                name="clientId"
+              <SearchableDropdown
                 value={data.clientId}
                 onChange={onChange}
-                style={{
-                  width: "100%",
-                  padding: "clamp(6px, 0.8vw, 10px)",
-                  border: isDarkMode
-                    ? "1px solid #4b5563"
-                    : "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  backgroundColor: isDarkMode ? "#374151" : "white",
-                  color: isDarkMode ? "#f3f4f6" : "black",
-                  boxSizing: "border-box",
-                }}
-              >
-                <option value="" disabled>
-                  Choose Client
-                </option>
-                {clients
-                  .slice()
-                  .sort((a, b) => a.clientName.localeCompare(b.clientName))
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.clientName}
-                    </option>
-                  ))}
-              </select>
+                options={clients}
+                placeholder="Search and select client..."
+                displayKey="clientName"
+                valueKey="id"
+              />
             </div>
 
             <div

@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
 import UserManagement from "./pages/UserManagement";
 import { SnackbarProvider, SnackbarContainer } from "./components/Snackbar";
+import LastTagsFloatingWindow from "./components/LastTagsFloatingWindow";
 // ...existing code...
 import LoginPage from "./pages/LoginPage";
 import "./App.css";
@@ -83,6 +84,7 @@ function App() {
           </main>
         </div>
         <SnackbarContainer />
+        <LastTagsFloatingWindow />
       </SnackbarProvider>
     );
   }

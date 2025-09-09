@@ -3,7 +3,7 @@
 // Main features: Add/edit devices, assign to employees/clients, search/filter, device history, bulk operations
 
 // === IMPORTS ===
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
@@ -29,6 +29,7 @@ import { saveAs } from "file-saver"; // File download functionality
 import DeviceHistory from "../components/DeviceHistory"; // Device history modal component
 import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
 import { useTheme } from "../context/ThemeContext"; // Dark mode theme context
+import { useLastTagsGlobalState } from "../hooks/useLastTagsGlobalState"; // Global Last Tags state
 import {
   initialForm, // Default form data structure
   fieldLabels, // Display labels for form fields
@@ -1336,9 +1337,6 @@ function Inventory() {
   const { showSuccess, showError, showWarning, showUndoNotification } =
     useSnackbar(); // User feedback notifications
 
-  // === THEME CONTEXT ===
-  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
-
   // === FORM VALIDATION STATE ===
   const [tagError, setTagError] = useState(""); // Asset tag validation error messages
   const [saveError, setSaveError] = useState(""); // Form save error messages
@@ -1399,6 +1397,15 @@ function Inventory() {
   const [generating, setGenerating] = useState(false);
   const [docxBlob, setDocxBlob] = useState(null);
 
+  // Get today's date in YYYY-MM-DD format
+  const getTodaysDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, "0");
+    const day = today.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // --- STATE for New Acquisitions Modal ---
   const [showNewAcqModal, setShowNewAcqModal] = useState(false);
   const [newAcqTabs, setNewAcqTabs] = useState([
@@ -1411,7 +1418,7 @@ function Inventory() {
         model: "",
         condition: "",
         remarks: "",
-        acquisitionDate: "",
+        acquisitionDate: getTodaysDate(),
         quantity: 1,
         supplier: "",
         client: "",
@@ -1429,16 +1436,11 @@ function Inventory() {
   const [activeManualTabId, setActiveManualTabId] = useState(1);
   const [importTexts, setImportTexts] = useState({}); // Track import text per tab
 
-  // --- STATE for Last Tags Modal ---
-  const [showLastTagsModal, setShowLastTagsModal] = useState(false);
-  const [lastTagsData, setLastTagsData] = useState([]);
-  const [isLastTagsMinimized, setIsLastTagsMinimized] = useState(false);
-  const [lastTagsPosition, setLastTagsPosition] = useState({ x: 100, y: 100 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
   // --- HOOKS ---
-  const showSnackbar = useSnackbar();
+  const { showSnackbar } = useSnackbar(); // For notifications
+  const { isDarkMode } = useTheme(); // Dark mode state
+  const { showModal: showLastTagsModal, setData: setLastTagsData } =
+    useLastTagsGlobalState(); // Global Last Tags state
 
   // --- HANDLERS ---
 
@@ -3264,7 +3266,7 @@ function Inventory() {
         model: "",
         condition: "",
         remarks: "",
-        acquisitionDate: "",
+        acquisitionDate: getTodaysDate(),
         quantity: 1,
         supplier: "",
         client: "",
@@ -4157,74 +4159,10 @@ function Inventory() {
       });
 
       setLastTagsData(lastTagsResults);
-      setShowLastTagsModal(true);
     } catch (error) {
       console.error("Error fetching last tags:", error);
       showSnackbar("Error fetching last tags data", "error");
     }
-  };
-
-  // --- Floating Window Drag Functionality ---
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-    e.preventDefault();
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-
-      // Keep window within viewport bounds
-      const maxX = window.innerWidth - 400; // Window width
-      const maxY = window.innerHeight - 100; // Minimum visible height
-
-      setLastTagsPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY)),
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  // Add global mouse event listeners for dragging
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "grabbing";
-    } else {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "default";
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "default";
-    };
-  }, [isDragging, dragOffset]);
-
-  const handleMinimize = () => {
-    setIsLastTagsMinimized(true);
-  };
-
-  const handleRestore = () => {
-    setIsLastTagsMinimized(false);
-  };
-
-  const handleClose = () => {
-    setShowLastTagsModal(false);
-    setIsLastTagsMinimized(false);
   };
 
   // === DYNAMIC STYLES WITH THEME SUPPORT ===
@@ -7444,15 +7382,18 @@ function Inventory() {
                         style={{
                           ...styles.inventoryInputGroup,
                           marginBottom: 10,
+                          position: "relative",
+                          zIndex: 10,
                         }}
                       >
                         <label style={styles.inventoryLabel}>Client:</label>
-                        <input
-                          name="client"
+                        <SearchableDropdown
                           value={currentData.client}
                           onChange={handleNewAcqInput}
-                          style={styles.inventoryInput}
-                          placeholder="Enter client name"
+                          options={clients}
+                          placeholder="Search and select client..."
+                          displayKey="clientName"
+                          valueKey="clientName"
                         />
                       </div>
 
@@ -7918,9 +7859,11 @@ function Inventory() {
                             style={{
                               marginBottom: 12,
                               padding: 10,
-                              background: "#f1f5f9",
+                              background: isDarkMode ? "#374151" : "#f1f5f9",
                               borderRadius: 6,
-                              border: "1px solid #cbd5e1",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #cbd5e1",
                               width: "100%",
                               boxSizing: "border-box",
                             }}
@@ -7928,13 +7871,18 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 13,
-                                color: "#64748b",
+                                color: isDarkMode ? "#f3f4f6" : "#64748b",
                                 marginBottom: 4,
                               }}
                             >
                               <strong>Device Details:</strong>
                             </div>
-                            <div style={{ fontSize: 12, color: "#475569" }}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: isDarkMode ? "#d1d5db" : "#475569",
+                              }}
+                            >
                               Type: {currentManualTab.data.deviceType} | Brand:{" "}
                               {currentManualTab.data.brand} | Model:{" "}
                               {currentManualTab.data.model || "N/A"} |
@@ -7950,8 +7898,10 @@ function Inventory() {
                               width: "100%",
                               marginBottom: 12,
                               padding: 10,
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
+                              background: isDarkMode ? "#374151" : "#f8fafc",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e2e8f0",
                               borderRadius: 6,
                               boxSizing: "border-box",
                             }}
@@ -7969,7 +7919,7 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 12,
-                                color: "#64748b",
+                                color: isDarkMode ? "#d1d5db" : "#64748b",
                                 marginBottom: 6,
                               }}
                             >
@@ -7982,7 +7932,9 @@ function Inventory() {
                                 width: "100%",
                                 height: 70,
                                 padding: "6px 8px",
-                                border: "1.5px solid #cbd5e1",
+                                border: isDarkMode
+                                  ? "1.5px solid #4b5563"
+                                  : "1.5px solid #cbd5e1",
                                 borderRadius: 4,
                                 fontSize: 13,
                                 fontFamily: "Maax, monospace",
@@ -7992,7 +7944,10 @@ function Inventory() {
                                 outline: "none",
                                 transition:
                                   "border-color 0.2s, box-shadow 0.2s",
-                                backgroundColor: "#fff",
+                                backgroundColor: isDarkMode
+                                  ? "#374151"
+                                  : "#fff",
+                                color: isDarkMode ? "#f3f4f6" : "#000",
                               }}
                               placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
                               value={importTexts[currentManualTab.id] || ""}
@@ -8081,7 +8036,7 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 11,
-                                color: "#6b7280",
+                                color: isDarkMode ? "#9ca3af" : "#6b7280",
                                 fontStyle: "italic",
                               }}
                             >
@@ -8095,10 +8050,12 @@ function Inventory() {
                               width: "100%",
                               maxHeight: 300,
                               overflowY: "auto",
-                              border: "1px solid #e2e8f0",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e2e8f0",
                               borderRadius: 8,
                               padding: 12,
-                              background: "#fafbfc",
+                              background: isDarkMode ? "#1f2937" : "#fafbfc",
                               boxSizing: "border-box",
                             }}
                           >
@@ -8117,11 +8074,17 @@ function Inventory() {
                                   <div
                                     key={item.id}
                                     style={{
-                                      background: "#fff",
+                                      background: isDarkMode
+                                        ? "#374151"
+                                        : "#fff",
                                       padding: 8,
                                       borderRadius: 6,
-                                      border: "1px solid #e2e8f0",
-                                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                      border: isDarkMode
+                                        ? "1px solid #4b5563"
+                                        : "1px solid #e2e8f0",
+                                      boxShadow: isDarkMode
+                                        ? "0 1px 2px rgba(0,0,0,0.3)"
+                                        : "0 1px 2px rgba(0,0,0,0.05)",
                                       width: "100%",
                                       boxSizing: "border-box",
                                     }}
@@ -8156,8 +8119,13 @@ function Inventory() {
                                         padding: "6px 8px",
                                         fontSize: 13,
                                         height: "32px",
-                                        backgroundColor: "#fff",
-                                        border: "1.5px solid #cbd5e1",
+                                        backgroundColor: isDarkMode
+                                          ? "#374151"
+                                          : "#fff",
+                                        color: isDarkMode ? "#f3f4f6" : "#000",
+                                        border: isDarkMode
+                                          ? "1.5px solid #4b5563"
+                                          : "1.5px solid #cbd5e1",
                                         borderRadius: 4,
                                         outline: "none",
                                         transition:
@@ -8395,362 +8363,6 @@ function Inventory() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Last Tags Floating Window */}
-      {showLastTagsModal && (
-        <div
-          style={{
-            position: "fixed",
-            left: lastTagsPosition.x,
-            top: lastTagsPosition.y,
-            width: isLastTagsMinimized ? "250px" : "400px",
-            height: isLastTagsMinimized ? "50px" : "auto",
-            maxHeight: isLastTagsMinimized ? "50px" : "600px",
-            background: isDarkMode ? "#1f2937" : "#ffffff",
-            borderRadius: "12px",
-            boxShadow: isDarkMode
-              ? "0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3)"
-              : "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
-            border: isDarkMode ? "2px solid #374151" : "2px solid #e5e7eb",
-            zIndex: 1000,
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            overflow: "hidden",
-            transition: "all 0.3s ease",
-            transform: isDragging ? "rotate(2deg)" : "rotate(0deg)",
-          }}
-        >
-          {/* Header Bar - Always visible and draggable */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "12px 16px",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              borderRadius: "10px 10px 0 0",
-              cursor: isDragging ? "grabbing" : "grab",
-              userSelect: "none",
-              borderBottom: isLastTagsMinimized
-                ? "none"
-                : isDarkMode
-                ? "2px solid #374151"
-                : "2px solid #e5e7eb",
-            }}
-            onMouseDown={handleMouseDown}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                color: "#ffffff",
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-              </svg>
-              <span
-                style={{
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#ffffff",
-                }}
-              >
-                {isLastTagsMinimized ? "Last Tags" : "Last Used Tags"}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", gap: "8px" }}>
-              {/* Minimize/Restore Button */}
-              <button
-                onClick={isLastTagsMinimized ? handleRestore : handleMinimize}
-                style={{
-                  background: "rgba(255, 255, 255, 0.2)",
-                  border: "none",
-                  borderRadius: "4px",
-                  padding: "4px",
-                  cursor: "pointer",
-                  color: "#ffffff",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "rgba(255, 255, 255, 0.3)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "rgba(255, 255, 255, 0.2)";
-                }}
-              >
-                {isLastTagsMinimized ? (
-                  <svg
-                    width="12"
-                    height="12"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="12"
-                    height="12"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M19 13H5v-2h14v2z" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Close Button */}
-              <button
-                onClick={handleClose}
-                style={{
-                  background: "rgba(255, 255, 255, 0.2)",
-                  border: "none",
-                  borderRadius: "4px",
-                  padding: "4px",
-                  cursor: "pointer",
-                  color: "#ffffff",
-                  transition: "all 0.2s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "rgba(255, 82, 82, 0.8)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "rgba(255, 255, 255, 0.2)";
-                }}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* Content - Hidden when minimized */}
-          {!isLastTagsMinimized && (
-            <div
-              style={{
-                padding: "16px",
-                maxHeight: "520px",
-                overflowY: "auto",
-              }}
-            >
-              {/* Tags Grid */}
-              <div
-                style={{
-                  display: "grid",
-                  gap: "8px",
-                  marginBottom: "16px",
-                }}
-              >
-                {lastTagsData.map((item, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "12px",
-                      background:
-                        index % 2 === 0
-                          ? isDarkMode
-                            ? "#374151"
-                            : "#f8fafc"
-                          : isDarkMode
-                          ? "#1f2937"
-                          : "#ffffff",
-                      borderRadius: "8px",
-                      border: isDarkMode
-                        ? "1px solid #4b5563"
-                        : "1px solid #e2e8f0",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = isDarkMode
-                        ? "#4b5563"
-                        : "#ede9fe";
-                      e.target.style.borderColor = "#8b5cf6";
-                      e.target.style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background =
-                        index % 2 === 0
-                          ? isDarkMode
-                            ? "#374151"
-                            : "#f8fafc"
-                          : isDarkMode
-                          ? "#1f2937"
-                          : "#ffffff";
-                      e.target.style.borderColor = isDarkMode
-                        ? "#4b5563"
-                        : "#e2e8f0";
-                      e.target.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          background:
-                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                          color: "#fff",
-                          padding: "3px 6px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          minWidth: "45px",
-                          textAlign: "center",
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                        }}
-                      >
-                        {item.code}
-                      </span>
-                      <span
-                        style={{
-                          fontWeight: "500",
-                          color: isDarkMode ? "#f3f4f6" : "#374151",
-                          fontSize: "14px",
-                        }}
-                      >
-                        {item.deviceType}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "flex-end",
-                        gap: "2px",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontWeight: "600",
-                          color:
-                            item.lastTag === "No tags used yet"
-                              ? "#ef4444"
-                              : "#2563eb",
-                          fontSize: "12px",
-                          fontFamily: "monospace",
-                          background:
-                            item.lastTag === "No tags used yet"
-                              ? "#fef2f2"
-                              : "#eff6ff",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          border: `1px solid ${
-                            item.lastTag === "No tags used yet"
-                              ? "#fecaca"
-                              : "#dbeafe"
-                          }`,
-                        }}
-                      >
-                        {item.lastTag}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          color: "#6b7280",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {item.totalCount} used
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Info Section */}
-              <div
-                style={{
-                  padding: "12px",
-                  background:
-                    "linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)",
-                  borderRadius: "8px",
-                  border: "1px solid #bae6fd",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    fill="#0369a1"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#0369a1",
-                    }}
-                  >
-                    Quick Reference
-                  </span>
-                </div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "11px",
-                    color: "#075985",
-                    lineHeight: "1.4",
-                  }}
-                >
-                  Next available tag = Last tag + 1. Example: JOIILPT0005 →
-                  Next: JOIILPT0006
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Sticky Note Visual Indicator */}
-          <div
-            style={{
-              position: "absolute",
-              top: "8px",
-              right: "8px",
-              width: "6px",
-              height: "6px",
-              background: "#fbbf24",
-              borderRadius: "50%",
-              boxShadow: "0 0 0 2px rgba(251, 191, 36, 0.3)",
-              animation: "pulse 2s infinite",
-            }}
-          />
         </div>
       )}
     </div>

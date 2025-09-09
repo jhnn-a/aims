@@ -80,13 +80,13 @@ function CompanyAssets() {
           style={tabStyles.tab(activeTab === "assets", isDarkMode)}
           onClick={() => setActiveTab("assets")}
         >
-          Assets
+          Deployed Assets
         </button>
         <button
           style={tabStyles.tab(activeTab === "inventory", isDarkMode)}
           onClick={() => setActiveTab("inventory")}
         >
-          Inventory
+          Stockroom Assets
         </button>
       </div>
       <div style={tabStyles.tabContent(isDarkMode)}>

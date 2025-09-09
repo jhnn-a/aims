@@ -3317,20 +3317,51 @@ function Assets() {
             >
               {!selectedTransferEmployee ? (
                 <>
-                  <h4>Reassign {selectedDeviceIds.length} Devices</h4>
+                  <h4
+                    style={{
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      marginBottom: 16,
+                      fontSize: 18,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Reassign {selectedDeviceIds.length} Devices
+                  </h4>
                   <input
                     type="text"
                     placeholder="Search employee..."
                     value={bulkAssignSearch}
                     onChange={(e) => setBulkAssignSearch(e.target.value)}
-                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                    style={{
+                      width: "100%",
+                      marginBottom: 12,
+                      padding: "12px 16px",
+                      border: isDarkMode
+                        ? "1.5px solid #4b5563"
+                        : "1.5px solid #cbd5e1",
+                      borderRadius: 8,
+                      fontSize: 14,
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      outline: "none",
+                      transition: "border-color 0.2s, background 0.2s",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      boxSizing: "border-box",
+                    }}
                   />
-                  <ul
+                  <div
                     style={{
                       maxHeight: 200,
                       overflowY: "auto",
                       padding: 0,
                       margin: 0,
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e2e8f0",
+                      borderRadius: 8,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      marginBottom: 16,
                     }}
                   >
                     {employees
@@ -3340,15 +3371,38 @@ function Assets() {
                           .includes(bulkAssignSearch.toLowerCase())
                       )
                       .map((emp) => (
-                        <li
-                          key={emp.id}
-                          style={{ listStyle: "none", marginBottom: 8 }}
-                        >
+                        <div key={emp.id} style={{ width: "100%" }}>
                           <button
                             style={{
                               width: "100%",
                               textAlign: "left",
-                              padding: 8,
+                              padding: "12px 16px",
+                              background: isDarkMode ? "#1f2937" : "#fff",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              border: "none",
+                              borderBottom: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e5e7eb",
+                              fontWeight: 500,
+                              fontSize: 14,
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                              fontFamily:
+                                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = isDarkMode
+                                ? "#374151"
+                                : "#f3f4f6";
+                              e.target.style.color = "#2563eb";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = isDarkMode
+                                ? "#1f2937"
+                                : "#fff";
+                              e.target.style.color = isDarkMode
+                                ? "#f3f4f6"
+                                : "#374151";
                             }}
                             onClick={() => {
                               setSelectedTransferEmployee(emp);
@@ -3356,19 +3410,39 @@ function Assets() {
                           >
                             {emp.fullName}
                           </button>
-                        </li>
+                        </div>
                       ))}
-                  </ul>
+                  </div>
                   <button
                     onClick={() => setBulkReassignModalOpen(false)}
-                    style={{ marginTop: 12 }}
+                    style={{
+                      marginTop: 12,
+                      background: isDarkMode ? "#6b7280" : "#e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
                   >
                     Cancel
                   </button>
                 </>
               ) : (
                 <>
-                  <h4 style={{ marginBottom: 12 }}>
+                  <h4
+                    style={{
+                      marginBottom: 12,
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      fontSize: 16,
+                      fontWeight: 600,
+                    }}
+                  >
                     Reassign Device(s) to{" "}
                     <span style={{ color: "#2563eb" }}>
                       {selectedTransferEmployee.fullName}
@@ -3380,15 +3454,22 @@ function Assets() {
                       maxHeight: 180,
                       overflowY: "auto",
                       marginBottom: 16,
-                      background: "#f7f9fb",
+                      background: isDarkMode ? "#374151" : "#f7f9fb",
                       borderRadius: 8,
                       padding: 8,
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                     }}
                   >
                     <table style={{ width: "100%", fontSize: 14 }}>
                       <thead>
-                        <tr style={{ color: "#445F6D", fontWeight: 700 }}>
+                        <tr
+                          style={{
+                            color: isDarkMode ? "#d1d5db" : "#445F6D",
+                            fontWeight: 700,
+                          }}
+                        >
                           <th style={{ textAlign: "left", padding: "4px 8px" }}>
                             Tag
                           </th>
@@ -3403,7 +3484,9 @@ function Assets() {
                           </th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody
+                        style={{ color: isDarkMode ? "#f3f4f6" : "#374151" }}
+                      >
                         {devices
                           .filter((d) => selectedDeviceIds.includes(d.id))
                           .map((device) => (
