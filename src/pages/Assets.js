@@ -4215,19 +4215,21 @@ function Assets() {
                 borderRadius: 8,
                 minWidth: 400,
                 maxWidth: 500,
-                boxShadow: isDarkMode 
-                  ? "0 10px 25px rgba(0, 0, 0, 0.5)" 
+                boxShadow: isDarkMode
+                  ? "0 10px 25px rgba(0, 0, 0, 0.5)"
                   : "0 4px 6px rgba(0, 0, 0, 0.1)",
                 border: isDarkMode ? "1px solid #374151" : "none",
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ 
-                margin: "0 0 20px 0", 
-                color: "#d32f2f",
-                fontSize: "18px",
-                fontWeight: "600" 
-              }}>
+              <h3
+                style={{
+                  margin: "0 0 20px 0",
+                  color: "#d32f2f",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                }}
+              >
                 Selection Not Allowed
               </h3>
               <p
