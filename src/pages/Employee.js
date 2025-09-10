@@ -47,6 +47,7 @@ function SearchableDropdown({
   placeholder = "Search and select client...",
   displayKey = "clientName",
   valueKey = "id",
+  formatDisplay = null,
   style = {},
 }) {
   const { isDarkMode } = useTheme();
@@ -55,9 +56,10 @@ function SearchableDropdown({
   const dropdownRef = useRef(null);
 
   // Filter options based on search term
-  const filteredOptions = options.filter((option) =>
-    option[displayKey]?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options.filter((option) => {
+    const searchValue = option[displayKey];
+    return searchValue && searchValue.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -77,13 +79,27 @@ function SearchableDropdown({
   };
 
   const handleSelectOption = (option) => {
-    onChange({ target: { name: "clientId", value: option[valueKey] } });
+    if (onChange.target) {
+      // For form-like usage (like with clients)
+      onChange({ target: { name: "clientId", value: option[valueKey] } });
+    } else {
+      // For direct value usage (like with employees)
+      onChange(option[valueKey]);
+    }
     setIsOpen(false);
     setSearchTerm("");
   };
 
   // Find the selected option to display its name
   const selectedOption = options.find((option) => option[valueKey] === value);
+
+  // Get display text for selected option
+  const getDisplayText = (option) => {
+    if (formatDisplay) {
+      return formatDisplay(option);
+    }
+    return option[displayKey];
+  };
 
   const dropdownStyles = {
     container: {
@@ -175,7 +191,7 @@ function SearchableDropdown({
       <div style={dropdownStyles.inputContainer}>
         <input
           type="text"
-          value={selectedOption ? selectedOption[displayKey] : ""}
+          value={selectedOption ? getDisplayText(selectedOption) : ""}
           onClick={handleInputClick}
           placeholder={placeholder}
           style={dropdownStyles.input}
@@ -190,12 +206,12 @@ function SearchableDropdown({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Type to search clients..."
+            placeholder="Type to search..."
             style={dropdownStyles.searchInput}
             autoFocus
           />
           {filteredOptions.length === 0 ? (
-            <div style={dropdownStyles.noResults}>No clients found</div>
+            <div style={dropdownStyles.noResults}>No options found</div>
           ) : (
             filteredOptions
               .slice()
@@ -216,7 +232,7 @@ function SearchableDropdown({
                   }}
                   onClick={() => handleSelectOption(option)}
                 >
-                  {option[displayKey]}
+                  {getDisplayText(option)}
                 </div>
               ))
           )}
@@ -613,6 +629,8 @@ function EmployeeFormModal({
 
 // Modal for bulk resign confirmation
 function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
+  const { isDarkMode } = useTheme();
+  
   if (!isOpen) return null;
 
   return (
@@ -632,7 +650,7 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
     >
       <div
         style={{
-          backgroundColor: "white",
+          backgroundColor: isDarkMode ? "#374151" : "white",
           borderRadius: 12,
           padding: 32,
           width: "90%",
@@ -646,14 +664,14 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
           style={{
             fontSize: 20,
             fontWeight: 700,
-            color: "#222e3a",
+            color: isDarkMode ? "#f3f4f6" : "#222e3a",
             marginBottom: 16,
             marginTop: 0,
           }}
         >
           Confirm Bulk Resign
         </h2>
-        <p style={{ color: "#6b7280", marginBottom: 20, fontSize: 14 }}>
+        <p style={{ color: isDarkMode ? "#d1d5db" : "#6b7280", marginBottom: 20, fontSize: 14 }}>
           Are you sure you want to resign {selectedCount} employee(s)?
         </p>
 
@@ -662,10 +680,10 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
             onClick={onCancel}
             style={{
               padding: "8px 16px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
               borderRadius: 6,
-              background: "white",
-              color: "#374151",
+              background: isDarkMode ? "#4b5563" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",
@@ -706,6 +724,8 @@ function ConfirmationModal({
   confirmText,
   confirmColor = "#dc2626",
 }) {
+  const { isDarkMode } = useTheme();
+  
   if (!isOpen) return null;
 
   return (
@@ -725,7 +745,7 @@ function ConfirmationModal({
     >
       <div
         style={{
-          background: "#fff",
+          background: isDarkMode ? "#374151" : "#fff",
           padding: "36px 40px",
           borderRadius: 18,
           minWidth: "min(400px, 90vw)",
@@ -755,7 +775,7 @@ function ConfirmationModal({
         <p
           style={{
             margin: "0 0 16px 0",
-            color: "#374151",
+            color: isDarkMode ? "#d1d5db" : "#374151",
             fontSize: 16,
             textAlign: "center",
           }}
@@ -797,8 +817,8 @@ function ConfirmationModal({
           <button
             onClick={onCancel}
             style={{
-              background: "#e0e7ef",
-              color: "#233037",
+              background: isDarkMode ? "#6b7280" : "#e0e7ef",
+              color: isDarkMode ? "#f3f4f6" : "#233037",
               border: "none",
               borderRadius: 8,
               padding: "8px 18px",
@@ -858,11 +878,11 @@ function EmployeeAssetsModal({
       const loadEmployees = async () => {
         try {
           const employeeList = await getAllEmployees();
-          setAllEmployees(
-            employeeList.filter(
-              (emp) => !emp.isResigned && emp.id !== employee?.id
-            )
+          const filteredEmployees = employeeList.filter(
+            (emp) => !emp.isResigned && emp.id !== employee?.id
           );
+          console.log("Loaded employees for reassignment:", filteredEmployees);
+          setAllEmployees(filteredEmployees);
         } catch (error) {
           console.error("Error loading employees:", error);
         }
@@ -2516,7 +2536,7 @@ function EmployeeAssetsModal({
         >
           <div
             style={{
-              backgroundColor: "white",
+              backgroundColor: isDarkMode ? "#374151" : "white",
               borderRadius: 12,
               width: "100%",
               maxWidth: 480,
@@ -2529,14 +2549,14 @@ function EmployeeAssetsModal({
             <div
               style={{
                 padding: "24px 32px 20px 32px",
-                borderBottom: "1px solid #e5e7eb",
+                borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
               }}
             >
               <h2
                 style={{
                   fontSize: 20,
                   fontWeight: 700,
-                  color: "#222e3a",
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
                   margin: 0,
                   marginBottom: 8,
                 }}
@@ -2552,7 +2572,7 @@ function EmployeeAssetsModal({
               <p
                 style={{
                   fontSize: 14,
-                  color: "#6b7280",
+                  color: isDarkMode ? "#d1d5db" : "#6b7280",
                   margin: 0,
                 }}
               >
@@ -2576,7 +2596,7 @@ function EmployeeAssetsModal({
               <div
                 style={{
                   padding: "16px",
-                  backgroundColor: "#f9fafb",
+                  backgroundColor: isDarkMode ? "#4b5563" : "#f9fafb",
                   borderRadius: 8,
                   marginBottom: 20,
                 }}
@@ -2585,7 +2605,7 @@ function EmployeeAssetsModal({
                   style={{
                     fontSize: 14,
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
                     margin: 0,
                     marginBottom: 8,
                   }}
@@ -2596,7 +2616,7 @@ function EmployeeAssetsModal({
                 </h4>
                 {actionModal.isBulk ? (
                   <div
-                    style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                    style={{ fontSize: 13, color: isDarkMode ? "#d1d5db" : "#6b7280", lineHeight: 1.5 }}
                   >
                     <div>
                       <strong>Count:</strong> {actionModal.devices.length}{" "}
@@ -2628,7 +2648,7 @@ function EmployeeAssetsModal({
                   </div>
                 ) : (
                   <div
-                    style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                    style={{ fontSize: 13, color: isDarkMode ? "#d1d5db" : "#6b7280", lineHeight: 1.5 }}
                   >
                     <div>
                       <strong>Tag:</strong> {actionModal.device?.deviceTag}
@@ -2650,7 +2670,7 @@ function EmployeeAssetsModal({
               <div
                 style={{
                   padding: "16px",
-                  backgroundColor: "#fef3c7",
+                  backgroundColor: isDarkMode ? "#78350f" : "#fef3c7",
                   borderRadius: 8,
                   marginBottom: actionModal.type === "reassign" ? 20 : 0,
                 }}
@@ -2659,7 +2679,7 @@ function EmployeeAssetsModal({
                   style={{
                     fontSize: 14,
                     fontWeight: 600,
-                    color: "#374151",
+                    color: isDarkMode ? "#fef3c7" : "#374151",
                     margin: 0,
                     marginBottom: 8,
                   }}
@@ -2669,7 +2689,7 @@ function EmployeeAssetsModal({
                     : "Transferring from"}
                 </h4>
                 <div
-                  style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}
+                  style={{ fontSize: 13, color: isDarkMode ? "#fef3c7" : "#6b7280", lineHeight: 1.5 }}
                 >
                   <div>
                     <strong>Name:</strong> {employee.fullName}
@@ -2966,7 +2986,7 @@ function EmployeeAssetsModal({
                 <div
                   style={{
                     padding: "16px",
-                    backgroundColor: "#dcfce7",
+                    backgroundColor: isDarkMode ? "#065f46" : "#dcfce7",
                     borderRadius: 8,
                   }}
                 >
@@ -2974,42 +2994,30 @@ function EmployeeAssetsModal({
                     style={{
                       fontSize: 14,
                       fontWeight: 600,
-                      color: "#374151",
+                      color: isDarkMode ? "#dcfce7" : "#374151",
                       margin: 0,
                       marginBottom: 12,
                     }}
                   >
                     Assign to Employee
                   </h4>
-                  <select
+                  <SearchableDropdown
                     value={actionModal.newEmployee?.id || ""}
-                    onChange={(e) => {
+                    onChange={(value) => {
                       const selectedEmployee = allEmployees.find(
-                        (emp) => emp.id === e.target.value
+                        (emp) => emp.id === value
                       );
                       setActionModal((prev) => ({
                         ...prev,
                         newEmployee: selectedEmployee,
                       }));
                     }}
-                    style={{
-                      width: "100%",
-                      padding: "8px 12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 6,
-                      fontSize: 14,
-                      fontFamily: "inherit",
-                      outline: "none",
-                      backgroundColor: "white",
-                    }}
-                  >
-                    <option value="">Select employee...</option>
-                    {allEmployees.map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.fullName} - {emp.position}
-                      </option>
-                    ))}
-                  </select>
+                    options={allEmployees}
+                    placeholder="Search and select employee..."
+                    displayKey="fullName"
+                    valueKey="id"
+                    formatDisplay={(emp) => `${emp.fullName} - ${emp.position}`}
+                  />
                 </div>
               )}
             </div>
@@ -3018,7 +3026,7 @@ function EmployeeAssetsModal({
             <div
               style={{
                 padding: "16px 32px 24px 32px",
-                borderTop: "1px solid #e5e7eb",
+                borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
                 display: "flex",
                 justifyContent: "flex-end",
                 gap: 12,
@@ -3030,10 +3038,10 @@ function EmployeeAssetsModal({
                     onClick={closeActionModal}
                     style={{
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
                       borderRadius: 6,
-                      background: "white",
-                      color: "#374151",
+                      background: isDarkMode ? "#4b5563" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontSize: 14,
                       fontWeight: 500,
                       cursor: "pointer",
@@ -3106,7 +3114,7 @@ function EmployeeAssetsModal({
                     style={{
                       width: 200,
                       height: 4,
-                      backgroundColor: "#e5e7eb",
+                      backgroundColor: isDarkMode ? "#4b5563" : "#e5e7eb",
                       borderRadius: 2,
                       overflow: "hidden",
                     }}
@@ -3120,7 +3128,7 @@ function EmployeeAssetsModal({
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 14, color: "#6b7280" }}>
+                  <span style={{ fontSize: 14, color: isDarkMode ? "#d1d5db" : "#6b7280" }}>
                     Generating document...
                   </span>
                 </div>
