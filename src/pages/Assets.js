@@ -4210,16 +4210,24 @@ function Assets() {
           >
             <div
               style={{
-                backgroundColor: "white",
+                backgroundColor: isDarkMode ? "#1f2937" : "white",
                 padding: 30,
                 borderRadius: 8,
                 minWidth: 400,
                 maxWidth: 500,
-                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                boxShadow: isDarkMode 
+                  ? "0 10px 25px rgba(0, 0, 0, 0.5)" 
+                  : "0 4px 6px rgba(0, 0, 0, 0.1)",
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 style={{ margin: "0 0 20px 0", color: "#d32f2f" }}>
+              <h3 style={{ 
+                margin: "0 0 20px 0", 
+                color: "#d32f2f",
+                fontSize: "18px",
+                fontWeight: "600" 
+              }}>
                 Selection Not Allowed
               </h3>
               <p
@@ -4227,6 +4235,8 @@ function Assets() {
                   margin: "0 0 20px 0",
                   lineHeight: 1.5,
                   whiteSpace: "pre-line",
+                  color: isDarkMode ? "#e5e7eb" : "#374151",
+                  fontSize: "14px",
                 }}
               >
                 {selectionWarningMessage}
@@ -4242,6 +4252,13 @@ function Assets() {
                     borderRadius: 4,
                     cursor: "pointer",
                     fontWeight: 600,
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = "#1565c0";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = "#1976d2";
                   }}
                 >
                   OK

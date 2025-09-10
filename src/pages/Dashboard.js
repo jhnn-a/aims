@@ -1060,7 +1060,7 @@ function Dashboard() {
               marginBottom: 8,
             }}
           >
-            Total Employees
+            Active Employees
           </div>
           <div style={{ fontSize: 32, fontWeight: 800, color: "#2563eb" }}>
             {employeeCount}
