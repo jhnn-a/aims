@@ -469,7 +469,10 @@ function EmployeeFormModal({
               <SearchableDropdown
                 value={data.clientId}
                 onChange={(evtOrValue) => {
-                  const newValue = evtOrValue && evtOrValue.target ? evtOrValue.target.value : evtOrValue;
+                  const newValue =
+                    evtOrValue && evtOrValue.target
+                      ? evtOrValue.target.value
+                      : evtOrValue;
                   // Use the provided onChange handler (handleFormChange in parent) with an event-like object
                   if (typeof onChange === "function") {
                     onChange({ target: { name: "clientId", value: newValue } });
