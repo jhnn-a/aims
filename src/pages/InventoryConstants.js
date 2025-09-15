@@ -34,6 +34,7 @@ export const deviceTypes = [
   { label: "SSD", code: "SSD" },
   { label: "UPS", code: "UPS" },
   { label: "Webcam", code: "W" },
+  { label: "Docking Station", code: "DS" },
 ];
 
 export const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE"];

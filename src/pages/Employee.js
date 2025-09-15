@@ -58,7 +58,10 @@ function SearchableDropdown({
   // Filter options based on search term
   const filteredOptions = options.filter((option) => {
     const searchValue = option[displayKey];
-    return searchValue && searchValue.toLowerCase().includes(searchTerm.toLowerCase());
+    return (
+      searchValue &&
+      searchValue.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   });
 
   // Close dropdown when clicking outside
@@ -79,12 +82,25 @@ function SearchableDropdown({
   };
 
   const handleSelectOption = (option) => {
-    if (onChange.target) {
-      // For form-like usage (like with clients)
-      onChange({ target: { name: "clientId", value: option[valueKey] } });
-    } else {
-      // For direct value usage (like with employees)
-      onChange(option[valueKey]);
+    try {
+      if (typeof onChange === "function") {
+        // Always pass an event-like object so downstream handlers can destructure safely
+        onChange({
+          target: { name: valueKey || "value", value: option[valueKey] },
+        });
+      } else if (onChange && typeof onChange === "object") {
+        // Fallback legacy behavior
+        onChange({
+          target: { name: valueKey || "value", value: option[valueKey] },
+        });
+      } else {
+        console.warn(
+          "handleSelectOption: onChange prop is not callable",
+          onChange
+        );
+      }
+    } catch (err) {
+      console.error("Error in handleSelectOption", err);
     }
     setIsOpen(false);
     setSearchTerm("");
@@ -452,7 +468,13 @@ function EmployeeFormModal({
               </label>
               <SearchableDropdown
                 value={data.clientId}
-                onChange={onChange}
+                onChange={(evtOrValue) => {
+                  const newValue = evtOrValue && evtOrValue.target ? evtOrValue.target.value : evtOrValue;
+                  // Use the provided onChange handler (handleFormChange in parent) with an event-like object
+                  if (typeof onChange === "function") {
+                    onChange({ target: { name: "clientId", value: newValue } });
+                  }
+                }}
                 options={clients}
                 placeholder="Search and select client..."
                 displayKey="clientName"
@@ -630,7 +652,7 @@ function EmployeeFormModal({
 // Modal for bulk resign confirmation
 function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
   const { isDarkMode } = useTheme();
-  
+
   if (!isOpen) return null;
 
   return (
@@ -671,7 +693,13 @@ function BulkResignModal({ isOpen, onConfirm, onCancel, selectedCount }) {
         >
           Confirm Bulk Resign
         </h2>
-        <p style={{ color: isDarkMode ? "#d1d5db" : "#6b7280", marginBottom: 20, fontSize: 14 }}>
+        <p
+          style={{
+            color: isDarkMode ? "#d1d5db" : "#6b7280",
+            marginBottom: 20,
+            fontSize: 14,
+          }}
+        >
           Are you sure you want to resign {selectedCount} employee(s)?
         </p>
 
@@ -725,7 +753,7 @@ function ConfirmationModal({
   confirmColor = "#dc2626",
 }) {
   const { isDarkMode } = useTheme();
-  
+
   if (!isOpen) return null;
 
   return (
@@ -2549,7 +2577,9 @@ function EmployeeAssetsModal({
             <div
               style={{
                 padding: "24px 32px 20px 32px",
-                borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
+                borderBottom: isDarkMode
+                  ? "1px solid #4b5563"
+                  : "1px solid #e5e7eb",
               }}
             >
               <h2
@@ -2616,7 +2646,11 @@ function EmployeeAssetsModal({
                 </h4>
                 {actionModal.isBulk ? (
                   <div
-                    style={{ fontSize: 13, color: isDarkMode ? "#d1d5db" : "#6b7280", lineHeight: 1.5 }}
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? "#d1d5db" : "#6b7280",
+                      lineHeight: 1.5,
+                    }}
                   >
                     <div>
                       <strong>Count:</strong> {actionModal.devices.length}{" "}
@@ -2648,7 +2682,11 @@ function EmployeeAssetsModal({
                   </div>
                 ) : (
                   <div
-                    style={{ fontSize: 13, color: isDarkMode ? "#d1d5db" : "#6b7280", lineHeight: 1.5 }}
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? "#d1d5db" : "#6b7280",
+                      lineHeight: 1.5,
+                    }}
                   >
                     <div>
                       <strong>Tag:</strong> {actionModal.device?.deviceTag}
@@ -2689,7 +2727,11 @@ function EmployeeAssetsModal({
                     : "Transferring from"}
                 </h4>
                 <div
-                  style={{ fontSize: 13, color: isDarkMode ? "#fef3c7" : "#6b7280", lineHeight: 1.5 }}
+                  style={{
+                    fontSize: 13,
+                    color: isDarkMode ? "#fef3c7" : "#6b7280",
+                    lineHeight: 1.5,
+                  }}
                 >
                   <div>
                     <strong>Name:</strong> {employee.fullName}
@@ -3026,7 +3068,9 @@ function EmployeeAssetsModal({
             <div
               style={{
                 padding: "16px 32px 24px 32px",
-                borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
+                borderTop: isDarkMode
+                  ? "1px solid #4b5563"
+                  : "1px solid #e5e7eb",
                 display: "flex",
                 justifyContent: "flex-end",
                 gap: 12,
@@ -3038,7 +3082,9 @@ function EmployeeAssetsModal({
                     onClick={closeActionModal}
                     style={{
                       padding: "8px 16px",
-                      border: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #d1d5db",
                       borderRadius: 6,
                       background: isDarkMode ? "#4b5563" : "white",
                       color: isDarkMode ? "#f3f4f6" : "#374151",
@@ -3128,7 +3174,12 @@ function EmployeeAssetsModal({
                       }}
                     />
                   </div>
-                  <span style={{ fontSize: 14, color: isDarkMode ? "#d1d5db" : "#6b7280" }}>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      color: isDarkMode ? "#d1d5db" : "#6b7280",
+                    }}
+                  >
                     Generating document...
                   </span>
                 </div>
@@ -3401,6 +3452,15 @@ export default function Employee() {
   const [deviceHistory, setDeviceHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTableLoading, setIsTableLoading] = useState(false);
+  // Progress state for deployed assets import
+  const [assetImportProgress, setAssetImportProgress] = useState({
+    total: 0,
+    processed: 0,
+    success: 0,
+    errors: 0,
+    skipped: 0,
+    active: false,
+  });
   const [sortBy, setSortBy] = useState("default");
   const [activeTab, setActiveTab] = useState("active");
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
@@ -3505,8 +3565,33 @@ export default function Employee() {
   };
 
   // Form handlers
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
+  const handleFormChange = (eOrName, maybeValue) => {
+    // Supports signatures: (event), (name, value), ({ target: { name, value } })
+    let name, value;
+    if (eOrName && typeof eOrName === "object" && "target" in eOrName) {
+      name = eOrName.target?.name;
+      value = eOrName.target?.value;
+    } else if (typeof eOrName === "string") {
+      name = eOrName;
+      value = maybeValue;
+    } else if (
+      eOrName &&
+      typeof eOrName === "object" &&
+      "name" in eOrName &&
+      "value" in eOrName
+    ) {
+      name = eOrName.name;
+      value = eOrName.value;
+    }
+
+    if (!name) {
+      console.warn("handleFormChange called without a field name", {
+        eOrName,
+        maybeValue,
+      });
+      return;
+    }
+
     console.log("Form field changed:", { name, value });
     setForm((prev) => {
       const newForm = { ...prev, [name]: value };
@@ -3928,6 +4013,14 @@ export default function Employee() {
     if (!file) return;
 
     setIsTableLoading(true);
+    setAssetImportProgress({
+      total: 0,
+      processed: 0,
+      success: 0,
+      errors: 0,
+      skipped: 0,
+      active: true,
+    });
     const reader = new FileReader();
 
     reader.onload = async (event) => {
@@ -3950,10 +4043,22 @@ export default function Employee() {
         let skippedCount = 0;
         const errors = [];
 
-        // Get all existing devices to check for duplicate device tags
+        // Get all existing devices to check for duplicate device tags (robust normalization)
         const existingDevices = await getAllDevices();
+
+        const normalizeTag = (tag) => {
+          if (tag === null || tag === undefined) return "";
+          try {
+            return String(tag).trim().toLowerCase();
+          } catch (err) {
+            return ""; // Fallback for unexpected non-coercible values
+          }
+        };
+
         const existingTags = new Set(
-          existingDevices.map((d) => d.deviceTag?.toLowerCase())
+          existingDevices
+            .map((d) => normalizeTag(d.deviceTag))
+            .filter((t) => t.length > 0)
         );
 
         // Device type mapping for tag generation with JOII prefix for generated tags
@@ -3969,6 +4074,7 @@ export default function Employee() {
           ssd: "JOIISSD",
           ups: "JOIIUPS",
           webcam: "JOIIW",
+          "docking station": "JOIIDS", // Newly added device type
         };
 
         // Helper function to generate unique device tag with JOII prefix
@@ -3997,7 +4103,11 @@ export default function Employee() {
           return newTag;
         };
 
-        for (const row of rows) {
+        const yieldToBrowser = () =>
+          new Promise((resolve) => setTimeout(resolve, 0));
+
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
           try {
             // Extract data from Excel columns
             const employeeName = (row["Employee"] || "").toString().trim();
@@ -4038,6 +4148,7 @@ export default function Employee() {
               "SSD",
               "UPS",
               "Webcam",
+              "Docking Station", // Added new type
             ];
             const validDeviceType = validDeviceTypes.find(
               (type) => type.toLowerCase() === deviceType.toLowerCase()
@@ -4075,7 +4186,7 @@ export default function Employee() {
             }
 
             // Generate device tag if blank or if duplicate exists
-            if (!deviceTag || existingTags.has(deviceTag.toLowerCase())) {
+            if (!deviceTag || existingTags.has(normalizeTag(deviceTag))) {
               const originalTag = deviceTag;
               deviceTag = generateDeviceTag(deviceType);
               if (originalTag) {
@@ -4144,7 +4255,7 @@ export default function Employee() {
             });
 
             // Add to existing tags set to prevent duplicates in this import
-            existingTags.add(deviceTag.toLowerCase());
+            existingTags.add(normalizeTag(deviceTag));
 
             successCount++;
           } catch (error) {
@@ -4155,6 +4266,22 @@ export default function Employee() {
                 error.message
               }`
             );
+          }
+
+          // Update progress every row (batched for UI fairness)
+          const processed = successCount + errorCount + skippedCount;
+          setAssetImportProgress((prev) => ({
+            ...prev,
+            total: rows.length,
+            processed,
+            success: successCount,
+            errors: errorCount,
+            skipped: skippedCount,
+          }));
+
+          // Yield every 25 rows to keep UI responsive
+          if (i % 25 === 24) {
+            await yieldToBrowser();
           }
         }
 
@@ -4188,12 +4315,14 @@ export default function Employee() {
         showError("Error importing assets: " + error.message);
       } finally {
         setIsTableLoading(false);
+        setAssetImportProgress((prev) => ({ ...prev, active: false }));
       }
     };
 
     reader.onerror = () => {
       showError("Error reading the asset Excel file");
       setIsTableLoading(false);
+      setAssetImportProgress((prev) => ({ ...prev, active: false }));
     };
 
     reader.readAsArrayBuffer(file);
@@ -4680,7 +4809,7 @@ export default function Employee() {
                 display: "inline-block",
               }}
             >
-              Import Excel
+              Import Employees
               <input
                 type="file"
                 accept=".xlsx,.xls"

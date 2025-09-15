@@ -65,9 +65,13 @@ function SearchableDropdown({
   const dropdownRef = useRef(null);
 
   // Filter options based on search term
-  const filteredOptions = options.filter((option) =>
-    option[displayKey]?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = options.filter((option) => {
+    const searchValue = option[displayKey];
+    return (
+      searchValue &&
+      String(searchValue).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -801,19 +805,14 @@ function DeviceFormModal({
                 }}
               >
                 <label style={styles.inventoryLabel}>CPU - System Unit:</label>
-                <select
+                <input
+                  type="text"
                   name="cpuGen"
                   value={data.cpuGen || ""}
                   onChange={onChange}
+                  placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
                   style={styles.inventoryInput}
-                >
-                  <option value="">Select CPU System Unit</option>
-                  {cpuGenOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div
@@ -1108,9 +1107,6 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
     </div>
   );
 }
-
-// CPU Generation options for dropdown
-const cpuGenOptions = ["i3", "i5", "i7", "i9"];
 
 // === MAIN INVENTORY PAGE COMPONENT ===
 // This component manages the display and operations for unassigned inventory devices
@@ -1444,8 +1440,8 @@ function Inventory() {
 
   // --- HANDLERS ---
 
-  // Global TAG validation function
-  const validateTagUniqueness = async (tag, editingDeviceId = null) => {
+  // Local TAG validation function (enhanced with error handling)
+  const validateLocalTagUniqueness = async (tag, editingDeviceId = null) => {
     if (!tag || tag.trim() === "") {
       return { isValid: false, message: "TAG is required" };
     }
@@ -1457,7 +1453,7 @@ function Inventory() {
       const existingDevice = allDevices.find(
         (device) =>
           device.deviceTag &&
-          device.deviceTag.toLowerCase() === trimmedTag.toLowerCase() &&
+          String(device.deviceTag).toLowerCase() === trimmedTag.toLowerCase() &&
           device.id !== editingDeviceId
       );
 
@@ -1496,13 +1492,27 @@ function Inventory() {
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
           const matchesSearch =
-            device.deviceType?.toLowerCase().includes(q) ||
-            device.deviceTag?.toLowerCase().includes(q) ||
-            device.brand?.toLowerCase().includes(q) ||
-            device.model?.toLowerCase().includes(q) ||
-            device.condition?.toLowerCase().includes(q) ||
-            device.remarks?.toLowerCase().includes(q) ||
-            device.client?.toLowerCase().includes(q);
+            String(device.deviceType || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.deviceTag || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.brand || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.model || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.condition || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.remarks || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.client || "")
+              .toLowerCase()
+              .includes(q);
 
           if (!matchesSearch) return false;
         }
@@ -1571,8 +1581,8 @@ function Inventory() {
         getAllDevices().then((allDevices) => {
           const ids = allDevices
             .map((d) => d.deviceTag)
-            .filter((tag) => tag && tag.startsWith(prefix))
-            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((tag) => tag && String(tag).startsWith(prefix))
+            .map((tag) => parseInt(String(tag).replace(prefix, "")))
             .filter((num) => !isNaN(num));
           const max = ids.length > 0 ? Math.max(...ids) : 0;
           const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -1593,8 +1603,8 @@ function Inventory() {
           getAllDevices().then((allDevices) => {
             const ids = allDevices
               .map((d) => d.deviceTag)
-              .filter((tag) => tag && tag.startsWith(prefix))
-              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((tag) => tag && String(tag).startsWith(prefix))
+              .map((tag) => parseInt(String(tag).replace(prefix, "")))
               .filter((num) => !isNaN(num));
             const max = ids.length > 0 ? Math.max(...ids) : 0;
             newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -1612,20 +1622,11 @@ function Inventory() {
       return;
     }
     if (name === "cpuGen") {
-      // When CPU System Unit is selected for PC, just set the brand
-      if (form.deviceType === "PC" && value) {
-        setForm((prev) => ({
-          ...prev,
-          cpuGen: value,
-          brand: value, // Set brand to CPU System Unit value for PC devices
-        }));
-      } else {
-        setForm((prev) => ({
-          ...prev,
-          cpuGen: value,
-          brand: form.deviceType === "PC" ? value : prev.brand, // Only set brand for PC devices
-        }));
-      }
+      // Simply set the CPU System Unit value without affecting brand
+      setForm((prev) => ({
+        ...prev,
+        cpuGen: value,
+      }));
       setTagError("");
       return;
     }
@@ -1646,8 +1647,8 @@ function Inventory() {
           getAllDevices().then((allDevices) => {
             const ids = allDevices
               .map((d) => d.deviceTag)
-              .filter((tag) => tag && tag.startsWith(prefix))
-              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((tag) => tag && String(tag).startsWith(prefix))
+              .map((tag) => parseInt(String(tag).replace(prefix, "")))
               .filter((num) => !isNaN(num));
             const max = ids.length > 0 ? Math.max(...ids) : 0;
             const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -1672,7 +1673,7 @@ function Inventory() {
         setForm((prev) => ({ ...prev, [name]: value }));
         // Real-time validation for manual serial input
         if (value.trim()) {
-          validateTagUniqueness(value.trim(), form._editDeviceId).then(
+          validateLocalTagUniqueness(value.trim(), form._editDeviceId).then(
             (validation) => {
               if (!validation.isValid) {
                 setTagError(validation.message);
@@ -1715,8 +1716,8 @@ function Inventory() {
     const allDevices = await getAllDevices();
     const ids = allDevices
       .map((d) => d.deviceTag)
-      .filter((tag) => tag && tag.startsWith(prefix))
-      .map((tag) => parseInt(tag.replace(prefix, "")))
+      .filter((tag) => tag && String(tag).startsWith(prefix))
+      .map((tag) => parseInt(String(tag).replace(prefix, "")))
       .filter((num) => !isNaN(num));
     const max = ids.length > 0 ? Math.max(...ids) : 0;
     const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -2126,7 +2127,7 @@ function Inventory() {
 
     try {
       // Enhanced TAG validation
-      const tagValidation = await validateTagUniqueness(
+      const tagValidation = await validateLocalTagUniqueness(
         form.deviceTag,
         form._editDeviceId
       );
@@ -2274,15 +2275,16 @@ function Inventory() {
 
         // Extract just the size part (first 1-2 digits)
         let sizeNumber = "";
-        if (fullNumber.startsWith("4")) {
+        const fullNumberStr = String(fullNumber);
+        if (fullNumberStr.startsWith("4")) {
           sizeNumber = "4";
-        } else if (fullNumber.startsWith("8")) {
+        } else if (fullNumberStr.startsWith("8")) {
           sizeNumber = "8";
-        } else if (fullNumber.startsWith("16")) {
+        } else if (fullNumberStr.startsWith("16")) {
           sizeNumber = "16";
-        } else if (fullNumber.startsWith("32")) {
+        } else if (fullNumberStr.startsWith("32")) {
           sizeNumber = "32";
-        } else if (fullNumber.startsWith("64")) {
+        } else if (fullNumberStr.startsWith("64")) {
           sizeNumber = "64";
         }
 
@@ -2310,8 +2312,7 @@ function Inventory() {
     const formData = {
       deviceType: matchedType || "",
       deviceTag: deviceData.deviceTag || "",
-      brand:
-        matchedType === "PC" ? extractedCpuSystemUnit : deviceData.brand || "", // Use CPU System Unit as brand for PC devices
+      brand: deviceData.brand || "", // Keep the actual brand field separate from CPU System Unit
       model: deviceData.model || "",
       client: deviceData.client || "",
       condition: deviceData.condition || "",
@@ -2355,7 +2356,8 @@ function Inventory() {
     }
 
     const isSerialFormat =
-      deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
+      deviceData.deviceTag &&
+      !String(deviceData.deviceTag).startsWith(expectedPrefix);
     setUseSerial(isSerialFormat);
 
     setShowForm(true);
@@ -2473,8 +2475,8 @@ function Inventory() {
             getAllDevices().then((allDevices) => {
               const ids = allDevices
                 .map((d) => d.deviceTag)
-                .filter((tag) => tag && tag.startsWith(prefix))
-                .map((tag) => parseInt(tag.replace(prefix, "")))
+                .filter((tag) => tag && String(tag).startsWith(prefix))
+                .map((tag) => parseInt(String(tag).replace(prefix, "")))
                 .filter((num) => !isNaN(num));
               const max = ids.length > 0 ? Math.max(...ids) : 0;
               const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -2490,8 +2492,8 @@ function Inventory() {
           getAllDevices().then((allDevices) => {
             const ids = allDevices
               .map((d) => d.deviceTag)
-              .filter((tag) => tag && tag.startsWith(prefix))
-              .map((tag) => parseInt(tag.replace(prefix, "")))
+              .filter((tag) => tag && String(tag).startsWith(prefix))
+              .map((tag) => parseInt(String(tag).replace(prefix, "")))
               .filter((num) => !isNaN(num));
             const max = ids.length > 0 ? Math.max(...ids) : 0;
             const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -3108,10 +3110,11 @@ function Inventory() {
     const allDevices = await getAllDevices();
     const deviceTags = allDevices
       .filter(
-        (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+        (device) =>
+          device.deviceTag && String(device.deviceTag).startsWith(prefix)
       )
       .map((device) => {
-        const tagNumber = device.deviceTag.replace(prefix, "");
+        const tagNumber = String(device.deviceTag).replace(prefix, "");
         return parseInt(tagNumber, 10);
       })
       .filter((num) => !isNaN(num))
@@ -3131,7 +3134,7 @@ function Inventory() {
 
     // Validate all tags for uniqueness
     for (const tag of tagsToCheck) {
-      const validation = await validateTagUniqueness(tag);
+      const validation = await validateLocalTagUniqueness(tag);
       if (!validation.isValid) {
         throw new Error(`TAG validation failed: ${validation.message}`);
       }
@@ -3222,10 +3225,11 @@ function Inventory() {
       // Find all devices of this type to determine the last used TAG
       const deviceTags = allDevices
         .filter(
-          (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+          (device) =>
+            device.deviceTag && String(device.deviceTag).startsWith(prefix)
         )
         .map((device) => {
-          const tagNumber = device.deviceTag.replace(prefix, "");
+          const tagNumber = String(device.deviceTag).replace(prefix, "");
           return parseInt(tagNumber, 10);
         })
         .filter((num) => !isNaN(num))
@@ -3507,7 +3511,7 @@ function Inventory() {
 
       // Enhanced validation: Check against existing devices using global validation
       for (const serial of allSerialValues) {
-        const validation = await validateTagUniqueness(serial);
+        const validation = await validateLocalTagUniqueness(serial);
         if (!validation.isValid) {
           setNewAcqError(validation.message);
           setNewAcqLoading(false);
@@ -3731,10 +3735,11 @@ function Inventory() {
         const allDevices = await getAllDevices();
         const deviceTags = allDevices
           .filter(
-            (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+            (device) =>
+              device.deviceTag && String(device.deviceTag).startsWith(prefix)
           )
           .map((device) => {
-            const tagNumber = device.deviceTag.replace(prefix, "");
+            const tagNumber = String(device.deviceTag).replace(prefix, "");
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
@@ -3753,7 +3758,7 @@ function Inventory() {
 
         // Validate all TAGs for uniqueness
         for (const tag of tagsToValidate) {
-          const tagValidation = await validateTagUniqueness(tag);
+          const tagValidation = await validateLocalTagUniqueness(tag);
           if (!tagValidation.isValid) {
             setNewAcqError(`${tagValidation.message} in ${rangeTabs[i].label}`);
             setNewAcqLoading(false);
@@ -4044,10 +4049,13 @@ function Inventory() {
         { label: "Laptop", code: "LPT" },
         { label: "Monitor", code: "MN" },
         { label: "Mouse", code: "M" },
+        { label: "PC", code: "PC" },
         { label: "PSU", code: "PSU" },
+        { label: "RAM", code: "RAM" },
         { label: "SSD", code: "SSD" },
         { label: "UPS", code: "UPS" },
         { label: "Webcam", code: "W" },
+        { label: "Docking Station", code: "DS" },
       ];
 
       // PC types tracked with simple format
@@ -4071,10 +4079,11 @@ function Inventory() {
         // Find existing tags with this prefix
         const existingTags = allDevices
           .filter(
-            (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+            (device) =>
+              device.deviceTag && String(device.deviceTag).startsWith(prefix)
           )
           .map((device) => {
-            const tagNumber = device.deviceTag.replace(prefix, "");
+            const tagNumber = String(device.deviceTag).replace(prefix, "");
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
@@ -4102,10 +4111,14 @@ function Inventory() {
         const existingTags = allDevices
           .filter(
             (device) =>
-              device.deviceTag && device.deviceTag.startsWith(pcType.prefix)
+              device.deviceTag &&
+              String(device.deviceTag).startsWith(pcType.prefix)
           )
           .map((device) => {
-            const tagNumber = device.deviceTag.replace(pcType.prefix, "");
+            const tagNumber = String(device.deviceTag).replace(
+              pcType.prefix,
+              ""
+            );
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
@@ -4133,10 +4146,14 @@ function Inventory() {
         const existingTags = allDevices
           .filter(
             (device) =>
-              device.deviceTag && device.deviceTag.startsWith(ramType.prefix)
+              device.deviceTag &&
+              String(device.deviceTag).startsWith(ramType.prefix)
           )
           .map((device) => {
-            const tagNumber = device.deviceTag.replace(ramType.prefix, "");
+            const tagNumber = String(device.deviceTag).replace(
+              ramType.prefix,
+              ""
+            );
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
