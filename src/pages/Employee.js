@@ -3913,7 +3913,7 @@ export default function Employee() {
     }
   };
 
-  // Excel import
+  // Excel import (idempotent: fills gaps, updates existing, avoids duplicates)
   const handleImportExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -3936,61 +3936,143 @@ export default function Employee() {
           return;
         }
 
-        let successCount = 0;
+        // Prepare existing employees map for quick lookup
+        const existingEmployees = await getAllEmployees();
+        const byId = new Map(existingEmployees.map((e) => [e.id, e]));
+        // Secondary key: fullName + position (case-insensitive) to detect near duplicates
+        const byComposite = new Map(
+          existingEmployees.map((e) => [
+            (e.fullName || "").toLowerCase() +
+              "|" +
+              (e.position || "").toLowerCase(),
+            e,
+          ])
+        );
+
+        let createdCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
         let errorCount = 0;
 
         for (const row of rows) {
           try {
-            // Build full name from first, middle, and last name
-            const firstName = row["FIRST NAME"] || "";
-            const middleName = row["MIDDLE NAME"] || "";
-            const lastName = row["LAST NAME"] || "";
+            const firstName = (row["FIRST NAME"] || "").toString().trim();
+            const middleName = (row["MIDDLE NAME"] || "").toString().trim();
+            const lastName = (row["LAST NAME"] || "").toString().trim();
             const fullName = [firstName, middleName, lastName]
-              .filter((name) => name.trim())
+              .filter((p) => p)
               .join(" ");
+            const position = (row["POSITION"] || "").toString().trim();
+            const employeeIdRaw = (
+              row["Employee ID"] ||
+              row["EMPLOYEE ID"] ||
+              ""
+            )
+              .toString()
+              .trim();
+            const clientId = findClientIdByName(row["CLIENT"] || "");
 
-            const employeeData = {
-              fullName: fullName,
-              position: row["POSITION"] || "",
-              department: "", // You might want to add DEPARTMENT column to your Excel or set a default
-              clientId: findClientIdByName(row["CLIENT"] || ""),
-              corporateEmail: row["CORPORATE EMAIL"] || "",
-              personalEmail: row["PERSONAL EMAIL"] || "",
-              dateHired: row["DATE HIRED"] || "",
-              firstName: firstName,
-              lastName: lastName,
-              middleName: middleName,
-            };
-
-            console.log("Processing employee:", employeeData); // Debug log
-
-            // Validate required fields (fullName and position are minimum requirements)
-            if (employeeData.fullName && employeeData.position) {
-              await addEmployee(employeeData);
-              successCount++;
-            } else {
-              console.log(
-                "Skipping invalid row (missing fullName or position):",
-                row
-              );
-              errorCount++;
+            if (!fullName || !position) {
+              skippedCount++;
+              continue; // Missing essentials
             }
-          } catch (error) {
-            console.error("Error adding employee:", error);
+
+            const compositeKey =
+              fullName.toLowerCase() + "|" + position.toLowerCase();
+            let targetEmployee = null;
+
+            // Priority 1: explicit ID match
+            if (employeeIdRaw && byId.has(employeeIdRaw)) {
+              targetEmployee = byId.get(employeeIdRaw);
+            } else if (byComposite.has(compositeKey)) {
+              // Priority 2: composite key match
+              targetEmployee = byComposite.get(compositeKey);
+            }
+
+            const normalizedDateHired = row["DATE HIRED"] || "";
+            const corporateEmail = row["CORPORATE EMAIL"] || "";
+            const personalEmail = row["PERSONAL EMAIL"] || "";
+
+            if (targetEmployee) {
+              // Determine if an update is needed (only update empty or missing fields or changed client/email)
+              const patch = {};
+              const assignIf = (field, newValue) => {
+                if (
+                  newValue && // new value present
+                  (targetEmployee[field] === undefined ||
+                    targetEmployee[field] === "" ||
+                    targetEmployee[field] === null)
+                ) {
+                  patch[field] = newValue;
+                }
+              };
+
+              assignIf("firstName", firstName);
+              assignIf("middleName", middleName);
+              assignIf("lastName", lastName);
+              assignIf("fullName", fullName);
+              assignIf("position", position);
+              assignIf("corporateEmail", corporateEmail);
+              assignIf("personalEmail", personalEmail);
+              assignIf("dateHired", normalizedDateHired);
+              assignIf("clientId", clientId);
+
+              // If clientId differs (and not empty) update explicitly
+              if (clientId && targetEmployee.clientId !== clientId) {
+                patch.clientId = clientId;
+              }
+
+              if (Object.keys(patch).length > 0) {
+                try {
+                  await updateEmployee(targetEmployee.id, patch);
+                  updatedCount++;
+                } catch (err) {
+                  console.error("Update failed for", targetEmployee.id, err);
+                  errorCount++;
+                }
+              } else {
+                skippedCount++; // Nothing to change
+              }
+            } else {
+              // Create new employee
+              const newEmployee = {
+                fullName,
+                position,
+                department: "", // Extend if column added later
+                clientId,
+                corporateEmail,
+                personalEmail,
+                dateHired: normalizedDateHired,
+                firstName,
+                lastName,
+                middleName,
+              };
+              try {
+                await addEmployee(newEmployee);
+                createdCount++;
+              } catch (err) {
+                console.error("Create failed for", fullName, err);
+                errorCount++;
+              }
+            }
+          } catch (rowErr) {
+            console.error("Row processing error:", rowErr);
             errorCount++;
           }
         }
 
-        if (successCount > 0) {
+        if (createdCount + updatedCount > 0) {
           showSuccess(
-            `Successfully imported ${successCount} employee(s)${
-              errorCount > 0 ? ` (${errorCount} failed)` : ""
+            `Import summary: ${createdCount} added, ${updatedCount} updated, ${skippedCount} unchanged${
+              errorCount > 0 ? `, ${errorCount} errors` : ""
             }`
           );
           await loadClientsAndEmployees();
         } else {
           showError(
-            "No valid employees found to import. Please check your Excel format and ensure FIRST NAME, LAST NAME, and POSITION columns have data."
+            `No changes applied. ${skippedCount} rows unchanged$${
+              errorCount > 0 ? `, ${errorCount} errors` : ""
+            }`
           );
         }
       } catch (error) {
@@ -4828,21 +4910,32 @@ export default function Employee() {
                 padding: "8px 16px",
                 border: "1px solid #10b981",
                 borderRadius: 6,
-                background: "#10b981",
+                background: assetImportProgress.active ? "#059669" : "#10b981",
                 color: "white",
                 fontSize: 14,
                 fontWeight: 500,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 display: "inline-block",
+                position: "relative",
+                minWidth: 180,
+                textAlign: "center",
               }}
+              title={
+                assetImportProgress.active
+                  ? `Processed ${assetImportProgress.processed} of ${assetImportProgress.total} (Success: ${assetImportProgress.success}, Errors: ${assetImportProgress.errors}, Skipped: ${assetImportProgress.skipped})`
+                  : "Import deployed (assigned) assets from Excel"
+              }
             >
-              Import Deployed Assets
+              {assetImportProgress.active
+                ? `Importing ${assetImportProgress.processed}/${assetImportProgress.total}`
+                : "Import Deployed Assets"}
               <input
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleImportDeployedAssets}
                 style={{ display: "none" }}
+                disabled={assetImportProgress.active}
               />
             </label>
           )}

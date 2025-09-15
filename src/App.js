@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { CurrentUserProvider, useCurrentUser } from "./CurrentUserContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import Dashboard from "./pages/Dashboard";
@@ -19,7 +25,14 @@ import "./styles/theme.css";
 
 function App() {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Initialize auth state from persisted currentUser (localStorage) so refresh keeps the user logged in
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return !!localStorage.getItem("currentUser");
+    } catch (e) {
+      return false;
+    }
+  });
   const [loginError, setLoginError] = useState("");
 
   return (
@@ -45,10 +58,30 @@ function App() {
     setLoginError,
   }) {
     const { currentUser, setCurrentUser } = useCurrentUser();
+    const location = useLocation();
+
+    // If we have a persisted currentUser but auth flag is false (e.g., after hard refresh), restore it
+    useEffect(() => {
+      if (currentUser && !isAuthenticated) {
+        setIsAuthenticated(true);
+      }
+    }, [currentUser, isAuthenticated, setIsAuthenticated]);
+
+    // Prevent staying on /login when already authenticated (e.g., user manually navigates back)
+    useEffect(() => {
+      if (isAuthenticated && location.pathname === "/login") {
+        navigate("/dashboard", { replace: true });
+      }
+    }, [isAuthenticated, location.pathname, navigate]);
     function onLogout() {
       setCurrentUser(null);
       setIsAuthenticated(false);
       setLoginError("");
+      try {
+        localStorage.removeItem("currentUser");
+      } catch (e) {
+        // ignore storage errors
+      }
       navigate("/login", { replace: true });
     }
     function handleLogin(userData, userId) {
