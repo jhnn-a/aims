@@ -34,6 +34,7 @@ import {
 } from "../pages/InventoryUtils"; // Date formatting utilities
 import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
 import { db } from "../utils/firebase"; // Firebase configuration
+import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export utility
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -901,6 +902,18 @@ function Assets() {
   const handleCloseDeviceHistory = () => {
     setShowDeviceHistory(false);
     setSelectedDeviceForHistory(null);
+  };
+
+  // === EXPORT HANDLER ===
+  // Exports the currently filtered deployed assets list to Excel
+  const handleExportToExcel = async () => {
+    try {
+      await exportInventoryToExcel({ devices: filteredDevices, employees });
+      showSuccess("Deployed assets exported successfully!");
+    } catch (err) {
+      console.error("Export failed:", err);
+      showError("Failed to export deployed assets. Please try again.");
+    }
   };
 
   // === UNITSPECS SYNC FUNCTIONS ===
@@ -2097,6 +2110,42 @@ function Assets() {
                   <line x1="22" y1="11" x2="16" y2="11" />
                 </svg>
                 Unassign
+              </button>
+              <button
+                onClick={handleExportToExcel}
+                style={{
+                  padding: "9px 16px",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                  borderRadius: "6px",
+                  background: isDarkMode ? "#374151" : "#f3f4f6",
+                  color: isDarkMode ? "#e5e7eb" : "#374151",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                title="Export current list to Excel"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export
               </button>
             </div>
           </div>
