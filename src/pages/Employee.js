@@ -4323,6 +4323,15 @@ export default function Employee() {
               errors.push(
                 `Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`
               );
+              // Prompt skipped details for testing
+              const safeEmpId = employeeId ? employeeId : "(missing)";
+              const safeTag = deviceTag ? deviceTag : "(missing)";
+              console.warn(
+                `Skipped (missing fields). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+              );
+              showError(
+                `Skipped (missing fields): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+              );
               continue;
             }
 
@@ -4352,6 +4361,15 @@ export default function Employee() {
                   ", "
                 )}`
               );
+              // Prompt skipped details for testing
+              const safeEmpId = employeeId ? employeeId : "(missing)";
+              const safeTag = deviceTag ? deviceTag : "(missing)";
+              console.warn(
+                `Skipped (invalid type). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+              );
+              showError(
+                `Skipped (invalid type): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+              );
               continue;
             }
 
@@ -4372,6 +4390,15 @@ export default function Employee() {
               skippedCount++;
               errors.push(
                 `Row with Employee "${employeeName}" (ID: ${employeeId}): Employee not found in system`
+              );
+              // Prompt skipped details for testing
+              const safeEmpId = employeeId ? employeeId : "(missing)";
+              const safeTag = deviceTag ? deviceTag : "(missing)";
+              console.warn(
+                `Skipped import row due to missing employee. Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+              );
+              showError(
+                `Skipped: Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
               );
               continue;
             }
