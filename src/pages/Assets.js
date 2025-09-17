@@ -773,6 +773,11 @@ function Assets() {
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
   // Import deployed assets (Excel) state
   const importInputRef = useRef(null);
+  const [importProgress, setImportProgress] = useState({
+    processed: 0,
+    total: 0,
+    active: false,
+  });
 
   // === SELECTION WARNING STATE ===
   const [showSelectionWarning, setShowSelectionWarning] = useState(false); // Selection warning modal visibility
@@ -1386,6 +1391,11 @@ function Assets() {
       const workbook = XLSX.read(new Uint8Array(data), { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet);
+      setImportProgress({
+        processed: 0,
+        total: rows.length || 0,
+        active: true,
+      });
 
       const existingDevices = await getAllDevices();
       const normalizeTag = (tag) =>
@@ -1463,6 +1473,15 @@ function Assets() {
                 employeeId || "(missing)"
               }, Tag: ${deviceTag || "(missing)"}`
             );
+            // Prompt skipped details for testing
+            const safeEmpId = employeeId || "(missing)";
+            const safeTag = deviceTag || "(missing)";
+            console.warn(
+              `Skipped (missing fields). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+            );
+            showError(
+              `Skipped (missing fields): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+            );
             continue;
           }
           const validDeviceType = validDeviceTypes.find(
@@ -1474,6 +1493,15 @@ function Assets() {
               `Invalid type '${deviceType}' — EmpID: ${
                 employeeId || "(missing)"
               }, Tag: ${deviceTag || "(missing)"}`
+            );
+            // Prompt skipped details for testing
+            const safeEmpId = employeeId || "(missing)";
+            const safeTag = deviceTag || "(missing)";
+            console.warn(
+              `Skipped (invalid type). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+            );
+            showError(
+              `Skipped (invalid type): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
             );
             continue;
           }
@@ -1494,6 +1522,15 @@ function Assets() {
               `Employee not found — EmpID: ${employeeId || "(missing)"}, Tag: ${
                 deviceTag || "(missing)"
               }`
+            );
+            // Prompt skipped details for testing
+            const safeEmpId = employeeId || "(missing)";
+            const safeTag = deviceTag || "(missing)";
+            console.warn(
+              `Skipped (employee not found). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
+            );
+            showError(
+              `Skipped (employee not found): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
             );
             continue;
           }
@@ -1539,6 +1576,8 @@ function Assets() {
           errorCount++;
           errors.push(err.message || String(err));
         }
+        const processed = successCount + errorCount + skippedCount;
+        setImportProgress((prev) => ({ ...prev, processed }));
       }
 
       if (successCount > 0) {
@@ -1562,6 +1601,7 @@ function Assets() {
       showError("Failed to import deployed assets");
     } finally {
       setLoading(false);
+      setImportProgress({ processed: 0, total: 0, active: false });
       if (e?.target) e.target.value = "";
     }
   };
@@ -2205,13 +2245,14 @@ function Assets() {
               />
               <button
                 onClick={handleClickImport}
+                disabled={importProgress.active}
                 style={{
                   padding: "9px 16px",
                   border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                   borderRadius: "6px",
-                  background: isDarkMode ? "#374151" : "#f3f4f6",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  cursor: "pointer",
+                  background: importProgress.active ? "#86efac" : "#a7f3d0", // light green shades
+                  color: "#065f46",
+                  cursor: importProgress.active ? "not-allowed" : "pointer",
                   fontSize: "14px",
                   fontWeight: 500,
                   transition: "all 0.2s",
@@ -2237,6 +2278,11 @@ function Assets() {
                   <path d="M12 5v14m-7-7h14" />
                 </svg>
                 Import Deployed
+                {importProgress.active && (
+                  <span style={{ fontSize: 11, marginLeft: 6 }}>
+                    {importProgress.processed}/{importProgress.total}
+                  </span>
+                )}
               </button>
               <button
                 disabled={
