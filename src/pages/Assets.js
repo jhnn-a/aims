@@ -8,6 +8,7 @@ import {
   getAllDevices,
   updateDevice,
   addDevice,
+  deleteDevice,
 } from "../services/deviceService"; // Database operations for devices
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
@@ -681,7 +682,14 @@ function Assets() {
   };
 
   // === NOTIFICATION HOOKS ===
-  const { showSuccess, showError, showWarning, showInfo } = useSnackbar(); // User feedback notifications
+  // Added showUndoNotification for bulk delete undo snackbar (mirrors Inventory.js usage)
+  const {
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showUndoNotification,
+  } = useSnackbar(); // User feedback notifications including undo
 
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of assigned devices from database
@@ -712,6 +720,13 @@ function Assets() {
   const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false); // Bulk unassignment modal
   const [bulkAssignSearch, setBulkAssignSearch] = useState(""); // Employee search in bulk assign modal
   const [bulkUnassignReason, setBulkUnassignReason] = useState(""); // Reason for bulk unassignment
+  // Bulk delete state (deployed assets)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const UNDO_WINDOW_MS = 5000; // Undo window for deletion
 
   // === TABLE FILTERING SYSTEM ===
   // Advanced filtering system for table headers with multiple filter types
@@ -1230,6 +1245,85 @@ function Assets() {
     setBulkUnassignModalOpen(true);
     setBulkUnassignReason("working");
   };
+
+  // Bulk Delete Handlers
+  const handleBulkDelete = () => {
+    if (!selectedDeviceIds.length) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setShowBulkDeleteConfirm(false);
+    if (!selectedDeviceIds.length) return;
+    try {
+      const devicesToDelete = devices.filter((d) =>
+        selectedDeviceIds.includes(d.id)
+      );
+      setBulkDeleteProgress({ current: 0, total: devicesToDelete.length });
+      for (let i = 0; i < devicesToDelete.length; i++) {
+        const device = devicesToDelete[i];
+        try {
+          await logDeviceHistory({
+            employeeId: device.assignedTo || null,
+            employeeName: device.assignedToName || null,
+            deviceId: device.id,
+            deviceTag: device.deviceTag,
+            action: "deleted",
+            date: new Date(),
+          });
+        } catch (err) {
+          console.error(
+            "Failed to log deletion history for",
+            device.deviceTag,
+            err
+          );
+        }
+        await deleteDevice(device.id);
+        setBulkDeleteProgress({
+          current: i + 1,
+          total: devicesToDelete.length,
+        });
+      }
+      setDevices((prev) =>
+        prev.filter((d) => !selectedDeviceIds.includes(d.id))
+      );
+      const deletedCount = devicesToDelete.length;
+      showUndoNotification(
+        `${deletedCount} deployed device(s) deleted`,
+        async () => {
+          try {
+            for (const deviceData of devicesToDelete) {
+              const { id: originalId, ...rest } = deviceData;
+              await setDoc(doc(db, "devices", originalId), rest);
+              await logDeviceHistory({
+                employeeId: deviceData.assignedTo || null,
+                employeeName: deviceData.assignedToName || null,
+                deviceId: originalId,
+                deviceTag: deviceData.deviceTag,
+                action: "restored",
+                date: new Date(),
+              });
+            }
+            // Refresh devices list after restoration to keep UI in sync
+            await loadDevicesAndEmployees();
+            showSuccess(`${deletedCount} device(s) restored`);
+          } catch (undoErr) {
+            console.error("Undo restore failed:", undoErr);
+            showError("Failed to restore some devices");
+          }
+        },
+        UNDO_WINDOW_MS
+      );
+      setSelectedDeviceIds([]);
+      setBulkDeleteProgress({ current: 0, total: 0 });
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      showError("Failed to delete devices.");
+      setBulkDeleteProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteConfirm(false);
 
   const confirmBulkReassign = async (emp) => {
     for (const id of selectedDeviceIds) {
@@ -1860,6 +1954,62 @@ function Assets() {
                 flexWrap: "wrap",
               }}
             >
+              <button
+                disabled={
+                  !selectedDeviceIds.length || bulkDeleteProgress.total > 0
+                }
+                onClick={handleBulkDelete}
+                style={{
+                  padding: "9px 16px",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                  borderRadius: "6px",
+                  background:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "#dc2626"
+                      : isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6",
+                  color:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "#fff"
+                      : isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af",
+                  cursor:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "pointer"
+                      : "not-allowed",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  position: "relative",
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <polyline points="3,6 5,6 21,6"></polyline>
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+                Delete
+                {bulkDeleteProgress.total > 0 && (
+                  <span style={{ fontSize: 11, marginLeft: 6 }}>
+                    {bulkDeleteProgress.current}/{bulkDeleteProgress.total}
+                  </span>
+                )}
+              </button>
               <button
                 disabled={!selectedDeviceIds.length}
                 onClick={handleBulkReassign}
@@ -4279,6 +4429,169 @@ function Assets() {
           />
         )}
       </div>
+      {showBulkDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2500,
+          }}
+        >
+          <div
+            style={{
+              background: isDarkMode ? "#1f2937" : "#fff",
+              padding: "32px 36px",
+              borderRadius: 18,
+              minWidth: "min(420px, 92vw)",
+              maxWidth: "min(520px, 95vw)",
+              boxShadow: isDarkMode
+                ? "0 12px 48px rgba(0,0,0,0.4)"
+                : "0 12px 48px rgba(0,0,0,0.15)",
+              border: isDarkMode ? "1px solid #374151" : "none",
+              fontFamily: "Maax, sans-serif",
+              position: "relative",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                marginBottom: 16,
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                color: "#dc2626",
+                textAlign: "center",
+              }}
+            >
+              Confirm Delete
+            </h2>
+            <p
+              style={{
+                margin: "0 0 14px 0",
+                fontSize: 15,
+                textAlign: "center",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+              }}
+            >
+              Delete {selectedDeviceIds.length} deployed device(s)?
+            </p>
+            {selectedDeviceIds.length > 0 && (
+              <div
+                style={{
+                  maxHeight: 140,
+                  overflowY: selectedDeviceIds.length > 10 ? "auto" : "visible",
+                  background: isDarkMode ? "#111827" : "#f8fafc",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "10px 14px 12px 14px",
+                  margin: "0 0 14px 0",
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  color: isDarkMode ? "#e5e7eb" : "#1f2937",
+                }}
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {selectedDeviceIds.slice(0, 10).map((id) => {
+                    const d = devices.find((dev) => dev.id === id);
+                    const tag = d?.deviceTag || id;
+                    return (
+                      <span
+                        key={id}
+                        style={{
+                          background: isDarkMode ? "#1f2937" : "#fff",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          letterSpacing: 0.3,
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    );
+                  })}
+                  {selectedDeviceIds.length > 10 && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        padding: "4px 6px",
+                      }}
+                    >
+                      +{selectedDeviceIds.length - 10} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            <p
+              style={{
+                margin: 0,
+                marginTop: 4,
+                fontSize: 13,
+                textAlign: "center",
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+              }}
+            >
+              You can undo for {UNDO_WINDOW_MS / 1000} seconds after deleting.
+            </p>
+            <div
+              style={{
+                marginTop: 24,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+              }}
+            >
+              <button
+                onClick={confirmBulkDelete}
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={cancelBulkDelete}
+                style={{
+                  background: isDarkMode ? "#374151" : "#e5e7eb",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </React.Fragment>
   );
 }

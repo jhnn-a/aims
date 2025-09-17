@@ -3468,6 +3468,81 @@ export default function Employee() {
   const [activeTab, setActiveTab] = useState("active");
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
 
+  // === DATE UTILITIES (Excel + Fallback Normalization) ===
+  // Formats a Date object to mm/dd/yyyy
+  const formatToMMDDYYYY = (dateObj) => {
+    if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
+      return formatToMMDDYYYY(new Date());
+    }
+    const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const dd = String(dateObj.getDate()).padStart(2, "0");
+    const yyyy = dateObj.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+
+  // Parses various Excel/CSV date representations and normalizes invalid/1970 dates to today.
+  // Accepts: Excel serial numbers, ISO strings, mm/dd/yyyy, yyyy-mm-dd, Date objects
+  const parseExcelDate = (value) => {
+    const today = new Date();
+    const todayStr = formatToMMDDYYYY(today);
+    if (value === null || value === undefined) return todayStr;
+
+    // If already a Date
+    if (value instanceof Date) {
+      if (isNaN(value.getTime()) || value.getFullYear() === 1970)
+        return todayStr;
+      return formatToMMDDYYYY(value);
+    }
+
+    // If numeric (possible Excel serial). Excel serial 1 corresponds to 1899-12-31; 25569 -> 1970-01-01
+    if (typeof value === "number") {
+      // Guard very small / negative numbers
+      if (value < 25569) return todayStr; // pre-1970 or invalid
+      const milliseconds = (value - 25569) * 86400000; // days to ms from Unix epoch
+      const dateFromSerial = new Date(milliseconds);
+      if (
+        isNaN(dateFromSerial.getTime()) ||
+        dateFromSerial.getFullYear() === 1970
+      )
+        return todayStr;
+      return formatToMMDDYYYY(dateFromSerial);
+    }
+
+    // If string: trim and attempt multiple parses
+    if (typeof value === "string") {
+      const raw = value.trim();
+      if (!raw) return todayStr;
+
+      // If it's a pure number string representing a serial
+      if (/^\d+$/.test(raw)) {
+        const asNum = Number(raw);
+        if (asNum < 25569) return todayStr;
+        const milliseconds = (asNum - 25569) * 86400000;
+        const dateFromSerial = new Date(milliseconds);
+        if (
+          isNaN(dateFromSerial.getTime()) ||
+          dateFromSerial.getFullYear() === 1970
+        )
+          return todayStr;
+        return formatToMMDDYYYY(dateFromSerial);
+      }
+
+      // Try letting Date parse it (handles yyyy-mm-dd, mm/dd/yyyy etc.)
+      const parsed = new Date(raw.replace(/-/g, "/")); // normalize dashes to slashes
+      if (!isNaN(parsed.getTime()) && parsed.getFullYear() !== 1970) {
+        return formatToMMDDYYYY(parsed);
+      }
+      // If it includes '1970' anywhere treat as invalid and use today
+      if (/1970/.test(raw)) return todayStr;
+      return todayStr; // fallback
+    }
+
+    return todayStr; // fallback for unrecognized types
+  };
+
+  // Convenience: current date in mm/dd/yyyy
+  const getCurrentDateMDY = () => formatToMMDDYYYY(new Date());
+
   // Assets modal state
   const [assetsModal, setAssetsModal] = useState({
     isOpen: false,
@@ -3554,7 +3629,38 @@ export default function Employee() {
   const loadEmployeeDeviceHistory = async (employeeId) => {
     try {
       const history = await getDeviceHistoryForEmployee(employeeId);
-      setEmployeeDeviceHistory(history);
+      const normalized = (history || []).map((entry) => {
+        let rawDate = entry.date;
+        // Accept ISO or stored format; ensure fallback logic
+        let finalMDY;
+        if (!rawDate) {
+          finalMDY = formatToMMDDYYYY(new Date());
+        } else {
+          // If numeric epoch string convert, if ISO parse, else delegate to parser
+          if (typeof rawDate === "string" && /^\d+$/.test(rawDate)) {
+            // Possibly ms timestamp
+            const asNum = Number(rawDate);
+            const d = new Date(asNum);
+            finalMDY = isNaN(d.getTime())
+              ? formatToMMDDYYYY(new Date())
+              : formatToMMDDYYYY(d);
+          } else {
+            try {
+              const d = new Date(rawDate);
+              if (!isNaN(d.getTime()) && d.getFullYear() !== 1970) {
+                finalMDY = formatToMMDDYYYY(d);
+              } else {
+                // Use general parser (which also handles 1970 fallback)
+                finalMDY = parseExcelDate(rawDate);
+              }
+            } catch {
+              finalMDY = formatToMMDDYYYY(new Date());
+            }
+          }
+        }
+        return { ...entry, date: finalMDY };
+      });
+      setEmployeeDeviceHistory(normalized);
     } catch (error) {
       console.error("Error loading device history:", error);
       setEmployeeDeviceHistory([]);
@@ -3989,7 +4095,7 @@ export default function Employee() {
               targetEmployee = byComposite.get(compositeKey);
             }
 
-            const normalizedDateHired = row["DATE HIRED"] || "";
+            const normalizedDateHired = parseExcelDate(row["DATE HIRED"]);
             const corporateEmail = row["CORPORATE EMAIL"] || "";
             const personalEmail = row["PERSONAL EMAIL"] || "";
 
@@ -4285,22 +4391,16 @@ export default function Employee() {
               }
             }
 
-            // Handle date deployed
-            let assignmentDate = "";
-            if (dateDeployed) {
-              try {
-                const date = new Date(dateDeployed);
-                if (!isNaN(date.getTime())) {
-                  assignmentDate = date.toISOString().slice(0, 10);
-                } else {
-                  assignmentDate = "-"; // Placeholder for invalid date
-                }
-              } catch (error) {
-                assignmentDate = "-"; // Placeholder for date parsing errors
+            // Normalize date deployed (Excel serial, string, etc.) to mm/dd/yyyy; fallback to today
+            const assignmentDateMDY = parseExcelDate(dateDeployed);
+            // Store ISO (yyyy-mm-dd) version for model persistence while keeping MDY for display/history fallback
+            const assignmentDateISO = (() => {
+              const parts = assignmentDateMDY.split("/"); // mm/dd/yyyy
+              if (parts.length === 3) {
+                return `${parts[2]}-${parts[0]}-${parts[1]}`; // yyyy-mm-dd
               }
-            } else {
-              assignmentDate = "-"; // Placeholder for missing date
-            }
+              return new Date().toISOString().slice(0, 10);
+            })();
 
             // Create device data
             const deviceData = {
@@ -4312,7 +4412,7 @@ export default function Employee() {
               condition: "GOOD", // Default condition for deployed assets
               status: "GOOD", // Status set to GOOD since asset is deployed to employee
               assignedTo: employee.id,
-              assignmentDate: assignmentDate,
+              assignmentDate: assignmentDateISO,
               remarks: `Imported deployed asset for ${employee.fullName}`,
               specifications: row["SPECIFICATIONS"] || "",
               warranty: row["WARRANTY"] || "",
@@ -4332,10 +4432,7 @@ export default function Employee() {
               deviceId: createdDevice.id,
               deviceTag: deviceTag,
               action: "assigned",
-              date:
-                assignmentDate === "-"
-                  ? new Date().toISOString()
-                  : new Date(assignmentDate).toISOString(),
+              date: new Date(assignmentDateISO).toISOString(),
               reason: "Bulk import of deployed assets",
             });
 
