@@ -3,7 +3,7 @@
 // Main features: View assigned devices, bulk reassign/unassign, search/filter, device history
 
 // === IMPORTS ===
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
   updateDevice,
@@ -34,7 +34,6 @@ import {
 } from "../pages/InventoryUtils"; // Date formatting utilities
 import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
 import { db } from "../utils/firebase"; // Firebase configuration
-import * as XLSX from "xlsx"; // Excel parsing for deployed assets import
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -771,8 +770,6 @@ function Assets() {
   const [unassignGenerating, setUnassignGenerating] = useState(false); // Unassign operation in progress
   const [unassignProgress, setUnassignProgress] = useState(0); // Unassign progress percentage
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
-  // Import deployed assets (Excel) state
-  const importInputRef = useRef(null);
 
   // === SELECTION WARNING STATE ===
   const [showSelectionWarning, setShowSelectionWarning] = useState(false); // Selection warning modal visibility
@@ -1327,244 +1324,6 @@ function Assets() {
   };
 
   const cancelBulkDelete = () => setShowBulkDeleteConfirm(false);
-
-  // === IMPORT DEPLOYED ASSETS (Excel) ===
-  const handleClickImport = () => {
-    if (importInputRef.current) importInputRef.current.click();
-  };
-
-  const parseExcelDateToISO = (value) => {
-    // Reuse logic similar to Employee.js: convert Excel serials/strings to ISO yyyy-mm-dd
-    const toMDY = (d) => {
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      const yyyy = d.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
-    };
-    const parseExcel = (val) => {
-      const today = new Date();
-      const fallback = toMDY(today);
-      if (val === null || val === undefined) return fallback;
-      if (val instanceof Date) {
-        if (isNaN(val.getTime()) || val.getFullYear() === 1970) return fallback;
-        return toMDY(val);
-      }
-      if (typeof val === "number") {
-        if (val < 25569) return fallback;
-        const d = new Date((val - 25569) * 86400000);
-        if (isNaN(d.getTime()) || d.getFullYear() === 1970) return fallback;
-        return toMDY(d);
-      }
-      if (typeof val === "string") {
-        const raw = val.trim();
-        if (!raw) return fallback;
-        if (/^\d+$/.test(raw)) {
-          const n = Number(raw);
-          if (n < 25569) return fallback;
-          const d = new Date((n - 25569) * 86400000);
-          if (isNaN(d.getTime()) || d.getFullYear() === 1970) return fallback;
-          return toMDY(d);
-        }
-        const d = new Date(raw.replace(/-/g, "/"));
-        if (!isNaN(d.getTime()) && d.getFullYear() !== 1970) return toMDY(d);
-        if (/1970/.test(raw)) return fallback;
-        return fallback;
-      }
-      return fallback;
-    };
-    const mdy = parseExcel(value);
-    const parts = mdy.split("/");
-    return `${parts[2]}-${parts[0]}-${parts[1]}`; // yyyy-mm-dd
-  };
-
-  const handleImportDeployedAssetsFromAssetsTab = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setLoading(true);
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(new Uint8Array(data), { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet);
-
-      const existingDevices = await getAllDevices();
-      const normalizeTag = (tag) =>
-        tag == null ? "" : String(tag).trim().toLowerCase();
-      const existingTags = new Set(
-        existingDevices.map((d) => normalizeTag(d.deviceTag)).filter((t) => t)
-      );
-
-      const deviceTypeMap = {
-        headset: "JOIIHS",
-        keyboard: "JOIIKB",
-        laptop: "JOIILPT",
-        monitor: "JOIIMN",
-        mouse: "JOIIM",
-        pc: "JOIIPC",
-        psu: "JOIIPSU",
-        ram: "JOIIRAM",
-        ssd: "JOIISSD",
-        ups: "JOIIUPS",
-        webcam: "JOIIW",
-        "docking station": "JOIIDS",
-      };
-      const generateDeviceTag = (deviceType) => {
-        const normalizedType = deviceType?.toLowerCase() || "dev";
-        const prefix = deviceTypeMap[normalizedType] || "JOIIDEV";
-        let maxNum = 0;
-        existingDevices.forEach((device) => {
-          if (device.deviceTag && device.deviceTag.startsWith(prefix)) {
-            const num = parseInt(device.deviceTag.replace(prefix, ""), 10);
-            if (!isNaN(num) && num > maxNum) maxNum = num;
-          }
-        });
-        existingTags.forEach((tag) => {
-          if (tag.startsWith(prefix.toLowerCase())) {
-            const num = parseInt(tag.replace(prefix.toLowerCase(), ""), 10);
-            if (!isNaN(num) && num > maxNum) maxNum = num;
-          }
-        });
-        return `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
-      };
-
-      let successCount = 0;
-      let errorCount = 0;
-      let skippedCount = 0;
-      const errors = [];
-
-      const validDeviceTypes = [
-        "Headset",
-        "Keyboard",
-        "Laptop",
-        "Monitor",
-        "Mouse",
-        "PC",
-        "PSU",
-        "RAM",
-        "SSD",
-        "UPS",
-        "Webcam",
-        "Docking Station",
-      ];
-
-      for (const row of rows) {
-        try {
-          const employeeName = (row["Employee"] || "").toString().trim();
-          const deviceType = (row["TYPE"] || "").toString().trim();
-          const brand = (row["BRAND"] || "").toString().trim();
-          let deviceTag = (row["DEVICE TAG"] || "").toString().trim();
-          const dateDeployed = row["DATE DEPLOYED"];
-          const employeeId = (row["EMPLOYEE ID"] || "").toString().trim();
-
-          if (!deviceType || !brand) {
-            skippedCount++;
-            errors.push(
-              `Missing fields (TYPE/BRAND) — EmpID: ${
-                employeeId || "(missing)"
-              }, Tag: ${deviceTag || "(missing)"}`
-            );
-            continue;
-          }
-          const validDeviceType = validDeviceTypes.find(
-            (t) => t.toLowerCase() === deviceType.toLowerCase()
-          );
-          if (!validDeviceType) {
-            skippedCount++;
-            errors.push(
-              `Invalid type '${deviceType}' — EmpID: ${
-                employeeId || "(missing)"
-              }, Tag: ${deviceTag || "(missing)"}`
-            );
-            continue;
-          }
-
-          // find employee by id or name from current state
-          let employee = null;
-          if (employeeId)
-            employee = employees.find((emp) => emp.id === employeeId);
-          if (!employee && employeeName) {
-            employee = employees.find(
-              (emp) =>
-                emp.fullName?.toLowerCase() === employeeName.toLowerCase()
-            );
-          }
-          if (!employee) {
-            skippedCount++;
-            errors.push(
-              `Employee not found — EmpID: ${employeeId || "(missing)"}, Tag: ${
-                deviceTag || "(missing)"
-              }`
-            );
-            continue;
-          }
-
-          if (!deviceTag || existingTags.has(normalizeTag(deviceTag))) {
-            deviceTag = generateDeviceTag(deviceType);
-          }
-
-          const assignmentDateISO = parseExcelDateToISO(dateDeployed);
-
-          const deviceData = {
-            deviceType: validDeviceType,
-            brand,
-            model: row["MODEL"] || "",
-            serialNumber: row["SERIAL NUMBER"] || "",
-            deviceTag,
-            condition: "GOOD",
-            status: "GOOD",
-            assignedTo: employee.id,
-            assignmentDate: assignmentDateISO,
-            remarks: `Imported deployed asset for ${employee.fullName}`,
-            specifications: row["SPECIFICATIONS"] || "",
-            warranty: row["WARRANTY"] || "",
-            purchaseDate: row["PURCHASE DATE"] || "",
-            supplier: row["SUPPLIER"] || "",
-          };
-
-          const createdDevice = await addDevice(deviceData);
-          await logDeviceHistory({
-            employeeId: employee.id,
-            employeeName: employee.fullName,
-            deviceId: createdDevice.id,
-            deviceTag,
-            action: "assigned",
-            date: new Date(assignmentDateISO).toISOString(),
-            reason: "Bulk import of deployed assets (Assets tab)",
-          });
-
-          existingTags.add(normalizeTag(deviceTag));
-          successCount++;
-        } catch (err) {
-          console.error("Row processing error (Assets import):", err);
-          errorCount++;
-          errors.push(err.message || String(err));
-        }
-      }
-
-      if (successCount > 0) {
-        showSuccess(
-          `Deployed import: ${successCount} added${
-            errorCount ? `, ${errorCount} errors` : ""
-          }${skippedCount ? `, ${skippedCount} skipped` : ""}`
-        );
-        await loadDevicesAndEmployees();
-      } else {
-        showError(
-          `No assets imported. ${errorCount} errors, ${skippedCount} skipped`
-        );
-      }
-
-      if (errors.length) {
-        console.warn("Import issues:", errors);
-      }
-    } catch (err) {
-      console.error("Import failed:", err);
-      showError("Failed to import deployed assets");
-    } finally {
-      setLoading(false);
-      if (e?.target) e.target.value = "";
-    }
-  };
 
   const confirmBulkReassign = async (emp) => {
     for (const id of selectedDeviceIds) {
@@ -2195,49 +1954,6 @@ function Assets() {
                 flexWrap: "wrap",
               }}
             >
-              {/* Import Deployed Assets */}
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                style={{ display: "none" }}
-                onChange={handleImportDeployedAssetsFromAssetsTab}
-              />
-              <button
-                onClick={handleClickImport}
-                style={{
-                  padding: "9px 16px",
-                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-                  borderRadius: "6px",
-                  background: isDarkMode ? "#374151" : "#f3f4f6",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: 500,
-                  transition: "all 0.2s",
-                  whiteSpace: "nowrap",
-                  minWidth: "80px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  position: "relative",
-                }}
-                title="Import deployed assets from Excel"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 5v14m-7-7h14" />
-                </svg>
-                Import Deployed
-              </button>
               <button
                 disabled={
                   !selectedDeviceIds.length || bulkDeleteProgress.total > 0
