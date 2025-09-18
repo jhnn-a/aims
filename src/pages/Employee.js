@@ -4320,15 +4320,25 @@ export default function Employee() {
         let existingDevices = [];
         try {
           existingDevices = await getAllDevices();
-          console.log("Existing devices loaded successfully:", existingDevices.length);
+          console.log(
+            "Existing devices loaded successfully:",
+            existingDevices.length
+          );
         } catch (error) {
           console.error("Failed to load existing devices:", error);
-          if (error.code === 'resource-exhausted' || error.message.includes('quota')) {
-            showError("Firebase quota exceeded. Please wait for quota reset or upgrade your plan. Unable to import assets.");
+          if (
+            error.code === "resource-exhausted" ||
+            error.message.includes("quota")
+          ) {
+            showError(
+              "Firebase quota exceeded. Please wait for quota reset or upgrade your plan. Unable to import assets."
+            );
             setIsTableLoading(false);
             return;
           }
-          showError("Error loading existing devices. Import may not detect duplicates correctly.");
+          showError(
+            "Error loading existing devices. Import may not detect duplicates correctly."
+          );
           // Continue with empty array - this will disable duplicate checking but allow import
         }
 
@@ -4344,8 +4354,13 @@ export default function Employee() {
             );
           } catch (error) {
             console.error("Error loading employees for import:", error);
-            if (error.code === 'resource-exhausted' || error.message.includes('quota')) {
-              showError("Firebase quota exceeded. Cannot load employee data for import validation. Please wait for quota reset or upgrade your plan.");
+            if (
+              error.code === "resource-exhausted" ||
+              error.message.includes("quota")
+            ) {
+              showError(
+                "Firebase quota exceeded. Cannot load employee data for import validation. Please wait for quota reset or upgrade your plan."
+              );
               setIsTableLoading(false);
               return;
             }
