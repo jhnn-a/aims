@@ -175,7 +175,7 @@ export const getUnassignedDevices = (devices, searchTerm = "") => {
 // Generate next available device tag
 export const generateNextDeviceTag = (deviceType, existingDevices) => {
   const deviceTypes = [
-    { label: "Headset", code: "HS" },
+    { label: "Headset", code: "H" },
     { label: "Keyboard", code: "KB" },
     { label: "Laptop", code: "LPT" },
     { label: "Monitor", code: "MN" },

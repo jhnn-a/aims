@@ -1599,14 +1599,27 @@ function Inventory() {
         let newTag = "";
         if (typeObj) {
           const prefix = `JOII${typeObj.code}`;
-          // Find max existing tag for this type
+          const isHeadset = typeObj.code === "H";
+          const legacyHeadsetPrefix = "JOIIHS"; // backward compatibility
+          // Find max existing tag for this type (include legacy headset prefix if applicable)
           getAllDevices().then((allDevices) => {
-            const ids = allDevices
-              .map((d) => d.deviceTag)
-              .filter((tag) => tag && String(tag).startsWith(prefix))
-              .map((tag) => parseInt(String(tag).replace(prefix, "")))
+            const tags = allDevices.map((d) => d.deviceTag).filter(Boolean);
+            const numbers = tags
+              .filter((tag) =>
+                isHeadset
+                  ? String(tag).startsWith(prefix) ||
+                    String(tag).startsWith(legacyHeadsetPrefix)
+                  : String(tag).startsWith(prefix)
+              )
+              .map((tag) => {
+                const t = String(tag);
+                if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+                  return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+                }
+                return parseInt(t.replace(prefix, ""), 10);
+              })
               .filter((num) => !isNaN(num));
-            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const max = numbers.length > 0 ? Math.max(...numbers) : 0;
             newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
             setForm((prev) => ({
               ...prev,
@@ -1713,11 +1726,26 @@ function Inventory() {
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
+    const isHeadset = typeObj.code === "H";
+    const legacyHeadsetPrefix = "JOIIHS";
     const allDevices = await getAllDevices();
     const ids = allDevices
       .map((d) => d.deviceTag)
-      .filter((tag) => tag && String(tag).startsWith(prefix))
-      .map((tag) => parseInt(String(tag).replace(prefix, "")))
+      .filter(
+        (tag) =>
+          tag &&
+          (isHeadset
+            ? String(tag).startsWith(prefix) ||
+              String(tag).startsWith(legacyHeadsetPrefix)
+            : String(tag).startsWith(prefix))
+      )
+      .map((tag) => {
+        const t = String(tag);
+        if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+          return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+        }
+        return parseInt(t.replace(prefix, ""), 10);
+      })
       .filter((num) => !isNaN(num));
     const max = ids.length > 0 ? Math.max(...ids) : 0;
     const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -2355,9 +2383,19 @@ function Inventory() {
       }
     }
 
-    const isSerialFormat =
-      deviceData.deviceTag &&
-      !String(deviceData.deviceTag).startsWith(expectedPrefix);
+    // Backward compatibility: for Headset, accept legacy prefix JOIIHS as valid too
+    let isSerialFormat = true;
+    if (deviceData.deviceTag) {
+      const tagStr = String(deviceData.deviceTag);
+      if (matchedType === "Headset") {
+        // Accept both new (JOIIH) and legacy (JOIIHS) prefixes
+        isSerialFormat = !(
+          tagStr.startsWith("JOIIH") || tagStr.startsWith("JOIIHS")
+        );
+      } else {
+        isSerialFormat = !tagStr.startsWith(expectedPrefix);
+      }
+    }
     setUseSerial(isSerialFormat);
 
     setShowForm(true);
@@ -2489,11 +2527,24 @@ function Inventory() {
         const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
         if (typeObj) {
           const prefix = `JOII${typeObj.code}`;
+          const isHeadset = typeObj.code === "H";
+          const legacyHeadsetPrefix = "JOIIHS";
           getAllDevices().then((allDevices) => {
-            const ids = allDevices
-              .map((d) => d.deviceTag)
-              .filter((tag) => tag && String(tag).startsWith(prefix))
-              .map((tag) => parseInt(String(tag).replace(prefix, "")))
+            const tags = allDevices.map((d) => d.deviceTag).filter(Boolean);
+            const ids = tags
+              .filter((tag) =>
+                isHeadset
+                  ? String(tag).startsWith(prefix) ||
+                    String(tag).startsWith(legacyHeadsetPrefix)
+                  : String(tag).startsWith(prefix)
+              )
+              .map((tag) => {
+                const t = String(tag);
+                if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+                  return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+                }
+                return parseInt(t.replace(prefix, ""), 10);
+              })
               .filter((num) => !isNaN(num));
             const max = ids.length > 0 ? Math.max(...ids) : 0;
             const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -3220,16 +3271,25 @@ function Inventory() {
       if (!typeObj) return;
 
       const prefix = `JOII${typeObj.code}`;
+      const isHeadset = typeObj.code === "H";
+      const legacyHeadsetPrefix = "JOIIHS";
       const allDevices = await getAllDevices();
 
       // Find all devices of this type to determine the last used TAG
       const deviceTags = allDevices
-        .filter(
-          (device) =>
-            device.deviceTag && String(device.deviceTag).startsWith(prefix)
-        )
+        .filter((device) => {
+          const tag = device.deviceTag && String(device.deviceTag);
+          if (!tag) return false;
+          return isHeadset
+            ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
+            : tag.startsWith(prefix);
+        })
         .map((device) => {
-          const tagNumber = String(device.deviceTag).replace(prefix, "");
+          const tag = String(device.deviceTag);
+          const tagNumber =
+            isHeadset && tag.startsWith(legacyHeadsetPrefix)
+              ? tag.replace(legacyHeadsetPrefix, "")
+              : tag.replace(prefix, "");
           return parseInt(tagNumber, 10);
         })
         .filter((num) => !isNaN(num))
@@ -3730,16 +3790,25 @@ function Inventory() {
           return;
         }
         const prefix = `JOII${typeObj.code}`;
+        const isHeadset = typeObj.code === "H";
+        const legacyHeadsetPrefix = "JOIIHS";
 
         // Find the next available TAG number for this device type
         const allDevices = await getAllDevices();
         const deviceTags = allDevices
-          .filter(
-            (device) =>
-              device.deviceTag && String(device.deviceTag).startsWith(prefix)
-          )
+          .filter((device) => {
+            const tag = device.deviceTag && String(device.deviceTag);
+            if (!tag) return false;
+            return isHeadset
+              ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
+              : tag.startsWith(prefix);
+          })
           .map((device) => {
-            const tagNumber = String(device.deviceTag).replace(prefix, "");
+            const tag = String(device.deviceTag);
+            const tagNumber =
+              isHeadset && tag.startsWith(legacyHeadsetPrefix)
+                ? tag.replace(legacyHeadsetPrefix, "")
+                : tag.replace(prefix, "");
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
@@ -4044,7 +4113,7 @@ function Inventory() {
     try {
       const allDevices = await getAllDevices();
       const deviceTypesList = [
-        { label: "Headset", code: "HS" },
+        { label: "Headset", code: "H" },
         { label: "Keyboard", code: "KB" },
         { label: "Laptop", code: "LPT" },
         { label: "Monitor", code: "MN" },

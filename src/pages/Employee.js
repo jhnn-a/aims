@@ -4219,14 +4219,96 @@ export default function Employee() {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(worksheet);
+        const rawRows = XLSX.utils.sheet_to_json(worksheet);
 
-        console.log("Parsed Asset Excel rows:", rows); // Debug log
+        console.log("Raw Asset Excel rows:", rawRows); // Debug log
 
-        if (rows.length === 0) {
+        if (rawRows.length === 0) {
           showError("Excel file is empty or has no valid data");
           setIsTableLoading(false);
           return;
+        }
+
+        // Normalize column headers to be case-insensitive and handle variations
+        const normalizeHeaders = (rows) => {
+          return rows.map((row) => {
+            const normalizedRow = {};
+            Object.keys(row).forEach((key) => {
+              const normalizedKey = key.toString().trim().toLowerCase();
+              let standardKey = key; // Default to original key
+
+              // Map common variations to standard headers
+              if (
+                normalizedKey.includes("employee") &&
+                normalizedKey.includes("id")
+              ) {
+                standardKey = "EMPLOYEE ID";
+              } else if (
+                normalizedKey === "employee" ||
+                normalizedKey === "employee name"
+              ) {
+                standardKey = "Employee";
+              } else if (
+                normalizedKey === "type" ||
+                normalizedKey === "device type"
+              ) {
+                standardKey = "TYPE";
+              } else if (normalizedKey === "brand") {
+                standardKey = "BRAND";
+              } else if (
+                normalizedKey === "device tag" ||
+                normalizedKey === "devicetag" ||
+                normalizedKey === "tag"
+              ) {
+                standardKey = "DEVICE TAG";
+              } else if (
+                normalizedKey === "date deployed" ||
+                normalizedKey === "datedeployed" ||
+                normalizedKey === "deployment date"
+              ) {
+                standardKey = "DATE DEPLOYED";
+              } else if (normalizedKey === "model") {
+                standardKey = "MODEL";
+              } else if (
+                normalizedKey === "serial number" ||
+                normalizedKey === "serialnumber" ||
+                normalizedKey === "serial"
+              ) {
+                standardKey = "SERIAL NUMBER";
+              } else if (
+                normalizedKey === "specifications" ||
+                normalizedKey === "specs"
+              ) {
+                standardKey = "SPECIFICATIONS";
+              } else if (normalizedKey === "warranty") {
+                standardKey = "WARRANTY";
+              } else if (
+                normalizedKey === "purchase date" ||
+                normalizedKey === "purchasedate"
+              ) {
+                standardKey = "PURCHASE DATE";
+              } else if (normalizedKey === "supplier") {
+                standardKey = "SUPPLIER";
+              }
+
+              normalizedRow[standardKey] = row[key];
+            });
+            return normalizedRow;
+          });
+        };
+
+        const rows = normalizeHeaders(rawRows);
+        console.log("Normalized Asset Excel rows:", rows.slice(0, 2)); // Debug log first 2 rows
+        console.log("Total rows to process:", rows.length);
+
+        // Check if we have any rows with blank device tags
+        const blankTagRows = rows.filter(
+          (row) =>
+            !row["DEVICE TAG"] || row["DEVICE TAG"].toString().trim() === ""
+        );
+        console.log("Rows with blank device tags:", blankTagRows.length);
+        if (blankTagRows.length > 0) {
+          console.log("Sample blank tag rows:", blankTagRows.slice(0, 2));
         }
 
         let successCount = 0;
@@ -4235,7 +4317,43 @@ export default function Employee() {
         const errors = [];
 
         // Get all existing devices to check for duplicate device tags (robust normalization)
-        const existingDevices = await getAllDevices();
+        let existingDevices = [];
+        try {
+          existingDevices = await getAllDevices();
+          console.log("Existing devices loaded successfully:", existingDevices.length);
+        } catch (error) {
+          console.error("Failed to load existing devices:", error);
+          if (error.code === 'resource-exhausted' || error.message.includes('quota')) {
+            showError("Firebase quota exceeded. Please wait for quota reset or upgrade your plan. Unable to import assets.");
+            setIsTableLoading(false);
+            return;
+          }
+          showError("Error loading existing devices. Import may not detect duplicates correctly.");
+          // Continue with empty array - this will disable duplicate checking but allow import
+        }
+
+        // Ensure employees are loaded for validation
+        let employeesForValidation = employees;
+        if (employeesForValidation.length === 0) {
+          console.log("Loading employees for import validation...");
+          try {
+            employeesForValidation = await getAllEmployees();
+            console.log(
+              "Loaded employees for import:",
+              employeesForValidation.length
+            );
+          } catch (error) {
+            console.error("Error loading employees for import:", error);
+            if (error.code === 'resource-exhausted' || error.message.includes('quota')) {
+              showError("Firebase quota exceeded. Cannot load employee data for import validation. Please wait for quota reset or upgrade your plan.");
+              setIsTableLoading(false);
+              return;
+            }
+            showError("Failed to load employee data for validation");
+            setIsTableLoading(false);
+            return;
+          }
+        }
 
         const normalizeTag = (tag) => {
           if (tag === null || tag === undefined) return "";
@@ -4254,7 +4372,7 @@ export default function Employee() {
 
         // Device type mapping for tag generation with JOII prefix for generated tags
         const deviceTypeMap = {
-          headset: "JOIIHS",
+          headset: "JOIIH",
           keyboard: "JOIIKB",
           laptop: "JOIILPT",
           monitor: "JOIIMN",
@@ -4297,6 +4415,18 @@ export default function Employee() {
         const yieldToBrowser = () =>
           new Promise((resolve) => setTimeout(resolve, 0));
 
+        // Debug: Check current employees state
+        console.log(
+          "Current employees state:",
+          employees.length,
+          "employees loaded"
+        );
+        if (employees.length === 0) {
+          console.warn(
+            "No employees loaded in state - this could cause all employee lookups to fail"
+          );
+        }
+
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i];
           try {
@@ -4304,7 +4434,28 @@ export default function Employee() {
             const employeeName = (row["Employee"] || "").toString().trim();
             const deviceType = (row["TYPE"] || "").toString().trim();
             const brand = (row["BRAND"] || "").toString().trim();
-            let deviceTag = (row["DEVICE TAG"] || "").toString().trim();
+
+            // Special handling for device tag to debug blank values
+            const rawDeviceTag = row["DEVICE TAG"];
+            let deviceTag = "";
+            if (
+              rawDeviceTag !== undefined &&
+              rawDeviceTag !== null &&
+              rawDeviceTag !== ""
+            ) {
+              deviceTag = rawDeviceTag.toString().trim();
+            }
+
+            // Debug logging for blank device tag processing
+            if (!deviceTag || deviceTag === "") {
+              console.log(`🔍 Blank device tag detected:`, {
+                employeeId: row["EMPLOYEE ID"],
+                rawValue: rawDeviceTag,
+                processedValue: deviceTag,
+                type: typeof rawDeviceTag,
+                isEmpty: !deviceTag,
+              });
+            }
             const dateDeployed = row["DATE DEPLOYED"];
             const employeeId = (row["EMPLOYEE ID"] || "").toString().trim();
 
@@ -4317,25 +4468,45 @@ export default function Employee() {
               employeeId,
             });
 
+            // Special debug logging for specific problematic employees
+            if (employeeId === "EMP0008" || employeeId === "EMP0019") {
+              console.log(`🔍 DEBUGGING ${employeeId}:`, {
+                employeeName,
+                deviceType,
+                brand,
+                deviceTag: deviceTag || "(BLANK - should auto-generate)",
+                dateDeployed,
+                employeeId,
+                rawRow: row,
+              });
+            }
+
             // Validate required fields and device type
             if (!deviceType || !brand) {
               errorCount++;
+              const missing = [];
+              if (!deviceType) missing.push("TYPE");
+              if (!brand) missing.push("BRAND");
+
               errors.push(
-                `Row with Employee "${employeeName}": Missing required fields (TYPE or BRAND)`
+                `Row with Employee "${employeeName}": Missing required fields: ${missing.join(
+                  ", "
+                )}`
               );
-              // Prompt skipped details for testing
+              // Enhanced debugging information
               const safeEmpId = employeeId ? employeeId : "(missing)";
-              const safeTag = deviceTag ? deviceTag : "(missing)";
+              const safeTag = deviceTag
+                ? deviceTag
+                : "(blank - would auto-generate if valid)";
               console.warn(
-                `Skipped (missing fields). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
-              );
-              showError(
-                `Skipped (missing fields): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+                `Skipped (missing required fields): Employee ID: ${safeEmpId}, Device Tag: ${safeTag}, Missing: ${missing.join(
+                  ", "
+                )}`
               );
               continue;
             }
 
-            // Validate device type against system device types
+            // Validate device type against system device types (case-insensitive)
             const validDeviceTypes = [
               "Headset",
               "Keyboard",
@@ -4356,19 +4527,19 @@ export default function Employee() {
 
             if (!validDeviceType) {
               errorCount++;
+              const availableTypes = validDeviceTypes
+                .map((t) => t.toLowerCase())
+                .join(", ");
               errors.push(
-                `Row with Employee "${employeeName}": Invalid device type "${deviceType}". Valid types: ${validDeviceTypes.join(
-                  ", "
-                )}`
+                `Row with Employee "${employeeName}": Invalid device type "${deviceType}". Available types: ${availableTypes}`
               );
-              // Prompt skipped details for testing
+              // Enhanced error details for debugging
               const safeEmpId = employeeId ? employeeId : "(missing)";
-              const safeTag = deviceTag ? deviceTag : "(missing)";
+              const safeTag = deviceTag
+                ? deviceTag
+                : "(blank - will auto-generate)";
               console.warn(
-                `Skipped (invalid type). Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
-              );
-              showError(
-                `Skipped (invalid type): Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+                `Skipped (invalid device type): Employee ID: ${safeEmpId}, Device Tag: ${safeTag}, Attempted Type: "${deviceType}"`
               );
               continue;
             }
@@ -4376,46 +4547,99 @@ export default function Employee() {
             // Find employee by Employee ID (primary) or name (fallback)
             let employee = null;
             if (employeeId) {
-              employee = employees.find((emp) => emp.id === employeeId);
+              employee = employeesForValidation.find(
+                (emp) => emp.id === employeeId
+              );
+
+              // Special debug for specific employees
+              if (employeeId === "EMP0008" || employeeId === "EMP0019") {
+                console.log(`🔍 Employee lookup for ${employeeId}:`, {
+                  found: !!employee,
+                  totalEmployees: employeesForValidation.length,
+                  employee: employee
+                    ? {
+                        id: employee.id,
+                        fullName: employee.fullName,
+                        firstName: employee.firstName,
+                        lastName: employee.lastName,
+                      }
+                    : null,
+                });
+              }
             }
 
             if (!employee && employeeName) {
-              employee = employees.find(
+              // Try multiple name matching strategies
+              employee = employeesForValidation.find(
                 (emp) =>
-                  emp.fullName?.toLowerCase() === employeeName.toLowerCase()
+                  emp.fullName?.toLowerCase() === employeeName.toLowerCase() ||
+                  `${emp.firstName} ${emp.lastName}`.toLowerCase() ===
+                    employeeName.toLowerCase()
               );
             }
 
             if (!employee) {
               skippedCount++;
+              const identifier = employeeId || employeeName || "unknown";
               errors.push(
-                `Row with Employee "${employeeName}" (ID: ${employeeId}): Employee not found in system`
+                `Row with Employee "${identifier}": Employee not found in system. Check employee ID or full name spelling.`
               );
-              // Prompt skipped details for testing
+              // Enhanced error details for debugging
               const safeEmpId = employeeId ? employeeId : "(missing)";
-              const safeTag = deviceTag ? deviceTag : "(missing)";
+              const safeTag = deviceTag
+                ? deviceTag
+                : "(blank - will auto-generate)";
               console.warn(
-                `Skipped import row due to missing employee. Employee ID: ${safeEmpId}, Device Tag: ${safeTag}`
-              );
-              showError(
-                `Skipped: Employee ID "${safeEmpId}", Device Tag "${safeTag}"`
+                `Skipped (employee not found): Employee ID: ${safeEmpId}, Employee Name: "${employeeName}", Device Tag: ${safeTag}`
               );
               continue;
             }
 
             // Generate device tag if blank or if duplicate exists
-            if (!deviceTag || existingTags.has(normalizeTag(deviceTag))) {
+            console.log(
+              `Processing device for ${employeeName}: deviceTag="${deviceTag}", deviceType="${deviceType}"`
+            );
+
+            // Special debug for specific employees
+            if (employeeId === "EMP0008" || employeeId === "EMP0019") {
+              console.log(`🔍 Auto-tag generation check for ${employeeId}:`, {
+                deviceTag: deviceTag || "(BLANK)",
+                deviceTagLength: deviceTag ? deviceTag.length : 0,
+                deviceType,
+                shouldGenerate:
+                  !deviceTag ||
+                  deviceTag === "" ||
+                  existingTags.has(normalizeTag(deviceTag)),
+                existingTagsCount: existingTags.size,
+              });
+            }
+
+            // Enhanced condition check for blank tags
+            const isBlankTag =
+              !deviceTag || deviceTag === "" || deviceTag.trim() === "";
+            const isDuplicateTag =
+              deviceTag && existingTags.has(normalizeTag(deviceTag));
+
+            if (isBlankTag || isDuplicateTag) {
               const originalTag = deviceTag;
               deviceTag = generateDeviceTag(deviceType);
-              if (originalTag) {
+              if (originalTag && originalTag !== "") {
                 console.log(
                   `Duplicate device tag "${originalTag}" found, generated new tag: ${deviceTag}`
                 );
               } else {
                 console.log(
-                  `Generated device tag for ${deviceType}: ${deviceTag}`
+                  `No device tag provided for ${deviceType}, generated new tag: ${deviceTag}`
                 );
+
+                // Special debug for specific employees
+                if (employeeId === "EMP0008" || employeeId === "EMP0019") {
+                  console.log(
+                    `🔍 Generated tag for ${employeeId}: ${deviceTag}`
+                  );
+                }
               }
+              existingTags.add(normalizeTag(deviceTag)); // Add to set to prevent duplicates in this batch
             }
 
             // Normalize date deployed (Excel serial, string, etc.) to mm/dd/yyyy; fallback to today

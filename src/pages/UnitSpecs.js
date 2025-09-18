@@ -2216,6 +2216,7 @@ const UnitSpecs = () => {
                 )}
                 {[
                   "Tag",
+                  "Device Type",
                   "CPU",
                   "RAM",
                   "Drive",
@@ -2230,6 +2231,8 @@ const UnitSpecs = () => {
                       width:
                         col === "Tag"
                           ? "12%"
+                          : col === "Device Type"
+                          ? "10%"
                           : col === "CPU"
                           ? "12%"
                           : col === "RAM"
@@ -2259,15 +2262,20 @@ const UnitSpecs = () => {
                   >
                     <span
                       onClick={
-                        col !== "Tag"
+                        col !== "Tag" && col !== "Device Type"
                           ? (e) => handleFilterClick(e, col, collectionName)
                           : undefined
                       }
                       style={{
                         marginRight: 8,
                         textDecoration:
-                          col !== "Tag" ? "underline dotted" : undefined,
-                        cursor: col !== "Tag" ? "pointer" : undefined,
+                          col !== "Tag" && col !== "Device Type"
+                            ? "underline dotted"
+                            : undefined,
+                        cursor:
+                          col !== "Tag" && col !== "Device Type"
+                            ? "pointer"
+                            : undefined,
                         display: "inline-block",
                       }}
                     >
@@ -2278,7 +2286,9 @@ const UnitSpecs = () => {
                         : col.toUpperCase()}
                     </span>
                     <span
-                      onClick={() => handleSort(col)}
+                      onClick={() =>
+                        handleSort(col === "Device Type" ? "deviceType" : col)
+                      }
                       style={{
                         marginLeft: 2,
                         fontSize: 10,
@@ -2288,6 +2298,7 @@ const UnitSpecs = () => {
                       ⇅
                     </span>
                     {col !== "Tag" &&
+                      col !== "Device Type" &&
                       filterPopup.open &&
                       filterPopup.column === col &&
                       filterPopup.table === collectionName &&
@@ -2321,8 +2332,8 @@ const UnitSpecs = () => {
                   <td
                     colSpan={
                       deleteMode.active && deleteMode.table === collectionName
-                        ? 10 // Updated to 10 after adding Client column
-                        : 9 // Updated to 9 after adding Client column
+                        ? 12 // Select + Delete + 9 data cols + Actions
+                        : 11 // Select + 9 data cols + Actions
                     }
                     style={{
                       padding: "40px 20px",
@@ -2451,6 +2462,37 @@ const UnitSpecs = () => {
                       }}
                     >
                       {unit.Tag}
+                    </td>
+                    {/* Device Type Column */}
+                    <td
+                      style={{
+                        width: "10%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textAlign: "center",
+                      }}
+                    >
+                      {(() => {
+                        const raw = (unit.deviceType || "").toString();
+                        const norm = raw.trim().toLowerCase();
+                        let display = "";
+                        if (["pc", "desktop"].includes(norm)) display = "PC";
+                        else if (["laptop", "notebook"].includes(norm))
+                          display = "Laptop";
+                        else if (!norm && typeof unit.Tag === "string") {
+                          if (unit.Tag.includes("JOIIPC")) display = "PC";
+                          else if (unit.Tag.includes("JOIILPT"))
+                            display = "Laptop";
+                        }
+                        return display;
+                      })()}
                     </td>
                     <td
                       style={{
