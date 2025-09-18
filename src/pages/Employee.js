@@ -19,6 +19,10 @@ import {
   logDeviceHistory,
   deleteDeviceHistory,
 } from "../services/deviceHistoryService";
+import {
+  normalizeDeviceTypeWithLegacy,
+  CANONICAL_DEVICE_TYPES,
+} from "../utils/deviceTypeUtils";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import { useSnackbar } from "../components/Snackbar";
@@ -4385,26 +4389,12 @@ export default function Employee() {
             .filter((t) => t.length > 0)
         );
 
-        // Device type mapping for tag generation with JOII prefix for generated tags
-        const deviceTypeMap = {
-          headset: "JOIIH",
-          keyboard: "JOIIKB",
-          laptop: "JOIILPT",
-          monitor: "JOIIMN",
-          mouse: "JOIIM",
-          pc: "JOIIPC",
-          psu: "JOIIPSU",
-          ram: "JOIIRAM",
-          ssd: "JOIISSD",
-          ups: "JOIIUPS",
-          webcam: "JOIIW",
-          "docking station": "JOIIDS", // Newly added device type
-        };
-
         // Helper function to generate unique device tag with JOII prefix
         const generateDeviceTag = (deviceType) => {
-          const normalizedType = deviceType?.toLowerCase() || "dev";
-          const prefix = deviceTypeMap[normalizedType] || "JOIIDEV";
+          const typeConfig = CANONICAL_DEVICE_TYPES.find(
+            (type) => type.label.toLowerCase() === deviceType?.toLowerCase()
+          );
+          const prefix = typeConfig ? typeConfig.joiiCode : "JOIIDEV";
 
           // Find highest existing number for this JOII prefix (including in-memory additions)
           let maxNum = 0;
@@ -4522,29 +4512,13 @@ export default function Employee() {
             }
 
             // Validate device type against system device types (case-insensitive)
-            const validDeviceTypes = [
-              "Headset",
-              "Keyboard",
-              "Laptop",
-              "Monitor",
-              "Mouse",
-              "PC",
-              "PSU",
-              "RAM",
-              "SSD",
-              "UPS",
-              "Webcam",
-              "Docking Station", // Added new type
-            ];
-            const validDeviceType = validDeviceTypes.find(
-              (type) => type.toLowerCase() === deviceType.toLowerCase()
-            );
+            const validDeviceType = normalizeDeviceTypeWithLegacy(deviceType);
 
             if (!validDeviceType) {
               errorCount++;
-              const availableTypes = validDeviceTypes
-                .map((t) => t.toLowerCase())
-                .join(", ");
+              const availableTypes = CANONICAL_DEVICE_TYPES.map(
+                (t) => t.label
+              ).join(", ");
               errors.push(
                 `Row with Employee "${employeeName}": Invalid device type "${deviceType}". Available types: ${availableTypes}`
               );
