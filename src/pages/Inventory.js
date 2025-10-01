@@ -2870,13 +2870,13 @@ function Inventory() {
         autoChecks.wfhStock = true;
       }
     } else if (hasBrandNewDevices) {
-      // Only BRANDNEW devices: select both 'Newly Purchased' and 'Stock'
+      // Only BRANDNEW devices: select only 'Newly Purchased'
       if (issueType === "newIssue") {
         autoChecks.newIssueNew = true;
-        autoChecks.newIssueStock = true;
+        autoChecks.newIssueStock = false;
       } else if (issueType === "wfh") {
         autoChecks.wfhNew = true;
-        autoChecks.wfhStock = true;
+        autoChecks.wfhStock = false;
       }
     } else if (hasGoodDevices) {
       // Only GOOD devices: select only 'Stock'
@@ -5628,7 +5628,7 @@ function Inventory() {
                   </th>
                   <th
                     style={{
-                      width: "15%", // Percentage-based for responsiveness
+                      width: "12%", // Percentage-based for responsiveness
                       padding: "8px 6px",
                       fontSize: "12px",
                       fontWeight: "600",
@@ -5850,7 +5850,7 @@ function Inventory() {
                   </th>
                   <th
                     style={{
-                      width: "15%",
+                      width: "12%",
                       padding: "6px 4px",
                       border: isDarkMode
                         ? "1px solid #4b5563"
@@ -6185,7 +6185,7 @@ function Inventory() {
                       </td>
                       <td
                         style={{
-                          width: "15%",
+                          width: "12%",
                           padding: "8px 6px",
                           fontSize: "13px",
                           color: isDarkMode ? "#f3f4f6" : "#374151",
@@ -6199,7 +6199,15 @@ function Inventory() {
                           overflow: "hidden",
                         }}
                       >
-                        {device.remarks || ""}
+                        <TruncatedText
+                          text={device.remarks || ""}
+                          maxLength={15}
+                          style={{
+                            textAlign: "center",
+                            fontSize: "13px",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                          }}
+                        />
                       </td>
                       <td
                         style={{
@@ -6742,7 +6750,9 @@ function Inventory() {
             {assignModalStep === 1 && (
               <>
                 <h4 style={styles.modalTitle}>
-                  Assign Device: {assigningDevice.deviceTag}
+                  {selectedIds.length > 1
+                    ? `Assign ${selectedIds.length} Selected Devices`
+                    : `Assign Device: ${assigningDevice.deviceTag}`}
                 </h4>
                 <input
                   type="text"

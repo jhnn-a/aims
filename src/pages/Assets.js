@@ -61,12 +61,15 @@ const getConditionTextColor = (condition) => {
 const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
   if (!content) return <span>-</span>;
 
-  const shouldShowTooltip = content.length > maxLength;
+  const shouldTruncate = content.length > maxLength;
+  const displayContent = shouldTruncate
+    ? content.substring(0, maxLength) + "..."
+    : content;
 
   return (
     <span
-      className={shouldShowTooltip ? "assets-table-cell-tooltip" : ""}
-      data-tooltip={shouldShowTooltip ? content : ""}
+      className={shouldTruncate ? "assets-table-cell-tooltip" : ""}
+      data-tooltip={shouldTruncate ? content : ""}
       style={{
         display: "block",
         lineHeight: "1.4",
@@ -78,7 +81,7 @@ const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
       onClick={onClick}
       title={onClick ? "Click to view device history" : undefined}
     >
-      {content}
+      {displayContent}
     </span>
   );
 };
@@ -874,6 +877,14 @@ function Assets() {
     return client ? client.clientName : "";
   };
 
+  // Get client name for assigned employee
+  const getEmployeeClient = (employeeId) => {
+    if (!employeeId) return "";
+    const employee = employees.find((emp) => emp.id === employeeId);
+    if (!employee || !employee.clientId) return "";
+    return getClientName(employee.clientId);
+  };
+
   // Get department/client field for forms (prioritizes client name if available)
   const getDepartmentForForm = (employee) => {
     if (!employee) return "";
@@ -1141,6 +1152,16 @@ function Assets() {
             return false;
           }
           delete filtersToApply.assignedTo;
+        }
+
+        // Handle client filter separately since it needs client name matching
+        if (filtersToApply.client) {
+          const clientFilter = filtersToApply.client.toLowerCase();
+          const clientName = getEmployeeClient(device.assignedTo);
+          if (!clientName.toLowerCase().includes(clientFilter)) {
+            return false;
+          }
+          delete filtersToApply.client;
         }
 
         // Apply remaining filters
@@ -1792,8 +1813,8 @@ function Assets() {
           }
           
           .assets-table-cell-tag {
-            max-width: 120px;
-            min-width: 100px;
+            max-width: 200px;
+            min-width: 180px;
           }
           
           .assets-table-cell-model {
@@ -1817,8 +1838,8 @@ function Assets() {
           }
           
           .assets-table-cell-remarks {
-            max-width: 180px;
-            min-width: 150px;
+            max-width: 120px;
+            min-width: 100px;
           }
           
           /* Tooltip styles for truncated content */
@@ -1862,8 +1883,8 @@ function Assets() {
           /* Responsive adjustments */
           @media (max-width: 1200px) {
             .assets-table-cell-tag {
-              max-width: 100px;
-              min-width: 80px;
+              max-width: 160px;
+              min-width: 140px;
             }
             
             .assets-table-cell-model {
@@ -1887,8 +1908,8 @@ function Assets() {
             }
             
             .assets-table-cell-remarks {
-              max-width: 150px;
-              min-width: 120px;
+              max-width: 100px;
+              min-width: 80px;
             }
           }
         `}
@@ -2486,6 +2507,27 @@ function Assets() {
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
+                    }}
+                  >
+                    Client
+                  </th>
+                  <th
+                    style={{
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      textAlign: "center",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
@@ -2742,9 +2784,30 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-                      width: "120px",
-                      maxWidth: "120px",
-                      minWidth: "100px",
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
+                      textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={clients.map((client) => client.clientName)}
+                      placeholder="All Clients"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "90px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
@@ -2764,9 +2827,9 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-                      width: "120px",
-                      maxWidth: "120px",
-                      minWidth: "70px",
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "65px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
@@ -2787,9 +2850,9 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-                      width: "180px",
-                      maxWidth: "180px",
-                      minWidth: "150px",
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "90px",
                       textAlign: "center",
                       position: "sticky",
                       top: "40px",
@@ -2822,14 +2885,14 @@ function Assets() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="11" style={{ padding: "0", border: "none" }}>
+                    <td colSpan="12" style={{ padding: "0", border: "none" }}>
                       <TableLoadingSpinner text="Loading assigned assets..." />
                     </td>
                   </tr>
                 ) : currentPageDevices.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="11"
+                      colSpan="12"
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
@@ -2925,7 +2988,7 @@ function Assets() {
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#9ca3af" : "#6b7280",
                             fontSize: "14px",
                             fontWeight: "500",
@@ -2940,7 +3003,7 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-tag"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode
                               ? "#d1d5db"
                               : "rgb(107, 114, 128)",
@@ -2952,7 +3015,7 @@ function Assets() {
                             textAlign: "center",
                           }}
                         >
-                          {renderCellWithTooltip(device.deviceTag, 15, (e) => {
+                          {renderCellWithTooltip(device.deviceTag, 35, (e) => {
                             e.stopPropagation();
                             handleShowDeviceHistory(device);
                           })}
@@ -2960,7 +3023,7 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-type"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
@@ -2975,7 +3038,7 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-brand"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
@@ -2990,7 +3053,7 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-model"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
@@ -3005,7 +3068,7 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-assigned"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
@@ -3023,15 +3086,36 @@ function Assets() {
                         <td
                           className="assets-table-cell"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
                               isDarkMode ? "#4b5563" : "#d1d5db"
                             }`,
                             verticalAlign: "top",
-                            maxWidth: "120px",
-                            minWidth: "100px",
+                            width: "130px",
+                            maxWidth: "130px",
+                            minWidth: "110px",
+                            textAlign: "center",
+                          }}
+                        >
+                          {renderCellWithTooltip(
+                            getEmployeeClient(device.assignedTo) || "-",
+                            18
+                          )}
+                        </td>
+                        <td
+                          className="assets-table-cell"
+                          style={{
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
+                            fontSize: "14px",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
+                            verticalAlign: "top",
+                            maxWidth: "110px",
+                            minWidth: "90px",
                             textAlign: "center",
                           }}
                         >
@@ -3048,14 +3132,14 @@ function Assets() {
                         <td
                           className="assets-table-cell"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             fontSize: "14px",
                             border: `1px solid ${
                               isDarkMode ? "#4b5563" : "#d1d5db"
                             }`,
                             verticalAlign: "top",
-                            maxWidth: "120px",
-                            minWidth: "70px",
+                            maxWidth: "110px",
+                            minWidth: "65px",
                             textAlign: "center",
                           }}
                         >
@@ -3082,23 +3166,23 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-remarks"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
                             border: `1px solid ${
                               isDarkMode ? "#4b5563" : "#d1d5db"
                             }`,
                             verticalAlign: "top",
-                            maxWidth: "180px",
-                            minWidth: "150px",
+                            maxWidth: "110px",
+                            minWidth: "90px",
                             textAlign: "center",
                           }}
                         >
-                          {renderCellWithTooltip(device.remarks, 25)}
+                          {renderCellWithTooltip(device.remarks, 15)}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             textAlign: "center",
                             border: `1px solid ${
                               isDarkMode ? "#4b5563" : "#d1d5db"

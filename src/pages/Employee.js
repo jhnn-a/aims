@@ -328,26 +328,6 @@ function EmployeeFormModal({
             : "Add Employee"}
         </h2>
 
-        {/* Hidden fields for First Name, Last Name, Middle Name */}
-        <input
-          name="firstName"
-          value={data.firstName || ""}
-          onChange={onChange}
-          style={{ display: "none" }}
-        />
-        <input
-          name="lastName"
-          value={data.lastName || ""}
-          onChange={onChange}
-          style={{ display: "none" }}
-        />
-        <input
-          name="middleName"
-          value={data.middleName || ""}
-          onChange={onChange}
-          style={{ display: "none" }}
-        />
-
         {/* Scrollable content area */}
         <div
           style={{
@@ -359,71 +339,183 @@ function EmployeeFormModal({
           }}
         >
           <div style={{ display: "grid", gap: "clamp(10px, 1.2vw, 14px)" }}>
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  marginBottom: 4,
-                }}
-              >
-                Full Name:
-              </label>
-              <input
-                name="fullName"
-                value={data.fullName}
-                onChange={onChange}
-                style={{
-                  width: "100%",
-                  padding: "clamp(6px, 0.8vw, 10px)",
-                  border: isDarkMode
-                    ? "1px solid #4b5563"
-                    : "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  backgroundColor: isDarkMode ? "#374151" : "white",
-                  color: isDarkMode ? "#f3f4f6" : "black",
-                }}
-              />
-            </div>
+            {/* Only show name fields for employees, not entities */}
+            {!data.isEntity && (
+              <>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    First Name:
+                  </label>
+                  <input
+                    name="firstName"
+                    value={data.firstName || ""}
+                    onChange={onChange}
+                    style={{
+                      width: "100%",
+                      padding: "clamp(6px, 0.8vw, 10px)",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontFamily: "inherit",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      backgroundColor: isDarkMode ? "#374151" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "black",
+                    }}
+                  />
+                </div>
 
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  marginBottom: 4,
-                }}
-              >
-                Position:
-              </label>
-              <input
-                name="position"
-                value={data.position}
-                onChange={onChange}
-                style={{
-                  width: "100%",
-                  padding: "clamp(6px, 0.8vw, 10px)",
-                  border: isDarkMode
-                    ? "1px solid #4b5563"
-                    : "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  backgroundColor: isDarkMode ? "#374151" : "white",
-                  color: isDarkMode ? "#f3f4f6" : "black",
-                }}
-              />
-            </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Middle Name:
+                  </label>
+                  <input
+                    name="middleName"
+                    value={data.middleName || ""}
+                    onChange={onChange}
+                    placeholder="Optional"
+                    style={{
+                      width: "100%",
+                      padding: "clamp(6px, 0.8vw, 10px)",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontFamily: "inherit",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      backgroundColor: isDarkMode ? "#374151" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "black",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Last Name:
+                  </label>
+                  <input
+                    name="lastName"
+                    value={data.lastName || ""}
+                    onChange={onChange}
+                    style={{
+                      width: "100%",
+                      padding: "clamp(6px, 0.8vw, 10px)",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontFamily: "inherit",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      backgroundColor: isDarkMode ? "#374151" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "black",
+                    }}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Show description field for entities only */}
+            {data.isEntity && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    marginBottom: 4,
+                  }}
+                >
+                  Description:
+                </label>
+                <input
+                  name="description"
+                  value={data.description || ""}
+                  onChange={onChange}
+                  placeholder="Entity Name or Room Name"
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    backgroundColor: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "black",
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Show position field for employees only */}
+            {!data.isEntity && (
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontWeight: 600,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    marginBottom: 4,
+                  }}
+                >
+                  Position:
+                </label>
+                <input
+                  name="position"
+                  value={data.position}
+                  onChange={onChange}
+                  style={{
+                    width: "100%",
+                    padding: "clamp(6px, 0.8vw, 10px)",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    borderRadius: 6,
+                    fontSize: "clamp(12px, 1.1vw, 14px)",
+                    fontFamily: "inherit",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    backgroundColor: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "black",
+                  }}
+                />
+              </div>
+            )}
 
             <div>
               <label
@@ -458,147 +550,154 @@ function EmployeeFormModal({
               />
             </div>
 
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  marginBottom: 4,
-                }}
-              >
-                Client:
-              </label>
-              <SearchableDropdown
-                value={data.clientId}
-                onChange={(evtOrValue) => {
-                  const newValue =
-                    evtOrValue && evtOrValue.target
-                      ? evtOrValue.target.value
-                      : evtOrValue;
-                  // Use the provided onChange handler (handleFormChange in parent) with an event-like object
-                  if (typeof onChange === "function") {
-                    onChange({ target: { name: "clientId", value: newValue } });
-                  }
-                }}
-                options={clients}
-                placeholder="Search and select client..."
-                displayKey="clientName"
-                valueKey="id"
-              />
-            </div>
+            {/* Show client and email fields for employees only */}
+            {!data.isEntity && (
+              <>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Client:
+                  </label>
+                  <SearchableDropdown
+                    value={data.clientId}
+                    onChange={(evtOrValue) => {
+                      const newValue =
+                        evtOrValue && evtOrValue.target
+                          ? evtOrValue.target.value
+                          : evtOrValue;
+                      // Use the provided onChange handler (handleFormChange in parent) with an event-like object
+                      if (typeof onChange === "function") {
+                        onChange({
+                          target: { name: "clientId", value: newValue },
+                        });
+                      }
+                    }}
+                    options={clients}
+                    placeholder="Search and select client..."
+                    displayKey="clientName"
+                    valueKey="id"
+                  />
+                </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "clamp(6px, 0.8vw, 10px)",
-              }}
-            >
-              <div>
-                <label
+                <div
                   style={{
-                    display: "block",
-                    fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    marginBottom: 4,
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "clamp(6px, 0.8vw, 10px)",
                   }}
                 >
-                  Corporate Email:
-                </label>
-                <input
-                  type="email"
-                  name="corporateEmail"
-                  value={data.corporateEmail || ""}
-                  onChange={onChange}
-                  style={{
-                    width: "100%",
-                    padding: "clamp(6px, 0.8vw, 10px)",
-                    border: isDarkMode
-                      ? "1px solid #4b5563"
-                      : "1px solid #d1d5db",
-                    borderRadius: 6,
-                    fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontFamily: "inherit",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    backgroundColor: isDarkMode ? "#374151" : "white",
-                    color: isDarkMode ? "#f3f4f6" : "black",
-                  }}
-                />
-              </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "clamp(12px, 1.1vw, 14px)",
+                        fontWeight: 600,
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Corporate Email:
+                    </label>
+                    <input
+                      type="email"
+                      name="corporateEmail"
+                      value={data.corporateEmail || ""}
+                      onChange={onChange}
+                      style={{
+                        width: "100%",
+                        padding: "clamp(6px, 0.8vw, 10px)",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
+                        borderRadius: 6,
+                        fontSize: "clamp(12px, 1.1vw, 14px)",
+                        fontFamily: "inherit",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        backgroundColor: isDarkMode ? "#374151" : "white",
+                        color: isDarkMode ? "#f3f4f6" : "black",
+                      }}
+                    />
+                  </div>
 
-              <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontWeight: 600,
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    marginBottom: 4,
-                  }}
-                >
-                  Personal Email:
-                </label>
-                <input
-                  type="email"
-                  name="personalEmail"
-                  value={data.personalEmail || ""}
-                  onChange={onChange}
-                  style={{
-                    width: "100%",
-                    padding: "clamp(6px, 0.8vw, 10px)",
-                    border: isDarkMode
-                      ? "1px solid #4b5563"
-                      : "1px solid #d1d5db",
-                    borderRadius: 6,
-                    fontSize: "clamp(12px, 1.1vw, 14px)",
-                    fontFamily: "inherit",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    backgroundColor: isDarkMode ? "#374151" : "white",
-                    color: isDarkMode ? "#f3f4f6" : "black",
-                  }}
-                />
-              </div>
-            </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "clamp(12px, 1.1vw, 14px)",
+                        fontWeight: 600,
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        marginBottom: 4,
+                      }}
+                    >
+                      Personal Email:
+                    </label>
+                    <input
+                      type="email"
+                      name="personalEmail"
+                      value={data.personalEmail || ""}
+                      onChange={onChange}
+                      style={{
+                        width: "100%",
+                        padding: "clamp(6px, 0.8vw, 10px)",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #d1d5db",
+                        borderRadius: 6,
+                        fontSize: "clamp(12px, 1.1vw, 14px)",
+                        fontFamily: "inherit",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        backgroundColor: isDarkMode ? "#374151" : "white",
+                        color: isDarkMode ? "#f3f4f6" : "black",
+                      }}
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontWeight: 600,
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  marginBottom: 4,
-                }}
-              >
-                Date Hired:
-              </label>
-              <input
-                type="date"
-                name="dateHired"
-                value={data.dateHired ? data.dateHired : ""}
-                onChange={onChange}
-                style={{
-                  width: "100%",
-                  padding: "clamp(6px, 0.8vw, 10px)",
-                  border: isDarkMode
-                    ? "1px solid #4b5563"
-                    : "1px solid #d1d5db",
-                  borderRadius: 6,
-                  fontSize: "clamp(12px, 1.1vw, 14px)",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  backgroundColor: isDarkMode ? "#374151" : "white",
-                  color: isDarkMode ? "#f3f4f6" : "black",
-                  colorScheme: isDarkMode ? "dark" : "light",
-                }}
-              />
-            </div>
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Date Hired:
+                  </label>
+                  <input
+                    type="date"
+                    name="dateHired"
+                    value={data.dateHired ? data.dateHired : ""}
+                    onChange={onChange}
+                    style={{
+                      width: "100%",
+                      padding: "clamp(6px, 0.8vw, 10px)",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      fontSize: "clamp(12px, 1.1vw, 14px)",
+                      fontFamily: "inherit",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      backgroundColor: isDarkMode ? "#374151" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "black",
+                      colorScheme: isDarkMode ? "dark" : "light",
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -901,7 +1000,7 @@ function EmployeeAssetsModal({
   });
 
   // State for reassign employee selection
-  const [allEmployees, setAllEmployees] = useState([]);
+  const [reassignEmployees, setReassignEmployees] = useState([]);
 
   // Bulk selection state - separate for deployed and work from home assets
   const [selectedDeployedIds, setSelectedDeployedIds] = useState([]);
@@ -911,7 +1010,7 @@ function EmployeeAssetsModal({
 
   // Load employees for reassignment
   useEffect(() => {
-    if (isOpen) {
+    if (actionModal.isOpen) {
       const loadEmployees = async () => {
         try {
           const employeeList = await getAllEmployees();
@@ -919,7 +1018,12 @@ function EmployeeAssetsModal({
             (emp) => !emp.isResigned && emp.id !== employee?.id
           );
           console.log("Loaded employees for reassignment:", filteredEmployees);
-          setAllEmployees(filteredEmployees);
+          console.log(
+            "reassignEmployees will be set to:",
+            filteredEmployees.length,
+            "employees"
+          );
+          setReassignEmployees(filteredEmployees);
         } catch (error) {
           console.error("Error loading employees:", error);
         }
@@ -931,7 +1035,7 @@ function EmployeeAssetsModal({
       setShowDeployedBulkActions(false);
       setShowWfhBulkActions(false);
     }
-  }, [isOpen, employee?.id]);
+  }, [actionModal.isOpen, employee?.id]);
 
   // Bulk selection handlers for deployed assets
   const handleSelectAllDeployedDevices = (checked) => {
@@ -3054,16 +3158,25 @@ function EmployeeAssetsModal({
                   </h4>
                   <SearchableDropdown
                     value={actionModal.newEmployee?.id || ""}
-                    onChange={(value) => {
-                      const selectedEmployee = allEmployees.find(
-                        (emp) => emp.id === value
+                    onChange={(event) => {
+                      console.log(
+                        "SearchableDropdown onChange called with:",
+                        event
                       );
+                      const employeeId = event.target
+                        ? event.target.value
+                        : event;
+                      console.log("Extracted employeeId:", employeeId);
+                      const selectedEmployee = reassignEmployees.find(
+                        (emp) => emp.id === employeeId
+                      );
+                      console.log("Found employee:", selectedEmployee);
                       setActionModal((prev) => ({
                         ...prev,
                         newEmployee: selectedEmployee,
                       }));
                     }}
-                    options={allEmployees}
+                    options={reassignEmployees}
                     placeholder="Search and select employee..."
                     displayKey="fullName"
                     valueKey="id"
@@ -3598,6 +3711,32 @@ export default function Employee() {
     return clientName || employee.department || "";
   };
 
+  // Helper function to split fullName into firstName, middleName, lastName
+  const splitFullName = (fullName) => {
+    if (!fullName) return { firstName: "", middleName: "", lastName: "" };
+
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return { firstName: parts[0], middleName: "", lastName: "" };
+    } else if (parts.length === 2) {
+      return { firstName: parts[0], middleName: "", lastName: parts[1] };
+    } else if (parts.length >= 3) {
+      return {
+        firstName: parts[0],
+        middleName: parts.slice(1, -1).join(" "),
+        lastName: parts[parts.length - 1],
+      };
+    }
+    return { firstName: "", middleName: "", lastName: "" };
+  };
+
+  // Helper function to combine firstName, middleName, lastName into fullName
+  const combineFullName = (firstName, middleName, lastName) => {
+    return [firstName, middleName, lastName]
+      .filter((part) => part && part.trim())
+      .join(" ");
+  };
+
   // Load clients and employees
   const loadClientsAndEmployees = async () => {
     setIsTableLoading(true);
@@ -3728,6 +3867,20 @@ export default function Employee() {
     console.log("Form field changed:", { name, value });
     setForm((prev) => {
       const newForm = { ...prev, [name]: value };
+
+      // If firstName, middleName, or lastName changed, update fullName
+      if (
+        name === "firstName" ||
+        name === "middleName" ||
+        name === "lastName"
+      ) {
+        const firstName = name === "firstName" ? value : prev.firstName || "";
+        const middleName =
+          name === "middleName" ? value : prev.middleName || "";
+        const lastName = name === "lastName" ? value : prev.lastName || "";
+        newForm.fullName = combineFullName(firstName, middleName, lastName);
+      }
+
       console.log("Updated form state:", newForm);
       return newForm;
     });
@@ -6035,6 +6188,8 @@ export default function Employee() {
                                 clientId: employee.clientId || "",
                                 fullName: employee.fullName || "",
                                 position: employee.position || "",
+                                // Split fullName into components for editing
+                                ...splitFullName(employee.fullName || ""),
                               };
 
                               console.log(
