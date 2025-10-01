@@ -878,6 +878,8 @@ function EmployeeAssetsModal({
   employee,
   devices,
   deviceHistory = [],
+  clients = [],
+  getDepartmentForForm,
   onDeviceUpdate,
 }) {
   const { isDarkMode } = useTheme();
@@ -1277,12 +1279,12 @@ function EmployeeAssetsModal({
 
         templateData = {
           name: fromEmployee.fullName || "",
-          department: fromEmployee.department || "",
+          department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
           devices: [
             {
-              assignmentDate: formatTransferDate(device.assignmentDate) || "",
+              assignmentDate: formatTransferDate(new Date()), // Use current date for return
               deviceType: device.deviceType || "",
               brand: device.brand || "",
               model: device.model || "",
@@ -1305,21 +1307,21 @@ function EmployeeAssetsModal({
         // For transfer forms - match Assets.js structure
         templateData = {
           transferor_name: fromEmployee.fullName || "",
-          transferor_department: fromEmployee.department || "",
+          transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee ? toEmployee.fullName || "" : "",
-          transferee_department: toEmployee ? toEmployee.department || "" : "",
+          transferee_department: toEmployee
+            ? getDepartmentForForm(toEmployee)
+            : "",
           transferee_date_hired: toEmployee
             ? formatTransferDate(toEmployee.dateHired) || ""
             : "",
           transferee_position: toEmployee ? toEmployee.position || "" : "",
           devices: [
             {
-              TransferDate: formatTransferDate(
-                device.assignmentDate || new Date()
-              ),
+              TransferDate: formatTransferDate(new Date()), // Use current date for transfer
               deviceType: device.deviceType || "",
               brand: device.brand || "",
               model: device.model || "",
@@ -1444,11 +1446,11 @@ function EmployeeAssetsModal({
 
         templateData = {
           name: fromEmployee.fullName || "",
-          department: fromEmployee.department || "",
+          department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
           devices: devices.map((device) => ({
-            assignmentDate: formatTransferDate(device.assignmentDate) || "",
+            assignmentDate: formatTransferDate(new Date()), // Use current date for return
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             model: device.model || "",
@@ -1471,20 +1473,20 @@ function EmployeeAssetsModal({
         // For transfer forms - match Assets.js structure
         templateData = {
           transferor_name: fromEmployee.fullName || "",
-          transferor_department: fromEmployee.department || "",
+          transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee ? toEmployee.fullName || "" : "",
-          transferee_department: toEmployee ? toEmployee.department || "" : "",
+          transferee_department: toEmployee
+            ? getDepartmentForForm(toEmployee)
+            : "",
           transferee_date_hired: toEmployee
             ? formatTransferDate(toEmployee.dateHired) || ""
             : "",
           transferee_position: toEmployee ? toEmployee.position || "" : "",
           devices: devices.map((device) => ({
-            TransferDate: formatTransferDate(
-              device.assignmentDate || new Date()
-            ),
+            TransferDate: formatTransferDate(new Date()), // Use current date for transfer
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             model: device.model || "",
@@ -3578,6 +3580,24 @@ export default function Employee() {
   // Hover state for table rows
   const [hoveredRowId, setHoveredRowId] = useState(null);
 
+  // === UTILITY FUNCTIONS ===
+  // Get client name from client ID
+  const getClientName = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.clientName : "No Client";
+  };
+
+  // Get department/client field for forms (prioritizes client name if available)
+  const getDepartmentForForm = (employee) => {
+    if (!employee) return "";
+
+    // If employee has clientId, use client name; otherwise use department field
+    const clientName = employee.clientId
+      ? getClientName(employee.clientId)
+      : "";
+    return clientName || employee.department || "";
+  };
+
   // Load clients and employees
   const loadClientsAndEmployees = async () => {
     setIsTableLoading(true);
@@ -4854,12 +4874,6 @@ export default function Employee() {
     }
 
     return "";
-  };
-
-  // Utility functions
-  const getClientName = (clientId) => {
-    const client = clients.find((c) => c.id === clientId);
-    return client ? client.clientName : "No Client";
   };
 
   const isFormValid = () => {
@@ -6586,6 +6600,8 @@ export default function Employee() {
         employee={assetsModal.employee}
         devices={devices}
         deviceHistory={employeeDeviceHistory}
+        clients={clients}
+        getDepartmentForForm={getDepartmentForForm}
         onDeviceUpdate={async () => {
           // Refresh devices and employee device history
           await loadClientsAndEmployees();

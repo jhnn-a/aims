@@ -1207,7 +1207,7 @@ function Inventory() {
       doc.setData({
         name: emp?.fullName || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
-        department: emp?.department || emp?.client || "",
+        department: getDepartmentForForm(emp),
         position: emp?.position || "",
         devices: [
           {
@@ -1872,6 +1872,24 @@ function Inventory() {
       setLoading(false);
       setAutoRefreshing(false);
     }
+  };
+
+  // === UTILITY FUNCTIONS ===
+  // Get client name from client ID
+  const getClientName = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.clientName : "";
+  };
+
+  // Get department/client field for forms (prioritizes client name if available)
+  const getDepartmentForForm = (employee) => {
+    if (!employee) return "";
+
+    // If employee has clientId, use client name; otherwise use department field
+    const clientName = employee.clientId
+      ? getClientName(employee.clientId)
+      : "";
+    return clientName || employee.department || "";
   };
 
   const isFormValid = () =>
@@ -2956,7 +2974,7 @@ function Inventory() {
       doc.setData({
         name: emp?.fullName || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
-        department: emp?.department || emp?.client || "",
+        department: getDepartmentForForm(emp),
         position: emp?.position || "",
         devices: selectedDeviceObjects.map((dev) => {
           // Format assignmentDate as 'June 06, 2025'
@@ -5309,6 +5327,89 @@ function Inventory() {
               <path d="M6 6l12 12" />
             </svg>
             Clear All Filters
+          </button>
+        </div>
+      )}
+
+      {/* Selection Counter */}
+      {selectedIds.length > 0 && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: isDarkMode ? "#1e40af" : "#dbeafe",
+            borderRadius: "6px",
+            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #3b82f6",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              fontWeight: 500,
+              color: isDarkMode ? "#60a5fa" : "#1e40af",
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"></path>
+            </svg>
+            <span>
+              {selectedIds.length} asset{selectedIds.length !== 1 ? "s" : ""}{" "}
+              selected
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedIds([]);
+              setSelectAll(false);
+            }}
+            style={{
+              background: "transparent",
+              border: `1px solid ${isDarkMode ? "#60a5fa" : "#1e40af"}`,
+              color: isDarkMode ? "#60a5fa" : "#1e40af",
+              cursor: "pointer",
+              padding: "4px 8px",
+              borderRadius: "4px",
+              fontSize: "12px",
+              fontWeight: 500,
+              transition: "all 0.15s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = isDarkMode ? "#60a5fa" : "#1e40af";
+              e.target.style.color = isDarkMode ? "#1e40af" : "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "transparent";
+              e.target.style.color = isDarkMode ? "#60a5fa" : "#1e40af";
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Clear Selection
           </button>
         </div>
       )}
