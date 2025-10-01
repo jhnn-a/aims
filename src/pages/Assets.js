@@ -11,6 +11,7 @@ import {
   deleteDevice,
 } from "../services/deviceService"; // Database operations for devices
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
+import { getAllClients } from "../services/clientService"; // Client data operations
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
 import { useTheme } from "../context/ThemeContext"; // Theme context for dark mode
 import LoadingSpinner, {
@@ -695,6 +696,7 @@ function Assets() {
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of assigned devices from database
   const [employees, setEmployees] = useState([]); // List of all employees for reassignment
+  const [clients, setClients] = useState([]); // List of all clients for department resolution
   const [loading, setLoading] = useState(true); // Main page loading state
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
 
@@ -838,9 +840,10 @@ function Assets() {
     }
 
     try {
-      const [allDevices, allEmployees] = await Promise.all([
+      const [allDevices, allEmployees, allClients] = await Promise.all([
         getAllDevices(), // Fetch all devices from database
         getAllEmployees(), // Fetch all employees for assignment dropdowns
+        getAllClients(), // Fetch all clients for department resolution
       ]);
       // Filter to only show assigned devices (devices with assignedTo value)
       const assignedDevices = allDevices.filter(
@@ -848,6 +851,7 @@ function Assets() {
       );
       setDevices(assignedDevices);
       setEmployees(allEmployees);
+      setClients(allClients);
     } catch (error) {
       showError(
         "Failed to load devices and employees. Please refresh the page."
@@ -862,6 +866,23 @@ function Assets() {
   const getEmployeeName = (id) => {
     const emp = employees.find((e) => e.id === id);
     return emp ? emp.fullName : id || "";
+  };
+
+  // Get client name from client ID
+  const getClientName = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.clientName : "";
+  };
+
+  // Get department/client field for forms (prioritizes client name if available)
+  const getDepartmentForForm = (employee) => {
+    if (!employee) return "";
+
+    // If employee has clientId, use client name; otherwise use department field
+    const clientName = employee.clientId
+      ? getClientName(employee.clientId)
+      : "";
+    return clientName || employee.department || "";
   };
 
   const handleEdit = (device) => {
@@ -1537,19 +1558,19 @@ function Assets() {
       // Data object: must match template placeholders exactly
       const data = {
         transferor_name: transferor.fullName || "",
-        transferor_department: transferor.department || "",
+        transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
         transferee_name: transferee.fullName || "",
-        transferee_department: transferee.department || "",
+        transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
           : "",
         transferee_position: transferee.position || "",
         devices: devices.map((device) => ({
-          TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+          TransferDate: formatTransferDate(new Date()), // Use current date for transfer
           deviceType: device.deviceType || "",
           brand: device.brand || "",
           deviceTag: device.deviceTag || "",
@@ -1633,7 +1654,7 @@ function Assets() {
       const currentDate = formatTransferDate(new Date());
       const data = {
         name: employee.fullName || "",
-        department: employee.department || "",
+        department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
           ? formatTransferDate(employee.dateHired)
@@ -1706,7 +1727,7 @@ function Assets() {
       const currentDate = formatTransferDate(new Date());
       const data = {
         name: employee.fullName || "",
-        department: employee.department || "",
+        department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
           ? formatTransferDate(employee.dateHired)
