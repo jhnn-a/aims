@@ -42,6 +42,23 @@ const MAINTENANCE_COLORS = {
   Critical: "#dc2626", // Red
 };
 
+// Utility function to normalize device type for case-insensitive comparison
+const normalizeDeviceType = (deviceType) => {
+  if (!deviceType || typeof deviceType !== "string") return "Unknown";
+  return deviceType.trim().toUpperCase(); // Normalize to uppercase for consistency
+};
+
+// Helper function to get display name for device type (preserves original casing for display)
+const getDeviceTypeDisplayName = (normalizedType, originalDevices) => {
+  if (normalizedType === "UNKNOWN") return "Unknown";
+
+  // Find the first occurrence of this device type and use its original casing for display
+  const device = originalDevices.find(
+    (d) => normalizeDeviceType(d.deviceType) === normalizedType
+  );
+  return device?.deviceType || normalizedType;
+};
+
 // Helper functions for maintenance status calculation (from UnitSpecs.js)
 const getMaintenanceChecklist = (device) => {
   if (!device) return [];
@@ -490,16 +507,21 @@ function Dashboard() {
       }));
       const allUnitsSpecs = [...inventoryUnits, ...deployedUnits];
 
-      console.log(
-        `📊 Data fetched - Employees: ${employees.length}, Devices: ${devices.length}, Clients: ${clients.length}, Total UnitSpecs: ${allUnitsSpecs.length}`
-      );
-
       // Fetch total admins from users collection
       const usersSnapshot = await getDocs(collection(db, "users"));
       const totalAdminsCount = usersSnapshot.size;
       setTotalAdmins(totalAdminsCount);
 
-      setEmployeeCount(employees.length);
+      // Filter to only count active employees (not resigned and not entities)
+      const activeEmployees = employees.filter(
+        (emp) => !emp.isResigned && !emp.isEntity
+      );
+
+      console.log(
+        `📊 Data fetched - Total Employees: ${employees.length}, Active Employees: ${activeEmployees.length}, Devices: ${devices.length}, Clients: ${clients.length}, Total UnitSpecs: ${allUnitsSpecs.length}`
+      );
+
+      setEmployeeCount(activeEmployees.length);
       setDeviceCount(devices.length);
       setClientCount(clients.length);
       setStockCount(devices.filter((d) => d.status === "Stock Room").length);
@@ -536,10 +558,13 @@ function Dashboard() {
       );
 
       availableDevices.forEach((device) => {
-        const type = device.deviceType || "Unknown";
-        if (!stockroomMap[type]) {
-          stockroomMap[type] = {
-            deviceType: type,
+        const normalizedType = normalizeDeviceType(device.deviceType);
+        if (!stockroomMap[normalizedType]) {
+          stockroomMap[normalizedType] = {
+            deviceType: getDeviceTypeDisplayName(
+              normalizedType,
+              availableDevices
+            ),
             brandNew: 0,
             good: 0,
             total: 0,
@@ -547,11 +572,11 @@ function Dashboard() {
         }
 
         if (device.condition === "BRANDNEW") {
-          stockroomMap[type].brandNew++;
+          stockroomMap[normalizedType].brandNew++;
         } else if (device.condition === "GOOD") {
-          stockroomMap[type].good++;
+          stockroomMap[normalizedType].good++;
         }
-        stockroomMap[type].total++;
+        stockroomMap[normalizedType].total++;
       });
 
       const stockroomArray = Object.values(stockroomMap).sort(
@@ -660,15 +685,27 @@ function Dashboard() {
       });
       setEmployeeMap(empMap); // Store employee map in state
 
-      // Count device types
+      // Count device types (case-insensitive)
       const typeMap = {};
+      const typeDisplayNames = {}; // Store original display names
       devices.forEach((d) => {
-        const type = d.deviceType || "Unknown";
-        typeMap[type] = (typeMap[type] || 0) + 1;
+        const normalizedType = normalizeDeviceType(d.deviceType);
+        typeMap[normalizedType] = (typeMap[normalizedType] || 0) + 1;
+
+        // Store the original device type for display purposes (first occurrence wins)
+        if (!typeDisplayNames[normalizedType]) {
+          typeDisplayNames[normalizedType] = getDeviceTypeDisplayName(
+            normalizedType,
+            devices
+          );
+        }
       });
       const sortedTypes = Object.entries(typeMap)
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-        .map(([type, count]) => ({ type, count }));
+        .map(([normalizedType, count]) => ({
+          type: typeDisplayNames[normalizedType],
+          count,
+        }));
       setDeviceTypes(sortedTypes);
 
       // Count device conditions
@@ -963,6 +1000,7 @@ function Dashboard() {
   const deviceTypeData = (() => {
     // Calculate deployed devices by type (only assigned/in use devices)
     const deployedTypeMap = {};
+    const typeDisplayNames = {}; // Store original display names
     allDevices.forEach((device) => {
       // Only count devices that are deployed/assigned
       if (
@@ -970,14 +1008,26 @@ function Dashboard() {
         device.status === "Deployed" ||
         (device.assignedTo && device.assignedTo.trim() !== "")
       ) {
-        const type = device.deviceType || "Unknown";
-        deployedTypeMap[type] = (deployedTypeMap[type] || 0) + 1;
+        const normalizedType = normalizeDeviceType(device.deviceType);
+        deployedTypeMap[normalizedType] =
+          (deployedTypeMap[normalizedType] || 0) + 1;
+
+        // Store the original device type for display purposes (first occurrence wins)
+        if (!typeDisplayNames[normalizedType]) {
+          typeDisplayNames[normalizedType] = getDeviceTypeDisplayName(
+            normalizedType,
+            allDevices
+          );
+        }
       }
     });
 
     return Object.entries(deployedTypeMap)
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      .map(([type, count]) => ({ type, count }));
+      .map(([normalizedType, count]) => ({
+        type: typeDisplayNames[normalizedType],
+        count,
+      }));
   })();
 
   return (
@@ -1840,14 +1890,15 @@ function Dashboard() {
             </thead>
             <tbody>
               {(() => {
-                // Process device data by type
+                // Process device data by type (case-insensitive)
                 const deviceTypeStats = {};
+                const typeDisplayNames = {}; // Store original display names
 
                 allDevices.forEach((device) => {
-                  const deviceType = device.deviceType || "Unknown";
+                  const normalizedType = normalizeDeviceType(device.deviceType);
 
-                  if (!deviceTypeStats[deviceType]) {
-                    deviceTypeStats[deviceType] = {
+                  if (!deviceTypeStats[normalizedType]) {
+                    deviceTypeStats[normalizedType] = {
                       total: 0,
                       deployed: 0,
                       stockroom: 0,
@@ -1857,7 +1908,15 @@ function Dashboard() {
                     };
                   }
 
-                  const stats = deviceTypeStats[deviceType];
+                  // Store the original device type for display purposes (first occurrence wins)
+                  if (!typeDisplayNames[normalizedType]) {
+                    typeDisplayNames[normalizedType] = getDeviceTypeDisplayName(
+                      normalizedType,
+                      allDevices
+                    );
+                  }
+
+                  const stats = deviceTypeStats[normalizedType];
                   stats.total++;
 
                   // Count deployed (assigned/in use)
@@ -1893,7 +1952,8 @@ function Dashboard() {
 
                 return Object.entries(deviceTypeStats)
                   .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([deviceType, stats], index) => {
+                  .map(([normalizedType, stats], index) => {
+                    const deviceType = typeDisplayNames[normalizedType];
                     const usable = stats.brandnew + stats.good;
                     const reorderThreshold = 5; // Consider restocking if usable < 5
                     const reorderStatus =
@@ -1903,7 +1963,7 @@ function Dashboard() {
 
                     return (
                       <tr
-                        key={deviceType}
+                        key={normalizedType}
                         style={{
                           borderBottom: `1px solid ${
                             isDarkMode ? "#374151" : "#f3f4f6"
