@@ -3833,14 +3833,16 @@ const UnitSpecs = () => {
             background:
               activeTab === "InventoryUnits"
                 ? isDarkMode
-                  ? "#1f2937"
+                  ? "#374151"
                   : "#fff"
                 : isDarkMode
-                ? "#374151"
+                ? "#1f2937"
                 : "#e0e7ef",
             color:
               activeTab === "InventoryUnits"
-                ? "#2563eb"
+                ? isDarkMode
+                  ? "#60a5fa"
+                  : "#2563eb"
                 : isDarkMode
                 ? "#9ca3af"
                 : "#64748b",
@@ -3866,14 +3868,16 @@ const UnitSpecs = () => {
             background:
               activeTab === "DeployedUnits"
                 ? isDarkMode
-                  ? "#1f2937"
+                  ? "#374151"
                   : "#fff"
                 : isDarkMode
-                ? "#374151"
+                ? "#1f2937"
                 : "#e0e7ef",
             color:
               activeTab === "DeployedUnits"
-                ? "#2563eb"
+                ? isDarkMode
+                  ? "#60a5fa"
+                  : "#2563eb"
                 : isDarkMode
                 ? "#9ca3af"
                 : "#64748b",

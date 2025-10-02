@@ -1639,9 +1639,8 @@ function EmployeeAssetsModal({
       const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
       fileName = `${employeeName}_BULK_${deviceCount}_DEVICES_${actionText}.docx`;
     } else {
-      const deviceTag = device.deviceTag || "Device";
-      const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
-      fileName = `${employeeName}_${deviceTag}_${actionText}.docx`;
+      const actionText = type === "unassign" ? "Return" : "Transfer";
+      fileName = `${employeeName} - ${actionText}.docx`;
     }
 
     saveAs(actionModal.docxBlob, fileName);

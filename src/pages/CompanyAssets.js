@@ -39,12 +39,18 @@ const tabStyles = {
     border: "none",
     background: active
       ? isDarkMode
-        ? "#1f2937"
+        ? "#374151"
         : "#fff"
       : isDarkMode
-      ? "#374151"
+      ? "#1f2937"
       : "#e0e7ef",
-    color: active ? "#2563eb" : isDarkMode ? "#d1d5db" : "#64748b",
+    color: active
+      ? isDarkMode
+        ? "#60a5fa"
+        : "#2563eb"
+      : isDarkMode
+      ? "#d1d5db"
+      : "#64748b",
     fontWeight: active ? 700 : 500,
     fontSize: 16,
     padding: "10px 32px",
