@@ -3336,23 +3336,46 @@ function EmployeeAssetsModal({
               )}
 
               {actionModal.docxBlob && (
-                <button
-                  onClick={handleDownloadDocx}
-                  style={{
-                    padding: "8px 16px",
-                    border: "none",
-                    borderRadius: 6,
-                    background: "#059669",
-                    color: "white",
-                    fontSize: 14,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  Download {actionModal.isBulk ? "Bulk " : ""}
-                  {actionModal.type === "unassign" ? "Return" : "Transfer"} Form
-                </button>
+                <>
+                  <button
+                    onClick={handleDownloadDocx}
+                    style={{
+                      padding: "8px 16px",
+                      border: "none",
+                      borderRadius: 6,
+                      background: "#059669",
+                      color: "white",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Download {actionModal.isBulk ? "Bulk " : ""}
+                    {actionModal.type === "unassign"
+                      ? "Return"
+                      : "Transfer"}{" "}
+                    Form
+                  </button>
+                  <button
+                    onClick={closeActionModal}
+                    style={{
+                      padding: "8px 16px",
+                      border: isDarkMode
+                        ? "1px solid #6b7280"
+                        : "1px solid #d1d5db",
+                      borderRadius: 6,
+                      background: isDarkMode ? "#4b5563" : "white",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Close
+                  </button>
+                </>
               )}
             </div>
           </div>
