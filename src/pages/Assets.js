@@ -703,6 +703,19 @@ function Assets() {
   const [loading, setLoading] = useState(true); // Main page loading state
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
 
+  // === UTILITY FUNCTIONS ===
+  // Helper function to extract first and last name only for document forms
+  const getFirstLastName = (fullName) => {
+    if (!fullName) return "Employee";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0]; // Only first name
+    } else if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+    }
+    return "Employee";
+  };
+
   // === DEVICE FORM STATE ===
   const [form, setForm] = useState({}); // Form data for device operations
   const [tagError, setTagError] = useState(""); // Asset tag validation errors
@@ -1578,13 +1591,13 @@ function Assets() {
 
       // Data object: must match template placeholders exactly
       const data = {
-        transferor_name: transferor.fullName || "",
+        transferor_name: getFirstLastName(transferor.fullName) || "",
         transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
-        transferee_name: transferee.fullName || "",
+        transferee_name: getFirstLastName(transferee.fullName) || "",
         transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
@@ -1674,7 +1687,7 @@ function Assets() {
       // Use current date for return document (not original assignment date)
       const currentDate = formatTransferDate(new Date());
       const data = {
-        name: employee.fullName || "",
+        name: getFirstLastName(employee.fullName) || "",
         department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
@@ -1703,9 +1716,9 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = employee.fullName
-        ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
-        : "Employee";
+      const employeeName = getFirstLastName(employee.fullName)
+        .replace(/[^a-zA-Z0-9\s-]/g, "")
+        .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
       const link = document.createElement("a");
       link.href = URL.createObjectURL(out);
@@ -1747,7 +1760,7 @@ function Assets() {
       // Use current date for return document (not original assignment date)
       const currentDate = formatTransferDate(new Date());
       const data = {
-        name: employee.fullName || "",
+        name: getFirstLastName(employee.fullName) || "",
         department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
@@ -1774,9 +1787,9 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = employee.fullName
-        ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
-        : "Employee";
+      const employeeName = getFirstLastName(employee.fullName)
+        .replace(/[^a-zA-Z0-9\s-]/g, "")
+        .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
       const link = document.createElement("a");
       link.href = URL.createObjectURL(out);

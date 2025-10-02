@@ -1141,6 +1141,19 @@ function Inventory() {
     );
   };
 
+  // === UTILITY FUNCTIONS ===
+  // Helper function to extract first and last name only for document forms
+  const getFirstLastName = (fullName) => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0]; // Only first name
+    } else if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+    }
+    return "";
+  };
+
   // === GLOBAL STYLING EFFECTS ===
   // Add global styles to hide scrollbars across the application
   React.useEffect(() => {
@@ -1205,7 +1218,7 @@ function Inventory() {
         "-" +
         String(phTime.getDate()).padStart(2, "0");
       doc.setData({
-        name: emp?.fullName || "",
+        name: getFirstLastName(emp?.fullName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
         department: getDepartmentForForm(emp),
         position: emp?.position || "",
@@ -2972,7 +2985,7 @@ function Inventory() {
         String(phTime.getDate()).padStart(2, "0");
 
       doc.setData({
-        name: emp?.fullName || "",
+        name: getFirstLastName(emp?.fullName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
         department: getDepartmentForForm(emp),
         position: emp?.position || "",

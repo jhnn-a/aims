@@ -1002,6 +1002,19 @@ function EmployeeAssetsModal({
   // State for reassign employee selection
   const [reassignEmployees, setReassignEmployees] = useState([]);
 
+  // === UTILITY FUNCTIONS ===
+  // Helper function to extract first and last name only for document forms
+  const getFirstLastName = (fullName) => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0]; // Only first name
+    } else if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+    }
+    return "";
+  };
+
   // Bulk selection state - separate for deployed and work from home assets
   const [selectedDeployedIds, setSelectedDeployedIds] = useState([]);
   const [selectedWfhIds, setSelectedWfhIds] = useState([]);
@@ -1382,7 +1395,7 @@ function EmployeeAssetsModal({
         const isDefective = selectedCondition === "DEFECTIVE";
 
         templateData = {
-          name: fromEmployee.fullName || "",
+          name: getFirstLastName(fromEmployee.fullName) || "",
           department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
@@ -1410,12 +1423,14 @@ function EmployeeAssetsModal({
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
-          transferor_name: fromEmployee.fullName || "",
+          transferor_name: getFirstLastName(fromEmployee.fullName) || "",
           transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
-          transferee_name: toEmployee ? toEmployee.fullName || "" : "",
+          transferee_name: toEmployee
+            ? getFirstLastName(toEmployee.fullName) || ""
+            : "",
           transferee_department: toEmployee
             ? getDepartmentForForm(toEmployee)
             : "",
@@ -1549,7 +1564,7 @@ function EmployeeAssetsModal({
         const isDefective = overallCondition === "DEFECTIVE";
 
         templateData = {
-          name: fromEmployee.fullName || "",
+          name: getFirstLastName(fromEmployee.fullName) || "",
           department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
@@ -1576,12 +1591,14 @@ function EmployeeAssetsModal({
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
-          transferor_name: fromEmployee.fullName || "",
+          transferor_name: getFirstLastName(fromEmployee.fullName) || "",
           transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
-          transferee_name: toEmployee ? toEmployee.fullName || "" : "",
+          transferee_name: toEmployee
+            ? getFirstLastName(toEmployee.fullName) || ""
+            : "",
           transferee_department: toEmployee
             ? getDepartmentForForm(toEmployee)
             : "",
@@ -1628,10 +1645,22 @@ function EmployeeAssetsModal({
   const handleDownloadDocx = () => {
     if (!actionModal.docxBlob) return;
 
+    // Helper function to get first and last name only
+    const getFirstLastName = (fullName) => {
+      if (!fullName) return "Employee";
+      const parts = fullName.trim().split(/\s+/);
+      if (parts.length === 1) {
+        return parts[0]; // Only first name
+      } else if (parts.length >= 2) {
+        return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+      }
+      return "Employee";
+    };
+
     const { type, device, devices, isBulk } = actionModal;
-    const employeeName = employee.fullName
-      ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
-      : "Employee";
+    const employeeName = getFirstLastName(employee.fullName)
+      .replace(/[^a-zA-Z0-9\s-]/g, "")
+      .replace(/\s+/g, "_");
 
     let fileName;
     if (isBulk) {
