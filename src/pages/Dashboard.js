@@ -1605,8 +1605,8 @@ function Dashboard() {
                             style={{
                               color:
                                 reorderStatus === "Sufficient"
-                                  ? "#22c55e"
-                                  : "#ef4444",
+                                  ? isDarkMode ? "#34d399" : "#22c55e"  // Lighter green in dark mode
+                                  : isDarkMode ? "#f87171" : "#ef4444", // Lighter red in dark mode
                               fontWeight: 600,
                               fontSize: 12,
                               padding: "4px 8px",
