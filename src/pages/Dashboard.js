@@ -1396,18 +1396,34 @@ function Dashboard() {
             </thead>
             <tbody>
               {(() => {
-                // Process device data by type (case-insensitive)
+                // Separate data processing per supervisor's requirements:
+                // 1. Stockroom data (Total Stockroom, Defective, Brandnew, Good) from unassigned devices
+                // 2. Deployed data from assigned devices
+                // 3. Total = Total Stockroom + Deployed
+                // 4. Usable = Brandnew + Good
+
                 const deviceTypeStats = {};
                 const typeDisplayNames = {}; // Store original display names
 
-                allDevices.forEach((device) => {
+                // Process unassigned devices for stockroom data (like Inventory.js)
+                const unassignedDevices = allDevices.filter(
+                  (device) => !device.assignedTo || device.assignedTo === ""
+                );
+
+                // Process assigned devices for deployed data (like Assets.js)
+                const assignedDevices = allDevices.filter(
+                  (device) =>
+                    device.assignedTo && device.assignedTo.trim() !== ""
+                );
+
+                // Initialize stats from stockroom (unassigned) devices
+                unassignedDevices.forEach((device) => {
                   const normalizedType = normalizeDeviceType(device.deviceType);
 
                   if (!deviceTypeStats[normalizedType]) {
                     deviceTypeStats[normalizedType] = {
-                      total: 0,
+                      totalStockroom: 0,
                       deployed: 0,
-                      stockroom: 0,
                       defective: 0,
                       brandnew: 0,
                       good: 0,
@@ -1423,26 +1439,9 @@ function Dashboard() {
                   }
 
                   const stats = deviceTypeStats[normalizedType];
-                  stats.total++;
+                  stats.totalStockroom++;
 
-                  // Count deployed (assigned/in use)
-                  if (
-                    device.status === "In Use" ||
-                    device.status === "Deployed" ||
-                    (device.assignedTo && device.assignedTo.trim() !== "")
-                  ) {
-                    stats.deployed++;
-                  }
-
-                  // Count stockroom (available inventory)
-                  if (
-                    device.status === "Stock Room" ||
-                    device.status === "Available"
-                  ) {
-                    stats.stockroom++;
-                  }
-
-                  // Count by condition
+                  // Count by condition from stockroom devices
                   const condition = device.condition?.toUpperCase() || "";
                   if (condition === "DEFECTIVE") {
                     stats.defective++;
@@ -1456,11 +1455,38 @@ function Dashboard() {
                   }
                 });
 
+                // Add deployed count from assigned devices
+                assignedDevices.forEach((device) => {
+                  const normalizedType = normalizeDeviceType(device.deviceType);
+
+                  if (!deviceTypeStats[normalizedType]) {
+                    deviceTypeStats[normalizedType] = {
+                      totalStockroom: 0,
+                      deployed: 0,
+                      defective: 0,
+                      brandnew: 0,
+                      good: 0,
+                    };
+                  }
+
+                  // Store the original device type for display purposes (first occurrence wins)
+                  if (!typeDisplayNames[normalizedType]) {
+                    typeDisplayNames[normalizedType] = getDeviceTypeDisplayName(
+                      normalizedType,
+                      allDevices
+                    );
+                  }
+
+                  const stats = deviceTypeStats[normalizedType];
+                  stats.deployed++;
+                });
+
                 return Object.entries(deviceTypeStats)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([normalizedType, stats], index) => {
                     const deviceType = typeDisplayNames[normalizedType];
-                    const usable = stats.brandnew + stats.good;
+                    const total = stats.totalStockroom + stats.deployed; // Total = Stockroom + Deployed
+                    const usable = stats.brandnew + stats.good; // Usable = Brandnew + Good
                     const reorderThreshold = 5; // Consider restocking if usable < 5
                     const reorderStatus =
                       usable >= reorderThreshold
@@ -1501,7 +1527,7 @@ function Dashboard() {
                             fontWeight: 600,
                           }}
                         >
-                          {stats.total}
+                          {total}
                         </td>
                         <td
                           style={{
@@ -1521,7 +1547,7 @@ function Dashboard() {
                             fontWeight: 600,
                           }}
                         >
-                          {stats.stockroom}
+                          {stats.totalStockroom}
                         </td>
                         <td
                           style={{
@@ -1664,10 +1690,7 @@ function Dashboard() {
                 >
                   {
                     allDevices.filter(
-                      (d) =>
-                        d.status === "In Use" ||
-                        d.status === "Deployed" ||
-                        (d.assignedTo && d.assignedTo.trim() !== "")
+                      (d) => d.assignedTo && d.assignedTo.trim() !== ""
                     ).length
                   }
                 </div>
@@ -1688,9 +1711,10 @@ function Dashboard() {
                   {
                     allDevices.filter(
                       (d) =>
-                        d.condition?.toUpperCase() === "BRANDNEW" ||
-                        d.condition?.toUpperCase() === "BRAND NEW" ||
-                        d.condition?.toUpperCase() === "GOOD"
+                        (!d.assignedTo || d.assignedTo === "") &&
+                        (d.condition?.toUpperCase() === "BRANDNEW" ||
+                          d.condition?.toUpperCase() === "BRAND NEW" ||
+                          d.condition?.toUpperCase() === "GOOD")
                     ).length
                   }
                 </div>
@@ -1710,7 +1734,9 @@ function Dashboard() {
                 >
                   {
                     allDevices.filter(
-                      (d) => d.condition?.toUpperCase() === "DEFECTIVE"
+                      (d) =>
+                        (!d.assignedTo || d.assignedTo === "") &&
+                        d.condition?.toUpperCase() === "DEFECTIVE"
                     ).length
                   }
                 </div>
@@ -1730,21 +1756,30 @@ function Dashboard() {
                 >
                   {(() => {
                     const deviceTypeStats = {};
-                    allDevices.forEach((device) => {
-                      const deviceType = device.deviceType || "Unknown";
-                      if (!deviceTypeStats[deviceType]) {
-                        deviceTypeStats[deviceType] = { brandnew: 0, good: 0 };
-                      }
-                      const condition = device.condition?.toUpperCase() || "";
-                      if (
-                        condition === "BRANDNEW" ||
-                        condition === "BRAND NEW"
-                      ) {
-                        deviceTypeStats[deviceType].brandnew++;
-                      } else if (condition === "GOOD") {
-                        deviceTypeStats[deviceType].good++;
-                      }
-                    });
+                    // Only count unassigned devices for reorder status (stockroom)
+                    allDevices
+                      .filter(
+                        (device) =>
+                          !device.assignedTo || device.assignedTo === ""
+                      )
+                      .forEach((device) => {
+                        const deviceType = device.deviceType || "Unknown";
+                        if (!deviceTypeStats[deviceType]) {
+                          deviceTypeStats[deviceType] = {
+                            brandnew: 0,
+                            good: 0,
+                          };
+                        }
+                        const condition = device.condition?.toUpperCase() || "";
+                        if (
+                          condition === "BRANDNEW" ||
+                          condition === "BRAND NEW"
+                        ) {
+                          deviceTypeStats[deviceType].brandnew++;
+                        } else if (condition === "GOOD") {
+                          deviceTypeStats[deviceType].good++;
+                        }
+                      });
 
                     return Object.values(deviceTypeStats).filter(
                       (stats) => stats.brandnew + stats.good < 5
