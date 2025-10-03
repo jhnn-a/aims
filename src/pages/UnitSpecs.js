@@ -7,14 +7,15 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
-// Import snackbar for notifications
-import { useSnackbar } from "../components/Snackbar";
+// Import react-hot-toast for error messages
+import toast from "react-hot-toast";
 // Import device types and tag generation utility
 import {
   deviceTypes,
@@ -573,9 +574,6 @@ const UnitSpecs = () => {
   // Initialize theme context for dark mode
   const { isDarkMode } = useTheme();
 
-  // Initialize snackbar hook
-  const { showSuccess, showError, showInfo } = useSnackbar();
-
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
   const [clients, setClients] = useState([]);
@@ -654,59 +652,9 @@ const UnitSpecs = () => {
 
   // Handle maintenance task completion
   const handleTaskCompletion = async (deviceTag, taskName, isCompleted) => {
-    try {
-      const currentDevice = selectedDevice;
-      if (!currentDevice) return;
-
-      // Determine which collection the device belongs to
-      const isInInventory = inventory.some(
-        (device) => device.Tag === deviceTag
-      );
-      const targetCollection = isInInventory
-        ? "InventoryUnits"
-        : "DeployedUnits";
-
-      // Update local state immediately for UI responsiveness
-      const updatedChecklist = {
-        ...currentDevice.maintenanceChecklist,
-        [taskName]: {
-          completed: isCompleted,
-          completedDate: isCompleted ? new Date() : null,
-          lastResetDate:
-            currentDevice.maintenanceChecklist?.[taskName]?.lastResetDate ||
-            new Date(),
-        },
-      };
-
-      // Update selected device state
-      const updatedDevice = {
-        ...currentDevice,
-        maintenanceChecklist: updatedChecklist,
-        lastMaintenanceDate: isCompleted
-          ? new Date()
-          : currentDevice.lastMaintenanceDate,
-      };
-      setSelectedDevice(updatedDevice);
-
-      // Save to database
-      const deviceRef = doc(db, targetCollection, deviceTag);
-      await updateDoc(deviceRef, {
-        maintenanceChecklist: updatedChecklist,
-        lastMaintenanceDate: isCompleted
-          ? new Date()
-          : currentDevice.lastMaintenanceDate,
-      });
-
-      // Refresh the main data to update the status badges
-      fetchData();
-
-      if (isCompleted) {
-        showSuccess(`Marked "${taskName}" as completed`);
-      }
-    } catch (error) {
-      console.error("Error updating maintenance task:", error);
-      showError("Failed to update maintenance task");
-    }
+    toast.error(
+      "Maintenance task updates are disabled. UnitSpecs now displays live data from the main device database."
+    );
   };
 
   // Close filter popup when clicking outside
@@ -727,64 +675,9 @@ const UnitSpecs = () => {
 
   // Import Excel handler
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
-
-      // Expect columns: Tag, CPU, RAM, Drive, GPU, Condition, OS, Status
-      for (const row of data) {
-        if (!row.Tag) continue;
-        const conditionValue = row.Condition || row.Status || "";
-        const dateAdded = row.dateAdded || new Date().toISOString();
-
-        // Extract values for appraisal calculation
-        const cpuGen =
-          row.cpuGen || row.CPU?.match(/(i[357])/i)?.[1]?.toLowerCase() || "";
-        const ram = row.RAM?.toString().replace(/[^\d]/g, "") || "";
-        const drive = row.Drive || "";
-        const gpu = row.GPU || "";
-        const category = row.category || "";
-
-        // Calculate appraisal date
-        const appraisalDate = calculateAppraisalDate(
-          dateAdded,
-          category,
-          cpuGen,
-          ram,
-          drive,
-          gpu
-        );
-
-        const unit = {
-          Tag: row.Tag || "",
-          CPU: row.CPU || "",
-          RAM: row.RAM || "",
-          Drive: row.Drive || "",
-          GPU: row.GPU || "",
-          Condition: conditionValue, // Save to new field name
-          Status: conditionValue, // Save to old field name for backward compatibility
-          OS: row.OS || "",
-          dateAdded: dateAdded,
-          appraisalDate: appraisalDate, // Add calculated appraisal date
-          cpuGen: cpuGen,
-          category: category,
-          lastMaintenanceDate: null,
-          maintenanceChecklist: {},
-        };
-
-        await setDoc(doc(db, targetTable, unit.Tag), unit);
-      }
-      fetchData();
-      showSuccess("Excel data imported successfully!");
-    };
-    reader.readAsBinaryString(file);
-    // Reset input so same file can be re-imported if needed
+    toast.error(
+      "Import operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
     e.target.value = "";
   };
 
@@ -792,152 +685,141 @@ const UnitSpecs = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [inventorySnapshot, deployedSnapshot, clientsData] =
-        await Promise.all([
-          getDocs(collection(db, "InventoryUnits")),
-          getDocs(collection(db, "DeployedUnits")),
-          getAllClients(),
-        ]);
+      // Get devices directly from the main devices collection (same as Inventory.js and Assets.js)
+      const [devicesSnapshot, clientsData] = await Promise.all([
+        getDocs(collection(db, "devices")),
+        getAllClients(),
+      ]);
 
-      setInventory(
-        inventorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-      setDeployed(
-        deployedSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
-      setClients(clientsData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      showError("Failed to fetch data");
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // === SYNC FROM INVENTORY FUNCTION ===
-  // Utility function to sync existing PC/Laptop data from main inventory to UnitSpecs
-  const syncFromInventory = async () => {
-    try {
-      setLoading(true);
-      showInfo("Syncing PC and Laptop data from Inventory...");
-
-      // Get all devices from main inventory
-      const devicesSnapshot = await getDocs(collection(db, "devices"));
+      // Get all devices from main collection
       const allDevices = devicesSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
       // Filter for PC and Laptop devices only
-      const pcAndLaptops = allDevices.filter(
-        (device) =>
-          device.deviceType &&
-          ["PC", "Laptop", "Desktop", "Notebook"].includes(device.deviceType)
-      );
+      const pcAndLaptops = allDevices.filter((device) => {
+        if (!device.deviceType) return false;
 
-      let syncedCount = 0;
+        const deviceTypeUpper = device.deviceType.toUpperCase();
+        const validTypes = ["PC", "LAPTOP", "DESKTOP", "NOTEBOOK", "COMPUTER"];
+        return validTypes.includes(deviceTypeUpper);
+      });
 
-      for (const device of pcAndLaptops) {
-        try {
-          // Helper functions to extract data
-          const extractCpuGen = (cpuString) => {
-            if (!cpuString) return "";
-            const match = cpuString.match(/(i[357])/i);
-            return match ? match[1].toLowerCase() : "";
-          };
+      // Transform device data to UnitSpecs format
+      const transformToUnitSpecs = (device) => {
+        // Helper functions to extract data
+        const extractCpuGen = (cpuString) => {
+          if (!cpuString) return "";
+          const match = cpuString.match(/(i[357])/i);
+          return match ? match[1].toLowerCase() : "";
+        };
 
-          const extractCpuModel = (cpuString) => {
-            if (!cpuString) return "";
-            return cpuString
-              .replace(/(i[357])/i, "")
-              .replace(/^[\s-]+/, "")
-              .trim();
-          };
+        const extractCpuModel = (cpuString) => {
+          if (!cpuString) return "";
+          // Extract model like "4590", "7700K", etc.
+          const match = cpuString.match(/i[357]-?(\d{4}[A-Z]*)/i);
+          return match ? match[1] : "";
+        };
 
-          const extractRamSize = (ramString) => {
-            if (!ramString) return "";
-            const match = ramString.match(/(\d+)/);
-            return match ? match[1] : "";
-          };
+        const extractStorage = (storageString) => {
+          if (!storageString) return "";
+          const match = storageString.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
+          if (match) {
+            const value = parseFloat(match[1]);
+            const unit = match[2].toUpperCase();
+            return unit === "TB" ? `${value * 1000}GB` : `${value}GB`;
+          }
+          return storageString;
+        };
 
-          // Map inventory fields to UnitSpecs format
-          const dateAdded =
-            device.dateAdded ||
-            device.acquisitionDate ||
-            new Date().toISOString();
+        const extractRAM = (ramString) => {
+          if (!ramString) return "";
+          const match = ramString.match(/(\d+)\s*GB/i);
+          return match ? `${match[1]}GB` : ramString;
+        };
 
-          const cpuGen = extractCpuGen(device.cpuGen || device.cpu || "");
-          const ram = extractRamSize(device.ram) || "";
-          const drive = device.drive1 || device.mainDrive || "";
-          const gpu = device.gpu || "";
-          const category = device.category || "";
+        // Determine category based on device type
+        const category =
+          device.deviceType?.toUpperCase() === "LAPTOP" ? "Laptop" : "Desktop";
 
-          // Calculate appraisal date based on specs and date added
-          const appraisalDate = calculateAppraisalDate(
-            dateAdded,
-            category,
-            cpuGen,
-            ram,
-            drive,
-            gpu
-          );
+        // Calculate dates
+        const dateAdded =
+          device.dateAdded || device.createdAt || new Date().toISOString();
+        const appraisalDate =
+          device.appraisalDate ||
+          (() => {
+            const addedDate = new Date(dateAdded);
+            addedDate.setFullYear(addedDate.getFullYear() + 5);
+            return addedDate.toISOString();
+          })();
 
-          const unitSpecData = {
-            Tag: device.deviceTag || "",
-            deviceType: device.deviceType || "",
-            category: category,
-            cpuGen: cpuGen,
-            cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
-            CPU: device.cpuGen || device.cpu || "",
-            RAM: ram,
-            Drive: drive,
-            GPU: gpu,
-            Condition: device.condition || "", // Map to Condition field
-            OS: device.os || device.operatingSystem || "",
-            client: device.client || "", // Add client field mapping
-            Remarks: device.remarks || "",
-            lifespan: device.lifespan || "",
-            dateAdded: dateAdded,
-            appraisalDate: appraisalDate, // Add calculated appraisal date
-          };
+        return {
+          id: device.id,
+          Tag: device.deviceTag || "",
+          deviceType: device.deviceType || "",
+          category: category,
+          cpuGen: extractCpuGen(device.cpuGen || device.cpu || ""),
+          cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
+          CPU: device.cpuGen || device.cpu || "",
+          RAM: extractRAM(device.ram || ""),
+          Drive: extractStorage(device.storage || ""),
+          GPU: device.gpu || "",
+          Condition: device.condition || "",
+          OS: device.os || device.operatingSystem || "",
+          client: device.client || "",
+          Remarks: device.remarks || "",
+          lifespan: device.lifespan || "",
+          dateAdded: dateAdded,
+          appraisalDate: appraisalDate,
+          assignedTo: device.assignedTo || "",
+        };
+      };
 
-          // Determine target collection based on assignment status
-          const targetCollection =
-            device.assignedTo && device.assignedTo.trim() !== ""
-              ? "DeployedUnits"
-              : "InventoryUnits";
+      // Separate into inventory and deployed based on assignment status
+      const inventoryDevices = pcAndLaptops
+        .filter(
+          (device) => !device.assignedTo || device.assignedTo.trim() === ""
+        )
+        .map(transformToUnitSpecs);
 
-          // Add to appropriate UnitSpecs collection
-          await setDoc(
-            doc(db, targetCollection, device.deviceTag),
-            unitSpecData
-          );
-          syncedCount++;
-        } catch (deviceError) {
-          console.error(
-            `Error syncing device ${device.deviceTag}:`,
-            deviceError
-          );
-        }
-      }
+      const deployedDevices = pcAndLaptops
+        .filter(
+          (device) => device.assignedTo && device.assignedTo.trim() !== ""
+        )
+        .map(transformToUnitSpecs);
 
-      // Refresh data
-      await fetchData();
-
-      showSuccess(
-        `Successfully synced ${syncedCount} PC/Laptop devices from Inventory to UnitSpecs!`
-      );
-      console.log(`Synced ${syncedCount} PC/Laptop devices to UnitSpecs`);
+      setInventory(inventoryDevices);
+      setDeployed(deployedDevices);
+      setClients(clientsData);
     } catch (error) {
-      console.error("Error syncing from inventory:", error);
-      showError("Failed to sync data from Inventory. Please try again.");
-    } finally {
-      setLoading(false);
+      console.error("Error fetching data:", error);
+      toast.error("Failed to fetch data from database");
     }
+    setLoading(false);
   };
+
+  useEffect(() => {
+    // Set up real-time listener for the devices collection
+    const unsubscribe = onSnapshot(
+      collection(db, "devices"),
+      (snapshot) => {
+        console.log("Devices collection updated, refreshing UnitSpecs data...");
+        fetchData();
+      },
+      (error) => {
+        console.error("Error listening to devices collection:", error);
+      }
+    );
+
+    // Initial data fetch
+    fetchData();
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Note: Sync function removed - UnitSpecs now reads directly from devices collection
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -1017,125 +899,24 @@ const UnitSpecs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.Tag || form.Tag.trim() === "") {
-      showError("TAG is a required field.");
-      return;
-    }
-
-    // --- Create a new object for submission with formatted RAM ---
-    const dateAdded = editId
-      ? form.dateAdded
-      : form.dateAdded || new Date().toISOString();
-
-    // Calculate appraisal date based on specs and date added
-    const appraisalDate = calculateAppraisalDate(
-      dateAdded,
-      form.category,
-      form.cpuGen,
-      form.RAM,
-      form.Drive,
-      form.GPU
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to add or modify devices."
     );
-
-    const unitData = {
-      ...form,
-      // Ensure RAM is stored with "GB" suffix
-      RAM: form.RAM ? `${form.RAM}GB` : "",
-      // Set dateAdded for new units (keep existing for edits)
-      dateAdded: dateAdded,
-      // Add calculated appraisal date
-      appraisalDate: appraisalDate,
-      // Ensure backward compatibility by saving condition to both fields
-      Status: form.Condition, // Save to old field name for backward compatibility
-      Condition: form.Condition, // Save to new field name
-    };
-
-    // --- Improved Validation ---
-    // 1. RAM validation (now checks the numeric part from the form state)
-    if (form.RAM && !/^\d+$/.test(form.RAM.toString())) {
-      showError("RAM must be a valid number.");
-      return;
-    }
-
-    // 2. CPU validation (must contain i3, i5, or i7)
-    if (unitData.CPU && !/i[357]/i.test(unitData.CPU)) {
-      showError("CPU format must include i3, i5, or i7.");
-      return;
-    }
-
-    // 3. Duplicate Tag validation
-    if (!editId) {
-      // Only for new units
-      const allUnits = [...inventory, ...deployed];
-      const tagExists = allUnits.some((unit) => unit.Tag === unitData.Tag);
-      if (tagExists) {
-        showError(`Tag '${unitData.Tag}' already exists.`);
-        return;
-      }
-    }
-
-    if (editId) {
-      const collectionName = editCollection;
-      await setDoc(doc(db, collectionName, unitData.Tag), unitData);
-      if (editId !== unitData.Tag) {
-        await deleteDoc(doc(db, collectionName, editId));
-      }
-      setEditId(null);
-      setEditCollection("");
-      showSuccess(`Unit ${unitData.Tag} updated successfully!`);
-    } else {
-      await setDoc(doc(db, addTo, unitData.Tag), unitData);
-      showSuccess(
-        `Unit ${unitData.Tag} added to ${
-          addTo === "InventoryUnits" ? "Inventory" : "Deployed"
-        }!`
-      );
-    }
-    setForm(emptyUnit);
-    setShowModal(false);
-    fetchData();
+    return;
   };
 
   const handleMove = async (unit, from, to) => {
-    const newUnit = { ...unit };
-    delete newUnit.id;
-    await setDoc(doc(db, to, newUnit.Tag), newUnit);
-    await deleteDoc(doc(db, from, unit.id));
-    fetchData();
-    showSuccess(
-      `Unit ${unit.Tag} moved to ${
-        to === "InventoryUnits" ? "Inventory" : "Deployed"
-      }.`
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to move devices."
     );
+    return;
   };
 
   const handleEdit = (unit, collectionName) => {
-    // Parse CPU field to populate cpuGen and cpuModel for editing
-    const cpuParts = (unit.CPU || "").split(" - ");
-    const cpuGen = cpuParts[0] || "";
-    const cpuModel = cpuParts.length > 1 ? cpuParts.slice(1).join(" - ") : "";
-
-    setForm({
-      Tag: unit.Tag || "",
-      deviceType: unit.deviceType || "", // Include device type for editing
-      category: unit.category || "", // Include category for editing
-      cpuSystemUnit: "", // No longer used
-      cpuGen: cpuGen, // This now serves as CPU - System Unit
-      cpuModel: cpuModel,
-      CPU: unit.CPU || "",
-      RAM: parseRam(unit.RAM) || "",
-      Drive: unit.Drive || "",
-      GPU: unit.GPU || "",
-      Condition: unit.Condition || unit.Status || "", // Support both old and new field names
-      OS: unit.OS || "",
-      lifespan: unit.lifespan || "", // Include lifespan for editing
-      dateAdded: unit.dateAdded || "", // Include dateAdded for editing
-      lastMaintenanceDate: unit.lastMaintenanceDate || null,
-      maintenanceChecklist: unit.maintenanceChecklist || {},
-    });
-    setEditId(unit.id);
-    setEditCollection(collectionName);
-    setShowModal(true);
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to edit devices."
+    );
+    return;
   };
 
   const handleCancelEdit = () => {
@@ -1175,27 +956,10 @@ const UnitSpecs = () => {
   };
 
   const confirmBulkDelete = async () => {
-    try {
-      for (const itemId of selectedItems) {
-        // Find the item in either inventory or deployed data
-        const inventoryItem = inventory.find((item) => item.id === itemId);
-        const deployedItem = deployed.find((item) => item.id === itemId);
-
-        if (inventoryItem) {
-          await deleteDoc(doc(db, "InventoryUnits", itemId));
-        } else if (deployedItem) {
-          await deleteDoc(doc(db, "DeployedUnits", itemId));
-        }
-      }
-
-      setSelectedItems([]);
-      setBulkDeleteConfirm(false);
-      fetchData();
-      showSuccess(`${selectedItems.length} unit(s) deleted successfully.`);
-    } catch (error) {
-      console.error("Error deleting units:", error);
-      showError("Failed to delete units.");
-    }
+    toast.error(
+      "Bulk delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
+    setBulkDeleteConfirm(false);
   };
 
   // --- Sorting and Filtering Logic ---
@@ -1392,19 +1156,16 @@ const UnitSpecs = () => {
   };
 
   const handleDeleteSelected = () => {
-    setShowDeleteConfirm(true);
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
   };
 
   const confirmDelete = async () => {
-    const table = deleteMode.table;
-    for (const id of selectedToDelete) {
-      await deleteDoc(doc(db, table, id));
-    }
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
     setShowDeleteConfirm(false);
-    setDeleteMode({ table: null, active: false });
-    setSelectedToDelete([]);
-    fetchData();
-    showSuccess(`${selectedToDelete.length} unit(s) deleted successfully.`);
   };
 
   const cancelDeleteMode = () => {
@@ -1414,16 +1175,9 @@ const UnitSpecs = () => {
   };
 
   const handleConfirmSingleDelete = async () => {
-    if (!confirmSingleDelete) return;
-    const { unit, collectionName } = confirmSingleDelete;
-    try {
-      await deleteDoc(doc(db, collectionName, unit.id));
-      fetchData();
-      showSuccess(`Unit ${unit.Tag} has been deleted.`);
-    } catch (error) {
-      showError("Failed to delete unit.");
-      console.error("Error deleting document: ", error);
-    }
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
     setConfirmSingleDelete(null);
   };
 
@@ -2054,8 +1808,8 @@ const UnitSpecs = () => {
                 transition: "all 0.2s",
                 whiteSpace: "nowrap",
               }}
-              onClick={syncFromInventory}
-              title="Sync PC and Laptop data from main Inventory"
+              onClick={fetchData}
+              title="Refresh PC and Laptop data from main database"
             >
               <svg
                 width="16"
@@ -2094,7 +1848,7 @@ const UnitSpecs = () => {
                   strokeLinejoin="round"
                 />
               </svg>
-              Sync from Inventory
+              Refresh Data
             </button>
             <button
               style={{

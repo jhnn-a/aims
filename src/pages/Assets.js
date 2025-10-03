@@ -132,20 +132,30 @@ function DeviceFormModal({
       alignItems: "center",
       justifyContent: "center",
       zIndex: 2000,
-      padding: "20px",
-      boxSizing: "border-box",
     },
     inventoryModalContent: {
       backgroundColor: isDarkMode ? "#1f2937" : "white",
       borderRadius: 12,
-      padding: 32,
-      width: "100%",
-      maxWidth: 800,
-      maxHeight: "90vh",
-      overflow: "auto",
+      padding: 20,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
       fontFamily:
         'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      boxShadow: "0 20px 32px rgba(34, 46, 58, 0.2)",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
       margin: "auto",
       boxSizing: "border-box",
     },
@@ -198,6 +208,17 @@ function DeviceFormModal({
       fontFamily:
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
   };
 
   // Handle keyboard navigation
@@ -230,288 +251,446 @@ function DeviceFormModal({
             : "#ffffff",
         }}
       >
-        <h2
+        <style>{`
+          .new-acquisitions-modal input:focus,
+          .new-acquisitions-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .new-acquisitions-modal input:hover,
+          .new-acquisitions-modal select:hover {
+            border-color: #64748b;
+          }
+        `}</style>
+        <div
           style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: isDarkMode ? "#f3f4f6" : "#1f2937",
-            marginBottom: 24,
-            marginTop: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
           }}
         >
-          {isEditMode ? "Edit Device" : "Add Device"}
-        </h2>
+          {isEditMode && (
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          )}
+          <h3
+            id="modal-title"
+            style={{
+              ...styles.inventoryModalTitle,
+              color: isEditMode
+                ? "#2563eb"
+                : isDarkMode
+                ? "#3b82f6"
+                : "#2563eb",
+            }}
+          >
+            {isEditMode ? "Edit Device" : "Add Device"}
+          </h3>
+        </div>
+
+        {isEditMode && (
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1d4ed8",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editing existing device - modify the fields below to update the
+            device information
+          </div>
+        )}
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             onSave();
           }}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 24,
-            marginBottom: 24,
-          }}
+          style={{ width: "100%" }}
         >
           {/* Row 1: Device Type and Brand */}
-          <div>
-            <label
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
+            <div
               style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Device Type:
-            </label>
-            <select
-              name="deviceType"
-              value={(() => {
-                // Find the matching device type from the available options
-                const currentType = data.deviceType;
-                if (!currentType) return "";
+              <label style={styles.inventoryLabel}>Device Type:</label>
+              <select
+                name="deviceType"
+                value={(() => {
+                  // Find the matching device type from the available options
+                  const currentType = data.deviceType;
+                  if (!currentType) return "";
 
-                // Check if it exactly matches any available device type
-                const exactMatch = deviceTypes.find(
-                  (type) => type.label === currentType
-                );
-                if (exactMatch) return currentType;
+                  // Check if it exactly matches any available device type
+                  const exactMatch = deviceTypes.find(
+                    (type) => type.label === currentType
+                  );
+                  if (exactMatch) return currentType;
 
-                // Try case-insensitive match
-                const matchedType = deviceTypes.find(
-                  (type) =>
-                    type.label.toLowerCase() === currentType.toLowerCase()
-                );
+                  // Try case-insensitive match
+                  const matchedType = deviceTypes.find(
+                    (type) =>
+                      type.label.toLowerCase() === currentType.toLowerCase()
+                  );
 
-                return matchedType ? matchedType.label : currentType;
-              })()}
-              onChange={onChange}
-              disabled
+                  return matchedType ? matchedType.label : currentType;
+                })()}
+                onChange={onChange}
+                disabled
+                style={{
+                  ...styles.inventoryInput,
+                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                  color: isDarkMode ? "#9ca3af" : "#666",
+                  cursor: "not-allowed",
+                }}
+              >
+                <option value="">Select Device Type</option>
+                {deviceTypes.map((type) => (
+                  <option key={type.label} value={type.label}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
               style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
-                color: isDarkMode ? "#9ca3af" : "#666",
-                cursor: "not-allowed",
-                boxSizing: "border-box",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              <option value="">Select Device Type</option>
-              {deviceTypes.map((type) => (
-                <option key={type.label} value={type.label}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+              <label style={styles.inventoryLabel}>Brand:</label>
+              <input
+                name="brand"
+                value={data.brand || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
           </div>
 
-          <div>
-            <label
-              style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
-              }}
-            >
-              Brand:
-            </label>
-            <input
-              name="brand"
-              value={data.brand || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "white",
-                color: isDarkMode ? "#f3f4f6" : "black",
-                boxSizing: "border-box",
-              }}
-              autoComplete="off"
-            />
-          </div>
-
-          {/* Row 2: Device Tag (full width) */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
-              }}
-            >
-              Device Tag:
-            </label>
-            <input
-              name="deviceTag"
-              value={data.deviceTag || ""}
-              onChange={onChange}
-              disabled
-              style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
-                color: isDarkMode ? "#9ca3af" : "#666",
-                cursor: "not-allowed",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+          {/* Row 2: Device Tag (full width when visible) */}
+          {data.deviceType && (
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Device Tag:</label>
+              <input
+                name="deviceTag"
+                value={data.deviceTag || ""}
+                onChange={onChange}
+                disabled
+                style={{
+                  ...styles.inventoryInput,
+                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                  color: isDarkMode ? "#9ca3af" : "#666",
+                  cursor: "not-allowed",
+                }}
+                placeholder="Device tag cannot be changed"
+              />
+            </div>
+          )}
 
           {/* Row 3: Model and Condition */}
-          <div>
-            <label
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
+            <div
               style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Model:
-            </label>
-            <input
-              name="model"
-              value={data.model || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "white",
-                color: isDarkMode ? "#f3f4f6" : "black",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
+              <label style={styles.inventoryLabel}>Model:</label>
+              <input
+                name="model"
+                value={data.model || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
 
-          <div>
-            <label
+            <div
               style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Condition:
-            </label>
-            <select
-              name="condition"
-              value={data.condition || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "white",
-                color: isDarkMode ? "#f3f4f6" : "black",
-                boxSizing: "border-box",
-              }}
-            >
-              <option value="">Select Condition</option>
-              {conditions.map((cond) => (
-                <option key={cond} value={cond}>
-                  {cond}
-                </option>
-              ))}
-            </select>
+              <label style={styles.inventoryLabel}>Condition:</label>
+              <select
+                name="condition"
+                value={data.condition || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select Condition</option>
+                {conditions.map((cond) => (
+                  <option key={cond} value={cond}>
+                    {cond}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Row 4: Acquisition Date (full width) */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
-              }}
-            >
-              Acquisition Date:
-            </label>
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Acquisition Date:</label>
             <input
               name="acquisitionDate"
               type="date"
               value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
               onChange={onChange}
               style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "white",
-                color: isDarkMode ? "#f3f4f6" : "black",
-                boxSizing: "border-box",
+                ...styles.inventoryInput,
                 colorScheme: isDarkMode ? "dark" : "light",
               }}
             />
           </div>
 
+          {/* Conditional PC/Laptop Specifications */}
+          {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+            <div style={{ gridColumn: "1 / -1", marginBottom: 20 }}>
+              <div
+                style={{
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  background: isDarkMode ? "#374151" : "#f9fafb",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                <h4
+                  style={{
+                    margin: "0 0 16px 0",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+                  </svg>
+                  {data.deviceType} Specifications
+                </h4>
+
+                {/* Row 1: CPU Gen and RAM */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>
+                      CPU - System Unit:
+                    </label>
+                    <input
+                      type="text"
+                      name="cpuGen"
+                      value={data.cpuGen || ""}
+                      onChange={onChange}
+                      placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>RAM:</label>
+                    <select
+                      name="ram"
+                      value={data.ram || ""}
+                      onChange={onChange}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select RAM</option>
+                      <option value="4GB">4GB</option>
+                      <option value="8GB">8GB</option>
+                      <option value="16GB">16GB</option>
+                      <option value="32GB">32GB</option>
+                      <option value="64GB">64GB</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 2: Drive 1 and Drive 2 */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>Drive 1:</label>
+                    <input
+                      name="drive1"
+                      value={data.drive1 || ""}
+                      onChange={onChange}
+                      placeholder="e.g., 256 GB SSD"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>
+                      Drive 2 (Optional):
+                    </label>
+                    <input
+                      name="drive2"
+                      value={data.drive2 || ""}
+                      onChange={onChange}
+                      placeholder="e.g., 1 TB HDD"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3: GPU and OS */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>GPU:</label>
+                    <input
+                      name="gpu"
+                      value={data.gpu || ""}
+                      onChange={onChange}
+                      placeholder="e.g., Integrated / GTX 1650"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>OS:</label>
+                    <select
+                      name="os"
+                      value={data.os || ""}
+                      onChange={onChange}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select OS</option>
+                      <option value="Windows 10">Windows 10</option>
+                      <option value="Windows 11">Windows 11</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Row 5: Remarks (full width) */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                marginBottom: 8,
-              }}
-            >
-              Remarks:
-            </label>
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Remarks:</label>
             <textarea
               name="remarks"
               value={data.remarks || ""}
               onChange={onChange}
               rows={3}
               style={{
-                width: "100%",
-                padding: 12,
-                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                fontFamily: "inherit",
-                outline: "none",
-                backgroundColor: isDarkMode ? "#374151" : "white",
-                color: isDarkMode ? "#f3f4f6" : "black",
-                boxSizing: "border-box",
+                ...styles.inventoryInput,
                 resize: "vertical",
               }}
             />
