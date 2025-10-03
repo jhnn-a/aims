@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getAllEmployees } from "../services/employeeService";
+import * as XLSX from "xlsx";
 import {
   addClient,
   getAllClients,
@@ -692,6 +693,35 @@ function Clients() {
     setLoading(false);
   }, []);
 
+  // Export clients to Excel using SheetJS
+  const handleExportClients = useCallback(() => {
+    try {
+      if (!clients || clients.length === 0) {
+        showError("No clients to export");
+        return;
+      }
+
+      // Map clients to rows with required fields
+      const rows = clients.map((c) => ({
+        "Client ID": c.id || "",
+        "Client Name": c.clientName || "",
+        Employees: c.employeeCount != null ? c.employeeCount : "",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Clients");
+
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `clients_export_${ts}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      showSuccess("Clients exported successfully");
+    } catch (err) {
+      console.error(err);
+      showError("Failed to export clients");
+    }
+  }, [clients, showError, showSuccess]);
+
   const handleInputChange = useCallback(
     ({ target: { name, value } }) => {
       setForm((prev) => ({ ...prev, [name]: value }));
@@ -1034,6 +1064,41 @@ function Clients() {
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <span className="clients-add-btn-text">Add Client</span>
+              </button>
+              <button
+                onClick={handleExportClients}
+                style={{
+                  background: "#10b981",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "10px 16px",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  transition: "background 0.2s",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <span>Export Clients</span>
               </button>
               {checkedRows.length > 0 && (
                 <button
