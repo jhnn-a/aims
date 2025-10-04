@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { db } from "../utils/firebase";
 import {
   collection,
@@ -675,11 +675,77 @@ const UnitSpecs = () => {
 
   // Import Excel handler
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
-    toast.error(
-      "Import operations are disabled. UnitSpecs now displays live data from the main device database."
-    );
-    e.target.value = "";
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheet];
+      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      // We do NOT write to Firestore here – read-only architecture.
+      // Provide a summary so user knows file parsed.
+      toast.success(
+        `Parsed ${json.length} rows from Excel. (Import is read-only in UnitSpecs view)`
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to parse Excel file");
+    } finally {
+      e.target.value = ""; // reset so same file can be selected again
+    }
   };
+
+  // Export current (filtered + sorted) data for active tab
+  const handleExportExcel = () => {
+    try {
+      const isInventory = activeTab === "InventoryUnits";
+      const baseData = isInventory ? inventory : deployed;
+      const filters = isInventory ? inventoryFilters : deployedFilters;
+      let filtered = filterData(baseData, filters);
+      let sorted = sortData(filtered);
+
+      if (!sorted.length) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportRows = sorted.map((u) => ({
+        Tag: u.Tag,
+        DeviceType: u.deviceType || "",
+        CPU: u.CPU || u.cpuGen || "",
+        RAM: u.RAM,
+        Drive: u.Drive,
+        GPU: u.GPU,
+        Condition: u.Condition || u.Status || "",
+        OS: u.OS,
+        Client: u.client || "",
+        Category: u.category || "",
+        DateAdded: u.dateAdded || "",
+        Lifespan: u.lifespan || "",
+        LastMaintenanceDate: u.lastMaintenanceDate || "",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        isInventory ? "Inventory" : "Deployed"
+      );
+      const fileName = `UnitSpecs_${
+        isInventory ? "Inventory" : "Deployed"
+      }_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success("Export complete");
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed");
+    }
+  };
+
+  const importInputRef = useRef(null);
 
   // Fetch data from Firestore on mount and after changes
   const fetchData = async () => {
@@ -3566,6 +3632,58 @@ const UnitSpecs = () => {
         }}
       >
         UNIT SPECIFICATIONS
+      </div>
+
+      {/* Action Toolbar */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
+          gap: 8,
+          padding: "0 24px 12px 24px",
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={handleExportExcel}
+          style={{
+            padding: "6px 12px",
+            background: isDarkMode ? "#1f2937" : "#2563eb",
+            color: "#fff",
+            border: "1px solid " + (isDarkMode ? "#374151" : "#2563eb"),
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          Export (.xlsx)
+        </button>
+        <button
+          onClick={() =>
+            importInputRef.current && importInputRef.current.click()
+          }
+          style={{
+            padding: "6px 12px",
+            background: isDarkMode ? "#1f2937" : "#374151",
+            color: "#fff",
+            border: "1px solid " + (isDarkMode ? "#374151" : "#374151"),
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          Import (.xlsx)
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={(e) => handleImportExcel(e, activeTab)}
+        />
       </div>
 
       {/* Tab Bar - matching Company Assets style */}
