@@ -8,6 +8,9 @@ import {
   doc,
   updateDoc,
   onSnapshot,
+  query,
+  where,
+  limit,
 } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
@@ -675,25 +678,170 @@ const UnitSpecs = () => {
 
   // Import Excel handler
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const firstSheet = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheet];
-      const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-      // We do NOT write to Firestore here – read-only architecture.
-      // Provide a summary so user knows file parsed.
+      if (!rows.length) {
+        toast.error("Import file is empty");
+        return;
+      }
+
+      // Summary counters
+      let createCount = 0;
+      let updateCount = 0;
+      let skipCount = 0;
+      const skipped = [];
+
+      // Helper: normalize header-based keys
+      const normalizeFieldValue = (row, keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== null && row[k] !== "")
+            return row[k];
+        }
+        return "";
+      };
+
+      const validTypes = ["PC", "LAPTOP", "DESKTOP", "NOTEBOOK", "COMPUTER"]; // accepted as PC/Laptop class
+      for (const rawRow of rows) {
+        const tag = (
+          normalizeFieldValue(rawRow, [
+            "Tag",
+            "DeviceTag",
+            "deviceTag",
+            "ASSET TAG",
+          ]) + ""
+        ).trim();
+        if (!tag) {
+          skipCount++;
+          skipped.push({ reason: "Missing Tag", row: rawRow });
+          continue;
+        }
+
+        // Build device data (only allowed / relevant fields)
+        const deviceTypeRaw = normalizeFieldValue(rawRow, [
+          "DeviceType",
+          "deviceType",
+          "Type",
+        ]); // optional
+        const deviceType = deviceTypeRaw ? deviceTypeRaw.trim() : "";
+        const cpuGen = normalizeFieldValue(rawRow, [
+          "CPU",
+          "cpuGen",
+          "CPU Gen",
+          "CpuGen",
+        ]);
+        const ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB
+        const storage = normalizeFieldValue(rawRow, [
+          "Drive",
+          "Storage",
+          "drive",
+          "Storage1",
+        ]);
+        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu"]);
+        const condition = normalizeFieldValue(rawRow, [
+          "Condition",
+          "Status",
+          "condition",
+        ]);
+        const os = normalizeFieldValue(rawRow, ["OS", "OperatingSystem", "os"]);
+        const client = normalizeFieldValue(rawRow, [
+          "Client",
+          "client",
+          "ClientName",
+        ]);
+        const remarks = normalizeFieldValue(rawRow, [
+          "Remarks",
+          "remarks",
+          "Notes",
+        ]);
+        const lifespan = normalizeFieldValue(rawRow, ["Lifespan", "lifespan"]);
+        const dateAdded = normalizeFieldValue(rawRow, [
+          "DateAdded",
+          "dateAdded",
+          "Added",
+          "CreatedAt",
+        ]);
+        const lastMaintenanceDate = normalizeFieldValue(rawRow, [
+          "LastMaintenanceDate",
+          "lastMaintenanceDate",
+          "MaintenanceDate",
+        ]);
+        const model = normalizeFieldValue(rawRow, [
+          "Model",
+          "model",
+          "DeviceModel",
+        ]);
+
+        // If a deviceType is provided and it's NOT one of the valid PC/Laptop classes, skip (do not modify phones, etc.)
+        if (deviceType && !validTypes.includes(deviceType.toUpperCase())) {
+          skipCount++;
+          skipped.push({ reason: "Non-PC/Laptop deviceType", row: rawRow });
+          continue;
+        }
+
+        // Query existing device by deviceTag
+        const q = query(
+          collection(db, "devices"),
+          where("deviceTag", "==", tag),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+
+        // Common payload mapping to device schema used elsewhere (Inventory/Assets)
+        const payload = {
+          // Only include fields that have values to avoid mass overwrites with empty strings
+          ...(deviceType ? { deviceType } : {}),
+          ...(cpuGen ? { cpuGen } : {}),
+          ...(ram ? { ram } : {}),
+          ...(storage ? { storage } : {}),
+          ...(gpu ? { gpu } : {}),
+          ...(condition ? { condition } : {}),
+          ...(os ? { os } : {}),
+          ...(client ? { client } : {}),
+          ...(remarks ? { remarks } : {}),
+          ...(lifespan ? { lifespan } : {}),
+          ...(dateAdded ? { dateAdded } : {}),
+          ...(lastMaintenanceDate ? { lastMaintenanceDate } : {}),
+          ...(model ? { model } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (!snap.empty) {
+          // Update existing
+          const docRef = doc(db, "devices", snap.docs[0].id);
+          await updateDoc(docRef, payload);
+          updateCount++;
+        } else {
+          // Create new record (only if we have minimal required data)
+          const newDocRef = doc(collection(db, "devices"));
+          const base = {
+            deviceTag: tag,
+            createdAt: new Date().toISOString(),
+            status: client ? "In Use" : "Stock Room", // simple heuristic
+            assignedTo: client ? client : "",
+          };
+          await setDoc(newDocRef, { ...base, ...payload });
+          createCount++;
+        }
+      }
+
       toast.success(
-        `Parsed ${json.length} rows from Excel. (Import is read-only in UnitSpecs view)`
+        `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`
       );
+      if (skipped.length) {
+        console.warn("Skipped rows (no tag):", skipped.slice(0, 5));
+      }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to parse Excel file");
+      toast.error("Import failed");
     } finally {
-      e.target.value = ""; // reset so same file can be selected again
+      e.target.value = ""; // allow re-select same file
     }
   };
 
@@ -1840,7 +1988,7 @@ const UnitSpecs = () => {
             </svg>
           </div>
 
-          {/* Add Unit Button */}
+          {/* Action Buttons: Delete (conditional) | Refresh | Export | Import | Add Unit */}
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             {selectedItems.length > 0 && (
               <button
@@ -1916,6 +2064,53 @@ const UnitSpecs = () => {
               </svg>
               Refresh Data
             </button>
+            {/* Export Button */}
+            <button
+              onClick={handleExportExcel}
+              style={{
+                background: "#2563eb", // retain original blue
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              title="Export current filtered & sorted data to Excel"
+            >
+              Export (.xlsx)
+            </button>
+            {/* Import Button triggers hidden file input */}
+            <button
+              onClick={() =>
+                importInputRef.current && importInputRef.current.click()
+              }
+              style={{
+                background: isDarkMode ? "#1f2937" : "#374151", // retain original dark gray
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              title="Import & upsert devices from Excel by Tag"
+            >
+              Import (.xlsx)
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={(e) => handleImportExcel(e, activeTab)}
+            />
             <button
               style={{
                 background: "#3b82f6",
@@ -3634,57 +3829,7 @@ const UnitSpecs = () => {
         UNIT SPECIFICATIONS
       </div>
 
-      {/* Action Toolbar */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "flex-end",
-          gap: 8,
-          padding: "0 24px 12px 24px",
-          flexShrink: 0,
-        }}
-      >
-        <button
-          onClick={handleExportExcel}
-          style={{
-            padding: "6px 12px",
-            background: isDarkMode ? "#1f2937" : "#2563eb",
-            color: "#fff",
-            border: "1px solid " + (isDarkMode ? "#374151" : "#2563eb"),
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          Export (.xlsx)
-        </button>
-        <button
-          onClick={() =>
-            importInputRef.current && importInputRef.current.click()
-          }
-          style={{
-            padding: "6px 12px",
-            background: isDarkMode ? "#1f2937" : "#374151",
-            color: "#fff",
-            border: "1px solid " + (isDarkMode ? "#374151" : "#374151"),
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
-          Import (.xlsx)
-        </button>
-        <input
-          ref={importInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          style={{ display: "none" }}
-          onChange={(e) => handleImportExcel(e, activeTab)}
-        />
-      </div>
+      {/* Removed separate Action Toolbar (Export/Import) - buttons moved next to Refresh */}
 
       {/* Tab Bar - matching Company Assets style */}
       <div
