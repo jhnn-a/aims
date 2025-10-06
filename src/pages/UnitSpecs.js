@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { db } from "../utils/firebase";
 import {
   collection,
@@ -6,52 +6,462 @@ import {
   setDoc,
   deleteDoc,
   doc,
+  updateDoc,
+  onSnapshot,
+  query,
+  where,
+  limit,
 } from "firebase/firestore";
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
 // Import XLSX for Excel import
 import * as XLSX from "xlsx";
-// Import snackbar for notifications
-import { useSnackbar } from "../components/Snackbar";
+// Import react-hot-toast for error messages
+import toast from "react-hot-toast";
+// Import device types and tag generation utility
+import {
+  deviceTypes,
+  getConditionColor,
+  getConditionTextColor,
+} from "./InventoryConstants";
+import { generateNextDeviceTag } from "./InventoryUtils";
+// Import client service
+import { getAllClients } from "../services/clientService";
+// Import theme context for dark mode
+import { useTheme } from "../context/ThemeContext";
 
 const emptyUnit = {
   Tag: "",
+  deviceType: "", // New field for device type (Laptop/PC)
+  cpuSystemUnit: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
   cpuGen: "", // New field for CPU generation
   cpuModel: "", // New field for CPU model
   CPU: "",
   RAM: "",
   Drive: "",
   GPU: "",
-  Status: "",
+  Condition: "", // Renamed from Status to Condition
   OS: "",
-  Remarks: "",
+  client: "", // New field for client assignment
+  lifespan: "", // New field for lifespan
+  dateAdded: "", // New field for dateAdded to calculate appraisal date
+  lastMaintenanceDate: "", // New field for last maintenance date
+  maintenanceChecklist: [], // Array to store completed maintenance tasks
 };
 
-const cpuGenOptions = ["i3", "i5", "i7"];
-const ramOptions = Array.from({ length: 32 }, (_, i) => i + 1);
+const cpuGenOptions = ["i3", "i5", "i7", "i9"];
+const ramOptions = [4, 8, 16, 32, 64];
+
+// Category options for devices
+const categoryOptions = [
+  { label: "Low-End", value: "Low-End" },
+  { label: "Mid-Range", value: "Mid-Range" },
+  { label: "High-End", value: "High-End" },
+];
+
+// Device type options (filtered for PC and Laptop only)
+const unitDeviceTypes = deviceTypes.filter(
+  (type) => type.label === "PC" || type.label === "Laptop"
+);
 
 const osOptions = [
   { label: "Windows 10", value: "WIN10" },
   { label: "Windows 11", value: "WIN11" },
 ];
 
-const statusOptions = [
-  { label: "Good", value: "Good" },
-  { label: "Brand New", value: "Brand New" },
-  { label: "Defective", value: "Defective" },
+const conditionOptions = [
+  { label: "BRANDNEW", value: "BRANDNEW" },
+  { label: "GOOD", value: "GOOD" },
+  { label: "DEFECTIVE", value: "DEFECTIVE" },
 ];
 
-// --- Modern Table Styles (matching Assets.js design) ---
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  background: "#fff",
-  fontSize: "14px",
+// === APPRAISAL DATE CALCULATION FUNCTIONS ===
+// Helper function to get lifespan years based on category/specs
+const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
+  // If category is explicitly set, use it
+  if (category) {
+    switch (category) {
+      case "Low-End":
+        return 3;
+      case "Mid-Range":
+        return 4;
+      case "High-End":
+        return 5;
+      default:
+        return 3; // Default to low-end
+    }
+  }
+
+  // Auto-determine based on specs if no category
+  const cpuGeneration = cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(ram) || 0;
+  const hasHDD = drive?.toLowerCase().includes("hdd") || false;
+  const hasSSD =
+    drive?.toLowerCase().includes("ssd") ||
+    drive?.toLowerCase().includes("nvme") ||
+    false;
+  const hasGPU =
+    gpu && gpu.trim() !== "" && !gpu.toLowerCase().includes("integrated");
+
+  // High-end criteria: i7+, 16GB+ RAM, SSD/NVMe + GPU
+  if (
+    (cpuGeneration === "i7" || cpuGeneration === "i9") &&
+    ramSize >= 16 &&
+    hasSSD &&
+    hasGPU
+  ) {
+    return 5;
+  }
+
+  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
+  if (
+    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
+    ramSize >= 8 &&
+    hasSSD
+  ) {
+    return 4;
+  }
+
+  // Low-end: everything else (i3, 4GB RAM, HDD)
+  return 3;
 };
 
-const thStyle = {
-  color: "#374151",
+// Helper function to calculate appraisal date
+const calculateAppraisalDate = (
+  dateAdded,
+  category,
+  cpuGen,
+  ram,
+  drive,
+  gpu
+) => {
+  if (!dateAdded) return "";
+
+  try {
+    const addedDate = new Date(dateAdded);
+    if (isNaN(addedDate.getTime())) return "";
+
+    const lifespanYears = getLifespanYears(category, cpuGen, ram, drive, gpu);
+    const appraisalDate = new Date(addedDate);
+    appraisalDate.setFullYear(appraisalDate.getFullYear() + lifespanYears);
+
+    return appraisalDate.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch (error) {
+    console.error("Error calculating appraisal date:", error);
+    return "";
+  }
+};
+
+// Helper function to auto-fill category based on specs
+const autoFillCategoryFromSpecs = (cpuGen, ram, drive, gpu) => {
+  const cpuString = cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(ram) || 0;
+  const driveString = drive?.toLowerCase() || "";
+  const gpuString = gpu?.toLowerCase() || "";
+
+  // Extract CPU generation from strings like "Intel Core i7-8700K" or "i7-10700"
+  let cpuGeneration = "";
+  if (cpuString.includes("i9")) {
+    cpuGeneration = "i9";
+  } else if (cpuString.includes("i7")) {
+    cpuGeneration = "i7";
+  } else if (cpuString.includes("i5")) {
+    cpuGeneration = "i5";
+  } else if (cpuString.includes("i3")) {
+    cpuGeneration = "i3";
+  }
+
+  // Check drive types
+  const hasHDD = driveString.includes("hdd");
+  const hasSSD = driveString.includes("ssd") || driveString.includes("nvme");
+
+  // Check for dedicated GPU (not integrated)
+  const hasGPU =
+    gpuString &&
+    gpuString.trim() !== "" &&
+    !gpuString.includes("integrated") &&
+    !gpuString.includes("intel") &&
+    !gpuString.includes("none");
+
+  console.log("Category Debug:", {
+    cpuString,
+    cpuGeneration,
+    ramSize,
+    driveString,
+    hasHDD,
+    hasSSD,
+    gpuString,
+    hasGPU,
+  });
+
+  // High-end criteria: i7+ (i7 or i9), 16GB+ RAM, SSD/NVMe + dedicated GPU
+  if (
+    (cpuGeneration === "i7" || cpuGeneration === "i9") &&
+    ramSize >= 16 &&
+    hasSSD &&
+    hasGPU
+  ) {
+    return "High-End";
+  }
+
+  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
+  if (
+    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
+    ramSize >= 8 &&
+    hasSSD
+  ) {
+    return "Mid-Range";
+  }
+
+  // Low-end: everything else (i3, <8GB RAM, HDD, or doesn't meet above criteria)
+  return "Low-End";
+};
+
+// Helper function to analyze specs and generate recommendations
+const analyzeSpecs = (device) => {
+  const recommendations = [];
+  const warnings = [];
+  const goodPoints = [];
+
+  const cpuString = device.cpuGen?.toLowerCase() || "";
+  const ramSize = parseInt(device.RAM) || 0;
+  const driveString = device.Drive?.toLowerCase() || "";
+  const gpuString = device.GPU?.toLowerCase() || "";
+
+  // CPU Analysis
+  if (cpuString.includes("i9")) {
+    goodPoints.push("Excellent CPU performance (i9)");
+  } else if (cpuString.includes("i7")) {
+    goodPoints.push("Good CPU performance (i7)");
+  } else if (cpuString.includes("i5")) {
+    recommendations.push("CPU is acceptable for most tasks (i5)");
+  } else if (cpuString.includes("i3")) {
+    warnings.push(
+      "CPU below recommended baseline (i3) - consider i5 or higher"
+    );
+  } else {
+    warnings.push("CPU information unclear - please verify specifications");
+  }
+
+  // RAM Analysis
+  if (ramSize >= 16) {
+    goodPoints.push(`Excellent RAM capacity (${ramSize}GB)`);
+  } else if (ramSize >= 8) {
+    goodPoints.push(`Adequate RAM for most tasks (${ramSize}GB)`);
+  } else if (ramSize === 4) {
+    warnings.push("RAM below minimum (Only 4GB, recommend 8GB or higher)");
+  } else if (ramSize > 0) {
+    warnings.push(`Low RAM capacity (${ramSize}GB, recommend 8GB or higher)`);
+  } else {
+    warnings.push("RAM information missing - please verify specifications");
+  }
+
+  // Drive Analysis
+  if (driveString.includes("nvme")) {
+    goodPoints.push("Excellent storage speed (NVMe SSD)");
+  } else if (driveString.includes("ssd")) {
+    goodPoints.push("Good storage speed (SSD)");
+  } else if (driveString.includes("hdd")) {
+    warnings.push(
+      "HDD detected – recommend upgrade to SSD for better performance"
+    );
+  } else {
+    warnings.push("Drive type unclear - please verify if SSD or HDD");
+  }
+
+  // GPU Analysis
+  if (
+    gpuString &&
+    !gpuString.includes("integrated") &&
+    !gpuString.includes("intel") &&
+    gpuString.trim() !== ""
+  ) {
+    goodPoints.push("Dedicated GPU available for graphics-intensive tasks");
+  } else {
+    recommendations.push(
+      "Using integrated graphics - adequate for basic tasks"
+    );
+  }
+
+  return { recommendations, warnings, goodPoints };
+};
+
+// Helper function to generate preventive maintenance checklist based on device
+const getMaintenanceChecklist = (device) => {
+  const tasks = [];
+  const deviceAge = device.dateAdded
+    ? Math.floor(
+        (new Date() - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 365)
+      )
+    : 0;
+
+  // Universal tasks
+  tasks.push({ task: "Clean internal fans and vents", critical: true });
+  tasks.push({ task: "Run disk cleanup and defragmentation", critical: false });
+  tasks.push({ task: "Clear temp files and browser cache", critical: false });
+  tasks.push({ task: "Windows and driver updates", critical: true });
+  tasks.push({ task: "Antivirus software status check", critical: true });
+  tasks.push({ task: "Backup verification", critical: true });
+
+  // Device type specific tasks
+  if (device.deviceType?.toLowerCase() === "laptop") {
+    tasks.push({
+      task: "Check battery health and calibration",
+      critical: true,
+    });
+    tasks.push({ task: "Clean keyboard and touchpad", critical: false });
+  }
+
+  // Age-based tasks
+  if (deviceAge >= 3) {
+    tasks.push({
+      task: "Thermal paste replacement (device is 3+ years old)",
+      critical: true,
+    });
+    tasks.push({ task: "Deep hardware diagnostic", critical: true });
+  }
+
+  // Drive-specific tasks
+  if (device.Drive?.toLowerCase().includes("hdd")) {
+    tasks.push({ task: "Check HDD health (SMART status)", critical: true });
+    tasks.push({
+      task: "Consider SSD upgrade for better performance",
+      critical: false,
+    });
+  } else if (device.Drive?.toLowerCase().includes("ssd")) {
+    tasks.push({ task: "Check SSD health and wear level", critical: true });
+  }
+
+  return tasks.sort((a, b) => b.critical - a.critical);
+};
+
+// Helper function to calculate maintenance status based on checklist completion and timing
+const calculateMaintenanceStatus = (device) => {
+  if (!device) return "Critical";
+
+  const now = new Date();
+  const lastMaintenance = device.lastMaintenanceDate
+    ? new Date(
+        device.lastMaintenanceDate.seconds
+          ? device.lastMaintenanceDate.seconds * 1000
+          : device.lastMaintenanceDate
+      )
+    : null;
+  const maintenanceChecklist = device.maintenanceChecklist || {};
+
+  // Get the required checklist for this device
+  const requiredTasks = getMaintenanceChecklist(device);
+  const criticalTasks = requiredTasks.filter((task) => task.critical);
+
+  // Check if device hasn't been maintained for 6+ months (critical)
+  if (lastMaintenance) {
+    const monthsSinceLastMaintenance =
+      (now - lastMaintenance) / (1000 * 60 * 60 * 24 * 30);
+    if (monthsSinceLastMaintenance >= 6) {
+      return "Critical";
+    }
+  } else {
+    // No maintenance record - check if device is older than 6 months
+    const deviceAge = device.dateAdded
+      ? (now - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 30)
+      : 0;
+    if (deviceAge >= 6) {
+      return "Critical";
+    }
+  }
+
+  // Check if maintenance tasks need to be reset (every 3 months)
+  const tasksNeedingReset = [];
+  Object.keys(maintenanceChecklist).forEach((taskName) => {
+    const task = maintenanceChecklist[taskName];
+    if (task.completed && task.completedDate) {
+      const completedDate = new Date(
+        task.completedDate.seconds
+          ? task.completedDate.seconds * 1000
+          : task.completedDate
+      );
+      const monthsSinceCompletion =
+        (now - completedDate) / (1000 * 60 * 60 * 24 * 30);
+      if (monthsSinceCompletion >= 3) {
+        tasksNeedingReset.push(taskName);
+      }
+    }
+  });
+
+  // Count currently completed critical tasks (excluding those that need reset)
+  const currentlyCompletedCriticalTasks = criticalTasks.filter((reqTask) => {
+    const task = maintenanceChecklist[reqTask.task];
+    if (!task || !task.completed) return false;
+
+    // Check if this task needs reset
+    if (tasksNeedingReset.includes(reqTask.task)) return false;
+
+    return true;
+  });
+
+  const criticalCompletionRate =
+    criticalTasks.length > 0
+      ? currentlyCompletedCriticalTasks.length / criticalTasks.length
+      : 1;
+
+  // For new devices with no maintenance data, return "Healthy" if no maintenance is overdue
+  if (Object.keys(maintenanceChecklist).length === 0) {
+    // Check if device is older than 6 months
+    const deviceAge = device.dateAdded
+      ? (now - new Date(device.dateAdded)) / (1000 * 60 * 60 * 24 * 30)
+      : 0;
+    if (deviceAge >= 6) {
+      return "Needs Maintenance"; // Old device with no maintenance
+    }
+    return "Healthy"; // New device, no maintenance needed yet
+  }
+
+  // Determine status based on completion rate
+  if (criticalCompletionRate >= 0.8) {
+    // 80% of critical tasks completed and not needing reset
+    return "Healthy";
+  } else if (criticalCompletionRate >= 0.5) {
+    // 50-79% completion
+    return "Needs Maintenance";
+  } else {
+    return "Critical"; // Less than 50% completion
+  }
+};
+
+// Helper function to get status badge color
+const getMaintenanceStatusColor = (status) => {
+  switch (status) {
+    case "Healthy":
+      return "#16a34a"; // Green
+    case "Needs Maintenance":
+      return "#ea580c"; // Orange
+    case "Critical":
+      return "#dc2626"; // Red
+    default:
+      return "#6b7280"; // Gray
+  }
+};
+
+// Helper function to get status badge text color
+const getMaintenanceStatusTextColor = (status) => {
+  return "#ffffff"; // Always white text for good contrast
+};
+
+// --- Modern Table Styles (matching Assets.js design) ---
+const getTableStyle = (isDarkMode) => ({
+  width: "100%",
+  borderCollapse: "collapse",
+  background: isDarkMode ? "#1f2937" : "#fff",
+  fontSize: "14px",
+});
+
+const getThStyle = (isDarkMode) => ({
+  color: isDarkMode ? "#f3f4f6" : "#374151",
   fontWeight: 500,
   padding: "12px 16px",
   border: "none",
@@ -59,33 +469,47 @@ const thStyle = {
   fontSize: "12px",
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  background: "rgb(255, 255, 255)",
-  borderBottom: "1px solid #e5e7eb",
+  background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
   cursor: "pointer",
-};
+});
 
-const tdStyle = {
+const getTdStyle = (isDarkMode) => ({
   padding: "12px 16px",
-  color: "#6b7280",
+  color: isDarkMode ? "#9ca3af" : "#6b7280",
   fontSize: "14px",
-  borderBottom: "1px solid #f3f4f6",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
   whiteSpace: "nowrap",
   textOverflow: "ellipsis",
   overflow: "hidden",
-};
+});
 
-const trStyle = (index) => ({
-  background: index % 2 === 0 ? "rgb(250, 250, 252)" : "rgb(240, 240, 243)",
+const getTrStyle = (index, isDarkMode) => ({
+  background:
+    index % 2 === 0
+      ? isDarkMode
+        ? "#1f2937"
+        : "rgb(250, 250, 252)"
+      : isDarkMode
+      ? "#111827"
+      : "rgb(240, 240, 243)",
   cursor: "pointer",
   transition: "background 0.15s",
-  borderBottom: "1px solid #f3f4f6",
+  borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f3f4f6",
 });
 
-const trHoverStyle = (index) => ({
-  background: index % 2 === 0 ? "rgb(235, 235, 240)" : "rgb(225, 225, 235)",
+const getTrHoverStyle = (index, isDarkMode) => ({
+  background:
+    index % 2 === 0
+      ? isDarkMode
+        ? "#374151"
+        : "rgb(235, 235, 240)"
+      : isDarkMode
+      ? "#1f2937"
+      : "rgb(225, 225, 235)",
 });
 
-const actionButtonStyle = {
+const getActionButtonStyle = (isDarkMode) => ({
   background: "transparent",
   border: "none",
   borderRadius: "6px",
@@ -96,10 +520,10 @@ const actionButtonStyle = {
   alignItems: "center",
   justifyContent: "center",
   transition: "all 0.2s ease",
-  color: "#6b7280",
+  color: isDarkMode ? "#9ca3af" : "#6b7280",
   width: "32px",
   height: "32px",
-};
+});
 
 const moveButtonStyle = {
   background: "#3b82f6",
@@ -150,11 +574,12 @@ const deleteIcon = (
 );
 
 const UnitSpecs = () => {
-  // Initialize snackbar hook
-  const { showSuccess, showError, showInfo } = useSnackbar();
+  // Initialize theme context for dark mode
+  const { isDarkMode } = useTheme();
 
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyUnit);
   const [addTo, setAddTo] = useState("InventoryUnits");
@@ -170,7 +595,7 @@ const UnitSpecs = () => {
   // Pagination State
   const [inventoryPage, setInventoryPage] = useState(1);
   const [deployedPage, setDeployedPage] = useState(1);
-  const ITEMS_PER_PAGE = 10; // Number of items per page
+  const [itemsPerPage, setItemsPerPage] = useState(25); // Dynamic items per page
 
   // Sorting and Filtering State
   const [sortConfig, setSortConfig] = useState({
@@ -195,7 +620,6 @@ const UnitSpecs = () => {
     RAM: [],
     Drive: [],
     GPU: [],
-    Status: [],
     OS: [],
     Remarks: [],
   });
@@ -205,7 +629,6 @@ const UnitSpecs = () => {
     RAM: [],
     Drive: [],
     GPU: [],
-    Status: [],
     OS: [],
     Remarks: [],
   });
@@ -222,6 +645,20 @@ const UnitSpecs = () => {
   const [deleteMode, setDeleteMode] = useState({ table: null, active: false });
   const [selectedToDelete, setSelectedToDelete] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+
+  // Modal states for device selection and maintenance
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [maintenanceChecklist, setMaintenanceChecklist] = useState({});
+
+  // Handle maintenance task completion
+  const handleTaskCompletion = async (deviceTag, taskName, isCompleted) => {
+    toast.error(
+      "Maintenance task updates are disabled. UnitSpecs now displays live data from the main device database."
+    );
+  };
 
   // Close filter popup when clicking outside
   useEffect(() => {
@@ -241,65 +678,429 @@ const UnitSpecs = () => {
 
   // Import Excel handler
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-      // Expect columns: Tag, CPU, RAM, Drive, GPU, Status, OS, Remarks
-      for (const row of data) {
-        if (!row.Tag) continue;
-        const unit = {
-          Tag: row.Tag || "",
-          CPU: row.CPU || "",
-          RAM: row.RAM || "",
-          Drive: row.Drive || "",
-          GPU: row.GPU || "",
-          Status: row.Status || "",
-          OS: row.OS || "",
-          Remarks: row.Remarks || "",
-        };
-        await setDoc(doc(db, targetTable, unit.Tag), unit);
+      if (!rows.length) {
+        toast.error("Import file is empty");
+        return;
       }
-      fetchData();
-      showSuccess("Excel data imported successfully!");
-    };
-    reader.readAsBinaryString(file);
-    // Reset input so same file can be re-imported if needed
-    e.target.value = "";
+
+      // Summary counters
+      let createCount = 0;
+      let updateCount = 0;
+      let skipCount = 0;
+      const skipped = [];
+
+      // Helper: normalize header-based keys
+      const normalizeFieldValue = (row, keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== null && row[k] !== "")
+            return row[k];
+        }
+        return "";
+      };
+
+      const validTypes = ["PC", "LAPTOP", "DESKTOP", "NOTEBOOK", "COMPUTER"]; // accepted as PC/Laptop class
+      for (const rawRow of rows) {
+        const tag = (
+          normalizeFieldValue(rawRow, [
+            "Tag",
+            "DeviceTag",
+            "deviceTag",
+            "ASSET TAG",
+          ]) + ""
+        ).trim();
+        if (!tag) {
+          skipCount++;
+          skipped.push({ reason: "Missing Tag", row: rawRow });
+          continue;
+        }
+
+        // Build device data (only allowed / relevant fields)
+        const deviceTypeRaw = normalizeFieldValue(rawRow, [
+          "DeviceType",
+          "deviceType",
+          "Type",
+        ]); // optional
+        const deviceType = deviceTypeRaw ? deviceTypeRaw.trim() : "";
+        const cpuGen = normalizeFieldValue(rawRow, [
+          "CPU",
+          "cpuGen",
+          "CPU Gen",
+          "CpuGen",
+        ]);
+        const ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB
+        const storage = normalizeFieldValue(rawRow, [
+          "Drive",
+          "Storage",
+          "drive",
+          "Storage1",
+        ]);
+        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu"]);
+        const condition = normalizeFieldValue(rawRow, [
+          "Condition",
+          "Status",
+          "condition",
+        ]);
+        const os = normalizeFieldValue(rawRow, ["OS", "OperatingSystem", "os"]);
+        const client = normalizeFieldValue(rawRow, [
+          "Client",
+          "client",
+          "ClientName",
+        ]);
+        const remarks = normalizeFieldValue(rawRow, [
+          "Remarks",
+          "remarks",
+          "Notes",
+        ]);
+        const lifespan = normalizeFieldValue(rawRow, ["Lifespan", "lifespan"]);
+        const dateAdded = normalizeFieldValue(rawRow, [
+          "DateAdded",
+          "dateAdded",
+          "Added",
+          "CreatedAt",
+        ]);
+        const lastMaintenanceDate = normalizeFieldValue(rawRow, [
+          "LastMaintenanceDate",
+          "lastMaintenanceDate",
+          "MaintenanceDate",
+        ]);
+        const model = normalizeFieldValue(rawRow, [
+          "Model",
+          "model",
+          "DeviceModel",
+        ]);
+
+        // If a deviceType is provided and it's NOT one of the valid PC/Laptop classes, skip (do not modify phones, etc.)
+        if (deviceType && !validTypes.includes(deviceType.toUpperCase())) {
+          skipCount++;
+          skipped.push({ reason: "Non-PC/Laptop deviceType", row: rawRow });
+          continue;
+        }
+
+        // Query existing device by deviceTag
+        const q = query(
+          collection(db, "devices"),
+          where("deviceTag", "==", tag),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+
+        // Common payload mapping to device schema used elsewhere (Inventory/Assets)
+        const payload = {
+          // Only include fields that have values to avoid mass overwrites with empty strings
+          ...(deviceType ? { deviceType } : {}),
+          ...(cpuGen ? { cpuGen } : {}),
+          ...(ram ? { ram } : {}),
+          ...(storage ? { storage } : {}),
+          ...(gpu ? { gpu } : {}),
+          ...(condition ? { condition } : {}),
+          ...(os ? { os } : {}),
+          ...(client ? { client } : {}),
+          ...(remarks ? { remarks } : {}),
+          ...(lifespan ? { lifespan } : {}),
+          ...(dateAdded ? { dateAdded } : {}),
+          ...(lastMaintenanceDate ? { lastMaintenanceDate } : {}),
+          ...(model ? { model } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+
+        if (!snap.empty) {
+          // Update existing
+          const docRef = doc(db, "devices", snap.docs[0].id);
+          await updateDoc(docRef, payload);
+          updateCount++;
+        } else {
+          // Create new record (only if we have minimal required data)
+          const newDocRef = doc(collection(db, "devices"));
+          const base = {
+            deviceTag: tag,
+            createdAt: new Date().toISOString(),
+            status: client ? "In Use" : "Stock Room", // simple heuristic
+            assignedTo: client ? client : "",
+          };
+          await setDoc(newDocRef, { ...base, ...payload });
+          createCount++;
+        }
+      }
+
+      toast.success(
+        `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`
+      );
+      if (skipped.length) {
+        console.warn("Skipped rows (no tag):", skipped.slice(0, 5));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Import failed");
+    } finally {
+      e.target.value = ""; // allow re-select same file
+    }
   };
+
+  // Export current (filtered + sorted) data for active tab
+  const handleExportExcel = () => {
+    try {
+      const isInventory = activeTab === "InventoryUnits";
+      const baseData = isInventory ? inventory : deployed;
+      const filters = isInventory ? inventoryFilters : deployedFilters;
+      let filtered = filterData(baseData, filters);
+      let sorted = sortData(filtered);
+
+      if (!sorted.length) {
+        toast.error("No data to export");
+        return;
+      }
+
+      const exportRows = sorted.map((u) => ({
+        Tag: u.Tag,
+        DeviceType: u.deviceType || "",
+        CPU: u.CPU || u.cpuGen || "",
+        RAM: u.RAM,
+        Drive: u.Drive,
+        GPU: u.GPU,
+        Condition: u.Condition || u.Status || "",
+        OS: u.OS,
+        Client: u.client || "",
+        Category: u.category || "",
+        DateAdded: u.dateAdded || "",
+        Lifespan: u.lifespan || "",
+        LastMaintenanceDate: u.lastMaintenanceDate || "",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        isInventory ? "Inventory" : "Deployed"
+      );
+      const fileName = `UnitSpecs_${
+        isInventory ? "Inventory" : "Deployed"
+      }_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success("Export complete");
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed");
+    }
+  };
+
+  const importInputRef = useRef(null);
 
   // Fetch data from Firestore on mount and after changes
   const fetchData = async () => {
     setLoading(true);
-    const inventorySnapshot = await getDocs(collection(db, "InventoryUnits"));
-    setInventory(
-      inventorySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    );
-    const deployedSnapshot = await getDocs(collection(db, "DeployedUnits"));
-    setDeployed(
-      deployedSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    );
+    try {
+      // Get devices directly from the main devices collection (same as Inventory.js and Assets.js)
+      const [devicesSnapshot, clientsData] = await Promise.all([
+        getDocs(collection(db, "devices")),
+        getAllClients(),
+      ]);
+
+      // Get all devices from main collection
+      const allDevices = devicesSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Filter for PC and Laptop devices only
+      const pcAndLaptops = allDevices.filter((device) => {
+        if (!device.deviceType) return false;
+
+        const deviceTypeUpper = device.deviceType.toUpperCase();
+        const validTypes = ["PC", "LAPTOP", "DESKTOP", "NOTEBOOK", "COMPUTER"];
+        return validTypes.includes(deviceTypeUpper);
+      });
+
+      // Transform device data to UnitSpecs format
+      const transformToUnitSpecs = (device) => {
+        // Helper functions to extract data
+        const extractCpuGen = (cpuString) => {
+          if (!cpuString) return "";
+          const match = cpuString.match(/(i[357])/i);
+          return match ? match[1].toLowerCase() : "";
+        };
+
+        const extractCpuModel = (cpuString) => {
+          if (!cpuString) return "";
+          // Extract model like "4590", "7700K", etc.
+          const match = cpuString.match(/i[357]-?(\d{4}[A-Z]*)/i);
+          return match ? match[1] : "";
+        };
+
+        const extractStorage = (storageString) => {
+          if (!storageString) return "";
+          const match = storageString.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
+          if (match) {
+            const value = parseFloat(match[1]);
+            const unit = match[2].toUpperCase();
+            return unit === "TB" ? `${value * 1000}GB` : `${value}GB`;
+          }
+          return storageString;
+        };
+
+        const extractRAM = (ramString) => {
+          if (!ramString) return "";
+          const match = ramString.match(/(\d+)\s*GB/i);
+          return match ? `${match[1]}GB` : ramString;
+        };
+
+        // Determine category based on device type
+        const category =
+          device.deviceType?.toUpperCase() === "LAPTOP" ? "Laptop" : "Desktop";
+
+        // Calculate dates
+        const dateAdded =
+          device.dateAdded || device.createdAt || new Date().toISOString();
+        const appraisalDate =
+          device.appraisalDate ||
+          (() => {
+            const addedDate = new Date(dateAdded);
+            addedDate.setFullYear(addedDate.getFullYear() + 5);
+            return addedDate.toISOString();
+          })();
+
+        return {
+          id: device.id,
+          Tag: device.deviceTag || "",
+          deviceType: device.deviceType || "",
+          category: category,
+          cpuGen: extractCpuGen(device.cpuGen || device.cpu || ""),
+          cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
+          CPU: device.cpuGen || device.cpu || "",
+          RAM: extractRAM(device.ram || ""),
+          Drive: extractStorage(device.storage || ""),
+          GPU: device.gpu || "",
+          Condition: device.condition || "",
+          OS: device.os || device.operatingSystem || "",
+          client: device.client || "",
+          Remarks: device.remarks || "",
+          lifespan: device.lifespan || "",
+          dateAdded: dateAdded,
+          appraisalDate: appraisalDate,
+          assignedTo: device.assignedTo || "",
+        };
+      };
+
+      // Separate into inventory and deployed based on assignment status
+      const inventoryDevices = pcAndLaptops
+        .filter(
+          (device) => !device.assignedTo || device.assignedTo.trim() === ""
+        )
+        .map(transformToUnitSpecs);
+
+      const deployedDevices = pcAndLaptops
+        .filter(
+          (device) => device.assignedTo && device.assignedTo.trim() !== ""
+        )
+        .map(transformToUnitSpecs);
+
+      setInventory(inventoryDevices);
+      setDeployed(deployedDevices);
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Failed to fetch data from database");
+    }
     setLoading(false);
   };
 
   useEffect(() => {
+    // Set up real-time listener for the devices collection
+    const unsubscribe = onSnapshot(
+      collection(db, "devices"),
+      (snapshot) => {
+        console.log("Devices collection updated, refreshing UnitSpecs data...");
+        fetchData();
+      },
+      (error) => {
+        console.error("Error listening to devices collection:", error);
+      }
+    );
+
+    // Initial data fetch
     fetchData();
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
+
+  // Note: Sync function removed - UnitSpecs now reads directly from devices collection
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prevForm) => {
       const newForm = { ...prevForm, [name]: value };
 
+      // Auto-generate tag when device type changes (for new units only)
+      if (name === "deviceType" && !editId && value) {
+        if (value === "PC") {
+          // For PC, generate tag immediately when PC is selected
+          const allDevices = [...inventory, ...deployed];
+          const prefix = "JOIIPC";
+          const ids = allDevices
+            .map((d) => d.Tag)
+            .filter((tag) => tag && tag.startsWith(prefix))
+            .map((tag) => parseInt(tag.replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          newForm.Tag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          console.log(`Generated PC tag:`, newForm.Tag); // Debug log
+          newForm.cpuGen = ""; // Reset CPU System Unit when device type changes
+        } else {
+          // For non-PC devices, generate tag immediately
+          const allDevices = [...inventory, ...deployed];
+          const generatedTag = generateNextDeviceTag(value, allDevices);
+          newForm.Tag = generatedTag;
+          console.log(`Generated tag for ${value}:`, generatedTag); // Debug log
+          console.log("Existing devices count:", allDevices.length); // Debug log
+        }
+      }
+
       // Combine cpuGen and cpuModel into the main CPU field
       if (name === "cpuGen" || name === "cpuModel") {
         newForm.CPU = `${newForm.cpuGen} - ${newForm.cpuModel}`.trim();
+      }
+
+      // Auto-fill category based on specs when relevant fields change
+      if (["cpuGen", "RAM", "Drive", "GPU"].includes(name)) {
+        const suggestedCategory = autoFillCategoryFromSpecs(
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.category = suggestedCategory;
+
+        // Also update lifespan display (though it's calculated, we keep for consistency)
+        const lifespanYears = getLifespanYears(
+          suggestedCategory,
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.lifespan = `${lifespanYears} years`;
+      }
+
+      // Update lifespan when category is manually changed
+      if (name === "category") {
+        const lifespanYears = getLifespanYears(
+          value,
+          newForm.cpuGen,
+          newForm.RAM,
+          newForm.Drive,
+          newForm.GPU
+        );
+        newForm.lifespan = `${lifespanYears} years`;
       }
 
       return newForm;
@@ -312,98 +1113,24 @@ const UnitSpecs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.Tag || form.Tag.trim() === "") {
-      showError("TAG is a required field.");
-      return;
-    }
-
-    // --- Create a new object for submission with formatted RAM ---
-    const unitData = {
-      ...form,
-      // Ensure RAM is stored with "GB" suffix
-      RAM: form.RAM ? `${form.RAM}GB` : "",
-    };
-
-    // --- Improved Validation ---
-    // 1. RAM validation (now checks the numeric part from the form state)
-    if (form.RAM && !/^\d+$/.test(form.RAM.toString())) {
-      showError("RAM must be a valid number.");
-      return;
-    }
-
-    // 2. CPU validation (must contain i3, i5, or i7)
-    if (unitData.CPU && !/i[357]/i.test(unitData.CPU)) {
-      showError("CPU format must include i3, i5, or i7.");
-      return;
-    }
-
-    // 3. Duplicate Tag validation
-    if (!editId) {
-      // Only for new units
-      const allUnits = [...inventory, ...deployed];
-      const tagExists = allUnits.some((unit) => unit.Tag === unitData.Tag);
-      if (tagExists) {
-        showError(`Tag '${unitData.Tag}' already exists.`);
-        return;
-      }
-    }
-
-    if (editId) {
-      const collectionName = editCollection;
-      await setDoc(doc(db, collectionName, unitData.Tag), unitData);
-      if (editId !== unitData.Tag) {
-        await deleteDoc(doc(db, collectionName, editId));
-      }
-      setEditId(null);
-      setEditCollection("");
-      showSuccess(`Unit ${unitData.Tag} updated successfully!`);
-    } else {
-      await setDoc(doc(db, addTo, unitData.Tag), unitData);
-      showSuccess(
-        `Unit ${unitData.Tag} added to ${
-          addTo === "InventoryUnits" ? "Inventory" : "Deployed"
-        }!`
-      );
-    }
-    setForm(emptyUnit);
-    setShowModal(false);
-    fetchData();
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to add or modify devices."
+    );
+    return;
   };
 
   const handleMove = async (unit, from, to) => {
-    const newUnit = { ...unit };
-    delete newUnit.id;
-    await setDoc(doc(db, to, newUnit.Tag), newUnit);
-    await deleteDoc(doc(db, from, unit.id));
-    fetchData();
-    showSuccess(
-      `Unit ${unit.Tag} moved to ${
-        to === "InventoryUnits" ? "Inventory" : "Deployed"
-      }.`
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to move devices."
     );
+    return;
   };
 
   const handleEdit = (unit, collectionName) => {
-    // Parse CPU field to populate cpuGen and cpuModel for editing
-    const cpuParts = (unit.CPU || "").split(" - ");
-    const cpuGen = cpuParts[0] || "";
-    const cpuModel = cpuParts.length > 1 ? cpuParts.slice(1).join(" - ") : "";
-
-    setForm({
-      Tag: unit.Tag || "",
-      cpuGen: cpuGen,
-      cpuModel: cpuModel,
-      CPU: unit.CPU || "",
-      RAM: parseRam(unit.RAM) || "",
-      Drive: unit.Drive || "",
-      GPU: unit.GPU || "",
-      Status: unit.Status || "",
-      OS: unit.OS || "",
-      Remarks: unit.Remarks || "",
-    });
-    setEditId(unit.id);
-    setEditCollection(collectionName);
-    setShowModal(true);
+    toast.error(
+      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to edit devices."
+    );
+    return;
   };
 
   const handleCancelEdit = () => {
@@ -411,6 +1138,42 @@ const UnitSpecs = () => {
     setEditCollection("");
     setForm(emptyUnit);
     setShowModal(false);
+  };
+
+  // --- Checkbox Functions ---
+  const handleSelectItem = (itemId) => {
+    setSelectedItems((prev) => {
+      if (prev.includes(itemId)) {
+        return prev.filter((id) => id !== itemId);
+      } else {
+        return [...prev, itemId];
+      }
+    });
+  };
+
+  const handleSelectAll = (data) => {
+    const allIds = data.map((item) => item.id);
+    if (
+      selectedItems.length === allIds.length &&
+      allIds.every((id) => selectedItems.includes(id))
+    ) {
+      // If all are selected, deselect all
+      setSelectedItems([]);
+    } else {
+      // Otherwise, select all
+      setSelectedItems(allIds);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    setBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    toast.error(
+      "Bulk delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
+    setBulkDeleteConfirm(false);
   };
 
   // --- Sorting and Filtering Logic ---
@@ -458,16 +1221,48 @@ const UnitSpecs = () => {
       return Array.from(new Set(data.map((u) => u.Status))).filter(Boolean);
     if (key === "OS")
       return Array.from(new Set(data.map((u) => u.OS))).filter(Boolean);
+    if (key === "Category")
+      return Array.from(new Set(data.map((u) => u.category))).filter(Boolean);
     // Remove filter for Tag
     // if (key === 'Tag') return Array.from(new Set(data.map(u => u.Tag))).filter(Boolean);
     if (key === "Remarks")
       return Array.from(new Set(data.map((u) => u.Remarks))).filter(Boolean);
+    if (key === "Appraisal") {
+      // For appraisal, we'll show calculated appraisal dates
+      return Array.from(
+        new Set(
+          data.map((u) => {
+            if (!u.dateAdded) return null;
+            return calculateAppraisalDate(
+              u.dateAdded,
+              u.category,
+              u.cpuGen,
+              u.RAM,
+              u.Drive,
+              u.GPU
+            );
+          })
+        )
+      ).filter(Boolean);
+    }
     return [];
   };
 
   // Filtering logic for all columns (now takes filters as argument)
   const filterData = (data, filters) => {
     let filtered = data;
+
+    // Apply search filter first
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((unit) => {
+        return Object.values(unit).some((value) =>
+          (value || "").toString().toLowerCase().includes(term)
+        );
+      });
+    }
+
+    // Apply column filters
     Object.keys(filters).forEach((key) => {
       if (filters[key] && filters[key].length > 0) {
         if (key === "CPU") {
@@ -479,6 +1274,20 @@ const UnitSpecs = () => {
           filtered = filtered.filter((unit) => {
             const ramVal = (unit.RAM || "").replace(/[^0-9]/g, "");
             return filters.RAM.includes(ramVal);
+          });
+        } else if (key === "Appraisal") {
+          filtered = filtered.filter((unit) => {
+            const appraisalDate = unit.dateAdded
+              ? calculateAppraisalDate(
+                  unit.dateAdded,
+                  unit.category,
+                  unit.cpuGen,
+                  unit.RAM,
+                  unit.Drive,
+                  unit.GPU
+                )
+              : "";
+            return filters.Appraisal.includes(appraisalDate);
           });
         } else if (key !== "Tag") {
           // Don't filter by Tag
@@ -561,19 +1370,16 @@ const UnitSpecs = () => {
   };
 
   const handleDeleteSelected = () => {
-    setShowDeleteConfirm(true);
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
   };
 
   const confirmDelete = async () => {
-    const table = deleteMode.table;
-    for (const id of selectedToDelete) {
-      await deleteDoc(doc(db, table, id));
-    }
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
     setShowDeleteConfirm(false);
-    setDeleteMode({ table: null, active: false });
-    setSelectedToDelete([]);
-    fetchData();
-    showSuccess(`${selectedToDelete.length} unit(s) deleted successfully.`);
   };
 
   const cancelDeleteMode = () => {
@@ -583,16 +1389,9 @@ const UnitSpecs = () => {
   };
 
   const handleConfirmSingleDelete = async () => {
-    if (!confirmSingleDelete) return;
-    const { unit, collectionName } = confirmSingleDelete;
-    try {
-      await deleteDoc(doc(db, collectionName, unit.id));
-      fetchData();
-      showSuccess(`Unit ${unit.Tag} has been deleted.`);
-    } catch (error) {
-      showError("Failed to delete unit.");
-      console.error("Error deleting document: ", error);
-    }
+    toast.error(
+      "Delete operations are disabled. UnitSpecs now displays live data from the main device database."
+    );
     setConfirmSingleDelete(null);
   };
 
@@ -666,6 +1465,232 @@ const UnitSpecs = () => {
     );
   };
 
+  // Card Footer with Pagination Controls
+  const renderCardFooter = () => {
+    const currentData = activeTab === "InventoryUnits" ? inventory : deployed;
+    const currentPage =
+      activeTab === "InventoryUnits" ? inventoryPage : deployedPage;
+    const setCurrentPage =
+      activeTab === "InventoryUnits" ? setInventoryPage : setDeployedPage;
+    const filters =
+      activeTab === "InventoryUnits" ? inventoryFilters : deployedFilters;
+
+    let filtered = filterData(currentData, filters);
+    let sorted = sortData(filtered);
+    const totalPages = Math.ceil(sorted.length / itemsPerPage);
+
+    const handlePageChange = (newPage) => {
+      if (newPage >= 1 && newPage <= totalPages) {
+        setCurrentPage(newPage);
+      }
+    };
+
+    return (
+      <div
+        style={{
+          background: isDarkMode ? "#374151" : "#f9fafb",
+          borderTop: isDarkMode ? "1px solid #4b5563" : "1px solid #e5e7eb",
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+          fontSize: "14px",
+        }}
+      >
+        {/* Left side: Show dropdown and info */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span
+              style={{
+                fontSize: "14px",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontWeight: 500,
+              }}
+            >
+              Show:
+            </span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                const newItemsPerPage = parseInt(e.target.value);
+                setItemsPerPage(newItemsPerPage);
+                // Reset both pages to 1 when changing items per page
+                setInventoryPage(1);
+                setDeployedPage(1);
+              }}
+              style={{
+                padding: "4px 8px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: "4px",
+                background: isDarkMode ? "#1f2937" : "#fff",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: "12px",
+                cursor: "pointer",
+              }}
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+
+          <span
+            style={{
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
+              fontSize: "14px",
+            }}
+          >
+            Showing {(currentPage - 1) * itemsPerPage + 1} -{" "}
+            {Math.min(currentPage * itemsPerPage, sorted.length)} of{" "}
+            {sorted.length} units
+          </span>
+        </div>
+
+        {/* Right side: Pagination Controls - only show if more than 1 page */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: "6px 12px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
+                borderRadius: "6px",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                transition: "all 0.2s",
+              }}
+            >
+              First
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: "6px 12px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === 1
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
+                borderRadius: "6px",
+                cursor: currentPage === 1 ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                transition: "all 0.2s",
+              }}
+            >
+              Previous
+            </button>
+
+            <span
+              style={{
+                margin: "0 12px",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontWeight: 500,
+                fontSize: 14,
+              }}
+            >
+              Page {currentPage} of {totalPages}
+            </span>
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: "6px 12px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
+                borderRadius: "6px",
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                transition: "all 0.2s",
+              }}
+            >
+              Next
+            </button>
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: "6px 12px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                background:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#1f2937"
+                      : "#f9fafb"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#fff",
+                color:
+                  currentPage === totalPages
+                    ? isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#374151",
+                borderRadius: "6px",
+                cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+                fontSize: "14px",
+                transition: "all 0.2s",
+              }}
+            >
+              Last
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSingleDeleteConfirmModal = () => {
     if (!confirmSingleDelete) return null;
     const { unit } = confirmSingleDelete;
@@ -686,7 +1711,7 @@ const UnitSpecs = () => {
       >
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             padding: "32px 36px",
             borderRadius: "16px",
             minWidth: 340,
@@ -709,16 +1734,22 @@ const UnitSpecs = () => {
           >
             Confirm Delete
           </h2>
-          <div style={{ marginBottom: 18, color: "#18181a", fontWeight: 500 }}>
+          <div
+            style={{
+              marginBottom: 18,
+              color: isDarkMode ? "#f3f4f6" : "#18181a",
+              fontWeight: 500,
+            }}
+          >
             Are you sure you want to delete the following unit?
             <div
               style={{
                 margin: "12px 0",
                 padding: "10px",
-                background: "#fee2e2",
+                background: isDarkMode ? "#7f1d1d" : "#fee2e2",
                 borderRadius: "8px",
                 textAlign: "center",
-                color: "#b91c1c",
+                color: isDarkMode ? "#fca5a5" : "#b91c1c",
                 fontWeight: 700,
               }}
             >
@@ -744,8 +1775,8 @@ const UnitSpecs = () => {
             </button>
             <button
               style={{
-                background: "#e2e8f0",
-                color: "#18181a",
+                background: isDarkMode ? "#4b5563" : "#e2e8f0",
+                color: isDarkMode ? "#f3f4f6" : "#18181a",
                 border: "none",
                 borderRadius: 8,
                 padding: "10px 22px",
@@ -754,6 +1785,110 @@ const UnitSpecs = () => {
                 cursor: "pointer",
               }}
               onClick={() => setConfirmSingleDelete(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBulkDeleteConfirmModal = () => {
+    if (!bulkDeleteConfirm) return null;
+
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(0,0,0,0.35)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2000,
+        }}
+      >
+        <div
+          style={{
+            background: isDarkMode ? "#1f2937" : "#fff",
+            padding: "32px 36px",
+            borderRadius: "16px",
+            minWidth: 340,
+            boxShadow: "0 8px 32px rgba(37,99,235,0.18)",
+            position: "relative",
+            fontFamily:
+              'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            maxWidth: 420,
+          }}
+        >
+          <h2
+            style={{
+              margin: "0 0 18px 0",
+              fontWeight: 700,
+              color: "#e11d48",
+              letterSpacing: 1,
+              fontSize: 20,
+              textAlign: "center",
+            }}
+          >
+            Confirm Bulk Delete
+          </h2>
+          <div
+            style={{
+              marginBottom: 18,
+              color: isDarkMode ? "#f3f4f6" : "#18181a",
+              fontWeight: 500,
+            }}
+          >
+            Are you sure you want to delete the following {selectedItems.length}{" "}
+            selected unit(s)?
+            <div
+              style={{
+                margin: "12px 0",
+                padding: "10px",
+                background: isDarkMode ? "#7f1d1d" : "#fee2e2",
+                borderRadius: "8px",
+                textAlign: "center",
+                color: isDarkMode ? "#fca5a5" : "#b91c1c",
+                fontWeight: 700,
+              }}
+            >
+              {selectedItems.length} unit(s) selected
+            </div>
+            This action cannot be undone.
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+            <button
+              style={{
+                background: "#e11d48",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 28px",
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: "pointer",
+              }}
+              onClick={confirmBulkDelete}
+            >
+              Delete All
+            </button>
+            <button
+              style={{
+                background: isDarkMode ? "#4b5563" : "#e2e8f0",
+                color: isDarkMode ? "#f3f4f6" : "#18181a",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 22px",
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+              }}
+              onClick={() => setBulkDeleteConfirm(false)}
             >
               Cancel
             </button>
@@ -772,10 +1907,10 @@ const UnitSpecs = () => {
     let sorted = sortData(filtered);
 
     // --- Pagination Logic ---
-    const totalPages = Math.ceil(sorted.length / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(sorted.length / itemsPerPage);
     const paginatedData = sorted.slice(
-      (currentPage - 1) * ITEMS_PER_PAGE,
-      currentPage * ITEMS_PER_PAGE
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
     );
 
     const handlePageChange = (newPage) => {
@@ -787,78 +1922,422 @@ const UnitSpecs = () => {
     return (
       <div
         style={{
-          background: "#fff",
-          border: "none",
-          flex: "1",
+          flex: 1,
           overflow: "auto",
-          minHeight: "0",
+          background: "transparent",
         }}
       >
-        <div style={{ overflowX: "auto", width: "100%", height: "100%" }}>
-          <table style={tableStyle}>
-            <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
-              <tr
+        {/* Add Unit Button - Inside Card */}
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: isDarkMode
+              ? "1px solid #374151"
+              : "1px solid #e5e7eb",
+            background: isDarkMode ? "#374151" : "#f9fafb",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* Search Bar */}
+          <div style={{ position: "relative", width: "280px" }}>
+            <input
+              type="text"
+              placeholder="Search units..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 12px 8px 36px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: "6px",
+                background: isDarkMode ? "#1f2937" : "#fff",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: "14px",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
+              onBlur={(e) =>
+                (e.target.style.borderColor = isDarkMode
+                  ? "#4b5563"
+                  : "#d1d5db")
+              }
+            />
+            <svg
+              style={{
+                position: "absolute",
+                left: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "14px",
+                height: "14px",
+                color: "#9ca3af",
+                pointerEvents: "none",
+              }}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </div>
+
+          {/* Action Buttons: Delete (conditional) | Refresh | Export | Import | Add Unit */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {selectedItems.length > 0 && (
+              <button
                 style={{
-                  background: "rgb(255, 255, 255)",
-                  borderBottom: "1px solid #e5e7eb",
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "9px 16px",
+                  fontWeight: 500,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
                 }}
+                onClick={handleBulkDelete}
               >
+                Delete ({selectedItems.length})
+              </button>
+            )}
+            <button
+              style={{
+                background: "#10b981",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              onClick={fetchData}
+              title="Refresh PC and Laptop data from main database"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style={{ marginRight: "8px", verticalAlign: "middle" }}
+              >
+                <path
+                  d="M1 4v6h6"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M23 20v-6h-6"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M3.51 15a9 9 0 0 0 14.85 3.36L23 14"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Refresh Data
+            </button>
+            {/* Export Button */}
+            <button
+              onClick={handleExportExcel}
+              style={{
+                background: "#2563eb", // retain original blue
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              title="Export current filtered & sorted data to Excel"
+            >
+              Export (.xlsx)
+            </button>
+            {/* Import Button triggers hidden file input */}
+            <button
+              onClick={() =>
+                importInputRef.current && importInputRef.current.click()
+              }
+              style={{
+                background: isDarkMode ? "#1f2937" : "#374151", // retain original dark gray
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              title="Import & upsert devices from Excel by Tag"
+            >
+              Import (.xlsx)
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              style={{ display: "none" }}
+              onChange={(e) => handleImportExcel(e, activeTab)}
+            />
+            <button
+              style={{
+                background: "#3b82f6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontWeight: 500,
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+              }}
+              onClick={() => {
+                setForm(emptyUnit);
+                setEditId(null);
+                setEditCollection("");
+                setShowModal(true);
+              }}
+            >
+              + Add Unit
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable Table Container */}
+        <div
+          style={{
+            flex: 1,
+            overflow: "auto",
+            maxHeight: "calc(100vh - 300px)", // Increased from 280px to give more space
+            paddingBottom: "20px", // Add padding at bottom for last row visibility
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              minWidth: "900px",
+              borderCollapse: "collapse",
+              background: isDarkMode ? "#1f2937" : "#fff",
+              fontSize: "14px",
+              border: isDarkMode ? "1px solid #374151" : "1px solid #d1d5db",
+              tableLayout: "fixed",
+            }}
+          >
+            <thead
+              style={{
+                position: "sticky",
+                top: "0",
+                background: isDarkMode ? "#374151" : "#f9fafb",
+                zIndex: 10,
+              }}
+            >
+              <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
+                {/* Select All Checkbox Column */}
+                <th
+                  style={{
+                    width: "4%",
+                    padding: "8px 4px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    textAlign: "center",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    position: "sticky",
+                    top: 0,
+                    background: isDarkMode ? "#374151" : "#f9fafb",
+                    zIndex: 10,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      sorted.length > 0 &&
+                      sorted.every((item) => selectedItems.includes(item.id))
+                    }
+                    onChange={() => handleSelectAll(sorted)}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      margin: 0,
+                      accentColor: "#6b7280",
+                      colorScheme: isDarkMode ? "dark" : "light",
+                    }}
+                  />
+                </th>
                 {deleteMode.active && deleteMode.table === collectionName && (
                   <th
-                    style={{ ...thStyle, width: "40px", textAlign: "center" }}
+                    style={{
+                      width: "4%",
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
                     <input
                       type="checkbox"
-                      style={{ width: 16, height: 16, accentColor: "#3b82f6" }}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
                     />
                   </th>
                 )}
                 {[
                   "Tag",
+                  "Device Type",
                   "CPU",
                   "RAM",
                   "Drive",
                   "GPU",
-                  "Status",
+                  "Condition",
                   "OS",
-                  "Remarks",
+                  "Client",
                 ].map((col) => (
-                  <th key={col} style={{ ...thStyle, position: "relative" }}>
+                  <th
+                    key={col}
+                    style={{
+                      width:
+                        col === "Tag"
+                          ? "12%"
+                          : col === "Device Type"
+                          ? "10%"
+                          : col === "CPU"
+                          ? "12%"
+                          : col === "RAM"
+                          ? "8%"
+                          : col === "Drive"
+                          ? "15%"
+                          : col === "GPU"
+                          ? "12%"
+                          : col === "Condition"
+                          ? "10%"
+                          : col === "OS"
+                          ? "8%"
+                          : "13%", // Client
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
                     <span
                       onClick={
-                        col !== "Tag"
+                        col !== "Tag" && col !== "Device Type"
                           ? (e) => handleFilterClick(e, col, collectionName)
                           : undefined
                       }
                       style={{
                         marginRight: 8,
                         textDecoration:
-                          col !== "Tag" ? "underline dotted" : undefined,
-                        cursor: col !== "Tag" ? "pointer" : undefined,
+                          col !== "Tag" && col !== "Device Type"
+                            ? "underline dotted"
+                            : undefined,
+                        cursor:
+                          col !== "Tag" && col !== "Device Type"
+                            ? "pointer"
+                            : undefined,
                         display: "inline-block",
                       }}
                     >
                       {col === "CPU"
-                        ? "CPU Gen"
+                        ? "CPU GEN"
                         : col === "Drive"
-                        ? "Main Drive"
-                        : col}
+                        ? "MAIN DRIVE"
+                        : col.toUpperCase()}
                     </span>
                     <span
-                      onClick={() => handleSort(col)}
-                      style={{ marginLeft: 2, fontSize: 10, cursor: "pointer" }}
+                      onClick={() =>
+                        handleSort(col === "Device Type" ? "deviceType" : col)
+                      }
+                      style={{
+                        marginLeft: 2,
+                        fontSize: 10,
+                        cursor: "pointer",
+                      }}
                     >
                       ⇅
                     </span>
                     {col !== "Tag" &&
+                      col !== "Device Type" &&
                       filterPopup.open &&
                       filterPopup.column === col &&
                       filterPopup.table === collectionName &&
                       renderFilterPopup(col, data, collectionName)}
                   </th>
                 ))}
-                <th style={{ ...thStyle, width: "120px", textAlign: "center" }}>
-                  Actions
+                <th
+                  style={{
+                    width: "10%",
+                    padding: "8px 4px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    textAlign: "center",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    position: "sticky",
+                    top: 0,
+                    background: isDarkMode ? "#374151" : "#f9fafb",
+                    zIndex: 10,
+                  }}
+                >
+                  ACTIONS
                 </th>
               </tr>
             </thead>
@@ -868,8 +2347,8 @@ const UnitSpecs = () => {
                   <td
                     colSpan={
                       deleteMode.active && deleteMode.table === collectionName
-                        ? 10
-                        : 9
+                        ? 12 // Select + Delete + 9 data cols + Actions
+                        : 11 // Select + 9 data cols + Actions
                     }
                     style={{
                       padding: "40px 20px",
@@ -877,7 +2356,7 @@ const UnitSpecs = () => {
                       color: "#9ca3af",
                       fontSize: "14px",
                       fontWeight: "400",
-                      borderBottom: "1px solid #f3f4f6",
+                      border: "1px solid #d1d5db",
                     }}
                   >
                     No{" "}
@@ -892,22 +2371,83 @@ const UnitSpecs = () => {
                   <tr
                     key={unit.id}
                     style={{
-                      ...trStyle(index),
-                      ...(hoveredRow.id === unit.id &&
-                      hoveredRow.collection === collectionName
-                        ? trHoverStyle(index)
-                        : {}),
+                      borderBottom: isDarkMode
+                        ? "1px solid #374151"
+                        : "1px solid #d1d5db",
+                      background:
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "rgb(250, 250, 252)"
+                          : isDarkMode
+                          ? "#111827"
+                          : "rgb(240, 240, 243)",
+                      cursor: "pointer",
+                      transition: "background 0.15s",
                     }}
-                    onMouseEnter={() =>
-                      setHoveredRow({ id: unit.id, collection: collectionName })
-                    }
-                    onMouseLeave={() =>
-                      setHoveredRow({ id: null, collection: "" })
-                    }
+                    onMouseEnter={(e) => {
+                      setHoveredRow({
+                        id: unit.id,
+                        collection: collectionName,
+                      });
+                      if (index % 2 === 0) {
+                        e.currentTarget.style.background = isDarkMode
+                          ? "#374151"
+                          : "rgb(235, 235, 240)";
+                      } else {
+                        e.currentTarget.style.background = isDarkMode
+                          ? "#1f2937"
+                          : "rgb(225, 225, 235)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      setHoveredRow({ id: null, collection: "" });
+                      e.currentTarget.style.background =
+                        index % 2 === 0
+                          ? isDarkMode
+                            ? "#1f2937"
+                            : "rgb(250, 250, 252)"
+                          : isDarkMode
+                          ? "#111827"
+                          : "rgb(240, 240, 243)";
+                    }}
                   >
+                    {/* Select Item Checkbox Column */}
+                    <td
+                      style={{
+                        width: "4%",
+                        padding: "8px 4px",
+                        textAlign: "center",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(unit.id)}
+                        onChange={() => handleSelectItem(unit.id)}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          margin: 0,
+                          accentColor: "#6b7280",
+                          colorScheme: isDarkMode ? "dark" : "light",
+                        }}
+                      />
+                    </td>
                     {deleteMode.active &&
                       deleteMode.table === collectionName && (
-                        <td style={{ ...tdStyle, textAlign: "center" }}>
+                        <td
+                          style={{
+                            width: "4%",
+                            padding: "8px 4px",
+                            textAlign: "center",
+                            border: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #d1d5db",
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={selectedToDelete.includes(unit.id)}
@@ -915,34 +2455,228 @@ const UnitSpecs = () => {
                             style={{
                               width: 16,
                               height: 16,
-                              accentColor: "#3b82f6",
+                              margin: 0,
+                              accentColor: "#6b7280",
+                              colorScheme: isDarkMode ? "dark" : "light",
                             }}
                           />
                         </td>
                       )}
-                    <td style={tdStyle}>{unit.Tag}</td>
-                    <td style={tdStyle}>{unit.CPU}</td>
-                    <td style={tdStyle}>
+                    <td
+                      style={{
+                        width: "12%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.Tag}
+                    </td>
+                    {/* Device Type Column */}
+                    <td
+                      style={{
+                        width: "10%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textAlign: "center",
+                      }}
+                    >
+                      {(() => {
+                        const raw = (unit.deviceType || "").toString();
+                        const norm = raw.trim().toLowerCase();
+                        let display = "";
+                        if (["pc", "desktop"].includes(norm)) display = "PC";
+                        else if (["laptop", "notebook"].includes(norm))
+                          display = "Laptop";
+                        else if (!norm && typeof unit.Tag === "string") {
+                          if (unit.Tag.includes("JOIIPC")) display = "PC";
+                          else if (unit.Tag.includes("JOIILPT"))
+                            display = "Laptop";
+                        }
+                        return display;
+                      })()}
+                    </td>
+                    <td
+                      style={{
+                        width: "12%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.CPU}
+                    </td>
+                    <td
+                      style={{
+                        width: "8%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        textAlign: "center",
+                      }}
+                    >
                       {unit.RAM &&
                         `${(unit.RAM || "").replace(/[^0-9]/g, "")} GB`}
                     </td>
-                    <td style={tdStyle}>{unit.Drive}</td>
-                    <td style={tdStyle}>{unit.GPU}</td>
-                    <td style={tdStyle}>{unit.Status}</td>
-                    <td style={tdStyle}>{unit.OS}</td>
-                    <td style={tdStyle}>{unit.Remarks}</td>
-                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                    <td
+                      style={{
+                        width: "15%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.Drive}
+                    </td>
+                    <td
+                      style={{
+                        width: "12%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.GPU}
+                    </td>
+                    <td
+                      style={{
+                        width: "10%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        textAlign: "center",
+                      }}
+                    >
+                      {unit.Condition || unit.Status ? (
+                        <div
+                          style={{
+                            display: "inline-block",
+                            background: getConditionColor(
+                              unit.Condition || unit.Status
+                            ),
+                            color: getConditionTextColor(
+                              unit.Condition || unit.Status
+                            ),
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textAlign: "center",
+                            minWidth: "70px",
+                            lineHeight: "1.2",
+                            whiteSpace: "nowrap",
+                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          {unit.Condition || unit.Status}
+                        </div>
+                      ) : (
+                        ""
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        width: "8%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        textAlign: "center",
+                      }}
+                    >
+                      {unit.OS}
+                    </td>
+                    <td
+                      style={{
+                        width: "13%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.client || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "15%",
+                        padding: "8px 4px",
+                        textAlign: "center",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                      }}
+                    >
                       {!deleteMode.active && (
                         <div
                           style={{
                             display: "flex",
+                            gap: "1px",
                             alignItems: "center",
                             justifyContent: "center",
-                            gap: "4px",
+                            flexWrap: "nowrap",
+                            minWidth: "fit-content",
                           }}
                         >
                           <button
-                            style={moveButtonStyle}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
                             onClick={() =>
                               collectionName === "InventoryUnits"
                                 ? handleMove(
@@ -956,52 +2690,164 @@ const UnitSpecs = () => {
                                     "InventoryUnits"
                                   )
                             }
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#10b981";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(16, 185, 129, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            title={
+                              collectionName === "InventoryUnits"
+                                ? "Deploy"
+                                : "Return"
+                            }
                           >
-                            {collectionName === "InventoryUnits"
-                              ? "Deploy"
-                              : "Return"}
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              {collectionName === "InventoryUnits" ? (
+                                // Deploy icon (upload arrow)
+                                <>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </>
+                              ) : (
+                                // Return icon (download arrow)
+                                <>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="17 8 12 3 7 8" />
+                                  <line x1="12" y1="3" x2="12" y2="15" />
+                                </>
+                              )}
+                            </svg>
                           </button>
                           <button
-                            style={actionButtonStyle}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
                             onClick={() => handleEdit(unit, collectionName)}
                             title="Edit"
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#3b82f6";
-                              e.currentTarget.style.color = "#ffffff";
                               e.currentTarget.style.transform = "scale(1.1)";
                               e.currentTarget.style.boxShadow =
                                 "0 4px 12px rgba(59, 130, 246, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.color = "#6b7280";
                               e.currentTarget.style.transform = "scale(1)";
                               e.currentTarget.style.boxShadow = "none";
                             }}
                           >
-                            {editIcon}
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                            </svg>
                           </button>
                           <button
-                            style={actionButtonStyle}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
                             onClick={() =>
                               setConfirmSingleDelete({ unit, collectionName })
                             }
                             title="Delete"
                             onMouseEnter={(e) => {
                               e.currentTarget.style.background = "#ef4444";
-                              e.currentTarget.style.color = "#ffffff";
                               e.currentTarget.style.transform = "scale(1.1)";
                               e.currentTarget.style.boxShadow =
                                 "0 4px 12px rgba(239, 68, 68, 0.3)";
                             }}
                             onMouseLeave={(e) => {
                               e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.color = "#6b7280";
                               e.currentTarget.style.transform = "scale(1)";
                               e.currentTarget.style.boxShadow = "none";
                             }}
                           >
-                            {deleteIcon}
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                            </svg>
                           </button>
                         </div>
                       )}
@@ -1012,69 +2858,6 @@ const UnitSpecs = () => {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "12px 20px",
-              background: "#fff",
-              borderTop: "1px solid #e5e7eb",
-              position: "sticky",
-              bottom: "0",
-              zIndex: "10",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                  color: currentPage === 1 ? "#9ca3af" : "#374151",
-                  cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Previous
-              </button>
-              <span
-                style={{
-                  margin: "0 12px",
-                  color: "#374151",
-                  fontWeight: 500,
-                  fontSize: 14,
-                }}
-              >
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e0e7ef",
-                  background: currentPage === totalPages ? "#f5f7fa" : "#fff",
-                  color: currentPage === totalPages ? "#9ca3af" : "#374151",
-                  cursor:
-                    currentPage === totalPages ? "not-allowed" : "pointer",
-                  fontSize: "14px",
-                  fontWeight: "500",
-                }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -1095,69 +2878,166 @@ const UnitSpecs = () => {
       }}
     >
       <div
+        className="unit-form-modal"
         style={{
-          background: "#fff",
-          padding: 28,
-          borderRadius: 14,
-          minWidth: 260,
-          maxWidth: 340,
-          boxShadow: "0 4px 16px rgba(68,95,109,0.14)",
+          background: isDarkMode ? "#1f2937" : "#fff",
+          padding: 20,
+          borderRadius: 12,
+          minWidth: 480,
+          maxWidth: 520,
+          width: "70vw",
+          boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: "flex-start",
           position: "relative",
-          border: "2px solid #70C1B3",
+          border: editId
+            ? "2px solid #2563eb"
+            : isDarkMode
+            ? "1.5px solid #374151"
+            : "1.5px solid #e5e7eb",
+          backgroundColor: editId
+            ? isDarkMode
+              ? "#1e293b"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
+          transition: "box-shadow 0.2s",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          WebkitScrollbar: { display: "none" },
+          fontFamily:
+            "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          animation: "modalFadeIn 0.2s ease-out",
         }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
       >
-        <button
-          onClick={handleCancelEdit}
+        <style>{`
+          @keyframes modalFadeIn {
+            from {
+              opacity: 0;
+              transform: scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          
+          .unit-form-modal input:focus,
+          .unit-form-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .unit-form-modal input:hover,
+          .unit-form-modal select:hover {
+            border-color: #64748b;
+          }
+        `}</style>
+
+        {/* Header with Icon and Title */}
+        <div
           style={{
-            position: "absolute",
-            top: 8,
-            right: 12,
-            background: "none",
-            border: "none",
-            fontSize: 20,
-            color: "#888",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-          aria-label="Close"
-          title="Close"
-        >
-          ×
-        </button>
-        <h3
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: "#233037",
-            marginBottom: 12,
-            textAlign: "center",
-            margin: "0 0 16px 0",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
           }}
         >
-          {editId ? "Edit Unit" : "Add Unit"}
-        </h3>
-        <form onSubmit={handleSubmit}>
+          {editId && (
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          )}
+          <h3
+            id="modal-title"
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: editId ? "#2563eb" : isDarkMode ? "#f3f4f6" : "#374151",
+              marginBottom: 0,
+              letterSpacing: 0.5,
+              width: "100%",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            }}
+          >
+            {editId ? "Edit Unit" : "Add Unit"}
+          </h3>
+        </div>
+
+        {/* Edit Mode Info Banner */}
+        {editId && (
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1d4ed8",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editing existing unit - modify the fields below to update the unit
+            information
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+          {/* Row 1: Add to collection (only for new units) */}
           {!editId && (
             <div
               style={{
-                marginBottom: 10,
-                width: "90%",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
+                alignItems: "flex-start",
+                marginBottom: 12,
+                width: "100%",
+                minWidth: 140,
               }}
             >
               <label
                 style={{
-                  color: "#445F6D",
-                  fontWeight: 600,
-                  display: "block",
-                  marginBottom: 4,
-                  fontSize: 13,
                   alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
                 Add to:
@@ -1167,15 +3047,22 @@ const UnitSpecs = () => {
                 onChange={handleAddToChange}
                 style={{
                   width: "100%",
-                  padding: "7px 10px",
-                  borderRadius: 6,
-                  border: "1.5px solid #445F6D",
-                  fontSize: 14,
-                  background: "#f7f9fb",
-                  color: "#233037",
-                  marginTop: 2,
-                  marginBottom: 4,
-                  textAlign: "center",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
               >
                 <option value="InventoryUnits">Inventory</option>
@@ -1183,411 +3070,713 @@ const UnitSpecs = () => {
               </select>
             </div>
           )}
+
+          {/* Row 2: Device Type and Category */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
+              }}
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Device Type:
+              </label>
+              <select
+                name="deviceType"
+                value={form.deviceType}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                required
+              >
+                <option value="">Select Device Type</option>
+                {unitDeviceTypes.map((type) => (
+                  <option key={type.label} value={type.label}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: TAG */}
+          <div
+            style={{
               display: "flex",
               flexDirection: "column",
-              alignItems: "center",
+              alignItems: "flex-start",
+              marginBottom: 12,
+              width: "100%",
+              minWidth: 140,
             }}
           >
             <label
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
                 alignSelf: "flex-start",
+                fontWeight: 500,
+                color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                marginBottom: 3,
+                fontSize: 13,
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
             >
               TAG:
             </label>
             <input
               name="Tag"
-              placeholder="TAG"
+              placeholder="TAG (Auto-generated)"
               value={form.Tag}
               onChange={handleChange}
               required
+              disabled={true} // Always disable tag field since it's auto-generated
               style={{
                 width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                minWidth: 0,
+                fontSize: 13,
+                padding: "6px 8px",
+                borderRadius: 5,
+                border: isDarkMode
+                  ? "1.2px solid #4b5563"
+                  : "1.2px solid #cbd5e1",
+                background: isDarkMode ? "#4b5563" : "#e5e7eb", // Gray background since always disabled
+                color: isDarkMode ? "#9ca3af" : "#6b7280", // Gray text since always disabled
+                height: "30px",
+                boxSizing: "border-box",
+                marginBottom: 0,
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                outline: "none",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+                cursor: editId ? "not-allowed" : "text",
               }}
             />
           </div>
-          {/* CPU Gen and Model fields */}
+
+          {/* Row 4: CPU Generation and Model */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
               }}
             >
-              CPU:
-            </label>
-            <div style={{ display: "flex", gap: 6, width: "100%" }}>
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                CPU - System Unit:
+              </label>
               <select
                 name="cpuGen"
                 value={form.cpuGen}
                 onChange={handleChange}
                 style={{
-                  flex: 1,
-                  padding: "7px 10px",
-                  borderRadius: 6,
-                  border: "1.5px solid #445F6D",
-                  fontSize: 14,
-                  background: "#f7f9fb",
-                  color: "#233037",
-                  textAlign: "center",
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
                 required
               >
-                <option value="">Gen</option>
+                <option value="">Select CPU System Unit</option>
                 {cpuGenOptions.map((opt) => (
                   <option key={opt} value={opt}>
                     {opt.toUpperCase()}
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
+              }}
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                CPU Model:
+              </label>
               <input
                 name="cpuModel"
                 placeholder="Model"
                 value={form.cpuModel}
                 onChange={handleChange}
                 style={{
-                  flex: 2,
-                  padding: "7px 10px",
-                  borderRadius: 6,
-                  border: "1.5px solid #445F6D",
-                  fontSize: 14,
-                  background: "#f7f9fb",
-                  color: "#233037",
-                  textAlign: "center",
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
               />
             </div>
           </div>
+
+          {/* Row 5: RAM and Drive */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              RAM (GB):
-            </label>
-            <select
-              name="RAM"
-              value={form.RAM}
-              onChange={handleChange}
-              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
                 width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                minWidth: 140,
+                flex: 1,
               }}
             >
-              <option value="">Select RAM</option>
-              {ramOptions.map((ram) => (
-                <option key={ram} value={ram}>
-                  {ram} GB
-                </option>
-              ))}
-            </select>
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                RAM (GB):
+              </label>
+              <select
+                name="RAM"
+                value={form.RAM}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              >
+                <option value="">Select RAM</option>
+                {ramOptions.map((ram) => (
+                  <option key={ram} value={ram}>
+                    {ram} GB
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
+              }}
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Drive:
+              </label>
+              <input
+                name="Drive"
+                placeholder="MAIN DRIVE"
+                value={form.Drive}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              />
+            </div>
           </div>
+
+          {/* Row 6: GPU and Status */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
               }}
             >
-              Drive:
-            </label>
-            <input
-              name="Drive"
-              placeholder="MAIN DRIVE"
-              value={form.Drive}
-              onChange={handleChange}
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                GPU:
+              </label>
+              <input
+                name="GPU"
+                placeholder="GPU"
+                value={form.GPU}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              />
+            </div>
+
+            <div
               style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
                 width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                minWidth: 140,
+                flex: 1,
               }}
-            />
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Condition:
+              </label>
+              <select
+                name="Condition"
+                value={form.Condition}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                required
+              >
+                <option value="">Select Condition</option>
+                {conditionOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* Row 7: OS and Remarks */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
               }}
             >
-              GPU:
-            </label>
-            <input
-              name="GPU"
-              placeholder="GPU"
-              value={form.GPU}
-              onChange={handleChange}
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                OS:
+              </label>
+              <select
+                name="OS"
+                value={form.OS}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+                required
+              >
+                <option value="">Select OS</option>
+                {osOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
               style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
                 width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                minWidth: 140,
+                flex: 1,
               }}
-            />
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Client:
+              </label>
+              <select
+                name="client"
+                value={form.client}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              >
+                <option value="">Select Client</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.clientName}>
+                    {client.clientName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                marginBottom: 0,
+                width: "100%",
+                minWidth: 140,
+                flex: 1,
+              }}
+            >
+              <label
+                style={{
+                  alignSelf: "flex-start",
+                  fontWeight: 500,
+                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                  marginBottom: 3,
+                  fontSize: 13,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                }}
+              >
+                Remarks:
+              </label>
+              <input
+                name="Remarks"
+                placeholder="REMARKS"
+                value={form.Remarks}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  minWidth: 0,
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  border: isDarkMode
+                    ? "1.2px solid #4b5563"
+                    : "1.2px solid #cbd5e1",
+                  background: isDarkMode ? "#374151" : "#f1f5f9",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  height: "30px",
+                  boxSizing: "border-box",
+                  marginBottom: 0,
+                  fontFamily:
+                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  outline: "none",
+                  transition: "border-color 0.2s, box-shadow 0.2s",
+                }}
+              />
+            </div>
           </div>
+
+          {/* Button Row */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Status:
-            </label>
-            <select
-              name="Status"
-              value={form.Status}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-              required
-            >
-              <option value="">Select Status</option>
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              OS:
-            </label>
-            <select
-              name="OS"
-              value={form.OS}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-              required
-            >
-              <option value="">Select OS</option>
-              {osOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Remarks:
-            </label>
-            <input
-              name="Remarks"
-              placeholder="REMARKS"
-              value={form.Remarks}
-              onChange={handleChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-            />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
+              justifyContent: "flex-end",
               gap: 8,
-              marginTop: 16,
+              marginTop: 20,
+              width: "100%",
             }}
           >
             <button
               type="submit"
               style={{
-                background: "#70C1B3",
+                background: "#2563eb",
                 color: "#fff",
                 border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
+                borderRadius: 8,
+                padding: "10px 24px",
+                fontSize: 14,
+                fontWeight: 500,
                 cursor: "pointer",
+                marginLeft: 4,
                 boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 transition: "background 0.2s, box-shadow 0.2s",
+                outline: "none",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
+              aria-label={editId ? "Update unit information" : "Save new unit"}
             >
-              {editId ? "Save Changes" : "Add Unit"}
+              {editId ? "Update" : "Save"}
             </button>
             <button
               type="button"
               onClick={handleCancelEdit}
               style={{
-                background: "#445F6D",
-                color: "#fff",
+                background: "#e0e7ef",
+                color: "#2563eb",
                 border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
+                borderRadius: 8,
+                padding: "10px 24px",
+                fontSize: 14,
+                fontWeight: 500,
                 cursor: "pointer",
+                marginLeft: 4,
                 boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                 transition: "background 0.2s, box-shadow 0.2s",
+                outline: "none",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               }}
+              aria-label="Cancel and close dialog"
             >
               Cancel
             </button>
@@ -1606,126 +3795,124 @@ const UnitSpecs = () => {
     return () => window.removeEventListener("click", close);
   }, [filterPopup.open]);
 
+  // Reset pagination when search term changes
+  useEffect(() => {
+    setInventoryPage(1);
+    setDeployedPage(1);
+  }, [searchTerm]);
+
   // --- Main Component Render ---
   return (
     <div
       style={{
-        height: "calc(100vh - 30px)",
+        height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "transparent",
+        background: isDarkMode ? "#111827" : "#f7f9fb",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
         boxSizing: "border-box",
-        margin: "20px",
-        marginTop: "10px",
       }}
     >
-      {/* Fixed Header */}
+      {/* Header outside card */}
       <div
         style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
+          fontSize: 28,
+          fontWeight: 700,
+          color: isDarkMode ? "#ffffff" : "#222e3a",
+          letterSpacing: 1,
+          padding: "20px 24px 16px 24px",
           flexShrink: 0,
-          background: "rgb(255, 255, 255)",
-          borderBottom: "1px solid #e5e7eb",
         }}
       >
-        <div
+        UNIT SPECIFICATIONS
+      </div>
+
+      {/* Removed separate Action Toolbar (Export/Import) - buttons moved next to Refresh */}
+
+      {/* Tab Bar - matching Company Assets style */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          borderBottom: isDarkMode ? "2px solid #374151" : "2px solid #e0e7ef",
+          margin: "0 24px 0 24px",
+          gap: 2,
+          flexShrink: 0,
+          paddingBottom: 0,
+        }}
+      >
+        <button
+          onClick={() => setActiveTab("InventoryUnits")}
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "16px 20px",
-            borderBottom: "1px solid #e5e7eb",
-            gap: "12px",
+            border: "none",
+            background:
+              activeTab === "InventoryUnits"
+                ? isDarkMode
+                  ? "#374151"
+                  : "#fff"
+                : isDarkMode
+                ? "#1f2937"
+                : "#e0e7ef",
+            color:
+              activeTab === "InventoryUnits"
+                ? isDarkMode
+                  ? "#60a5fa"
+                  : "#2563eb"
+                : isDarkMode
+                ? "#9ca3af"
+                : "#64748b",
+            fontWeight: activeTab === "InventoryUnits" ? 700 : 500,
+            fontSize: 16,
+            padding: "10px 32px",
+            borderRadius: 0,
+            cursor: "pointer",
+            boxShadow:
+              activeTab === "InventoryUnits"
+                ? "0 -2px 8px rgba(68,95,109,0.08)"
+                : "none",
+            outline: "none",
+            transition: "all 0.2s",
           }}
         >
-          <h1
-            style={{
-              color: "#1e293b",
-              margin: 0,
-              fontWeight: 700,
-              fontSize: "24px",
-            }}
-          >
-            Unit Specifications
-          </h1>
-          <button
-            style={{
-              background: "#3b82f6",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              padding: "9px 16px",
-              fontWeight: 500,
-              fontSize: "14px",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              whiteSpace: "nowrap",
-            }}
-            onClick={() => {
-              setForm(emptyUnit);
-              setEditId(null);
-              setEditCollection("");
-              setShowModal(true);
-            }}
-          >
-            + Add Unit
-          </button>
-        </div>
-
-        {/* Tab Bar */}
-        <div
-          style={{ display: "flex", gap: 0, borderBottom: "1px solid #e5e7eb" }}
+          Inventory Units
+        </button>
+        <button
+          onClick={() => setActiveTab("DeployedUnits")}
+          style={{
+            border: "none",
+            background:
+              activeTab === "DeployedUnits"
+                ? isDarkMode
+                  ? "#374151"
+                  : "#fff"
+                : isDarkMode
+                ? "#1f2937"
+                : "#e0e7ef",
+            color:
+              activeTab === "DeployedUnits"
+                ? isDarkMode
+                  ? "#60a5fa"
+                  : "#2563eb"
+                : isDarkMode
+                ? "#9ca3af"
+                : "#64748b",
+            fontWeight: activeTab === "DeployedUnits" ? 700 : 500,
+            fontSize: 16,
+            padding: "10px 32px",
+            borderRadius: 0,
+            cursor: "pointer",
+            boxShadow:
+              activeTab === "DeployedUnits"
+                ? "0 -2px 8px rgba(68,95,109,0.08)"
+                : "none",
+            outline: "none",
+            transition: "all 0.2s",
+          }}
         >
-          <button
-            onClick={() => setActiveTab("InventoryUnits")}
-            style={{
-              background: activeTab === "InventoryUnits" ? "#fff" : "#f1f5f9",
-              color: activeTab === "InventoryUnits" ? "#374151" : "#64748b",
-              border: "none",
-              borderBottom:
-                activeTab === "InventoryUnits"
-                  ? "2px solid #3b82f6"
-                  : "2px solid transparent",
-              fontWeight: 500,
-              fontSize: "14px",
-              padding: "12px 24px",
-              cursor: "pointer",
-              outline: "none",
-              transition: "all 0.2s",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Inventory Units
-          </button>
-          <button
-            onClick={() => setActiveTab("DeployedUnits")}
-            style={{
-              background: activeTab === "DeployedUnits" ? "#fff" : "#f1f5f9",
-              color: activeTab === "DeployedUnits" ? "#374151" : "#64748b",
-              border: "none",
-              borderBottom:
-                activeTab === "DeployedUnits"
-                  ? "2px solid #3b82f6"
-                  : "2px solid transparent",
-              fontWeight: 500,
-              fontSize: "14px",
-              padding: "12px 24px",
-              cursor: "pointer",
-              outline: "none",
-              transition: "all 0.2s",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Deployed Units
-          </button>
-        </div>
+          Deployed Units
+        </button>
       </div>
 
       {/* Add/Edit Modal */}
@@ -1734,17 +3921,32 @@ const UnitSpecs = () => {
       {/* Main Content: Tabbed Tables */}
       <div
         style={{
-          background: "#fff",
-          border: "none",
-          flex: "1",
-          overflow: "auto",
-          minHeight: "0",
+          background: isDarkMode ? "#1f2937" : "#fff",
+          borderRadius: 0,
+          boxShadow: "0 2px 12px rgba(68,95,109,0.10)",
+          margin: "0 24px 24px 24px",
+          padding: 0,
+          flex: 1,
+          overflow: "hidden",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {activeTab === "InventoryUnits" && (
-          <>
+          <div
+            style={{ flex: 1, overflow: "hidden", background: "transparent" }}
+          >
             {loading ? (
-              <div style={{ padding: "0", border: "none" }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                }}
+              >
                 <TableLoadingSpinner text="Loading inventory units..." />
               </div>
             ) : (
@@ -1755,12 +3957,22 @@ const UnitSpecs = () => {
                 setInventoryPage
               )
             )}
-          </>
+          </div>
         )}
         {activeTab === "DeployedUnits" && (
-          <>
+          <div
+            style={{ flex: 1, overflow: "hidden", background: "transparent" }}
+          >
             {loading ? (
-              <div style={{ padding: "0", border: "none" }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "40px",
+                }}
+              >
                 <TableLoadingSpinner text="Loading deployed units..." />
               </div>
             ) : (
@@ -1771,12 +3983,18 @@ const UnitSpecs = () => {
                 setDeployedPage
               )
             )}
-          </>
+          </div>
         )}
+
+        {/* Card Footer with Pagination Controls */}
+        {!loading && renderCardFooter()}
       </div>
 
       {/* Delete confirmation modal */}
       {confirmSingleDelete && renderSingleDeleteConfirmModal()}
+
+      {/* Bulk delete confirmation modal */}
+      {bulkDeleteConfirm && renderBulkDeleteConfirmModal()}
     </div>
   );
 };

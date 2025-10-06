@@ -1,8 +1,9 @@
-import React from 'react';
+import React from "react";
+import { useTheme } from "../context/ThemeContext";
 
 /**
  * TableHeaderFilters Component
- * 
+ *
  * A reusable component that provides header-level filtering for tables.
  * Supports text inputs, dropdowns, and date pickers with consistent styling.
  */
@@ -15,33 +16,40 @@ export const TextFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <input
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      className={isDarkMode ? "text-filter-dark" : "text-filter-light"}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     />
@@ -57,32 +65,38 @@ export const DropdownFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         cursor: "pointer",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     >
@@ -104,6 +118,8 @@ export const DateFilter = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <input
       type="date"
@@ -111,27 +127,31 @@ export const DateFilter = ({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       style={{
-        width: "100%",
+        width: "calc(100% - 4px)",
+        maxWidth: "100%",
         padding: "4px 8px",
         fontSize: "12px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "4px",
-        background: "#f9fafb",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: isDarkMode ? "#374151" : "#f9fafb",
+        color: isDarkMode ? "#f3f4f6" : "#000",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         outline: "none",
         cursor: "pointer",
         transition: "border-color 0.2s, box-shadow 0.2s",
+        boxSizing: "border-box",
         ...style,
       }}
       onFocus={(e) => {
         e.target.style.borderColor = "#3b82f6";
         e.target.style.boxShadow = "0 0 0 1px rgba(59, 130, 246, 0.1)";
-        e.target.style.background = "#ffffff";
+        e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
       }}
       onBlur={(e) => {
-        e.target.style.borderColor = "#d1d5db";
+        e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         e.target.style.boxShadow = "none";
-        e.target.style.background = "#f9fafb";
+        e.target.style.background = isDarkMode ? "#374151" : "#f9fafb";
       }}
       {...props}
     />
@@ -145,6 +165,8 @@ export const ClearFilterButton = ({
   style = {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <button
       type="button"
@@ -153,11 +175,24 @@ export const ClearFilterButton = ({
       style={{
         padding: "2px 6px",
         fontSize: "10px",
-        border: "1px solid #d1d5db",
+        border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
         borderRadius: "3px",
-        background: disabled ? "#f3f4f6" : "#ffffff",
-        color: disabled ? "#9ca3af" : "#374151",
-        fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: disabled
+          ? isDarkMode
+            ? "#374151"
+            : "#f3f4f6"
+          : isDarkMode
+          ? "#1f2937"
+          : "#ffffff",
+        color: disabled
+          ? isDarkMode
+            ? "#6b7280"
+            : "#9ca3af"
+          : isDarkMode
+          ? "#f3f4f6"
+          : "#374151",
+        fontFamily:
+          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         cursor: disabled ? "not-allowed" : "pointer",
         transition: "all 0.2s",
         marginLeft: "4px",
@@ -165,14 +200,14 @@ export const ClearFilterButton = ({
       }}
       onMouseEnter={(e) => {
         if (!disabled) {
-          e.target.style.background = "#f3f4f6";
-          e.target.style.borderColor = "#9ca3af";
+          e.target.style.background = isDarkMode ? "#374151" : "#f3f4f6";
+          e.target.style.borderColor = isDarkMode ? "#6b7280" : "#9ca3af";
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled) {
-          e.target.style.background = "#ffffff";
-          e.target.style.borderColor = "#d1d5db";
+          e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
+          e.target.style.borderColor = isDarkMode ? "#4b5563" : "#d1d5db";
         }
       }}
       title="Clear filter"
@@ -191,6 +226,8 @@ export const FilterContainer = ({
   onClearAll = () => {},
   ...props
 }) => {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       style={{
@@ -212,9 +249,10 @@ export const FilterContainer = ({
             fontSize: "10px",
             border: "1px solid #dc2626",
             borderRadius: "3px",
-            background: "#ffffff",
+            background: isDarkMode ? "#1f2937" : "#ffffff",
             color: "#dc2626",
-            fontFamily: "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontFamily:
+              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             cursor: "pointer",
             transition: "all 0.2s",
             alignSelf: "center",
@@ -224,7 +262,7 @@ export const FilterContainer = ({
             e.target.style.color = "#ffffff";
           }}
           onMouseLeave={(e) => {
-            e.target.style.background = "#ffffff";
+            e.target.style.background = isDarkMode ? "#1f2937" : "#ffffff";
             e.target.style.color = "#dc2626";
           }}
           title="Clear all filters"
@@ -241,14 +279,14 @@ export const useTableFilters = (initialFilters = {}) => {
   const [filters, setFilters] = React.useState(initialFilters);
 
   const updateFilter = React.useCallback((key, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   }, []);
 
   const clearFilter = React.useCallback((key) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       const newFilters = { ...prev };
       delete newFilters[key];
       return newFilters;
@@ -260,8 +298,8 @@ export const useTableFilters = (initialFilters = {}) => {
   }, []);
 
   const hasActiveFilters = React.useMemo(() => {
-    return Object.values(filters).some(value => 
-      value !== undefined && value !== null && value !== ''
+    return Object.values(filters).some(
+      (value) => value !== undefined && value !== null && value !== ""
     );
   }, [filters]);
 
@@ -270,7 +308,7 @@ export const useTableFilters = (initialFilters = {}) => {
     updateFilter,
     clearFilter,
     clearAllFilters,
-    hasActiveFilters
+    hasActiveFilters,
   };
 };
 
@@ -280,18 +318,20 @@ export const applyFilters = (data, filters) => {
     return data;
   }
 
-  return data.filter(item => {
+  return data.filter((item) => {
     return Object.entries(filters).every(([key, filterValue]) => {
       if (!filterValue) return true;
-      
+
       const itemValue = item[key];
       if (itemValue === undefined || itemValue === null) return false;
-      
+
       // For string comparisons (case-insensitive)
-      if (typeof filterValue === 'string') {
-        return String(itemValue).toLowerCase().includes(filterValue.toLowerCase());
+      if (typeof filterValue === "string") {
+        return String(itemValue)
+          .toLowerCase()
+          .includes(filterValue.toLowerCase());
       }
-      
+
       // For exact matches (numbers, dates, etc.)
       return itemValue === filterValue;
     });
@@ -305,5 +345,5 @@ export default {
   ClearFilterButton,
   FilterContainer,
   useTableFilters,
-  applyFilters
+  applyFilters,
 };

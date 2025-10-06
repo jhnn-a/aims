@@ -147,13 +147,27 @@ export const getUnassignedDevices = (devices, searchTerm = "") => {
 
     const search = searchTerm.toLowerCase();
     return (
-      device.deviceTag?.toLowerCase().includes(search) ||
-      device.deviceType?.toLowerCase().includes(search) ||
-      device.brand?.toLowerCase().includes(search) ||
-      device.model?.toLowerCase().includes(search) ||
-      device.client?.toLowerCase().includes(search) ||
-      device.condition?.toLowerCase().includes(search) ||
-      device.remarks?.toLowerCase().includes(search)
+      String(device.deviceTag || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.deviceType || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.brand || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.model || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.client || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.condition || "")
+        .toLowerCase()
+        .includes(search) ||
+      String(device.remarks || "")
+        .toLowerCase()
+        .includes(search)
     );
   });
 };
@@ -161,7 +175,7 @@ export const getUnassignedDevices = (devices, searchTerm = "") => {
 // Generate next available device tag
 export const generateNextDeviceTag = (deviceType, existingDevices) => {
   const deviceTypes = [
-    { label: "Headset", code: "HS" },
+    { label: "Headset", code: "H" },
     { label: "Keyboard", code: "KB" },
     { label: "Laptop", code: "LPT" },
     { label: "Monitor", code: "MN" },
@@ -181,9 +195,9 @@ export const generateNextDeviceTag = (deviceType, existingDevices) => {
 
   // Find existing tags with this prefix
   const existingTags = existingDevices
-    .filter((device) => device.deviceTag && device.deviceTag.startsWith(prefix))
+    .filter((device) => device.Tag && String(device.Tag).startsWith(prefix))
     .map((device) => {
-      const tagNumber = device.deviceTag.replace(prefix, "");
+      const tagNumber = String(device.Tag).replace(prefix, "");
       return parseInt(tagNumber, 10);
     })
     .filter((num) => !isNaN(num))

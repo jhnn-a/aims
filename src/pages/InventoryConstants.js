@@ -23,7 +23,7 @@ export const fieldLabels = {
 };
 
 export const deviceTypes = [
-  { label: "Headset", code: "HS" },
+  { label: "Headset", code: "H" },
   { label: "Keyboard", code: "KB" },
   { label: "Laptop", code: "LPT" },
   { label: "Monitor", code: "MN" },
@@ -34,15 +34,10 @@ export const deviceTypes = [
   { label: "SSD", code: "SSD" },
   { label: "UPS", code: "UPS" },
   { label: "Webcam", code: "W" },
+  { label: "Docking Station", code: "DS" },
 ];
 
-export const conditions = [
-  "BRANDNEW",
-  "GOOD",
-  "DEFECTIVE",
-  "NEEDS REPAIR",
-  "RETIRED",
-];
+export const conditions = ["BRANDNEW", "GOOD", "DEFECTIVE"];
 
 // Function to get background color based on condition
 export const getConditionColor = (condition) => {

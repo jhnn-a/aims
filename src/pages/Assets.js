@@ -8,9 +8,12 @@ import {
   getAllDevices,
   updateDevice,
   addDevice,
+  deleteDevice,
 } from "../services/deviceService"; // Database operations for devices
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
+import { getAllClients } from "../services/clientService"; // Client data operations
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
+import { useTheme } from "../context/ThemeContext"; // Theme context for dark mode
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner"; // Loading indicators
@@ -26,6 +29,13 @@ import {
   useTableFilters,
   applyFilters,
 } from "../components/TableHeaderFilters"; // Table filtering components
+import {
+  formatDateToYYYYMMDD,
+  formatDateToMMDDYYYY,
+} from "../pages/InventoryUtils"; // Date formatting utilities
+import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
+import { db } from "../utils/firebase"; // Firebase configuration
+import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export utility
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -51,12 +61,15 @@ const getConditionTextColor = (condition) => {
 const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
   if (!content) return <span>-</span>;
 
-  const shouldShowTooltip = content.length > maxLength;
+  const shouldTruncate = content.length > maxLength;
+  const displayContent = shouldTruncate
+    ? content.substring(0, maxLength) + "..."
+    : content;
 
   return (
     <span
-      className={shouldShowTooltip ? "assets-table-cell-tooltip" : ""}
-      data-tooltip={shouldShowTooltip ? content : ""}
+      className={shouldTruncate ? "assets-table-cell-tooltip" : ""}
+      data-tooltip={shouldTruncate ? content : ""}
       style={{
         display: "block",
         lineHeight: "1.4",
@@ -68,7 +81,7 @@ const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
       onClick={onClick}
       title={onClick ? "Click to view device history" : undefined}
     >
-      {content}
+      {displayContent}
     </span>
   );
 };
@@ -91,402 +104,656 @@ function DeviceFormModal({
   setTagError, // Function to set tag error messages
   onSerialToggle, // Function to handle serial number toggle
   editingDevice, // Boolean indicating if editing existing device
+  deviceTypes, // Array of device types passed from parent component
 }) {
-  // === DEVICE TYPE CONFIGURATION ===
-  // Array of device types with display labels and asset tag codes
-  const deviceTypes = [
-    { label: "Headset", code: "HS" }, // Audio equipment
-    { label: "Keyboard", code: "KB" }, // Input devices
-    { label: "Laptop", code: "LPT" }, // Portable computers
-    { label: "Monitor", code: "MN" }, // Display devices
-    { label: "Mouse", code: "M" }, // Pointing devices
-    { label: "PC", code: "PC" }, // Desktop computers
-    { label: "PSU", code: "PSU" }, // Power supply units
-    { label: "RAM", code: "RAM" }, // Memory modules
-    { label: "SSD", code: "SSD" }, // Storage devices
-    { label: "Webcam", code: "W" }, // Camera devices
-  ];
-  
+  // === THEME INTEGRATION ===
+  const { isDarkMode } = useTheme();
+
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for devices
   const conditions = [
     "BRANDNEW", // New devices never used
     "GOOD", // Devices in working condition
     "DEFECTIVE", // Broken/non-functioning devices
-    "NEEDS REPAIR", // Devices requiring maintenance
-    "RETIRED", // Devices removed from service
   ];
+
+  const isEditMode = Boolean(editingDevice);
+
+  // === MODAL STYLES ===
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      backgroundColor: isDarkMode ? "#1f2937" : "white",
+      borderRadius: 12,
+      padding: 20,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      fontFamily:
+        'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      margin: "auto",
+      boxSizing: "border-box",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: `1.2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"}`,
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#000000",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
+  // Handle keyboard navigation
+  React.useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onCancel]);
 
   // === MODAL RENDER ===
   return (
-    // Modal overlay - covers entire screen with semi-transparent background
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(34, 46, 58, 0.18)", // Semi-transparent overlay
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 2000, // High z-index to appear above other content
-      }}
-    >
-      {/* Modal content container */}
+    <div style={styles.modalOverlay}>
       <div
         style={{
-          background: "#fff",
-          padding: 28,
-          borderRadius: 14,
-          minWidth: 260,
-          maxWidth: 340,
-          boxShadow: "0 4px 16px rgba(68,95,109,0.14)", // Subtle shadow
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center", // Center all form elements
-          position: "relative",
-          border: "2px solid #70C1B3", // Brand color border
+          ...styles.inventoryModalContent,
+          border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
+          backgroundColor: isEditMode
+            ? isDarkMode
+              ? "#1e293b"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
         }}
       >
-        {/* Modal title */}
-        <h3
+        <style>{`
+          .new-acquisitions-modal input:focus,
+          .new-acquisitions-modal select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+          
+          .new-acquisitions-modal input:hover,
+          .new-acquisitions-modal select:hover {
+            border-color: #64748b;
+          }
+        `}</style>
+        <div
           style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: "#233037",
-            marginBottom: 12,
-            letterSpacing: 0.3,
-            textAlign: "center",
-            textShadow: "0 1px 4px #FFE06622",
-            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
           }}
         >
-          {editingDevice ? "Edit Device" : "Add Device"}
-        </h3>
+          {isEditMode && (
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+            </svg>
+          )}
+          <h3
+            id="modal-title"
+            style={{
+              ...styles.inventoryModalTitle,
+              color: isEditMode
+                ? "#2563eb"
+                : isDarkMode
+                ? "#3b82f6"
+                : "#2563eb",
+            }}
+          >
+            {isEditMode ? "Edit Device" : "Add Device"}
+          </h3>
+        </div>
+
+        {isEditMode && (
+          <div
+            style={{
+              backgroundColor: "#eff6ff",
+              border: "1px solid #bfdbfe",
+              borderRadius: "6px",
+              padding: "8px 12px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              color: "#1d4ed8",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Editing existing device - modify the fields below to update the
+            device information
+          </div>
+        )}
+
         <form
-          style={{
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-          }}
           onSubmit={(e) => {
             e.preventDefault();
             onSave();
           }}
+          style={{ width: "100%" }}
         >
+          {/* Row 1: Device Type and Brand */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Device Tag:
-            </label>
-            <input
-              name="deviceTag"
-              value={data.deviceTag || ""}
-              onChange={onChange}
+              <label style={styles.inventoryLabel}>Device Type:</label>
+              <select
+                name="deviceType"
+                value={(() => {
+                  // Find the matching device type from the available options
+                  const currentType = data.deviceType;
+                  if (!currentType) return "";
+
+                  // Check if it exactly matches any available device type
+                  const exactMatch = deviceTypes.find(
+                    (type) => type.label === currentType
+                  );
+                  if (exactMatch) return currentType;
+
+                  // Try case-insensitive match
+                  const matchedType = deviceTypes.find(
+                    (type) =>
+                      type.label.toLowerCase() === currentType.toLowerCase()
+                  );
+
+                  return matchedType ? matchedType.label : currentType;
+                })()}
+                onChange={onChange}
+                disabled
+                style={{
+                  ...styles.inventoryInput,
+                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                  color: isDarkMode ? "#9ca3af" : "#666",
+                  cursor: "not-allowed",
+                }}
+              >
+                <option value="">Select Device Type</option>
+                {deviceTypes.map((type) => (
+                  <option key={type.label} value={type.label}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
-              disabled
-            />
+            >
+              <label style={styles.inventoryLabel}>Brand:</label>
+              <input
+                name="brand"
+                value={data.brand || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
           </div>
+
+          {/* Row 2: Device Tag (full width when visible) */}
+          {data.deviceType && (
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Device Tag:</label>
+              <input
+                name="deviceTag"
+                value={data.deviceTag || ""}
+                onChange={onChange}
+                disabled
+                style={{
+                  ...styles.inventoryInput,
+                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                  color: isDarkMode ? "#9ca3af" : "#666",
+                  cursor: "not-allowed",
+                }}
+                placeholder="Device tag cannot be changed"
+              />
+            </div>
+          )}
+
+          {/* Row 3: Model and Condition */}
           <div
             style={{
-              marginBottom: 10,
-              width: "90%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
             }}
           >
-            <label
+            <div
               style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
             >
-              Device Type:
-            </label>
-            <select
-              name="deviceType"
-              value={data.deviceType || ""}
-              onChange={onChange}
+              <label style={styles.inventoryLabel}>Model:</label>
+              <input
+                name="model"
+                value={data.model || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
+
+            <div
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
               }}
-              disabled
             >
-              <option value="">Select Device Type</option>
-              {deviceTypes.map((type) => (
-                <option key={type.label} value={type.label}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
+              <label style={styles.inventoryLabel}>Condition:</label>
+              <select
+                name="condition"
+                value={data.condition || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select Condition</option>
+                {conditions.map((cond) => (
+                  <option key={cond} value={cond}>
+                    {cond}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Brand:
-            </label>
+
+          {/* Row 4: Acquisition Date (full width) */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Acquisition Date:</label>
             <input
-              name="brand"
-              value={data.brand || ""}
+              name="acquisitionDate"
+              type="date"
+              value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
               onChange={onChange}
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-            />
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Model:
-            </label>
-            <input
-              name="model"
-              value={data.model || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInput,
+                colorScheme: isDarkMode ? "dark" : "light",
               }}
             />
           </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Condition:
-            </label>
-            <select
-              name="condition"
-              value={data.condition || ""}
-              onChange={onChange}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
-              }}
-            >
-              <option value="">Select Condition</option>
-              {conditions.map((cond) => (
-                <option key={cond} value={cond}>
-                  {cond}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div
-            style={{
-              marginBottom: 10,
-              width: "90%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-            }}
-          >
-            <label
-              style={{
-                color: "#445F6D",
-                fontWeight: 600,
-                display: "block",
-                marginBottom: 4,
-                fontSize: 13,
-                alignSelf: "flex-start",
-              }}
-            >
-              Remarks:
-            </label>
-            <input
+
+          {/* Conditional PC/Laptop Specifications */}
+          {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+            <div style={{ gridColumn: "1 / -1", marginBottom: 20 }}>
+              <div
+                style={{
+                  border: isDarkMode
+                    ? "1px solid #4b5563"
+                    : "1px solid #d1d5db",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  background: isDarkMode ? "#374151" : "#f9fafb",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                <h4
+                  style={{
+                    margin: "0 0 16px 0",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+                  </svg>
+                  {data.deviceType} Specifications
+                </h4>
+
+                {/* Row 1: CPU Gen and RAM */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>
+                      CPU - System Unit:
+                    </label>
+                    <input
+                      type="text"
+                      name="cpuGen"
+                      value={data.cpuGen || ""}
+                      onChange={onChange}
+                      placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>RAM:</label>
+                    <select
+                      name="ram"
+                      value={data.ram || ""}
+                      onChange={onChange}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select RAM</option>
+                      <option value="4GB">4GB</option>
+                      <option value="8GB">8GB</option>
+                      <option value="16GB">16GB</option>
+                      <option value="32GB">32GB</option>
+                      <option value="64GB">64GB</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Row 2: Drive 1 and Drive 2 */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>Drive 1:</label>
+                    <input
+                      name="drive1"
+                      value={data.drive1 || ""}
+                      onChange={onChange}
+                      placeholder="e.g., 256 GB SSD"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>
+                      Drive 2 (Optional):
+                    </label>
+                    <input
+                      name="drive2"
+                      value={data.drive2 || ""}
+                      onChange={onChange}
+                      placeholder="e.g., 1 TB HDD"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+                </div>
+
+                {/* Row 3: GPU and OS */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    marginBottom: 0,
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>GPU:</label>
+                    <input
+                      name="gpu"
+                      value={data.gpu || ""}
+                      onChange={onChange}
+                      placeholder="e.g., Integrated / GTX 1650"
+                      style={styles.inventoryInput}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      ...styles.inventoryInputGroup,
+                      flex: 1,
+                      marginBottom: 0,
+                    }}
+                  >
+                    <label style={styles.inventoryLabel}>OS:</label>
+                    <select
+                      name="os"
+                      value={data.os || ""}
+                      onChange={onChange}
+                      style={styles.inventoryInput}
+                    >
+                      <option value="">Select OS</option>
+                      <option value="Windows 10">Windows 10</option>
+                      <option value="Windows 11">Windows 11</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Row 5: Remarks (full width) */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Remarks:</label>
+            <textarea
               name="remarks"
               value={data.remarks || ""}
               onChange={onChange}
+              rows={3}
               style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: 6,
-                border: "1.5px solid #445F6D",
-                fontSize: 14,
-                background: "#f7f9fb",
-                color: "#233037",
-                marginTop: 2,
-                marginBottom: 4,
-                textAlign: "center",
+                ...styles.inventoryInput,
+                resize: "vertical",
               }}
             />
           </div>
-          <div
+        </form>
+
+        {/* Buttons */}
+        <div
+          style={{
+            display: "flex",
+            gap: 16,
+            justifyContent: "flex-end",
+            marginTop: 32,
+          }}
+        >
+          <button
+            onClick={onCancel}
             style={{
-              marginTop: 12,
-              width: "90%",
-              display: "flex",
-              justifyContent: "center",
-              gap: 8,
+              padding: "12px 24px",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: 8,
+              background: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
             }}
           >
-            <button
-              type="submit"
-              style={{
-                background: "#70C1B3",
-                color: "#233037",
-                border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: "pointer",
-                marginRight: 0,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-            >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={onCancel}
-              style={{
-                background: "#445F6D",
-                color: "#fff",
-                border: "none",
-                borderRadius: 7,
-                padding: "8px 18px",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                transition: "background 0.2s, box-shadow 0.2s",
-              }}
-            >
-              Cancel
-            </button>
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!isValid}
+            style={{
+              padding: "12px 24px",
+              border: "none",
+              borderRadius: 8,
+              background: isValid ? "#2563eb" : "#9ca3af",
+              color: "white",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: isValid ? "pointer" : "not-allowed",
+              fontFamily: "inherit",
+            }}
+          >
+            Save Device
+          </button>
+        </div>
+
+        {saveError && (
+          <div
+            style={{
+              color: "#e57373",
+              marginTop: 16,
+              fontWeight: 600,
+              textAlign: "center",
+              fontSize: 14,
+            }}
+          >
+            {saveError}
           </div>
-          {saveError && (
-            <div
-              style={{
-                color: "#F25F5C",
-                marginTop: 8,
-                fontWeight: 600,
-                textAlign: "center",
-                fontSize: 13,
-              }}
-            >
-              {saveError}
-            </div>
-          )}
-        </form>
+        )}
       </div>
     </div>
   );
@@ -495,21 +762,145 @@ function DeviceFormModal({
 // === MAIN ASSETS PAGE COMPONENT ===
 // This component manages the display and operations for assigned devices
 function Assets() {
+  // === THEME HOOK ===
+  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+
+  // === DYNAMIC STYLES OBJECT ===
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: `1.2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"}`,
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#000000",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   // === NOTIFICATION HOOKS ===
-  const { showSuccess, showError, showWarning, showInfo } = useSnackbar(); // User feedback notifications
-  
+  // Added showUndoNotification for bulk delete undo snackbar (mirrors Inventory.js usage)
+  const {
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showUndoNotification,
+  } = useSnackbar(); // User feedback notifications including undo
+
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of assigned devices from database
   const [employees, setEmployees] = useState([]); // List of all employees for reassignment
+  const [clients, setClients] = useState([]); // List of all clients for department resolution
   const [loading, setLoading] = useState(true); // Main page loading state
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
-  
+
+  // === UTILITY FUNCTIONS ===
+  // Helper function to extract first and last name only for document forms
+  const getFirstLastName = (fullName) => {
+    if (!fullName) return "Employee";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0]; // Only first name
+    } else if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+    }
+    return "Employee";
+  };
+
   // === DEVICE FORM STATE ===
   const [form, setForm] = useState({}); // Form data for device operations
   const [tagError, setTagError] = useState(""); // Asset tag validation errors
   const [saveError, setSaveError] = useState(""); // Form save error messages
   const [useSerial, setUseSerial] = useState(false); // Toggle for using serial as asset tag
-  
+
   // === DEVICE ASSIGNMENT STATE ===
   const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee
   const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility
@@ -517,16 +908,23 @@ function Assets() {
   const [showUnassignModal, setShowUnassignModal] = useState(false); // Unassignment modal visibility
   const [unassignDevice, setUnassignDevice] = useState(null); // Device being unassigned
   const [unassignReason, setUnassignReason] = useState(""); // Reason for device unassignment
-  
+
   // === SEARCH AND SELECTION STATE ===
   const [search, setSearch] = useState(""); // Global search across all device fields
   const [selectedDeviceIds, setSelectedDeviceIds] = useState([]); // Device IDs selected for bulk operations
-  
+
   // === BULK OPERATIONS STATE ===
   const [bulkReassignModalOpen, setBulkReassignModalOpen] = useState(false); // Bulk reassignment modal
   const [bulkUnassignModalOpen, setBulkUnassignModalOpen] = useState(false); // Bulk unassignment modal
   const [bulkAssignSearch, setBulkAssignSearch] = useState(""); // Employee search in bulk assign modal
   const [bulkUnassignReason, setBulkUnassignReason] = useState(""); // Reason for bulk unassignment
+  // Bulk delete state (deployed assets)
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleteProgress, setBulkDeleteProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const UNDO_WINDOW_MS = 5000; // Undo window for deletion
 
   // === TABLE FILTERING SYSTEM ===
   // Advanced filtering system for table headers with multiple filter types
@@ -553,32 +951,36 @@ function Assets() {
     { label: "UPS", code: "UPS" }, // Uninterruptible power supplies
     { label: "Webcam", code: "W" }, // Camera devices
   ];
-  
+
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for asset tracking
   const conditions = [
     "BRANDNEW", // Never used devices
     "GOOD", // Working condition devices
     "DEFECTIVE", // Non-functional devices
-    "NEEDS REPAIR", // Devices requiring maintenance
-    "RETIRED", // Devices removed from service
   ];
-  
+
   // === TRANSFER AND PROGRESS STATE ===
-  const [selectedTransferEmployee, setSelectedTransferEmployee] = useState(null); // Employee selected for device transfer
+  const [selectedTransferEmployee, setSelectedTransferEmployee] =
+    useState(null); // Employee selected for device transfer
   const [progress, setProgress] = useState(0); // Progress tracking for bulk operations
   const [generatingForm, setGeneratingForm] = useState(false); // Progress indicator visibility
   const [unassignGenerating, setUnassignGenerating] = useState(false); // Unassign operation in progress
   const [unassignProgress, setUnassignProgress] = useState(0); // Unassign progress percentage
   const [bulkUnassignWarning, setBulkUnassignWarning] = useState(""); // Warning messages for bulk unassign
-  
+
+  // === SELECTION WARNING STATE ===
+  const [showSelectionWarning, setShowSelectionWarning] = useState(false); // Selection warning modal visibility
+  const [selectionWarningMessage, setSelectionWarningMessage] = useState(""); // Warning message content
+
   // === PAGINATION STATE ===
   const [currentPage, setCurrentPage] = useState(1); // Current page number for device table
   const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
 
   // === DEVICE HISTORY STATE ===
   const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null); // Device selected for history view
 
   // === COMPONENT INITIALIZATION ===
   // Load devices and employees data when component mounts
@@ -603,13 +1005,13 @@ function Assets() {
     };
 
     // Add event listeners for focus and visibility changes
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup event listeners
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -631,11 +1033,12 @@ function Assets() {
     if (!isAutoRefresh) {
       setLoading(true);
     }
-    
+
     try {
-      const [allDevices, allEmployees] = await Promise.all([
+      const [allDevices, allEmployees, allClients] = await Promise.all([
         getAllDevices(), // Fetch all devices from database
         getAllEmployees(), // Fetch all employees for assignment dropdowns
+        getAllClients(), // Fetch all clients for department resolution
       ]);
       // Filter to only show assigned devices (devices with assignedTo value)
       const assignedDevices = allDevices.filter(
@@ -643,6 +1046,7 @@ function Assets() {
       );
       setDevices(assignedDevices);
       setEmployees(allEmployees);
+      setClients(allClients);
     } catch (error) {
       showError(
         "Failed to load devices and employees. Please refresh the page."
@@ -657,6 +1061,31 @@ function Assets() {
   const getEmployeeName = (id) => {
     const emp = employees.find((e) => e.id === id);
     return emp ? emp.fullName : id || "";
+  };
+
+  // Get client name from client ID
+  const getClientName = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.clientName : "";
+  };
+
+  // Get client name for assigned employee
+  const getEmployeeClient = (employeeId) => {
+    if (!employeeId) return "";
+    const employee = employees.find((emp) => emp.id === employeeId);
+    if (!employee || !employee.clientId) return "";
+    return getClientName(employee.clientId);
+  };
+
+  // Get department/client field for forms (prioritizes client name if available)
+  const getDepartmentForForm = (employee) => {
+    if (!employee) return "";
+
+    // If employee has clientId, use client name; otherwise use department field
+    const clientName = employee.clientId
+      ? getClientName(employee.clientId)
+      : "";
+    return clientName || employee.department || "";
   };
 
   const handleEdit = (device) => {
@@ -699,6 +1128,121 @@ function Assets() {
     setSelectedDeviceForHistory(null);
   };
 
+  // === EXPORT HANDLER ===
+  // Exports the currently filtered deployed assets list to Excel
+  const handleExportToExcel = async () => {
+    try {
+      await exportInventoryToExcel({ devices: filteredDevices, employees });
+      showSuccess("Deployed assets exported successfully!");
+    } catch (err) {
+      console.error("Export failed:", err);
+      showError("Failed to export deployed assets. Please try again.");
+    }
+  };
+
+  // === UNITSPECS SYNC FUNCTIONS ===
+  // Helper functions to extract data for UnitSpecs
+  const extractCpuGen = (cpuString) => {
+    if (!cpuString) return "";
+    const match = cpuString.match(/(i[357])/i);
+    return match ? match[1].toLowerCase() : "";
+  };
+
+  const extractCpuModel = (cpuString) => {
+    if (!cpuString) return "";
+    return cpuString
+      .replace(/(i[357])/i, "")
+      .replace(/^[\s-]+/, "")
+      .trim();
+  };
+
+  const extractRamSize = (ramString) => {
+    if (!ramString) return "";
+    const match = ramString.match(/(\d+)/);
+    return match ? match[1] : "";
+  };
+
+  // Function to sync PC/Laptop data to UnitSpecs
+  const syncToUnitSpecs = async (deviceData, targetCollection = null) => {
+    try {
+      // Only sync PC and Laptop devices
+      if (
+        !deviceData.deviceType ||
+        !["PC", "Laptop", "Desktop", "Notebook"].includes(deviceData.deviceType)
+      ) {
+        return; // Skip non-PC/Laptop devices
+      }
+
+      // Map inventory fields to UnitSpecs format
+      const unitSpecData = {
+        Tag: deviceData.deviceTag || "",
+        deviceType: deviceData.deviceType || "",
+        category: deviceData.category || "",
+        cpuGen: extractCpuGen(deviceData.cpuGen || deviceData.cpu || ""),
+        cpuModel: extractCpuModel(deviceData.cpuGen || deviceData.cpu || ""),
+        CPU: deviceData.cpuGen || deviceData.cpu || "",
+        RAM: extractRamSize(deviceData.ram) || "",
+        Drive: deviceData.drive1 || deviceData.mainDrive || "",
+        GPU: deviceData.gpu || "",
+        Status: deviceData.condition || "",
+        OS: deviceData.os || deviceData.operatingSystem || "",
+        Remarks: deviceData.remarks || "",
+        lifespan: deviceData.lifespan || "",
+      };
+
+      // Determine target collection based on assignment status or explicit target
+      let collection = targetCollection;
+      if (!collection) {
+        collection =
+          deviceData.assignedTo && deviceData.assignedTo.trim() !== ""
+            ? "DeployedUnits"
+            : "InventoryUnits";
+      }
+
+      // Add to appropriate UnitSpecs collection
+      await setDoc(doc(db, collection, deviceData.deviceTag), unitSpecData);
+
+      console.log(
+        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection}`
+      );
+    } catch (error) {
+      console.error("Error syncing to UnitSpecs:", error);
+      // Don't throw error to prevent blocking main operation
+    }
+  };
+
+  // Helper function to move device between UnitSpecs collections
+  const moveDeviceInUnitSpecs = async (
+    deviceTag,
+    fromCollection,
+    toCollection
+  ) => {
+    try {
+      // Get the device data from the source collection
+      const sourceDocRef = doc(db, fromCollection, deviceTag);
+      const sourceDoc = await getDoc(sourceDocRef);
+
+      if (sourceDoc.exists()) {
+        const deviceData = sourceDoc.data();
+
+        // Add to target collection
+        await setDoc(doc(db, toCollection, deviceTag), deviceData);
+
+        // Remove from source collection
+        await deleteDoc(sourceDocRef);
+
+        console.log(
+          `Moved ${deviceTag} from ${fromCollection} to ${toCollection} in UnitSpecs`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error moving device in UnitSpecs from ${fromCollection} to ${toCollection}:`,
+        error
+      );
+    }
+  };
+
   const handleUnassign = (device) => {
     setUnassignDevice(device);
     setUnassignReason("working");
@@ -716,7 +1260,7 @@ function Assets() {
     }
     try {
       const { id, ...deviceWithoutId } = unassignDevice;
-      await updateDevice(unassignDevice.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: "",
         assignmentDate: "",
@@ -727,7 +1271,20 @@ function Assets() {
           (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
             ? ""
             : deviceWithoutId.remarks,
-      });
+      };
+
+      await updateDevice(unassignDevice.id, updatedDevice);
+
+      // Sync to UnitSpecs InventoryUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "InventoryUnits");
+
+      // Move from DeployedUnits to InventoryUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        unassignDevice.deviceTag,
+        "DeployedUnits",
+        "InventoryUnits"
+      );
+
       await logDeviceHistory({
         employeeId: unassignDevice.assignedTo,
         deviceId: unassignDevice.id,
@@ -787,6 +1344,16 @@ function Assets() {
             return false;
           }
           delete filtersToApply.assignedTo;
+        }
+
+        // Handle client filter separately since it needs client name matching
+        if (filtersToApply.client) {
+          const clientFilter = filtersToApply.client.toLowerCase();
+          const clientName = getEmployeeClient(device.assignedTo);
+          if (!clientName.toLowerCase().includes(clientFilter)) {
+            return false;
+          }
+          delete filtersToApply.client;
         }
 
         // Apply remaining filters
@@ -888,14 +1455,12 @@ function Assets() {
     if (firstDevice && device.assignedTo !== firstDevice.assignedTo) {
       const firstName = getEmployeeName(firstDevice.assignedTo);
       const thisName = getEmployeeName(device.assignedTo);
-      window.alert(
-        `You can only select devices assigned to the same employee for bulk unassign.\nFirst selected: ${
+      setSelectionWarningMessage(
+        `You can only select devices assigned to the same employee for bulk operations.\n\nFirst selected: ${
           firstName || "Unassigned"
-        }\nTried: ${thisName || "Unassigned"}`
+        }\nTried to select: ${thisName || "Unassigned"}`
       );
-      setBulkUnassignWarning(
-        "You can only select devices assigned to the same employee for bulk unassign."
-      );
+      setShowSelectionWarning(true);
       return;
     }
     setBulkUnassignWarning("");
@@ -928,6 +1493,85 @@ function Assets() {
     setBulkUnassignReason("working");
   };
 
+  // Bulk Delete Handlers
+  const handleBulkDelete = () => {
+    if (!selectedDeviceIds.length) return;
+    setShowBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setShowBulkDeleteConfirm(false);
+    if (!selectedDeviceIds.length) return;
+    try {
+      const devicesToDelete = devices.filter((d) =>
+        selectedDeviceIds.includes(d.id)
+      );
+      setBulkDeleteProgress({ current: 0, total: devicesToDelete.length });
+      for (let i = 0; i < devicesToDelete.length; i++) {
+        const device = devicesToDelete[i];
+        try {
+          await logDeviceHistory({
+            employeeId: device.assignedTo || null,
+            employeeName: device.assignedToName || null,
+            deviceId: device.id,
+            deviceTag: device.deviceTag,
+            action: "deleted",
+            date: new Date(),
+          });
+        } catch (err) {
+          console.error(
+            "Failed to log deletion history for",
+            device.deviceTag,
+            err
+          );
+        }
+        await deleteDevice(device.id);
+        setBulkDeleteProgress({
+          current: i + 1,
+          total: devicesToDelete.length,
+        });
+      }
+      setDevices((prev) =>
+        prev.filter((d) => !selectedDeviceIds.includes(d.id))
+      );
+      const deletedCount = devicesToDelete.length;
+      showUndoNotification(
+        `${deletedCount} deployed device(s) deleted`,
+        async () => {
+          try {
+            for (const deviceData of devicesToDelete) {
+              const { id: originalId, ...rest } = deviceData;
+              await setDoc(doc(db, "devices", originalId), rest);
+              await logDeviceHistory({
+                employeeId: deviceData.assignedTo || null,
+                employeeName: deviceData.assignedToName || null,
+                deviceId: originalId,
+                deviceTag: deviceData.deviceTag,
+                action: "restored",
+                date: new Date(),
+              });
+            }
+            // Refresh devices list after restoration to keep UI in sync
+            await loadDevicesAndEmployees();
+            showSuccess(`${deletedCount} device(s) restored`);
+          } catch (undoErr) {
+            console.error("Undo restore failed:", undoErr);
+            showError("Failed to restore some devices");
+          }
+        },
+        UNDO_WINDOW_MS
+      );
+      setSelectedDeviceIds([]);
+      setBulkDeleteProgress({ current: 0, total: 0 });
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      showError("Failed to delete devices.");
+      setBulkDeleteProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteConfirm(false);
+
   const confirmBulkReassign = async (emp) => {
     for (const id of selectedDeviceIds) {
       const device = devices.find((d) => d.id === id);
@@ -944,11 +1588,17 @@ function Assets() {
         });
       }
       const { id: _id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: emp.id,
         assignmentDate: new Date().toISOString().slice(0, 10),
-      });
+      };
+
+      await updateDevice(device.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
       await logDeviceHistory({
         employeeId: emp.id,
         deviceId: device.id,
@@ -1020,7 +1670,7 @@ function Assets() {
     // Update all devices and log history
     for (const device of selected) {
       const { id: _id, ...deviceWithoutId } = device;
-      await updateDevice(device.id, {
+      const updatedDevice = {
         ...deviceWithoutId,
         assignedTo: "",
         assignmentDate: "",
@@ -1030,7 +1680,20 @@ function Assets() {
           (deviceWithoutId.remarks || "").toLowerCase() === "temporary deployed"
             ? ""
             : deviceWithoutId.remarks,
-      });
+      };
+
+      await updateDevice(device.id, updatedDevice);
+
+      // Sync to UnitSpecs InventoryUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "InventoryUnits");
+
+      // Move from DeployedUnits to InventoryUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        device.deviceTag,
+        "DeployedUnits",
+        "InventoryUnits"
+      );
+
       await logDeviceHistory({
         employeeId: device.assignedTo,
         deviceId: device.id,
@@ -1107,20 +1770,20 @@ function Assets() {
 
       // Data object: must match template placeholders exactly
       const data = {
-        transferor_name: transferor.fullName || "",
-        transferor_department: transferor.department || "",
+        transferor_name: getFirstLastName(transferor.fullName) || "",
+        transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
-        transferee_name: transferee.fullName || "",
-        transferee_department: transferee.department || "",
+        transferee_name: getFirstLastName(transferee.fullName) || "",
+        transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
           : "",
         transferee_position: transferee.position || "",
         devices: devices.map((device) => ({
-          TransferDate: formatTransferDate(device.assignmentDate || new Date()),
+          TransferDate: formatTransferDate(new Date()), // Use current date for transfer
           deviceType: device.deviceType || "",
           brand: device.brand || "",
           deviceTag: device.deviceTag || "",
@@ -1200,18 +1863,18 @@ function Assets() {
       const isDefective = reason === "defective";
       // If defective, set device condition to 'Defective' in docx
       const docxCondition = isDefective ? "Defective" : device.condition || "";
+      // Use current date for return document (not original assignment date)
+      const currentDate = formatTransferDate(new Date());
       const data = {
-        name: employee.fullName || "",
-        department: employee.department || "",
+        name: getFirstLastName(employee.fullName) || "",
+        department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
           ? formatTransferDate(employee.dateHired)
           : "",
         devices: [
           {
-            assignmentDate: device.assignmentDate
-              ? formatTransferDate(device.assignmentDate)
-              : "",
+            assignmentDate: currentDate, // Use current date for return
             deviceType: device.deviceType || "",
             brand: device.brand || "",
             deviceTag: device.deviceTag || "",
@@ -1232,9 +1895,9 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = employee.fullName
-        ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
-        : "Employee";
+      const employeeName = getFirstLastName(employee.fullName)
+        .replace(/[^a-zA-Z0-9\s-]/g, "")
+        .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
       const link = document.createElement("a");
       link.href = URL.createObjectURL(out);
@@ -1273,17 +1936,17 @@ function Assets() {
       const isDefective = reason === "defective";
       // If defective, set device condition to 'Defective' in docx
       const docxCondition = isDefective ? "Defective" : "";
+      // Use current date for return document (not original assignment date)
+      const currentDate = formatTransferDate(new Date());
       const data = {
-        name: employee.fullName || "",
-        department: employee.department || "",
+        name: getFirstLastName(employee.fullName) || "",
+        department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
           ? formatTransferDate(employee.dateHired)
           : "",
         devices: devices.map((device) => ({
-          assignmentDate: device.assignmentDate
-            ? formatTransferDate(device.assignmentDate)
-            : "",
+          assignmentDate: currentDate, // Use current date for return
           deviceType: device.deviceType || "",
           brand: device.brand || "",
           deviceTag: device.deviceTag || "",
@@ -1303,9 +1966,9 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = employee.fullName
-        ? employee.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
-        : "Employee";
+      const employeeName = getFirstLastName(employee.fullName)
+        .replace(/[^a-zA-Z0-9\s-]/g, "")
+        .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
       const link = document.createElement("a");
       link.href = URL.createObjectURL(out);
@@ -1342,8 +2005,8 @@ function Assets() {
           }
           
           .assets-table-cell-tag {
-            max-width: 120px;
-            min-width: 100px;
+            max-width: 200px;
+            min-width: 180px;
           }
           
           .assets-table-cell-model {
@@ -1367,8 +2030,8 @@ function Assets() {
           }
           
           .assets-table-cell-remarks {
-            max-width: 180px;
-            min-width: 150px;
+            max-width: 120px;
+            min-width: 100px;
           }
           
           /* Tooltip styles for truncated content */
@@ -1412,8 +2075,8 @@ function Assets() {
           /* Responsive adjustments */
           @media (max-width: 1200px) {
             .assets-table-cell-tag {
-              max-width: 100px;
-              min-width: 80px;
+              max-width: 160px;
+              min-width: 140px;
             }
             
             .assets-table-cell-model {
@@ -1437,8 +2100,8 @@ function Assets() {
             }
             
             .assets-table-cell-remarks {
-              max-width: 150px;
-              min-width: 120px;
+              max-width: 100px;
+              min-width: 80px;
             }
           }
         `}
@@ -1454,6 +2117,7 @@ function Assets() {
             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           overflow: "hidden",
           boxSizing: "border-box",
+          color: isDarkMode ? "#f3f4f6" : "#222e3a",
         }}
       >
         {/* Fixed Header - Search bar and buttons section */}
@@ -1463,8 +2127,8 @@ function Assets() {
             top: 0,
             zIndex: 10,
             flexShrink: 0,
-            background: "rgb(255, 255, 255)",
-            borderBottom: "1px solid #e5e7eb",
+            background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+            borderBottom: `1px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
           }}
         >
           <div
@@ -1472,7 +2136,7 @@ function Assets() {
               display: "flex",
               alignItems: "center",
               padding: "16px 20px",
-              borderBottom: "1px solid #e5e7eb",
+              borderBottom: `1px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
               gap: "12px",
               flexWrap: "wrap",
             }}
@@ -1482,9 +2146,9 @@ function Assets() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                background: "#f9fafb",
+                background: isDarkMode ? "#374151" : "#f9fafb",
                 borderRadius: "6px",
-                border: "1px solid #d1d5db",
+                border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                 padding: "10px 14px",
                 flex: 1,
                 maxWidth: "400px",
@@ -1494,7 +2158,10 @@ function Assets() {
               <svg
                 width="18"
                 height="18"
-                style={{ color: "#6b7280", opacity: 0.8 }}
+                style={{
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  opacity: 0.8,
+                }}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1510,12 +2177,15 @@ function Assets() {
                 placeholder="Search assigned assets..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className={
+                  isDarkMode ? "search-input-dark" : "search-input-light"
+                }
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
                   fontSize: "14px",
-                  color: "#374151",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
                   padding: "0 0 0 10px",
                   width: "100%",
                   fontWeight: 400,
@@ -1532,14 +2202,78 @@ function Assets() {
               }}
             >
               <button
+                disabled={
+                  !selectedDeviceIds.length || bulkDeleteProgress.total > 0
+                }
+                onClick={handleBulkDelete}
+                style={{
+                  padding: "9px 16px",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                  borderRadius: "6px",
+                  background:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "#dc2626"
+                      : isDarkMode
+                      ? "#374151"
+                      : "#f3f4f6",
+                  color:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "#fff"
+                      : isDarkMode
+                      ? "#6b7280"
+                      : "#9ca3af",
+                  cursor:
+                    selectedDeviceIds.length && bulkDeleteProgress.total === 0
+                      ? "pointer"
+                      : "not-allowed",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  position: "relative",
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <polyline points="3,6 5,6 21,6"></polyline>
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                </svg>
+                Delete
+                {bulkDeleteProgress.total > 0 && (
+                  <span style={{ fontSize: 11, marginLeft: 6 }}>
+                    {bulkDeleteProgress.current}/{bulkDeleteProgress.total}
+                  </span>
+                )}
+              </button>
+              <button
                 disabled={!selectedDeviceIds.length}
                 onClick={handleBulkReassign}
                 style={{
                   padding: "9px 16px",
-                  border: "1px solid #d1d5db",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                   borderRadius: "6px",
-                  background: selectedDeviceIds.length ? "#3b82f6" : "#f3f4f6",
-                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  background: selectedDeviceIds.length
+                    ? "#3b82f6"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6",
+                  color: selectedDeviceIds.length
+                    ? "#fff"
+                    : isDarkMode
+                    ? "#6b7280"
+                    : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -1571,10 +2305,18 @@ function Assets() {
                 onClick={handleBulkUnassign}
                 style={{
                   padding: "9px 16px",
-                  border: "1px solid #d1d5db",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                   borderRadius: "6px",
-                  background: selectedDeviceIds.length ? "#ef4444" : "#f3f4f6",
-                  color: selectedDeviceIds.length ? "#fff" : "#9ca3af",
+                  background: selectedDeviceIds.length
+                    ? "#ef4444"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f3f4f6",
+                  color: selectedDeviceIds.length
+                    ? "#fff"
+                    : isDarkMode
+                    ? "#6b7280"
+                    : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -1603,6 +2345,42 @@ function Assets() {
                 </svg>
                 Unassign
               </button>
+              <button
+                onClick={handleExportToExcel}
+                style={{
+                  padding: "9px 16px",
+                  border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                  borderRadius: "6px",
+                  background: isDarkMode ? "#374151" : "#f3f4f6",
+                  color: isDarkMode ? "#e5e7eb" : "#374151",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  transition: "all 0.2s",
+                  whiteSpace: "nowrap",
+                  minWidth: "80px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+                title="Export current list to Excel"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export
+              </button>
             </div>
           </div>
         </div>
@@ -1611,8 +2389,8 @@ function Assets() {
         {hasActiveHeaderFilters && (
           <div
             style={{
-              background: "#f0f9ff",
-              border: "1px solid #0ea5e9",
+              background: isDarkMode ? "#1e293b" : "#f0f9ff",
+              border: `1px solid ${isDarkMode ? "#475569" : "#0ea5e9"}`,
               borderRadius: "6px",
               padding: "12px 16px",
               margin: "0 24px 16px 24px",
@@ -1629,7 +2407,7 @@ function Assets() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                color: "#0369a1",
+                color: isDarkMode ? "#60a5fa" : "#0369a1",
               }}
             >
               <svg
@@ -1658,13 +2436,13 @@ function Assets() {
                     key={key}
                     style={{
                       display: "inline-block",
-                      background: "#ffffff",
-                      border: "1px solid #0ea5e9",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      border: `1px solid ${isDarkMode ? "#60a5fa" : "#0ea5e9"}`,
                       borderRadius: "4px",
                       padding: "4px 8px",
                       margin: "0 4px 4px 0",
                       fontSize: "12px",
-                      color: "#0369a1",
+                      color: isDarkMode ? "#60a5fa" : "#0369a1",
                     }}
                   >
                     {key}: {value}
@@ -1677,10 +2455,10 @@ function Assets() {
               style={{
                 padding: "6px 12px",
                 fontSize: "12px",
-                border: "1px solid #0ea5e9",
+                border: `1px solid ${isDarkMode ? "#60a5fa" : "#0ea5e9"}`,
                 borderRadius: "4px",
-                background: "#ffffff",
-                color: "#0369a1",
+                background: isDarkMode ? "#374151" : "#ffffff",
+                color: isDarkMode ? "#60a5fa" : "#0369a1",
                 fontFamily:
                   "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 cursor: "pointer",
@@ -1691,12 +2469,12 @@ function Assets() {
                 gap: "4px",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#0ea5e9";
-                e.target.style.color = "#ffffff";
+                e.target.style.background = isDarkMode ? "#60a5fa" : "#0ea5e9";
+                e.target.style.color = isDarkMode ? "#111827" : "#ffffff";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "#ffffff";
-                e.target.style.color = "#0369a1";
+                e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
+                e.target.style.color = isDarkMode ? "#60a5fa" : "#0369a1";
               }}
             >
               <svg
@@ -1720,7 +2498,7 @@ function Assets() {
         {/* Scrollable Table Container */}
         <div
           style={{
-            background: "#fff",
+            background: isDarkMode ? "#1f2937" : "#fff",
             border: "none",
             flex: "1",
             overflow: "auto",
@@ -1736,30 +2514,36 @@ function Assets() {
               style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 fontSize: "14px",
-                border: "1px solid #d1d5db",
+                border: `1px solid ${isDarkMode ? "#374151" : "#d1d5db"}`,
               }}
             >
-              <thead style={{ position: "sticky", top: "0", zIndex: "5" }}>
+              <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row with Column Titles */}
                 <tr
                   style={{
-                    background: "rgb(255, 255, 255)",
-                    borderBottom: "1px solid #e5e7eb",
+                    background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                    borderBottom: `1px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
                   }}
                 >
                   <th
                     style={{
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "40px",
                       textAlign: "center",
                       fontWeight: 500,
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     <input
@@ -1772,33 +2556,40 @@ function Assets() {
                       style={{
                         width: 16,
                         height: 16,
-                        accentColor: "#3b82f6",
-                        border: "1px solid #d1d5db",
+                        accentColor: "#6b7280",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#d1d5db"
+                        }`,
                         borderRadius: "3px",
+                        colorScheme: isDarkMode ? "dark" : "light",
                       }}
                       title="Select all"
                     />
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     #
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1806,16 +2597,20 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Device Tag
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1823,16 +2618,20 @@ function Assets() {
                       width: "130px",
                       maxWidth: "130px",
                       minWidth: "110px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Type
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1840,16 +2639,20 @@ function Assets() {
                       width: "150px",
                       maxWidth: "150px",
                       minWidth: "120px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Brand
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1857,16 +2660,20 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Model
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1874,16 +2681,41 @@ function Assets() {
                       width: "200px",
                       maxWidth: "200px",
                       minWidth: "180px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Assigned To
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      textAlign: "center",
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
+                    }}
+                  >
+                    Client
+                  </th>
+                  <th
+                    style={{
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      fontWeight: 500,
+                      padding: "8px 16px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1891,16 +2723,20 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Date Assigned
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1908,16 +2744,20 @@ function Assets() {
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "70px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Condition
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
@@ -1925,21 +2765,29 @@ function Assets() {
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Remarks
                   </th>
                   <th
                     style={{
-                      color: "#374151",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
                       fontWeight: 500,
                       padding: "8px 16px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
                       fontSize: "12px",
                       textTransform: "uppercase",
                       letterSpacing: "0.05em",
                       width: "100px",
+                      position: "sticky",
+                      top: "0",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      zIndex: 10,
                     }}
                   >
                     Actions
@@ -1949,16 +2797,22 @@ function Assets() {
                 {/* Filter Row */}
                 <tr
                   style={{
-                    background: "#f8fafc",
-                    borderBottom: "2px solid #e5e7eb",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
+                    borderBottom: `2px solid ${
+                      isDarkMode ? "#4b5563" : "#e5e7eb"
+                    }`,
                   }}
                 >
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "40px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {hasActiveHeaderFilters && (
@@ -1967,22 +2821,30 @@ function Assets() {
                         style={{
                           padding: "2px 4px",
                           fontSize: "10px",
-                          border: "1px solid #dc2626",
+                          border: `1px solid ${
+                            isDarkMode ? "#ef4444" : "#dc2626"
+                          }`,
                           borderRadius: "3px",
-                          background: "#ffffff",
-                          color: "#dc2626",
+                          background: isDarkMode ? "#374151" : "#ffffff",
+                          color: isDarkMode ? "#ef4444" : "#dc2626",
                           fontFamily:
                             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           cursor: "pointer",
                           transition: "all 0.2s",
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.background = "#dc2626";
+                          e.target.style.background = isDarkMode
+                            ? "#ef4444"
+                            : "#dc2626";
                           e.target.style.color = "#ffffff";
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.background = "#ffffff";
-                          e.target.style.color = "#dc2626";
+                          e.target.style.background = isDarkMode
+                            ? "#374151"
+                            : "#ffffff";
+                          e.target.style.color = isDarkMode
+                            ? "#ef4444"
+                            : "#dc2626";
                         }}
                         title="Clear all filters"
                       >
@@ -1993,8 +2855,12 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {/* No filter for row number */}
@@ -2002,11 +2868,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "120px",
                       maxWidth: "120px",
                       minWidth: "100px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2020,11 +2890,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "130px",
                       maxWidth: "130px",
                       minWidth: "110px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DropdownFilter
@@ -2039,11 +2913,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "150px",
                       maxWidth: "150px",
                       minWidth: "120px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2055,11 +2933,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "180px",
                       maxWidth: "180px",
                       minWidth: "150px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2071,11 +2953,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "200px",
                       maxWidth: "200px",
                       minWidth: "180px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2089,11 +2975,36 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
-                      width: "120px",
-                      maxWidth: "120px",
-                      minWidth: "100px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      width: "130px",
+                      maxWidth: "130px",
+                      minWidth: "110px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
+                    }}
+                  >
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={clients.map((client) => client.clientName)}
+                      placeholder="All Clients"
+                    />
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 12px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "90px",
+                      textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DateFilter
@@ -2107,11 +3018,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
-                      width: "120px",
-                      maxWidth: "120px",
-                      minWidth: "70px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "65px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <DropdownFilter
@@ -2126,11 +3041,15 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
-                      width: "180px",
-                      maxWidth: "180px",
-                      minWidth: "150px",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
+                      width: "110px",
+                      maxWidth: "110px",
+                      minWidth: "90px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     <TextFilter
@@ -2142,9 +3061,13 @@ function Assets() {
                   <th
                     style={{
                       padding: "8px 12px",
-                      border: "1px solid #d1d5db",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
                       width: "100px",
                       textAlign: "center",
+                      position: "sticky",
+                      top: "40px",
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      zIndex: 10,
                     }}
                   >
                     {/* No filter for actions */}
@@ -2154,21 +3077,23 @@ function Assets() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="11" style={{ padding: "0", border: "none" }}>
+                    <td colSpan="12" style={{ padding: "0", border: "none" }}>
                       <TableLoadingSpinner text="Loading assigned assets..." />
                     </td>
                   </tr>
                 ) : currentPageDevices.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="11"
+                      colSpan="12"
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
-                        color: "#9ca3af",
+                        color: isDarkMode ? "#6b7280" : "#9ca3af",
                         fontSize: "14px",
                         fontWeight: "400",
-                        border: "1px solid #d1d5db",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#d1d5db"
+                        }`,
                       }}
                     >
                       {search
@@ -2187,11 +3112,17 @@ function Assets() {
                         style={{
                           background:
                             index % 2 === 0
-                              ? "rgb(250, 250, 252)"
+                              ? isDarkMode
+                                ? "#1f2937"
+                                : "rgb(250, 250, 252)"
+                              : isDarkMode
+                              ? "#111827"
                               : "rgb(240, 240, 243)",
                           cursor: "pointer",
                           transition: "background 0.15s",
-                          borderBottom: "1px solid #f3f4f6",
+                          borderBottom: `1px solid ${
+                            isDarkMode ? "#374151" : "#f3f4f6"
+                          }`,
                         }}
                         onClick={(e) => {
                           if (e.target.type !== "checkbox") {
@@ -2200,17 +3131,23 @@ function Assets() {
                         }}
                         onMouseEnter={(e) => {
                           if (index % 2 === 0) {
-                            e.currentTarget.style.background =
-                              "rgb(235, 235, 240)";
+                            e.currentTarget.style.background = isDarkMode
+                              ? "#374151"
+                              : "rgb(235, 235, 240)";
                           } else {
-                            e.currentTarget.style.background =
-                              "rgb(225, 225, 235)";
+                            e.currentTarget.style.background = isDarkMode
+                              ? "#4b5563"
+                              : "rgb(225, 225, 235)";
                           }
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background =
                             index % 2 === 0
-                              ? "rgb(250, 250, 252)"
+                              ? isDarkMode
+                                ? "#1f2937"
+                                : "rgb(250, 250, 252)"
+                              : isDarkMode
+                              ? "#111827"
                               : "rgb(240, 240, 243)";
                         }}
                       >
@@ -2218,7 +3155,9 @@ function Assets() {
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                           }}
                         >
                           <input
@@ -2229,20 +3168,25 @@ function Assets() {
                             style={{
                               width: 16,
                               height: 16,
-                              accentColor: "#3b82f6",
-                              border: "1px solid #d1d5db",
+                              accentColor: "#6b7280",
+                              border: `1px solid ${
+                                isDarkMode ? "#6b7280" : "#d1d5db"
+                              }`,
                               borderRadius: "3px",
+                              colorScheme: isDarkMode ? "dark" : "light",
                             }}
                             title="Select device"
                           />
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#9ca3af" : "#6b7280",
                             fontSize: "14px",
                             fontWeight: "500",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             textAlign: "center",
                           }}
                         >
@@ -2251,15 +3195,19 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-tag"
                           style={{
-                            padding: "12px 16px",
-                            color: "rgb(107, 114, 128)",
+                            padding: "8px 12px",
+                            color: isDarkMode
+                              ? "#d1d5db"
+                              : "rgb(107, 114, 128)",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
                         >
-                          {renderCellWithTooltip(device.deviceTag, 15, (e) => {
+                          {renderCellWithTooltip(device.deviceTag, 35, (e) => {
                             e.stopPropagation();
                             handleShowDeviceHistory(device);
                           })}
@@ -2267,10 +3215,12 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-type"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2280,10 +3230,12 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-brand"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2293,10 +3245,12 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-model"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2306,10 +3260,12 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-assigned"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -2322,13 +3278,36 @@ function Assets() {
                         <td
                           className="assets-table-cell"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
-                            maxWidth: "120px",
-                            minWidth: "100px",
+                            width: "130px",
+                            maxWidth: "130px",
+                            minWidth: "110px",
+                            textAlign: "center",
+                          }}
+                        >
+                          {renderCellWithTooltip(
+                            getEmployeeClient(device.assignedTo) || "-",
+                            18
+                          )}
+                        </td>
+                        <td
+                          className="assets-table-cell"
+                          style={{
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
+                            fontSize: "14px",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
+                            verticalAlign: "top",
+                            maxWidth: "110px",
+                            minWidth: "90px",
                             textAlign: "center",
                           }}
                         >
@@ -2345,12 +3324,14 @@ function Assets() {
                         <td
                           className="assets-table-cell"
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
-                            maxWidth: "120px",
-                            minWidth: "70px",
+                            maxWidth: "110px",
+                            minWidth: "65px",
                             textAlign: "center",
                           }}
                         >
@@ -2377,23 +3358,27 @@ function Assets() {
                         <td
                           className="assets-table-cell assets-table-cell-remarks"
                           style={{
-                            padding: "12px 16px",
-                            color: "#6b7280",
+                            padding: "8px 12px",
+                            color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                             verticalAlign: "top",
-                            maxWidth: "180px",
-                            minWidth: "150px",
+                            maxWidth: "110px",
+                            minWidth: "90px",
                             textAlign: "center",
                           }}
                         >
-                          {renderCellWithTooltip(device.remarks, 25)}
+                          {renderCellWithTooltip(device.remarks, 15)}
                         </td>
                         <td
                           style={{
-                            padding: "12px 16px",
+                            padding: "8px 12px",
                             textAlign: "center",
-                            border: "1px solid #d1d5db",
+                            border: `1px solid ${
+                              isDarkMode ? "#4b5563" : "#d1d5db"
+                            }`,
                           }}
                         >
                           <div
@@ -2408,14 +3393,16 @@ function Assets() {
                               style={{
                                 background: "transparent",
                                 border: "none",
-                                borderRadius: "6px",
-                                padding: "8px",
+                                borderRadius: "4px",
+                                padding: "3px",
                                 cursor: "pointer",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 transition: "all 0.2s ease",
-                                color: "#6b7280",
+                                color: isDarkMode ? "#9ca3af" : "#6b7280",
+                                minWidth: "24px",
+                                minHeight: "24px",
                               }}
                               title="Edit"
                               onClick={(e) => {
@@ -2432,14 +3419,16 @@ function Assets() {
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.background =
                                   "transparent";
-                                e.currentTarget.style.color = "#6b7280";
+                                e.currentTarget.style.color = isDarkMode
+                                  ? "#9ca3af"
+                                  : "#6b7280";
                                 e.currentTarget.style.transform = "scale(1)";
                                 e.currentTarget.style.boxShadow = "none";
                               }}
                             >
                               <svg
-                                width="16"
-                                height="16"
+                                width="14"
+                                height="14"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
@@ -2478,11 +3467,13 @@ function Assets() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "12px 20px", // Reduced padding for fixed layout
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 borderRadius: "0",
                 boxShadow: "none",
                 border: "none",
-                borderTop: "1px solid #e5e7eb",
+                borderTop: isDarkMode
+                  ? "1px solid #374151"
+                  : "1px solid #e5e7eb",
                 position: "sticky",
                 bottom: "0",
                 zIndex: "10",
@@ -2491,7 +3482,7 @@ function Assets() {
             >
               <div
                 style={{
-                  color: "#445F6D",
+                  color: isDarkMode ? "#f3f4f6" : "#445F6D",
                   fontSize: "14px",
                   fontWeight: "600",
                   display: "flex",
@@ -2517,10 +3508,12 @@ function Assets() {
                     style={{
                       padding: "4px 8px",
                       borderRadius: "4px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       fontSize: "13px",
-                      background: "#fff",
-                      color: "#445F6D",
+                      background: isDarkMode ? "#374151" : "#fff",
+                      color: isDarkMode ? "#f3f4f6" : "#445F6D",
                     }}
                   >
                     <option value={10}>10</option>
@@ -2542,9 +3535,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
+                      background:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -2575,9 +3584,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
-                      background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                      color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
+                      background:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === 1
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -2626,9 +3651,21 @@ function Assets() {
                           style={{
                             padding: "8px 12px",
                             borderRadius: "6px",
-                            border: "1px solid #e0e7ef",
-                            background: i === currentPage ? "#70C1B3" : "#fff",
-                            color: i === currentPage ? "#fff" : "#445F6D",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #e0e7ef",
+                            background:
+                              i === currentPage
+                                ? "#2563eb"
+                                : isDarkMode
+                                ? "#1f2937"
+                                : "#fff",
+                            color:
+                              i === currentPage
+                                ? "#fff"
+                                : isDarkMode
+                                ? "#f3f4f6"
+                                : "#445F6D",
                             cursor: "pointer",
                             fontSize: "14px",
                             fontWeight: "500",
@@ -2649,10 +3686,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -2683,10 +3735,25 @@ function Assets() {
                     style={{
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                       background:
-                        currentPage === totalPages ? "#f5f7fa" : "#fff",
-                      color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#374151"
+                            : "#f5f7fa"
+                          : isDarkMode
+                          ? "#1f2937"
+                          : "#fff",
+                      color:
+                        currentPage === totalPages
+                          ? isDarkMode
+                            ? "#6b7280"
+                            : "#9ca3af"
+                          : isDarkMode
+                          ? "#f3f4f6"
+                          : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -2735,30 +3802,62 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
                 maxWidth: 480,
                 width: "96vw",
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
               {!selectedTransferEmployee ? (
                 <>
-                  <h4>Reassign {selectedDeviceIds.length} Devices</h4>
+                  <h4
+                    style={{
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      marginBottom: 16,
+                      fontSize: 18,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Reassign {selectedDeviceIds.length} Devices
+                  </h4>
                   <input
                     type="text"
                     placeholder="Search employee..."
                     value={bulkAssignSearch}
                     onChange={(e) => setBulkAssignSearch(e.target.value)}
-                    style={{ width: "100%", marginBottom: 8, padding: 6 }}
+                    style={{
+                      width: "100%",
+                      marginBottom: 12,
+                      padding: "12px 16px",
+                      border: isDarkMode
+                        ? "1.5px solid #4b5563"
+                        : "1.5px solid #cbd5e1",
+                      borderRadius: 8,
+                      fontSize: 14,
+                      background: isDarkMode ? "#374151" : "#f8fafc",
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      outline: "none",
+                      transition: "border-color 0.2s, background 0.2s",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      boxSizing: "border-box",
+                    }}
                   />
-                  <ul
+                  <div
                     style={{
                       maxHeight: 200,
                       overflowY: "auto",
                       padding: 0,
                       margin: 0,
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e2e8f0",
+                      borderRadius: 8,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      marginBottom: 16,
                     }}
                   >
                     {employees
@@ -2768,15 +3867,38 @@ function Assets() {
                           .includes(bulkAssignSearch.toLowerCase())
                       )
                       .map((emp) => (
-                        <li
-                          key={emp.id}
-                          style={{ listStyle: "none", marginBottom: 8 }}
-                        >
+                        <div key={emp.id} style={{ width: "100%" }}>
                           <button
                             style={{
                               width: "100%",
                               textAlign: "left",
-                              padding: 8,
+                              padding: "12px 16px",
+                              background: isDarkMode ? "#1f2937" : "#fff",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              border: "none",
+                              borderBottom: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e5e7eb",
+                              fontWeight: 500,
+                              fontSize: 14,
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                              fontFamily:
+                                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = isDarkMode
+                                ? "#374151"
+                                : "#f3f4f6";
+                              e.target.style.color = "#2563eb";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = isDarkMode
+                                ? "#1f2937"
+                                : "#fff";
+                              e.target.style.color = isDarkMode
+                                ? "#f3f4f6"
+                                : "#374151";
                             }}
                             onClick={() => {
                               setSelectedTransferEmployee(emp);
@@ -2784,19 +3906,39 @@ function Assets() {
                           >
                             {emp.fullName}
                           </button>
-                        </li>
+                        </div>
                       ))}
-                  </ul>
+                  </div>
                   <button
                     onClick={() => setBulkReassignModalOpen(false)}
-                    style={{ marginTop: 12 }}
+                    style={{
+                      marginTop: 12,
+                      background: isDarkMode ? "#6b7280" : "#e5e7eb",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      border: "none",
+                      borderRadius: 6,
+                      padding: "8px 16px",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
                   >
                     Cancel
                   </button>
                 </>
               ) : (
                 <>
-                  <h4 style={{ marginBottom: 12 }}>
+                  <h4
+                    style={{
+                      marginBottom: 12,
+                      color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                      fontSize: 16,
+                      fontWeight: 600,
+                    }}
+                  >
                     Reassign Device(s) to{" "}
                     <span style={{ color: "#2563eb" }}>
                       {selectedTransferEmployee.fullName}
@@ -2808,15 +3950,22 @@ function Assets() {
                       maxHeight: 180,
                       overflowY: "auto",
                       marginBottom: 16,
-                      background: "#f7f9fb",
+                      background: isDarkMode ? "#374151" : "#f7f9fb",
                       borderRadius: 8,
                       padding: 8,
-                      border: "1px solid #e0e7ef",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #e0e7ef",
                     }}
                   >
                     <table style={{ width: "100%", fontSize: 14 }}>
                       <thead>
-                        <tr style={{ color: "#445F6D", fontWeight: 700 }}>
+                        <tr
+                          style={{
+                            color: isDarkMode ? "#d1d5db" : "#445F6D",
+                            fontWeight: 700,
+                          }}
+                        >
                           <th style={{ textAlign: "left", padding: "4px 8px" }}>
                             Tag
                           </th>
@@ -2831,7 +3980,9 @@ function Assets() {
                           </th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody
+                        style={{ color: isDarkMode ? "#f3f4f6" : "#374151" }}
+                      >
                         {devices
                           .filter((d) => selectedDeviceIds.includes(d.id))
                           .map((device) => (
@@ -2938,10 +4089,11 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
               <h4>Unassign {selectedDeviceIds.length} Devices</h4>
@@ -2970,7 +4122,7 @@ function Assets() {
                         value="working"
                         checked={bulkUnassignReason === "working"}
                         onChange={() => setBulkUnassignReason("working")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Working
                     </label>
@@ -2983,7 +4135,7 @@ function Assets() {
                         value="defective"
                         checked={bulkUnassignReason === "defective"}
                         onChange={() => setBulkUnassignReason("defective")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Defective
                     </label>
@@ -3062,6 +4214,7 @@ function Assets() {
             setUseSerial={setUseSerial}
             onSerialToggle={() => setUseSerial(!useSerial)}
             editingDevice={form._editDeviceId}
+            deviceTypes={deviceTypes}
           />
         )}
 
@@ -3083,13 +4236,18 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
-              <h4>
+              <h4
+                style={{
+                  color: isDarkMode ? "#f3f4f6" : "#000",
+                }}
+              >
                 {assigningDevice && assigningDevice.assignedTo
                   ? "Reassign Device"
                   : "Assign Device"}
@@ -3350,13 +4508,16 @@ function Assets() {
           >
             <div
               style={{
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 padding: 24,
                 borderRadius: 8,
                 minWidth: 350,
+                border: isDarkMode ? "1px solid #374151" : "none",
               }}
             >
-              <h4>Unassign Device: {unassignDevice.deviceTag}</h4>
+              <h4 style={{ color: isDarkMode ? "#f3f4f6" : "#000" }}>
+                Unassign Device: {unassignDevice.deviceTag}
+              </h4>
               <div style={{ marginBottom: 16 }}>
                 <label
                   style={{
@@ -3377,7 +4538,7 @@ function Assets() {
                         value="working"
                         checked={unassignReason === "working"}
                         onChange={() => setUnassignReason("working")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Working
                     </label>
@@ -3390,7 +4551,7 @@ function Assets() {
                         value="defective"
                         checked={unassignReason === "defective"}
                         onChange={() => setUnassignReason("defective")}
-                        style={{ marginRight: 8, accentColor: "#70C1B3" }}
+                        style={{ marginRight: 8, accentColor: "#6b7280" }}
                       />
                       Defective
                     </label>
@@ -3526,6 +4687,85 @@ function Assets() {
           </div>
         )}
 
+        {/* Selection Warning Modal */}
+        {showSelectionWarning && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+            onClick={() => setShowSelectionWarning(false)}
+          >
+            <div
+              style={{
+                backgroundColor: isDarkMode ? "#1f2937" : "white",
+                padding: 30,
+                borderRadius: 8,
+                minWidth: 400,
+                maxWidth: 500,
+                boxShadow: isDarkMode
+                  ? "0 10px 25px rgba(0, 0, 0, 0.5)"
+                  : "0 4px 6px rgba(0, 0, 0, 0.1)",
+                border: isDarkMode ? "1px solid #374151" : "none",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                style={{
+                  margin: "0 0 20px 0",
+                  color: "#d32f2f",
+                  fontSize: "18px",
+                  fontWeight: "600",
+                }}
+              >
+                Selection Not Allowed
+              </h3>
+              <p
+                style={{
+                  margin: "0 0 20px 0",
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-line",
+                  color: isDarkMode ? "#e5e7eb" : "#374151",
+                  fontSize: "14px",
+                }}
+              >
+                {selectionWarningMessage}
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowSelectionWarning(false)}
+                  style={{
+                    padding: "8px 20px",
+                    backgroundColor: "#1976d2",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    transition: "background-color 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = "#1565c0";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = "#1976d2";
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Device History Modal */}
         {showDeviceHistory && selectedDeviceForHistory && (
           <DeviceHistory
@@ -3535,6 +4775,169 @@ function Assets() {
           />
         )}
       </div>
+      {showBulkDeleteConfirm && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2500,
+          }}
+        >
+          <div
+            style={{
+              background: isDarkMode ? "#1f2937" : "#fff",
+              padding: "32px 36px",
+              borderRadius: 18,
+              minWidth: "min(420px, 92vw)",
+              maxWidth: "min(520px, 95vw)",
+              boxShadow: isDarkMode
+                ? "0 12px 48px rgba(0,0,0,0.4)"
+                : "0 12px 48px rgba(0,0,0,0.15)",
+              border: isDarkMode ? "1px solid #374151" : "none",
+              fontFamily: "Maax, sans-serif",
+              position: "relative",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                marginBottom: 16,
+                fontSize: 22,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                color: "#dc2626",
+                textAlign: "center",
+              }}
+            >
+              Confirm Delete
+            </h2>
+            <p
+              style={{
+                margin: "0 0 14px 0",
+                fontSize: 15,
+                textAlign: "center",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+              }}
+            >
+              Delete {selectedDeviceIds.length} deployed device(s)?
+            </p>
+            {selectedDeviceIds.length > 0 && (
+              <div
+                style={{
+                  maxHeight: 140,
+                  overflowY: selectedDeviceIds.length > 10 ? "auto" : "visible",
+                  background: isDarkMode ? "#111827" : "#f8fafc",
+                  border: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "10px 14px 12px 14px",
+                  margin: "0 0 14px 0",
+                  fontFamily: "Maax, sans-serif",
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  color: isDarkMode ? "#e5e7eb" : "#1f2937",
+                }}
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {selectedDeviceIds.slice(0, 10).map((id) => {
+                    const d = devices.find((dev) => dev.id === id);
+                    const tag = d?.deviceTag || id;
+                    return (
+                      <span
+                        key={id}
+                        style={{
+                          background: isDarkMode ? "#1f2937" : "#fff",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          letterSpacing: 0.3,
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    );
+                  })}
+                  {selectedDeviceIds.length > 10 && (
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        padding: "4px 6px",
+                      }}
+                    >
+                      +{selectedDeviceIds.length - 10} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+            <p
+              style={{
+                margin: 0,
+                marginTop: 4,
+                fontSize: 13,
+                textAlign: "center",
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+              }}
+            >
+              You can undo for {UNDO_WINDOW_MS / 1000} seconds after deleting.
+            </p>
+            <div
+              style={{
+                marginTop: 24,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+              }}
+            >
+              <button
+                onClick={confirmBulkDelete}
+                style={{
+                  background: "#dc2626",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={cancelBulkDelete}
+                style={{
+                  background: isDarkMode ? "#374151" : "#e5e7eb",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </React.Fragment>
   );
 }

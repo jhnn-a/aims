@@ -3,12 +3,16 @@
 // Main features: Add/edit devices, assign to employees/clients, search/filter, device history, bulk operations
 
 // === IMPORTS ===
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
 import { TableLoadingSpinner } from "../components/LoadingSpinner"; // Loading indicators
-import { TextFilter, DropdownFilter, DateFilter } from "../components/TableHeaderFilters"; // Table filtering components
+import {
+  TextFilter,
+  DropdownFilter,
+  DateFilter,
+} from "../components/TableHeaderFilters"; // Table filtering components
 import {
   addDevice, // Create new device
   updateDevice, // Update existing device
@@ -17,13 +21,15 @@ import {
 } from "../services/deviceService";
 import { logDeviceHistory } from "../services/deviceHistoryService"; // Device history tracking
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export functionality
-import { doc, setDoc } from "firebase/firestore"; // Firestore database operations
+import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
 import { db } from "../utils/firebase"; // Firebase configuration
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
 import DeviceHistory from "../components/DeviceHistory"; // Device history modal component
 import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
+import { useTheme } from "../context/ThemeContext"; // Dark mode theme context
+import { useLastTagsGlobalState } from "../hooks/useLastTagsGlobalState"; // Global Last Tags state
 import {
   initialForm, // Default form data structure
   fieldLabels, // Display labels for form fields
@@ -41,6 +47,198 @@ import {
   getUnassignedDevices, // Filter devices without assignment
   generateNextDeviceTag, // Auto-generate next available tag
 } from "./InventoryUtils";
+
+// === SEARCHABLE DROPDOWN COMPONENT ===
+// Reusable searchable dropdown for client selection
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Search and select client...",
+  displayKey = "clientName",
+  valueKey = "clientName",
+  style = {},
+}) {
+  const { isDarkMode } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef(null);
+
+  // Filter options based on search term
+  const filteredOptions = options.filter((option) => {
+    const searchValue = option[displayKey];
+    return (
+      searchValue &&
+      String(searchValue).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputClick = () => {
+    setIsOpen(!isOpen);
+    setSearchTerm("");
+  };
+
+  const handleSelectOption = (option) => {
+    onChange({ target: { name: "client", value: option[valueKey] } });
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  const dropdownStyles = {
+    container: {
+      position: "relative",
+      width: "100%",
+      ...style,
+    },
+    inputContainer: {
+      position: "relative",
+      width: "100%",
+    },
+    input: {
+      width: "100%",
+      fontSize: 13,
+      padding: "8px 32px 8px 12px",
+      borderRadius: 5,
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      height: "38px",
+      boxSizing: "border-box",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+      cursor: "pointer",
+    },
+    dropdownArrow: {
+      position: "absolute",
+      right: "12px",
+      top: "50%",
+      transform: `translateY(-50%) ${
+        isOpen ? "rotate(180deg)" : "rotate(0deg)"
+      }`,
+      transition: "transform 0.2s",
+      pointerEvents: "none",
+      fontSize: "12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+    },
+    dropdown: {
+      position: "absolute",
+      top: "calc(100% + 2px)",
+      left: 0,
+      right: 0,
+      background: isDarkMode ? "#1f2937" : "#fff",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #cbd5e1",
+      borderRadius: 5,
+      maxHeight: "140px", // Height for search input (38px) + 3 options (34px each) = ~140px
+      overflowY: "auto",
+      zIndex: 1000,
+      boxShadow: isDarkMode
+        ? "0 4px 12px rgba(0, 0, 0, 0.4)"
+        : "0 4px 12px rgba(0, 0, 0, 0.15)",
+      minWidth: "200px",
+      // Custom scrollbar styling
+      scrollbarWidth: "thin",
+      scrollbarColor: isDarkMode ? "#4b5563 #374151" : "#cbd5e1 #f8fafc",
+    },
+    searchInput: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "none",
+      borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      outline: "none",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      background: isDarkMode ? "#1f2937" : "#f8fafc",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      boxSizing: "border-box",
+    },
+    option: {
+      padding: "10px 12px",
+      cursor: "pointer",
+      fontSize: 13,
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f1f5f9",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      transition: "background-color 0.15s",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+    },
+    noResults: {
+      padding: "10px 12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+      fontStyle: "italic",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
+  return (
+    <div ref={dropdownRef} style={dropdownStyles.container}>
+      <div style={dropdownStyles.inputContainer}>
+        <input
+          type="text"
+          value={value || ""}
+          onClick={handleInputClick}
+          placeholder={placeholder}
+          style={dropdownStyles.input}
+          readOnly
+        />
+        <span style={dropdownStyles.dropdownArrow}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div style={dropdownStyles.dropdown}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to search clients..."
+            style={dropdownStyles.searchInput}
+            autoFocus
+          />
+          {filteredOptions.length === 0 ? (
+            <div style={dropdownStyles.noResults}>No clients found</div>
+          ) : (
+            filteredOptions.map((option, index) => (
+              <div
+                key={option.id || index}
+                style={dropdownStyles.option}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#4b5563"
+                    : "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#374151"
+                    : "#fff";
+                }}
+                onClick={() => handleSelectOption(option)}
+              >
+                {option[displayKey]}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // === DEVICE FORM MODAL COMPONENT ===
 // Modal component for adding/editing device information
@@ -62,6 +260,109 @@ function DeviceFormModal({
   onSerialToggle,
   editingDevice,
 }) {
+  // === THEME CONTEXT ===
+  const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+
+  // === MODAL STYLES ===
+  const styles = {
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.4)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: `1.2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"}`,
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#000000",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   const handleSerialToggle = (e) => {
     const checked = e.target.checked;
     onSerialToggle(checked);
@@ -90,7 +391,13 @@ function DeviceFormModal({
         style={{
           ...styles.inventoryModalContent,
           border: isEditMode ? "2px solid #2563eb" : "1px solid #e5e7eb",
-          backgroundColor: isEditMode ? "#fefbff" : "#ffffff",
+          backgroundColor: isEditMode
+            ? isDarkMode
+              ? "#374151"
+              : "#fefbff"
+            : isDarkMode
+            ? "#1f2937"
+            : "#ffffff",
           animation: "modalFadeIn 0.2s ease-out",
         }}
         role="dialog"
@@ -160,7 +467,11 @@ function DeviceFormModal({
             id="modal-title"
             style={{
               ...styles.inventoryModalTitle,
-              color: isEditMode ? "#2563eb" : "#374151",
+              color: isEditMode
+                ? "#2563eb"
+                : isDarkMode
+                ? "#3b82f6"
+                : "#2563eb",
             }}
           >
             {isEditMode ? "Edit Device" : "Add Device"}
@@ -196,7 +507,7 @@ function DeviceFormModal({
           </div>
         )}
 
-        {/* Row 1: Device Type and Brand */}
+        {/* Row 1: Device Type and Size/Brand */}
         <div
           style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}
         >
@@ -219,9 +530,52 @@ function DeviceFormModal({
             </select>
           </div>
 
-          <div
-            style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
-          >
+          {data.deviceType === "RAM" ? (
+            <div
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
+            >
+              <label style={styles.inventoryLabel}>Size:</label>
+              <select
+                name="ramSize"
+                value={data.ramSize}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              >
+                <option value="">Select Size</option>
+                <option value="4GB">4 GB RAM</option>
+                <option value="8GB">8 GB RAM</option>
+                <option value="16GB">16 GB RAM</option>
+                <option value="32GB">32 GB RAM</option>
+                <option value="64GB">64 GB RAM</option>
+              </select>
+            </div>
+          ) : (
+            <div
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
+            >
+              <label style={styles.inventoryLabel}>Brand:</label>
+              <input
+                name="brand"
+                value={data.brand}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Row 1.5: Brand for RAM only (when RAM is selected) */}
+        {data.deviceType === "RAM" && (
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
             <label style={styles.inventoryLabel}>Brand:</label>
             <input
               name="brand"
@@ -231,7 +585,7 @@ function DeviceFormModal({
               autoComplete="off"
             />
           </div>
-        </div>
+        )}
 
         {/* Row 2: Device Tag (full width when visible) */}
         {data.deviceType && (
@@ -245,95 +599,45 @@ function DeviceFormModal({
                 width: "100%",
               }}
             >
-              {!useSerial ? (
-                <>
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 14,
-                      color: "#2563eb",
-                      minWidth: "fit-content",
-                    }}
-                  >{`JOII${
-                    deviceTypes.find((t) => t.label === data.deviceType)
-                      ?.code || ""
-                  }`}</span>
-                  <input
-                    name="deviceTagDigits"
-                    value={data.deviceTag.replace(
-                      `JOII${
-                        deviceTypes.find((t) => t.label === data.deviceType)
-                          ?.code || ""
-                      }`,
-                      ""
-                    )}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 4);
-                      onChange({
-                        target: {
-                          name: "deviceTag",
-                          value: `JOII${
-                            deviceTypes.find((t) => t.label === data.deviceType)
-                              ?.code || ""
-                          }${val}`,
-                        },
-                      });
-                    }}
-                    style={{
-                      width: 70,
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      border: "1.5px solid #cbd5e1",
-                      background: editingDevice ? "#f5f5f5" : "#f1f5f9",
-                      fontSize: 14,
-                      height: "36px",
-                      boxSizing: "border-box",
-                      cursor: editingDevice ? "not-allowed" : "text",
-                      color: editingDevice ? "#666" : "#000",
-                    }}
-                    maxLength={4}
-                    pattern="\\d{0,4}"
-                    placeholder="0001"
-                    disabled={editingDevice}
-                  />
-                  <button
-                    type="button"
-                    onClick={onGenerateTag}
-                    style={{
-                      ...styles.inventoryModalButtonSmall,
-                      padding: "6px 12px",
-                      fontSize: 13,
-                      opacity: editingDevice ? 0.5 : 1,
-                      cursor: editingDevice ? "not-allowed" : "pointer",
-                    }}
-                    disabled={editingDevice}
-                  >
-                    Generate
-                  </button>
-                </>
-              ) : (
-                <input
-                  key={useSerial ? "serial" : "tag"}
-                  name="deviceTag"
-                  value={data.deviceTag}
-                  onChange={onChange}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: 6,
-                    border: "1.5px solid #cbd5e1",
-                    background: editingDevice ? "#f5f5f5" : "#f1f5f9",
-                    fontSize: 14,
-                    height: "36px",
-                    boxSizing: "border-box",
-                    cursor: editingDevice ? "not-allowed" : "text",
-                    color: editingDevice ? "#666" : "#000",
-                  }}
-                  maxLength={64}
-                  placeholder="Enter Serial Number"
-                  disabled={editingDevice}
-                />
-              )}
+              <input
+                name="deviceTag"
+                value={data.deviceTag}
+                onChange={onChange}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: isDarkMode
+                    ? "1.5px solid #4b5563"
+                    : "1.5px solid #cbd5e1",
+                  background: editingDevice
+                    ? isDarkMode
+                      ? "#374151"
+                      : "#f5f5f5"
+                    : isDarkMode
+                    ? "#374151"
+                    : "#f1f5f9",
+                  color: editingDevice
+                    ? isDarkMode
+                      ? "#9ca3af"
+                      : "#666"
+                    : isDarkMode
+                    ? "#f3f4f6"
+                    : "#000",
+                  fontSize: 14,
+                  height: "36px",
+                  boxSizing: "border-box",
+                  cursor: editingDevice ? "not-allowed" : "text",
+                }}
+                maxLength={64}
+                placeholder={
+                  useSerial
+                    ? "Enter Serial Number"
+                    : "Auto-generated device tag"
+                }
+                disabled={editingDevice}
+                readOnly={!useSerial}
+              />
             </div>
             <label
               style={{
@@ -342,7 +646,11 @@ function DeviceFormModal({
                 alignItems: "center",
                 fontWeight: 400,
                 fontSize: 13,
-                color: editingDevice ? "#999" : "#222e3a",
+                color: editingDevice
+                  ? "#999"
+                  : isDarkMode
+                  ? "#f3f4f6"
+                  : "#222e3a",
               }}
             >
               <input
@@ -351,7 +659,7 @@ function DeviceFormModal({
                 onChange={handleSerialToggle}
                 style={{
                   marginRight: 6,
-                  accentColor: "#2563eb",
+                  accentColor: "#6b7280",
                   cursor: editingDevice ? "not-allowed" : "pointer",
                 }}
                 disabled={editingDevice}
@@ -424,12 +732,13 @@ function DeviceFormModal({
         {/* Row 4: Client */}
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Client:</label>
-          <input
-            name="client"
+          <SearchableDropdown
             value={data.client}
             onChange={onChange}
-            style={styles.inventoryInput}
-            placeholder="Enter client name"
+            options={clients}
+            placeholder="Search and select client..."
+            displayKey="clientName"
+            valueKey="clientName"
           />
         </div>
 
@@ -443,6 +752,186 @@ function DeviceFormModal({
             style={styles.inventoryInput}
           />
         </div>
+
+        {/* Conditional PC/Laptop Specifications */}
+        {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+          <div
+            style={{
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "12px",
+              marginBottom: 12,
+              background: isDarkMode ? "#374151" : "#f9fafb",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+              </svg>
+              {data.deviceType} Specifications
+            </h4>
+
+            {/* Row 1: CPU Gen and RAM */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>CPU - System Unit:</label>
+                <input
+                  type="text"
+                  name="cpuGen"
+                  value={data.cpuGen || ""}
+                  onChange={onChange}
+                  placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                  style={styles.inventoryInput}
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>RAM:</label>
+                <select
+                  name="ram"
+                  value={data.ram || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select RAM</option>
+                  <option value="4GB">4GB</option>
+                  <option value="8GB">8GB</option>
+                  <option value="16GB">16GB</option>
+                  <option value="32GB">32GB</option>
+                  <option value="64GB">64GB</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Drive 1 and Drive 2 */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 1:</label>
+                <input
+                  name="drive1"
+                  value={data.drive1 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 256 GB SSD"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Drive 2 (Optional):</label>
+                <input
+                  name="drive2"
+                  value={data.drive2 || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., 1 TB HDD"
+                />
+              </div>
+            </div>
+
+            {/* Row 3: GPU and OS */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 0,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>GPU:</label>
+                <input
+                  name="gpu"
+                  value={data.gpu || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  placeholder="e.g., Integrated / GTX 1650"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>OS:</label>
+                <select
+                  name="os"
+                  value={data.os || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select OS</option>
+                  <option value="Windows 10">Windows 10</option>
+                  <option value="Windows 11">Windows 11</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
           <label style={styles.inventoryLabel}>Acquisition Date:</label>
           <input
@@ -471,8 +960,6 @@ function DeviceFormModal({
               ...styles.inventoryModalButton,
               opacity: isValid ? 1 : 0.6,
               cursor: isValid ? "pointer" : "not-allowed",
-              padding: "10px 24px",
-              fontSize: 14,
             }}
             aria-label={
               isEditMode ? "Update device information" : "Save new device"
@@ -483,9 +970,20 @@ function DeviceFormModal({
           <button
             onClick={onCancel}
             style={{
-              ...styles.inventoryModalButtonSecondary,
-              padding: "10px 24px",
-              fontSize: 14,
+              background: "#6b7280",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 20px",
+              fontSize: 15,
+              fontWeight: 500,
+              cursor: "pointer",
+              marginLeft: 4,
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+              transition: "background 0.2s, box-shadow 0.2s",
+              outline: "none",
+              fontFamily:
+                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
             }}
             aria-label="Cancel and close dialog"
           >
@@ -499,6 +997,8 @@ function DeviceFormModal({
 
 // Delete Confirmation Modal Component
 function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
+  const { isDarkMode } = useTheme();
+
   return (
     <div
       style={{
@@ -516,16 +1016,19 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
     >
       <div
         style={{
-          background: "#fff",
+          background: isDarkMode ? "#1f2937" : "#fff",
           padding: "36px 40px",
           borderRadius: 18,
           minWidth: "min(400px, 90vw)",
           maxWidth: "min(500px, 95vw)",
           width: "auto",
-          boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+          boxShadow: isDarkMode
+            ? "0 12px 48px rgba(0,0,0,0.4)"
+            : "0 12px 48px rgba(37,99,235,0.18)",
           position: "relative",
           margin: "20px",
           boxSizing: "border-box",
+          border: isDarkMode ? "1px solid #374151" : "none",
         }}
       >
         <h2
@@ -544,7 +1047,7 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
         <p
           style={{
             margin: "0 0 16px 0",
-            color: "#374151",
+            color: isDarkMode ? "#f3f4f6" : "#374151",
             fontSize: 16,
             textAlign: "center",
           }}
@@ -586,8 +1089,8 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
           <button
             onClick={onCancel}
             style={{
-              background: "#e0e7ef",
-              color: "#233037",
+              background: isDarkMode ? "#4b5563" : "#e0e7ef",
+              color: isDarkMode ? "#f3f4f6" : "#233037",
               border: "none",
               borderRadius: 8,
               padding: "8px 18px",
@@ -638,6 +1141,19 @@ function Inventory() {
     );
   };
 
+  // === UTILITY FUNCTIONS ===
+  // Helper function to extract first and last name only for document forms
+  const getFirstLastName = (fullName) => {
+    if (!fullName) return "";
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return parts[0]; // Only first name
+    } else if (parts.length >= 2) {
+      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
+    }
+    return "";
+  };
+
   // === GLOBAL STYLING EFFECTS ===
   // Add global styles to hide scrollbars across the application
   React.useEffect(() => {
@@ -662,6 +1178,12 @@ function Inventory() {
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+      }
+      
+      /* Pulse animation for sticky note indicator */
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
       }
     `;
     document.head.appendChild(style);
@@ -696,9 +1218,9 @@ function Inventory() {
         "-" +
         String(phTime.getDate()).padStart(2, "0");
       doc.setData({
-        name: emp?.fullName || "",
+        name: getFirstLastName(emp?.fullName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
-        department: emp?.department || emp?.client || "",
+        department: getDepartmentForForm(emp),
         position: emp?.position || "",
         devices: [
           {
@@ -743,11 +1265,24 @@ function Inventory() {
         : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
-      await updateDevice(assigningDevice.id, {
+      const updatedDevice = {
         ...assigningDevice,
         assignedTo: selectedAssignEmployee.id,
         assignmentDate: new Date(), // Store full timestamp for precise ordering
-      });
+      };
+
+      await updateDevice(assigningDevice.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
+      // Move from InventoryUnits to DeployedUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        assigningDevice.deviceTag,
+        "InventoryUnits",
+        "DeployedUnits"
+      );
+
       await logDeviceHistory({
         employeeId: selectedAssignEmployee.id,
         employeeName: selectedAssignEmployee.fullName,
@@ -769,6 +1304,35 @@ function Inventory() {
   };
 
   // === STATE MANAGEMENT ===
+  // === FORM STRUCTURE ===
+  const getCurrentDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${month}/${day}/${year}`;
+  };
+
+  const initialForm = {
+    deviceType: "",
+    deviceTag: "",
+    brand: "",
+    model: "",
+    condition: "",
+    client: "",
+    remarks: "",
+    acquisitionDate: getCurrentDate(),
+    ramSize: "", // Size dropdown for RAM devices
+    // PC/Laptop specific fields
+    cpuGen: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
+    cpuGen: "",
+    ram: "",
+    drive1: "",
+    drive2: "",
+    gpu: "",
+    os: "",
+  };
+
   // === CORE DATA STATE ===
   const [devices, setDevices] = useState([]); // List of unassigned devices from database
   const [showForm, setShowForm] = useState(false); // Controls device add/edit modal visibility
@@ -779,40 +1343,44 @@ function Inventory() {
   const [autoRefreshing, setAutoRefreshing] = useState(false); // Auto-refresh indicator for page focus/visibility changes
 
   // === NOTIFICATION SYSTEM ===
-  const { showSuccess, showError, showWarning, showUndoNotification } = useSnackbar(); // User feedback notifications
-  
+  const { showSuccess, showError, showWarning, showUndoNotification } =
+    useSnackbar(); // User feedback notifications
+
   // === FORM VALIDATION STATE ===
   const [tagError, setTagError] = useState(""); // Asset tag validation error messages
   const [saveError, setSaveError] = useState(""); // Form save error messages
   const [useSerial, setUseSerial] = useState(false); // Toggle for using serial number as asset tag
-  
+
   // === DEVICE ASSIGNMENT STATE ===
   const [assigningDevice, setAssigningDevice] = useState(null); // Device being assigned to employee/client
   const [assignModalOpen, setAssignModalOpen] = useState(false); // Assignment modal visibility state
   const [assignSearch, setAssignSearch] = useState(""); // Search input for employees/clients in assignment modal
-  
+
   // === IMPORT/EXPORT STATE ===
   const [importing, setImporting] = useState(false); // Excel import operation in progress
-  const [importProgress, setImportProgress] = useState({ // Progress tracking for import operations
+  const [importProgress, setImportProgress] = useState({
+    // Progress tracking for import operations
     current: 0, // Current number of items processed
     total: 0, // Total number of items to process
   });
-  
+
   // === BULK OPERATIONS STATE ===
   const [selectedIds, setSelectedIds] = useState([]); // Device IDs selected for bulk operations
   const [selectAll, setSelectAll] = useState(false); // Select all checkbox state
-  const [deleteProgress, setDeleteProgress] = useState({ // Progress tracking for bulk delete operations
+  const [deleteProgress, setDeleteProgress] = useState({
+    // Progress tracking for bulk delete operations
     current: 0, // Current number of items deleted
     total: 0, // Total number of items to delete
   });
-  
+
   // === SEARCH AND FILTERING STATE ===
   const [deviceSearch, setDeviceSearch] = useState(""); // Global search input across all device fields
   const [headerFilters, setHeaderFilters] = useState({}); // Advanced filtering system for table columns
-  
+
   // === DEVICE HISTORY STATE ===
   const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
-  const [selectedDeviceForHistory, setSelectedDeviceForHistory] = useState(null); // Device selected for history view
+  const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
+    useState(null); // Device selected for history view
 
   // === DELETE CONFIRMATION STATE ===
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false); // Single device delete confirmation modal
@@ -826,7 +1394,8 @@ function Inventory() {
   // === ASSIGNMENT WORKFLOW STATE ===
   const [assignStep, setAssignStep] = useState(0); // Current step in assignment workflow (0: employee select, 1: form options)
   const [selectedAssignEmployee, setSelectedAssignEmployee] = useState(null); // Employee selected for device assignment
-  const [issueChecks, setIssueChecks] = useState({ // Assignment form type checkboxes
+  const [issueChecks, setIssueChecks] = useState({
+    // Assignment form type checkboxes
     newIssueNew: false, // New issue for brand new device
     newIssueStock: false, // New issue from stock
     wfhNew: false, // Work from home new device
@@ -836,6 +1405,15 @@ function Inventory() {
   const [progress, setProgress] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [docxBlob, setDocxBlob] = useState(null);
+
+  // Get today's date in YYYY-MM-DD format
+  const getTodaysDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = (today.getMonth() + 1).toString().padStart(2, "0");
+    const day = today.getDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   // --- STATE for New Acquisitions Modal ---
   const [showNewAcqModal, setShowNewAcqModal] = useState(false);
@@ -849,7 +1427,7 @@ function Inventory() {
         model: "",
         condition: "",
         remarks: "",
-        acquisitionDate: "",
+        acquisitionDate: getTodaysDate(),
         quantity: 1,
         supplier: "",
         client: "",
@@ -867,10 +1445,16 @@ function Inventory() {
   const [activeManualTabId, setActiveManualTabId] = useState(1);
   const [importTexts, setImportTexts] = useState({}); // Track import text per tab
 
+  // --- HOOKS ---
+  const { showSnackbar } = useSnackbar(); // For notifications
+  const { isDarkMode } = useTheme(); // Dark mode state
+  const { showModal: showLastTagsModal, setData: setLastTagsData } =
+    useLastTagsGlobalState(); // Global Last Tags state
+
   // --- HANDLERS ---
 
-  // Global TAG validation function
-  const validateTagUniqueness = async (tag, editingDeviceId = null) => {
+  // Local TAG validation function (enhanced with error handling)
+  const validateLocalTagUniqueness = async (tag, editingDeviceId = null) => {
     if (!tag || tag.trim() === "") {
       return { isValid: false, message: "TAG is required" };
     }
@@ -882,7 +1466,7 @@ function Inventory() {
       const existingDevice = allDevices.find(
         (device) =>
           device.deviceTag &&
-          device.deviceTag.toLowerCase() === trimmedTag.toLowerCase() &&
+          String(device.deviceTag).toLowerCase() === trimmedTag.toLowerCase() &&
           device.id !== editingDeviceId
       );
 
@@ -906,7 +1490,11 @@ function Inventory() {
   // --- HANDLERS ---
 
   // Helper function to get unassigned devices (for inventory display)
-  const getUnassignedDevices = (devicesArray, searchQuery = "", headerFilters = {}) => {
+  const getUnassignedDevices = (
+    devicesArray,
+    searchQuery = "",
+    headerFilters = {}
+  ) => {
     return devicesArray
       .filter((device) => {
         // First filter: Only show devices that are NOT assigned
@@ -916,15 +1504,29 @@ function Inventory() {
         // Second filter: Search functionality
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          const matchesSearch = 
-            device.deviceType?.toLowerCase().includes(q) ||
-            device.deviceTag?.toLowerCase().includes(q) ||
-            device.brand?.toLowerCase().includes(q) ||
-            device.model?.toLowerCase().includes(q) ||
-            device.condition?.toLowerCase().includes(q) ||
-            device.remarks?.toLowerCase().includes(q) ||
-            device.client?.toLowerCase().includes(q);
-          
+          const matchesSearch =
+            String(device.deviceType || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.deviceTag || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.brand || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.model || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.condition || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.remarks || "")
+              .toLowerCase()
+              .includes(q) ||
+            String(device.client || "")
+              .toLowerCase()
+              .includes(q);
+
           if (!matchesSearch) return false;
         }
 
@@ -938,10 +1540,10 @@ function Inventory() {
               if (itemValue === undefined || itemValue === null) return false;
 
               // For date filtering on acquisitionDate
-              if (key === 'acquisitionDate' && filterValue) {
+              if (key === "acquisitionDate" && filterValue) {
                 const deviceDate = device.acquisitionDate;
                 if (!deviceDate) return false;
-                
+
                 // Convert both dates to comparable format
                 const filterDate = new Date(filterValue).toDateString();
                 const deviceDateObj = new Date(deviceDate);
@@ -975,7 +1577,119 @@ function Inventory() {
 
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
-      setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+      // When device type changes
+      const typeObj = deviceTypes.find((t) => t.label === value);
+
+      if (value === "RAM") {
+        // For RAM, don't generate tag until size is selected
+        setForm((prev) => ({
+          ...prev,
+          deviceType: value,
+          deviceTag: "",
+          ramSize: "", // Reset RAM size when device type changes
+        }));
+      } else if (value === "PC") {
+        // For PC, generate tag immediately when PC is selected
+        const prefix = "JOIIPC";
+        getAllDevices().then((allDevices) => {
+          const ids = allDevices
+            .map((d) => d.deviceTag)
+            .filter((tag) => tag && String(tag).startsWith(prefix))
+            .map((tag) => parseInt(String(tag).replace(prefix, "")))
+            .filter((num) => !isNaN(num));
+          const max = ids.length > 0 ? Math.max(...ids) : 0;
+          const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+          setForm((prev) => ({
+            ...prev,
+            deviceType: value,
+            deviceTag: newTag,
+            cpuGen: "", // Reset CPU System Unit when device type changes
+            brand: "", // Reset brand for PC devices
+          }));
+        });
+      } else {
+        // For non-RAM and non-PC devices, generate tag immediately
+        let newTag = "";
+        if (typeObj) {
+          const prefix = `JOII${typeObj.code}`;
+          const isHeadset = typeObj.code === "H";
+          const legacyHeadsetPrefix = "JOIIHS"; // backward compatibility
+          // Find max existing tag for this type (include legacy headset prefix if applicable)
+          getAllDevices().then((allDevices) => {
+            const tags = allDevices.map((d) => d.deviceTag).filter(Boolean);
+            const numbers = tags
+              .filter((tag) =>
+                isHeadset
+                  ? String(tag).startsWith(prefix) ||
+                    String(tag).startsWith(legacyHeadsetPrefix)
+                  : String(tag).startsWith(prefix)
+              )
+              .map((tag) => {
+                const t = String(tag);
+                if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+                  return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+                }
+                return parseInt(t.replace(prefix, ""), 10);
+              })
+              .filter((num) => !isNaN(num));
+            const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+            newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({
+              ...prev,
+              deviceType: value,
+              deviceTag: newTag,
+            }));
+          });
+        } else {
+          setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
+        }
+      }
+      setTagError("");
+      return;
+    }
+    if (name === "cpuGen") {
+      // Simply set the CPU System Unit value without affecting brand
+      setForm((prev) => ({
+        ...prev,
+        cpuGen: value,
+      }));
+      setTagError("");
+      return;
+    }
+    if (name === "ramSize") {
+      // When RAM size is selected, generate the specific RAM tag
+      if (form.deviceType === "RAM" && value) {
+        const sizeMap = {
+          "4GB": "4",
+          "8GB": "8",
+          "16GB": "16",
+          "32GB": "32",
+          "64GB": "64",
+        };
+        const sizeCode = sizeMap[value];
+        if (sizeCode) {
+          const prefix = `JOIIRAM${sizeCode}`;
+          // Find max existing tag for this RAM size
+          getAllDevices().then((allDevices) => {
+            const ids = allDevices
+              .map((d) => d.deviceTag)
+              .filter((tag) => tag && String(tag).startsWith(prefix))
+              .map((tag) => parseInt(String(tag).replace(prefix, "")))
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({
+              ...prev,
+              ramSize: value,
+              deviceTag: newTag,
+            }));
+          });
+        } else {
+          setForm((prev) => ({ ...prev, ramSize: value, deviceTag: "" }));
+        }
+      } else {
+        setForm((prev) => ({ ...prev, ramSize: value }));
+      }
       setTagError("");
       return;
     }
@@ -985,7 +1699,7 @@ function Inventory() {
         setForm((prev) => ({ ...prev, [name]: value }));
         // Real-time validation for manual serial input
         if (value.trim()) {
-          validateTagUniqueness(value.trim(), form._editDeviceId).then(
+          validateLocalTagUniqueness(value.trim(), form._editDeviceId).then(
             (validation) => {
               if (!validation.isValid) {
                 setTagError(validation.message);
@@ -995,18 +1709,8 @@ function Inventory() {
         }
         return;
       }
-      const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
-      if (typeObj) {
-        const prefix = `JOII${typeObj.code}`;
-        const regex = new RegExp(`^${prefix}\\d{0,4}$`);
-        if (!regex.test(value)) {
-          setTagError(
-            `Device tag must be in the format ${prefix}0001 (4 digits, no letters).`
-          );
-          return;
-        }
-      }
-      setTagError("");
+      // For non-serial, deviceTag is auto-generated and read-only
+      return;
     }
     if (name === "assignedTo") {
       setForm((prev) => {
@@ -1035,11 +1739,26 @@ function Inventory() {
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
+    const isHeadset = typeObj.code === "H";
+    const legacyHeadsetPrefix = "JOIIHS";
     const allDevices = await getAllDevices();
     const ids = allDevices
       .map((d) => d.deviceTag)
-      .filter((tag) => tag && tag.startsWith(prefix))
-      .map((tag) => parseInt(tag.replace(prefix, "")))
+      .filter(
+        (tag) =>
+          tag &&
+          (isHeadset
+            ? String(tag).startsWith(prefix) ||
+              String(tag).startsWith(legacyHeadsetPrefix)
+            : String(tag).startsWith(prefix))
+      )
+      .map((tag) => {
+        const t = String(tag);
+        if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+          return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+        }
+        return parseInt(t.replace(prefix, ""), 10);
+      })
       .filter((num) => !isNaN(num));
     const max = ids.length > 0 ? Math.max(...ids) : 0;
     const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
@@ -1067,13 +1786,13 @@ function Inventory() {
     };
 
     // Add event listeners for focus and visibility changes
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Cleanup event listeners
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -1089,18 +1808,30 @@ function Inventory() {
 
   // Update selectAll state when selectedIds or current page changes
   useEffect(() => {
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+    const filteredDevices = getUnassignedDevices(
+      devices,
+      deviceSearch,
+      headerFilters
+    );
     const startIndex = (currentPage - 1) * devicesPerPage;
     const endIndex = startIndex + devicesPerPage;
     const currentPageDevices = filteredDevices.slice(startIndex, endIndex);
-    const currentPageIds = currentPageDevices.map(d => d.id);
-    
+    const currentPageIds = currentPageDevices.map((d) => d.id);
+
     // Check if all current page items are selected
-    const allCurrentPageSelected = currentPageIds.length > 0 && 
-      currentPageIds.every(id => selectedIds.includes(id));
-    
+    const allCurrentPageSelected =
+      currentPageIds.length > 0 &&
+      currentPageIds.every((id) => selectedIds.includes(id));
+
     setSelectAll(allCurrentPageSelected);
-  }, [selectedIds, currentPage, devicesPerPage, deviceSearch, headerFilters, devices]);
+  }, [
+    selectedIds,
+    currentPage,
+    devicesPerPage,
+    deviceSearch,
+    headerFilters,
+    devices,
+  ]);
 
   // Focus management for modal accessibility
   useEffect(() => {
@@ -1137,7 +1868,7 @@ function Inventory() {
     } else {
       setLoading(true); // Show main loading spinner
     }
-    
+
     try {
       const [deviceData, employeeData, clientData] = await Promise.all([
         getAllDevices(),
@@ -1148,12 +1879,30 @@ function Inventory() {
       setEmployees(employeeData);
       setClients(clientData);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error("Failed to load data:", error);
     } finally {
       // Clear loading states
       setLoading(false);
       setAutoRefreshing(false);
     }
+  };
+
+  // === UTILITY FUNCTIONS ===
+  // Get client name from client ID
+  const getClientName = (clientId) => {
+    const client = clients.find((c) => c.id === clientId);
+    return client ? client.clientName : "";
+  };
+
+  // Get department/client field for forms (prioritizes client name if available)
+  const getDepartmentForForm = (employee) => {
+    if (!employee) return "";
+
+    // If employee has clientId, use client name; otherwise use department field
+    const clientName = employee.clientId
+      ? getClientName(employee.clientId)
+      : "";
+    return clientName || employee.department || "";
   };
 
   const isFormValid = () =>
@@ -1195,6 +1944,236 @@ function Inventory() {
       : "No changes detected";
   };
 
+  // === SYNC TO UNITSPECS FUNCTION ===
+  // Syncs PC and Laptop data from Inventory to UnitSpecs
+  const syncToUnitSpecs = async (deviceData, targetCollection = null) => {
+    try {
+      // Only sync PC and Laptop devices (including all variants)
+      if (
+        !deviceData.deviceType ||
+        ![
+          "PC",
+          "Laptop",
+          "Desktop",
+          "Notebook",
+          "Computer",
+          "Workstation",
+        ].includes(deviceData.deviceType)
+      ) {
+        return; // Skip non-PC/Laptop devices
+      }
+
+      // Extract data for appraisal calculation
+      const cpuGen = extractCpuGen(
+        deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || ""
+      );
+      const ram = extractRamSize(deviceData.ram) || "";
+      const drive = deviceData.drive1 || deviceData.mainDrive || "";
+      const gpu = deviceData.gpu || "";
+      const category = deviceData.category || "";
+      const dateAdded =
+        deviceData.acquisitionDate ||
+        deviceData.dateAdded ||
+        new Date().toISOString();
+
+      // Calculate appraisal date (same logic as UnitSpecs)
+      const calculateAppraisalDate = (
+        dateAdded,
+        category,
+        cpuGen,
+        ram,
+        drive,
+        gpu
+      ) => {
+        if (!dateAdded) return "";
+
+        try {
+          const addedDate = new Date(dateAdded);
+          if (isNaN(addedDate.getTime())) return "";
+
+          // Get lifespan years based on specs
+          const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
+            if (category) {
+              switch (category) {
+                case "Low-End":
+                  return 3;
+                case "Mid-Range":
+                  return 4;
+                case "High-End":
+                  return 5;
+                default:
+                  return 3;
+              }
+            }
+
+            // Auto-detect based on specs
+            const cpuString = cpuGen?.toLowerCase() || "";
+            const ramSize = parseInt(ram) || 0;
+            const driveString = drive?.toLowerCase() || "";
+            const gpuString = gpu?.toLowerCase() || "";
+
+            // High-end criteria
+            if (
+              cpuString.includes("i7") &&
+              ramSize >= 16 &&
+              (driveString.includes("ssd") || driveString.includes("nvme")) &&
+              gpuString &&
+              !gpuString.includes("integrated")
+            ) {
+              return 5;
+            }
+
+            // Mid-range criteria
+            if (
+              cpuString.includes("i5") &&
+              ramSize >= 8 &&
+              (driveString.includes("ssd") || ramSize >= 12)
+            ) {
+              return 4;
+            }
+
+            // Low-end: everything else
+            return 3;
+          };
+
+          const lifespanYears = getLifespanYears(
+            category,
+            cpuGen,
+            ram,
+            drive,
+            gpu
+          );
+          const appraisalDate = new Date(addedDate);
+          appraisalDate.setFullYear(
+            appraisalDate.getFullYear() + lifespanYears
+          );
+
+          return appraisalDate.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+        } catch (error) {
+          console.error("Error calculating appraisal date:", error);
+          return "";
+        }
+      };
+
+      const appraisalDate = calculateAppraisalDate(
+        dateAdded,
+        category,
+        cpuGen,
+        ram,
+        drive,
+        gpu
+      );
+
+      // Map inventory fields to UnitSpecs format with enhanced data extraction
+      const unitSpecData = {
+        Tag: deviceData.deviceTag || "",
+        deviceType: deviceData.deviceType || "",
+        category: category,
+        cpuGen: cpuGen,
+        cpuModel: extractCpuModel(deviceData.cpuGen || deviceData.cpu || ""),
+        CPU:
+          deviceData.cpuGen || deviceData.cpu || deviceData.cpuSystemUnit || "",
+        RAM: ram,
+        Drive: drive,
+        GPU: gpu,
+        Status: deviceData.condition || "",
+        Condition: deviceData.condition || "", // Add both for compatibility
+        OS: deviceData.os || deviceData.operatingSystem || "",
+        client: deviceData.client || "", // Add client field mapping
+        Remarks: deviceData.remarks || "",
+        lifespan: deviceData.lifespan || "",
+        brand: deviceData.brand || "",
+        model: deviceData.model || "",
+        acquisitionDate: deviceData.acquisitionDate || "",
+        dateAdded: dateAdded, // Add dateAdded field
+        appraisalDate: appraisalDate, // Add calculated appraisal date
+        assignedTo: deviceData.assignedTo || "",
+        assignmentDate: deviceData.assignmentDate || "",
+      };
+
+      // Determine target collection based on assignment status or explicit target
+      let collection = targetCollection;
+      if (!collection) {
+        collection =
+          deviceData.assignedTo && deviceData.assignedTo.trim() !== ""
+            ? "DeployedUnits"
+            : "InventoryUnits";
+      }
+
+      // Add to appropriate UnitSpecs collection
+      await setDoc(doc(db, collection, deviceData.deviceTag), unitSpecData);
+
+      console.log(
+        `Synced ${deviceData.deviceType} ${deviceData.deviceTag} to UnitSpecs ${collection} with appraisal date: ${appraisalDate}`
+      );
+    } catch (error) {
+      console.error("Error syncing to UnitSpecs:", error);
+      // Don't throw error to prevent blocking main inventory save
+    }
+  };
+
+  // Helper function to move device between UnitSpecs collections
+  const moveDeviceInUnitSpecs = async (
+    deviceTag,
+    fromCollection,
+    toCollection
+  ) => {
+    try {
+      // Get the device data from the source collection
+      const sourceDocRef = doc(db, fromCollection, deviceTag);
+      const sourceDoc = await sourceDocRef.get();
+
+      if (sourceDoc.exists()) {
+        const deviceData = sourceDoc.data();
+
+        // Add to target collection
+        await setDoc(doc(db, toCollection, deviceTag), deviceData);
+
+        // Remove from source collection
+        await deleteDoc(sourceDocRef);
+
+        console.log(
+          `Moved ${deviceTag} from ${fromCollection} to ${toCollection} in UnitSpecs`
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Error moving device in UnitSpecs from ${fromCollection} to ${toCollection}:`,
+        error
+      );
+    }
+  };
+
+  // Helper function to extract CPU generation (i3, i5, i7, i9)
+  const extractCpuGen = (cpuString) => {
+    if (!cpuString) return "";
+    // Handle both full CPU strings and cpuSystemUnit values
+    const match = cpuString.match(/(i[3579])/i);
+    return match ? match[1].toLowerCase() : "";
+  };
+
+  // Helper function to extract CPU model
+  const extractCpuModel = (cpuString) => {
+    if (!cpuString) return "";
+    // Remove the generation part and clean up
+    return cpuString
+      .replace(/(i[3579])/i, "")
+      .replace(/^[\s-]+/, "")
+      .trim();
+  };
+
+  // Helper function to extract RAM size in GB
+  const extractRamSize = (ramString) => {
+    if (!ramString) return "";
+    // Extract numbers from RAM string (e.g., "8GB" -> "8", "16 GB" -> "16")
+    const match = ramString.match(/(\d+)/);
+    return match ? match[1] : "";
+  };
+
   const handleSave = async () => {
     setShowForm(false); // Close modal immediately to prevent multiple clicks
     setSaveError("");
@@ -1207,7 +2186,7 @@ function Inventory() {
 
     try {
       // Enhanced TAG validation
-      const tagValidation = await validateTagUniqueness(
+      const tagValidation = await validateLocalTagUniqueness(
         form.deviceTag,
         form._editDeviceId
       );
@@ -1238,6 +2217,10 @@ function Inventory() {
       if (useSerial) {
         if (!form._editDeviceId) {
           const newDevice = await addDevice(payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
+
           // Log device creation
           await logDeviceHistory({
             employeeId: null,
@@ -1256,6 +2239,9 @@ function Inventory() {
           const changeDescription = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
 
           // Log device update with change details
           await logDeviceHistory({
@@ -1273,6 +2259,10 @@ function Inventory() {
       } else {
         if (!form._editDeviceId) {
           const newDevice = await addDevice(payload, tagPrefix);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
+
           // Log device creation
           await logDeviceHistory({
             employeeId: null,
@@ -1291,6 +2281,9 @@ function Inventory() {
           const changeDescription = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
+
+          // Sync to UnitSpecs if it's a PC or Laptop
+          await syncToUnitSpecs(payload);
 
           // Log device update with change details
           await logDeviceHistory({
@@ -1321,18 +2314,80 @@ function Inventory() {
   const handleEdit = (device) => {
     const { id, ...deviceData } = device;
 
+    // Find the matching deviceType label (case-insensitive)
+    let matchedType = "";
+    if (deviceData.deviceType) {
+      const foundType = deviceTypes.find(
+        (t) => t.label.toLowerCase() === deviceData.deviceType.toLowerCase()
+      );
+      matchedType = foundType ? foundType.label : deviceData.deviceType;
+    }
+
+    // Extract RAM size for RAM devices
+    let extractedRamSize = "";
+    if (matchedType === "RAM" && deviceData.deviceTag) {
+      // Extract size from tag format like JOIIRAM40001, JOIIRAM80001, etc.
+      // The format is JOIIRAM[SIZE][NUMBER] where SIZE can be 4, 8, 16, 32, 64
+      const ramMatch = deviceData.deviceTag.match(/^JOIIRAM(\d+)/);
+      if (ramMatch) {
+        const fullNumber = ramMatch[1]; // e.g., "40004"
+
+        // Extract just the size part (first 1-2 digits)
+        let sizeNumber = "";
+        const fullNumberStr = String(fullNumber);
+        if (fullNumberStr.startsWith("4")) {
+          sizeNumber = "4";
+        } else if (fullNumberStr.startsWith("8")) {
+          sizeNumber = "8";
+        } else if (fullNumberStr.startsWith("16")) {
+          sizeNumber = "16";
+        } else if (fullNumberStr.startsWith("32")) {
+          sizeNumber = "32";
+        } else if (fullNumberStr.startsWith("64")) {
+          sizeNumber = "64";
+        }
+
+        // Map the extracted size to the dropdown option format
+        const sizeMap = {
+          4: "4GB",
+          8: "8GB",
+          16: "16GB",
+          32: "32GB",
+          64: "64GB",
+        };
+        extractedRamSize = sizeMap[sizeNumber] || "";
+      }
+    }
+
+    // Extract CPU System Unit for PC devices
+    let extractedCpuSystemUnit = "";
+    if (matchedType === "PC" && deviceData.deviceTag) {
+      // For simple PC tags (JOIIPC0001), CPU System Unit should be extracted from other fields
+      // Use cpuGen field if available, or extract from brand
+      extractedCpuSystemUnit = deviceData.cpuGen || deviceData.brand || "";
+    }
+
     // Map all device fields to the form, ensuring all fields are included
     const formData = {
-      deviceType: deviceData.deviceType || "",
+      deviceType: matchedType || "",
       deviceTag: deviceData.deviceTag || "",
-      brand: deviceData.brand || "",
+      brand: deviceData.brand || "", // Keep the actual brand field separate from CPU System Unit
       model: deviceData.model || "",
       client: deviceData.client || "",
       condition: deviceData.condition || "",
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
+      ramSize: extractedRamSize, // Add extracted RAM size
+      cpuGen: extractedCpuSystemUnit || deviceData.cpuGen || "", // Use extracted CPU System Unit or existing cpuGen
       assignedTo: deviceData.assignedTo || "",
       assignmentDate: deviceData.assignmentDate || "",
+      // PC/Laptop specifications
+      cpuGen: deviceData.cpuGen || "",
+      ram: deviceData.ram || "",
+      drive1: deviceData.drive1 || "",
+      drive2: deviceData.drive2 || "",
+      gpu: deviceData.gpu || "",
+      os: deviceData.os || "",
       _editDeviceId: id,
       id: id, // Keep id for edit mode detection
     };
@@ -1340,10 +2395,38 @@ function Inventory() {
     setForm(formData);
 
     // Check if this device uses a serial number format (no JOII prefix)
-    const typeObj = deviceTypes.find((t) => t.label === deviceData.deviceType);
-    const expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
-    const isSerialFormat =
-      deviceData.deviceTag && !deviceData.deviceTag.startsWith(expectedPrefix);
+    const typeObj = deviceTypes.find(
+      (t) => t.label.toLowerCase() === matchedType.toLowerCase()
+    );
+    let expectedPrefix = typeObj ? `JOII${typeObj.code}` : "";
+
+    // For PC devices, check for CPU-specific prefixes
+    if (matchedType === "PC" && extractedCpuSystemUnit) {
+      const cpuMap = {
+        i3: "I3",
+        i5: "I5",
+        i7: "I7",
+        i9: "I9",
+      };
+      const cpuCode = cpuMap[extractedCpuSystemUnit];
+      if (cpuCode) {
+        expectedPrefix = `JOIIPC${cpuCode}`;
+      }
+    }
+
+    // Backward compatibility: for Headset, accept legacy prefix JOIIHS as valid too
+    let isSerialFormat = true;
+    if (deviceData.deviceTag) {
+      const tagStr = String(deviceData.deviceTag);
+      if (matchedType === "Headset") {
+        // Accept both new (JOIIH) and legacy (JOIIHS) prefixes
+        isSerialFormat = !(
+          tagStr.startsWith("JOIIH") || tagStr.startsWith("JOIIHS")
+        );
+      } else {
+        isSerialFormat = !tagStr.startsWith(expectedPrefix);
+      }
+    }
     setUseSerial(isSerialFormat);
 
     setShowForm(true);
@@ -1426,7 +2509,7 @@ function Inventory() {
   };
 
   const resetForm = () => {
-    setForm({ ...initialForm });
+    setForm({ ...initialForm, acquisitionDate: getCurrentDate() });
     setUseSerial(false);
     setShowForm(false);
     setSaveError("");
@@ -1440,8 +2523,68 @@ function Inventory() {
 
   const handleSerialToggle = (checked) => {
     setUseSerial(checked);
-    setForm((prev) => ({ ...prev, deviceTag: "" }));
-    setTagError("");
+    if (checked) {
+      // Switching to serial: keep deviceTag as is (user can edit)
+      setTagError("");
+    } else {
+      // Switching back to auto-generated: re-generate deviceTag
+      if (form.deviceType === "RAM") {
+        // For RAM, re-generate based on selected size
+        if (form.ramSize) {
+          const sizeMap = {
+            "4GB": "4",
+            "8GB": "8",
+            "16GB": "16",
+            "32GB": "32",
+            "64GB": "64",
+          };
+          const sizeCode = sizeMap[form.ramSize];
+          if (sizeCode) {
+            const prefix = `JOIIRAM${sizeCode}`;
+            getAllDevices().then((allDevices) => {
+              const ids = allDevices
+                .map((d) => d.deviceTag)
+                .filter((tag) => tag && String(tag).startsWith(prefix))
+                .map((tag) => parseInt(String(tag).replace(prefix, "")))
+                .filter((num) => !isNaN(num));
+              const max = ids.length > 0 ? Math.max(...ids) : 0;
+              const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+              setForm((prev) => ({ ...prev, deviceTag: newTag }));
+            });
+          }
+        }
+      } else {
+        // For non-RAM and non-PC devices, use standard logic
+        const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
+        if (typeObj) {
+          const prefix = `JOII${typeObj.code}`;
+          const isHeadset = typeObj.code === "H";
+          const legacyHeadsetPrefix = "JOIIHS";
+          getAllDevices().then((allDevices) => {
+            const tags = allDevices.map((d) => d.deviceTag).filter(Boolean);
+            const ids = tags
+              .filter((tag) =>
+                isHeadset
+                  ? String(tag).startsWith(prefix) ||
+                    String(tag).startsWith(legacyHeadsetPrefix)
+                  : String(tag).startsWith(prefix)
+              )
+              .map((tag) => {
+                const t = String(tag);
+                if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+                  return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+                }
+                return parseInt(t.replace(prefix, ""), 10);
+              })
+              .filter((num) => !isNaN(num));
+            const max = ids.length > 0 ? Math.max(...ids) : 0;
+            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+            setForm((prev) => ({ ...prev, deviceTag: newTag }));
+          });
+        }
+      }
+      setTagError("");
+    }
   };
 
   const handleImportExcel = async (e) => {
@@ -1508,8 +2651,12 @@ function Inventory() {
           try {
             if (existing) {
               await updateDevice(existing.id, devicePayload); // Overwrite
+              // Sync to UnitSpecs if it's a PC or Laptop
+              await syncToUnitSpecs(devicePayload);
             } else {
               await addDevice(devicePayload);
+              // Sync to UnitSpecs if it's a PC or Laptop
+              await syncToUnitSpecs(devicePayload);
             }
             importedCount++;
           } catch (err) {}
@@ -1528,13 +2675,21 @@ function Inventory() {
   };
 
   // --- FILTERED DEVICES ---
-  const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+  const filteredDevices = getUnassignedDevices(
+    devices,
+    deviceSearch,
+    headerFilters
+  );
 
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
 
     // Filter devices based on search AND exclude assigned devices AND apply header filters
-    const filteredDevices = getUnassignedDevices(devices, deviceSearch, headerFilters);
+    const filteredDevices = getUnassignedDevices(
+      devices,
+      deviceSearch,
+      headerFilters
+    );
 
     // Get current page devices
     const startIndex = (currentPage - 1) * devicesPerPage;
@@ -1632,11 +2787,13 @@ function Inventory() {
   // --- ASSIGN MODAL LOGIC ---
   const [assignModalStep, setAssignModalStep] = useState(0);
   const [assignModalChecks, setAssignModalChecks] = useState({
+    // Radio button selections
+    issueTypeSelected: "", // "newIssue" or "wfh"
+    // Checkbox states
     newIssueNew: false,
     newIssueStock: false,
     wfhNew: false,
     wfhStock: false,
-    temporaryDeploy: false,
   });
   const [assignModalShowGenerate, setAssignModalShowGenerate] = useState(false);
   const [assignModalGenerating, setAssignModalGenerating] = useState(false);
@@ -1655,12 +2812,12 @@ function Inventory() {
     setAssignModalShowGenerate(false); // Reset show generate button
     setSelectedAssignEmployee(null); // Reset selected employee
     setAssignModalChecks({
-      // Reset all checkboxes
+      // Reset all radio buttons and checkboxes
+      issueTypeSelected: "",
       newIssueNew: false,
       newIssueStock: false,
       wfhNew: false,
       wfhStock: false,
-      temporaryDeploy: false,
     });
     setAssignSearch("");
   };
@@ -1671,11 +2828,11 @@ function Inventory() {
     setAssignModalStep(0);
     setSelectedAssignEmployee(null);
     setAssignModalChecks({
+      issueTypeSelected: "",
       newIssueNew: false,
       newIssueStock: false,
       wfhNew: false,
       wfhStock: false,
-      temporaryDeploy: false,
     });
     setAssignModalShowGenerate(false);
     setProgress(0);
@@ -1687,14 +2844,109 @@ function Inventory() {
     setAssignSearch("");
   };
 
-  const handleAssignModalCheckbox = (e) => {
+  const handleAssignModalRadio = (issueType) => {
+    // Get devices to check - either single device or selected devices for bulk assign
+    let devicesToCheck = [];
+    if (assigningDevice) {
+      // Single device assignment
+      devicesToCheck = [assigningDevice];
+    } else if (selectedIds.length > 0) {
+      // Bulk assignment - get selected devices
+      devicesToCheck = devices.filter((device) =>
+        selectedIds.includes(device.id)
+      );
+    }
+
+    // Analyze device conditions
+    const hasGoodDevices = devicesToCheck.some(
+      (device) => device.condition === "GOOD"
+    );
+    const hasBrandNewDevices = devicesToCheck.some(
+      (device) => device.condition === "BRANDNEW"
+    );
+
+    // Determine automatic checkbox selection based on device conditions
+    let autoChecks = {
+      newIssueNew: false,
+      newIssueStock: false,
+      wfhNew: false,
+      wfhStock: false,
+    };
+
+    if (hasGoodDevices && hasBrandNewDevices) {
+      // Mixed conditions: select both 'Newly Purchased' and 'Stock'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueNew = true;
+        autoChecks.newIssueStock = true;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhNew = true;
+        autoChecks.wfhStock = true;
+      }
+    } else if (hasBrandNewDevices) {
+      // Only BRANDNEW devices: select only 'Newly Purchased'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueNew = true;
+        autoChecks.newIssueStock = false;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhNew = true;
+        autoChecks.wfhStock = false;
+      }
+    } else if (hasGoodDevices) {
+      // Only GOOD devices: select only 'Stock'
+      if (issueType === "newIssue") {
+        autoChecks.newIssueStock = true;
+      } else if (issueType === "wfh") {
+        autoChecks.wfhStock = true;
+      }
+    }
+
     setAssignModalChecks((prev) => ({
       ...prev,
-      [e.target.name]: e.target.checked,
+      issueTypeSelected: issueType,
+      // Set automatic checkbox selections based on device conditions
+      ...autoChecks,
     }));
   };
 
+  const handleAssignModalCheckbox = (e) => {
+    const { name, checked } = e.target;
+
+    setAssignModalChecks((prev) => {
+      const newState = { ...prev };
+
+      // Handle Newly Purchased logic
+      if (name === "newIssueNew" || name === "wfhNew") {
+        newState[name] = checked;
+
+        if (checked) {
+          // Auto-select Stock when Newly Purchased is selected
+          if (name === "newIssueNew") {
+            newState.newIssueStock = true;
+          } else if (name === "wfhNew") {
+            newState.wfhStock = true;
+          }
+        }
+      } else if (name === "newIssueStock" || name === "wfhStock") {
+        // Allow users to freely check/uncheck Stock regardless of Newly Purchased status
+        newState[name] = checked;
+      }
+
+      return newState;
+    });
+  };
+
   const handleAssignModalNext = () => {
+    // Validate that either New Issue or Work From Home is selected
+    if (!assignModalChecks.issueTypeSelected) {
+      showError(
+        "Please select either 'New Issue' or 'Work From Home/Borrowed' option."
+      );
+      return;
+    }
+
+    // Note: Checkbox validation is no longer needed since they are automatically selected
+    // based on device condition when a radio button is chosen
+
     setAssignModalShowGenerate(true);
   };
 
@@ -1733,9 +2985,9 @@ function Inventory() {
         String(phTime.getDate()).padStart(2, "0");
 
       doc.setData({
-        name: emp?.fullName || "",
+        name: getFirstLastName(emp?.fullName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
-        department: emp?.department || emp?.client || "",
+        department: getDepartmentForForm(emp),
         position: emp?.position || "",
         devices: selectedDeviceObjects.map((dev) => {
           // Format assignmentDate as 'June 06, 2025'
@@ -1759,9 +3011,7 @@ function Inventory() {
             brand: dev.brand,
             deviceTag: dev.deviceTag,
             condition: dev.condition,
-            remarks: assignModalChecks.temporaryDeploy
-              ? "temporary deployed"
-              : dev.remarks,
+            remarks: dev.remarks,
           };
         }),
         // Dual placeholders for colored checkboxes
@@ -1812,14 +3062,26 @@ function Inventory() {
     const devicesToAssign = devices.filter((d) => selectedIds.includes(d.id));
 
     for (const dev of devicesToAssign) {
-      await updateDevice(dev.id, {
+      const updatedDevice = {
         ...dev,
         assignedTo: selectedAssignEmployee.id,
         assignmentDate: new Date(), // Store full timestamp for precise ordering
-        remarks: assignModalChecks.temporaryDeploy
-          ? "temporary deployed"
-          : dev.remarks,
-      });
+        remarks: dev.remarks,
+        assignmentType: assignModalChecks.issueTypeSelected, // Store assignment type: "newIssue" or "wfh"
+      };
+
+      await updateDevice(dev.id, updatedDevice);
+
+      // Sync to UnitSpecs DeployedUnits if it's a PC or Laptop
+      await syncToUnitSpecs(updatedDevice, "DeployedUnits");
+
+      // Move from InventoryUnits to DeployedUnits in UnitSpecs if it exists there
+      await moveDeviceInUnitSpecs(
+        dev.deviceTag,
+        "InventoryUnits",
+        "DeployedUnits"
+      );
+
       await logDeviceHistory({
         employeeId: selectedAssignEmployee.id,
         employeeName: selectedAssignEmployee.fullName,
@@ -1827,6 +3089,7 @@ function Inventory() {
         deviceTag: dev.deviceTag,
         action: "assigned",
         date: new Date(), // Store full timestamp for precise ordering
+        assignmentType: assignModalChecks.issueTypeSelected, // Store assignment type for history tracking
       });
     }
 
@@ -1867,9 +3130,9 @@ function Inventory() {
 
   // --- Header Filter Functions ---
   const updateHeaderFilter = (key, value) => {
-    setHeaderFilters(prev => ({
+    setHeaderFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
     setCurrentPage(1); // Reset to first page when filtering
   };
@@ -1929,10 +3192,11 @@ function Inventory() {
     const allDevices = await getAllDevices();
     const deviceTags = allDevices
       .filter(
-        (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
+        (device) =>
+          device.deviceTag && String(device.deviceTag).startsWith(prefix)
       )
       .map((device) => {
-        const tagNumber = device.deviceTag.replace(prefix, "");
+        const tagNumber = String(device.deviceTag).replace(prefix, "");
         return parseInt(tagNumber, 10);
       })
       .filter((num) => !isNaN(num))
@@ -1952,7 +3216,7 @@ function Inventory() {
 
     // Validate all tags for uniqueness
     for (const tag of tagsToCheck) {
-      const validation = await validateTagUniqueness(tag);
+      const validation = await validateLocalTagUniqueness(tag);
       if (!validation.isValid) {
         throw new Error(`TAG validation failed: ${validation.message}`);
       }
@@ -1981,6 +3245,10 @@ function Inventory() {
       // console.log(`Creating device ${deviceTag} with type: "${deviceType}"`);
       try {
         const newDevice = await addDevice(payload);
+
+        // Sync to UnitSpecs if it's a PC or Laptop
+        await syncToUnitSpecs(payload);
+
         // Log device creation
         await logDeviceHistory({
           employeeId: null,
@@ -2034,15 +3302,25 @@ function Inventory() {
       if (!typeObj) return;
 
       const prefix = `JOII${typeObj.code}`;
+      const isHeadset = typeObj.code === "H";
+      const legacyHeadsetPrefix = "JOIIHS";
       const allDevices = await getAllDevices();
 
       // Find all devices of this type to determine the last used TAG
       const deviceTags = allDevices
-        .filter(
-          (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
-        )
+        .filter((device) => {
+          const tag = device.deviceTag && String(device.deviceTag);
+          if (!tag) return false;
+          return isHeadset
+            ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
+            : tag.startsWith(prefix);
+        })
         .map((device) => {
-          const tagNumber = device.deviceTag.replace(prefix, "");
+          const tag = String(device.deviceTag);
+          const tagNumber =
+            isHeadset && tag.startsWith(legacyHeadsetPrefix)
+              ? tag.replace(legacyHeadsetPrefix, "")
+              : tag.replace(prefix, "");
           return parseInt(tagNumber, 10);
         })
         .filter((num) => !isNaN(num))
@@ -2083,7 +3361,7 @@ function Inventory() {
         model: "",
         condition: "",
         remarks: "",
-        acquisitionDate: "",
+        acquisitionDate: getTodaysDate(),
         quantity: 1,
         supplier: "",
         client: "",
@@ -2324,7 +3602,7 @@ function Inventory() {
 
       // Enhanced validation: Check against existing devices using global validation
       for (const serial of allSerialValues) {
-        const validation = await validateTagUniqueness(serial);
+        const validation = await validateLocalTagUniqueness(serial);
         if (!validation.isValid) {
           setNewAcqError(validation.message);
           setNewAcqLoading(false);
@@ -2371,6 +3649,10 @@ function Inventory() {
 
           try {
             const newDevice = await addDevice(payload);
+
+            // Sync to UnitSpecs if it's a PC or Laptop
+            await syncToUnitSpecs(payload);
+
             // Log device creation
             await logDeviceHistory({
               employeeId: null,
@@ -2539,15 +3821,25 @@ function Inventory() {
           return;
         }
         const prefix = `JOII${typeObj.code}`;
+        const isHeadset = typeObj.code === "H";
+        const legacyHeadsetPrefix = "JOIIHS";
 
         // Find the next available TAG number for this device type
         const allDevices = await getAllDevices();
         const deviceTags = allDevices
-          .filter(
-            (device) => device.deviceTag && device.deviceTag.startsWith(prefix)
-          )
+          .filter((device) => {
+            const tag = device.deviceTag && String(device.deviceTag);
+            if (!tag) return false;
+            return isHeadset
+              ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
+              : tag.startsWith(prefix);
+          })
           .map((device) => {
-            const tagNumber = device.deviceTag.replace(prefix, "");
+            const tag = String(device.deviceTag);
+            const tagNumber =
+              isHeadset && tag.startsWith(legacyHeadsetPrefix)
+                ? tag.replace(legacyHeadsetPrefix, "")
+                : tag.replace(prefix, "");
             return parseInt(tagNumber, 10);
           })
           .filter((num) => !isNaN(num))
@@ -2566,7 +3858,7 @@ function Inventory() {
 
         // Validate all TAGs for uniqueness
         for (const tag of tagsToValidate) {
-          const tagValidation = await validateTagUniqueness(tag);
+          const tagValidation = await validateLocalTagUniqueness(tag);
           if (!tagValidation.isValid) {
             setNewAcqError(`${tagValidation.message} in ${rangeTabs[i].label}`);
             setNewAcqLoading(false);
@@ -2847,27 +4139,622 @@ function Inventory() {
     }
   };
 
+  // --- Last Tags Functionality ---
+  const getLastTagsForEachDeviceType = async () => {
+    try {
+      const allDevices = await getAllDevices();
+      const deviceTypesList = [
+        { label: "Headset", code: "H" },
+        { label: "Keyboard", code: "KB" },
+        { label: "Laptop", code: "LPT" },
+        { label: "Monitor", code: "MN" },
+        { label: "Mouse", code: "M" },
+        { label: "PC", code: "PC" },
+        { label: "PSU", code: "PSU" },
+        { label: "RAM", code: "RAM" },
+        { label: "SSD", code: "SSD" },
+        { label: "UPS", code: "UPS" },
+        { label: "Webcam", code: "W" },
+        { label: "Docking Station", code: "DS" },
+      ];
+
+      // PC types tracked with simple format
+      const pcCpuTypes = [{ label: "PC", code: "PC", prefix: "JOIIPC" }];
+
+      // RAM sizes to track separately
+      const ramSizes = [
+        { label: "RAM4", code: "RAM4", prefix: "JOIIRAM4" },
+        { label: "RAM8", code: "RAM8", prefix: "JOIIRAM8" },
+        { label: "RAM16", code: "RAM16", prefix: "JOIIRAM16" },
+        { label: "RAM32", code: "RAM32", prefix: "JOIIRAM32" },
+        { label: "RAM64", code: "RAM64", prefix: "JOIIRAM64" },
+      ];
+
+      const lastTagsResults = [];
+
+      // Process regular device types (excluding RAM and PC)
+      deviceTypesList.forEach((type) => {
+        const prefix = `JOII${type.code}`;
+
+        // Find existing tags with this prefix
+        const existingTags = allDevices
+          .filter(
+            (device) =>
+              device.deviceTag && String(device.deviceTag).startsWith(prefix)
+          )
+          .map((device) => {
+            const tagNumber = String(device.deviceTag).replace(prefix, "");
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number (subtract 1 from the next available as requested)
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        lastTagsResults.push({
+          deviceType: type.label,
+          code: type.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        });
+      });
+
+      // Process PC CPU types separately
+      pcCpuTypes.forEach((pcType) => {
+        // Find existing tags with this PC CPU type prefix
+        const existingTags = allDevices
+          .filter(
+            (device) =>
+              device.deviceTag &&
+              String(device.deviceTag).startsWith(pcType.prefix)
+          )
+          .map((device) => {
+            const tagNumber = String(device.deviceTag).replace(
+              pcType.prefix,
+              ""
+            );
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${pcType.prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        lastTagsResults.push({
+          deviceType: pcType.label,
+          code: pcType.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        });
+      });
+
+      // Process RAM sizes separately
+      ramSizes.forEach((ramType) => {
+        // Find existing tags with this RAM size prefix
+        const existingTags = allDevices
+          .filter(
+            (device) =>
+              device.deviceTag &&
+              String(device.deviceTag).startsWith(ramType.prefix)
+          )
+          .map((device) => {
+            const tagNumber = String(device.deviceTag).replace(
+              ramType.prefix,
+              ""
+            );
+            return parseInt(tagNumber, 10);
+          })
+          .filter((num) => !isNaN(num))
+          .sort((a, b) => b - a);
+
+        // Get the last used number
+        const nextNumber = existingTags.length > 0 ? existingTags[0] + 1 : 1;
+        const lastUsedNumber = nextNumber - 1;
+        const lastUsedTag =
+          lastUsedNumber > 0
+            ? `${ramType.prefix}${String(lastUsedNumber).padStart(4, "0")}`
+            : "No tags used yet";
+
+        lastTagsResults.push({
+          deviceType: ramType.label,
+          code: ramType.code,
+          lastTag: lastUsedTag,
+          totalCount: existingTags.length,
+        });
+      });
+
+      setLastTagsData(lastTagsResults);
+    } catch (error) {
+      console.error("Error fetching last tags:", error);
+      showSnackbar("Error fetching last tags data", "error");
+    }
+  };
+
+  // === DYNAMIC STYLES WITH THEME SUPPORT ===
+  const styles = {
+    pageContainer: {
+      padding: "0", // Remove padding for fixed layout
+      maxWidth: "100%",
+      background: "transparent", // Let parent handle background
+      height: "100%", // Fill available height
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden", // Prevent page-level scrolling
+    },
+    headerBar: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 16, // Reduced margin for fixed layout
+      padding: "16px 24px", // Added consistent padding
+      flexShrink: 0, // Prevent header from shrinking
+      background: isDarkMode ? "#1f2937" : "#fff", // Add background for visual separation
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: 700,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      letterSpacing: 1,
+      margin: 0,
+    },
+    headerBarGoogle: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 24,
+      padding: "0 24px",
+    },
+    googleTitle: {
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      fontWeight: 800,
+      fontSize: 28,
+      marginBottom: 18,
+      letterSpacing: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    googleSearchBar: {
+      display: "flex",
+      alignItems: "center",
+      background: isDarkMode ? "#374151" : "#fff",
+      borderRadius: 24,
+      boxShadow: isDarkMode
+        ? "0 2px 8px rgba(0,0,0,0.3)"
+        : "0 2px 8px rgba(68,95,109,0.10)",
+      border: isDarkMode ? "1.5px solid #4b5563" : "1.5px solid #e0e7ef",
+      padding: "2px 16px 2px 12px",
+      width: 320,
+      transition: "box-shadow  0.2s, border 0.2s",
+      marginBottom: 0,
+    },
+    googleSearchInput: {
+      border: "none",
+      outline: "none",
+      background: "transparent",
+      fontSize: 17,
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      padding: "10px 0 10px 8px",
+      width: "100%",
+      fontWeight: 500,
+    },
+    buttonBar: {
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      marginBottom: 18,
+      padding: "0 24px",
+    },
+    button: {
+      background: "#70C1B3",
+      color: isDarkMode ? "#f3f4f6" : "#233037",
+      border: "none",
+      borderRadius: 8,
+      padding: "10px 22px",
+      fontSize: 16,
+      fontWeight: 700,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      margin: 0,
+    },
+    buttonDisabled: {
+      background: isDarkMode ? "#374151" : "#e9eef3",
+      color: isDarkMode ? "#9ca3af" : "#b0b8c1",
+      cursor: "not-allowed",
+    },
+    tableContainer: {
+      marginTop: 0,
+      overflowX: "auto",
+      overflowY: "auto", // Allow vertical scrolling
+      padding: "0",
+      flex: 1, // Take remaining space
+      minHeight: 0, // Allow shrinking
+      background: isDarkMode ? "#1f2937" : "#fff",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+    },
+    table: {
+      width: "100%",
+      minWidth: 900,
+      borderCollapse: "collapse",
+      borderSpacing: 0,
+      background: isDarkMode ? "#1f2937" : "#fff",
+      overflow: "hidden",
+      tableLayout: "auto",
+    },
+    th: {
+      padding: "12px 16px",
+      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+      color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+      fontWeight: 500,
+      fontSize: 12,
+      border: "none",
+      textAlign: "left",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      position: "sticky",
+      top: 0,
+      zIndex: 5,
+    },
+    td: {
+      padding: "12px 16px",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      fontSize: 14,
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      verticalAlign: "middle",
+      wordBreak: "break-word",
+    },
+    iconButton: {
+      background: "none",
+      border: "none",
+      color: isDarkMode ? "#9ca3af" : "#64748b",
+      fontSize: 18,
+      padding: 6,
+      borderRadius: 6,
+      cursor: "pointer",
+      marginRight: 4,
+      transition: "background 0.2s, color 0.2s",
+      outline: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconButtonHover: {
+      background: isDarkMode ? "#374151" : "#e0e7ef",
+      color: "#2563eb",
+    },
+    deletingText: {
+      marginLeft: 16,
+      color: "#e57373",
+      fontWeight: 500,
+      fontSize: 15,
+    },
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: isDarkMode
+        ? "rgba(0, 0, 0, 0.7)"
+        : "rgba(34, 46, 58, 0.18)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    },
+    modalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 28,
+      borderRadius: 14,
+      minWidth: 260,
+      maxWidth: 340,
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.5)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      position: "relative",
+      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+      transition: "box-shadow 0.2s",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalContent: {
+      background: isDarkMode ? "#1f2937" : "#fff",
+      padding: 20,
+      borderRadius: 12,
+      minWidth: 480,
+      maxWidth: 520,
+      width: "70vw",
+      boxShadow: isDarkMode
+        ? "0 6px 24px rgba(0,0,0,0.5)"
+        : "0 6px 24px rgba(34,46,58,0.13)",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      position: "relative",
+      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+      transition: "box-shadow 0.2s",
+      maxHeight: "85vh",
+      overflowY: "auto",
+      scrollbarWidth: "none",
+      msOverflowStyle: "none",
+      WebkitScrollbar: { display: "none" },
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 16,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalTitle: {
+      fontSize: 18,
+      fontWeight: 700,
+      color: "#2563eb",
+      marginBottom: 14,
+      letterSpacing: 0.5,
+      textAlign: "center",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInputGroup: {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+      marginBottom: 10,
+      width: "100%",
+      minWidth: 140,
+    },
+    inventoryLabel: {
+      alignSelf: "flex-start",
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 3,
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryInput: {
+      width: "100%",
+      minWidth: 0,
+      fontSize: 13,
+      padding: "6px 8px",
+      borderRadius: 5,
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "inherit",
+      height: "30px",
+      boxSizing: "border-box",
+      marginBottom: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+    },
+    inventoryModalButton: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalButtonSmall: {
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: 7,
+      padding: "7px 14px",
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: "pointer",
+      marginLeft: 4,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    inventoryModalButtonSecondary: {
+      background: isDarkMode ? "#374151" : "#e0e7ef",
+      color: isDarkMode ? "#f3f4f6" : "#2563eb",
+      border: "none",
+      borderRadius: 8,
+      padding: "9px 20px",
+      fontSize: 15,
+      fontWeight: 500,
+      cursor: "pointer",
+      marginLeft: 4,
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "background 0.2s, box-shadow 0.2s",
+      outline: "none",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    modalCheckbox: {
+      accentColor: "#2563eb",
+      width: 18,
+      height: 18,
+      marginRight: 8,
+    },
+    modalSection: {
+      width: "100%",
+      marginBottom: 14,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-start",
+    },
+    modalLabel: {
+      fontWeight: 500,
+      color: isDarkMode ? "#f3f4f6" : "#222e3a",
+      marginBottom: 5,
+      fontSize: 15,
+      textAlign: "left",
+      width: "100%",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    actionEditButton: {
+      background: "transparent",
+      border: "none",
+      borderRadius: 4,
+      padding: "6px",
+      cursor: "pointer",
+      transition: "background 0.18s",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionEditButtonHover: {
+      background: isDarkMode ? "#374151" : "#dbeafe",
+    },
+    actionDeleteButton: {
+      background: "transparent",
+      border: "none",
+      borderRadius: 4,
+      padding: "6px",
+      cursor: "pointer",
+      transition: "background 0.18s",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionDeleteButtonHover: {
+      background: isDarkMode ? "#374151" : "#fef2f2",
+    },
+    // Tab styles for the New Acquisitions modal
+    tabButton: {
+      border: "none",
+      padding: "8px 12px",
+      fontSize: 13,
+      fontWeight: 500,
+      cursor: "pointer",
+      borderRadius: "6px 6px 0 0",
+      transition: "all 0.2s",
+      display: "flex",
+      alignItems: "center",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      minWidth: 80,
+      maxWidth: 120,
+      justifyContent: "space-between",
+      flexShrink: 0,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+    addTabButton: {
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#9ca3af" : "#64748b",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      borderRadius: 6,
+      width: 32,
+      height: 32,
+      fontSize: 16,
+      fontWeight: 600,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
   return (
     <div
       style={{
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "transparent",
+        background: isDarkMode ? "#111827" : "transparent",
+        color: isDarkMode ? "#f3f4f6" : "inherit",
         fontFamily:
           "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
         overflow: "hidden",
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Responsive search bar styles */
+        .inventory-search-container {
+          /* Small screens (mobile) - max 250px */
+          max-width: 250px;
+        }
+        
+        @media (min-width: 768px) {
+          /* Medium screens (tablets) - max 350px */
+          .inventory-search-container {
+            max-width: 350px;
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          /* Large screens (laptops) - max 450px */
+          .inventory-search-container {
+            max-width: 450px;
+          }
+        }
+        
+        @media (min-width: 1280px) {
+          /* Extra large screens (desktops) - max 600px */
+          .inventory-search-container {
+            max-width: 600px;
+          }
+        }
+        
+        @media (min-width: 1536px) {
+          /* Extra extra large screens (large monitors) - max 800px */
+          .inventory-search-container {
+            max-width: 800px;
+          }
+        }
+      `}</style>
       <div
         style={{
           position: "sticky",
           top: 0,
           zIndex: 10,
           flexShrink: 0,
-          background: "rgb(255, 255, 255)",
-          borderBottom: "1px solid #e5e7eb",
+          background: isDarkMode ? "#1f2937" : "rgb(255, 255, 255)",
+          borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
         }}
       >
         <div
@@ -2880,22 +4767,25 @@ function Inventory() {
           }}
         >
           <div
+            className="inventory-search-container"
             style={{
               display: "flex",
               alignItems: "center",
-              background: "#f9fafb",
+              background: isDarkMode ? "#374151" : "#f9fafb",
               borderRadius: "6px",
-              border: "1px solid #d1d5db",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
               padding: "10px 14px",
               flex: 1,
-              maxWidth: "400px",
-              minWidth: "280px",
+              minWidth: "200px",
             }}
           >
             <svg
               width="18"
               height="18"
-              style={{ color: "#6b7280", opacity: 0.8 }}
+              style={{
+                color: isDarkMode ? "#9ca3af" : "#6b7280",
+                opacity: 0.8,
+              }}
               fill="none"
               stroke="currentColor"
               strokeWidth={2}
@@ -2911,12 +4801,15 @@ function Inventory() {
               placeholder="Search inventory devices..."
               value={deviceSearch}
               onChange={(e) => setDeviceSearch(e.target.value)}
+              className={
+                isDarkMode ? "search-input-dark" : "search-input-light"
+              }
               style={{
                 border: "none",
                 outline: "none",
                 background: "transparent",
                 fontSize: "14px",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 padding: "0 0 0 10px",
                 width: "100%",
                 fontWeight: 400,
@@ -2932,11 +4825,11 @@ function Inventory() {
                 alignItems: "center",
                 gap: "6px",
                 padding: "6px 12px",
-                background: "#f0f9ff",
+                background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
                 borderRadius: "6px",
-                border: "1px solid #0ea5e9",
+                border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
                 fontSize: "12px",
-                color: "#0369a1",
+                color: isDarkMode ? "#dbeafe" : "#0369a1",
                 fontWeight: 500,
               }}
             >
@@ -2964,9 +4857,15 @@ function Inventory() {
             }}
           >
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setForm({ ...initialForm, acquisitionDate: getCurrentDate() });
+                setUseSerial(false);
+                setSaveError("");
+                setTagError("");
+                setShowForm(true);
+              }}
               style={{
-                background: "#3b82f6",
+                background: isDarkMode ? "#3b82f6" : "#3b82f6",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -3019,7 +4918,11 @@ function Inventory() {
                     .click()
                 }
                 style={{
-                  background: importing ? "#9ca3af" : "#10b981",
+                  background: importing
+                    ? "#9ca3af"
+                    : isDarkMode
+                    ? "#10b981"
+                    : "#10b981",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -3067,7 +4970,7 @@ function Inventory() {
               onClick={handleExportToExcel}
               title="Export all inventory data to Excel"
               style={{
-                background: "#f59e0b",
+                background: isDarkMode ? "#f59e0b" : "#f59e0b",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -3106,7 +5009,11 @@ function Inventory() {
               disabled={selectedIds.length === 0}
               onClick={() => handleBulkAssign()}
               style={{
-                background: selectedIds.length ? "#8b5cf6" : "#9ca3af",
+                background: selectedIds.length
+                  ? isDarkMode
+                    ? "#8b5cf6"
+                    : "#8b5cf6"
+                  : "#9ca3af",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -3151,7 +5058,9 @@ function Inventory() {
               style={{
                 background:
                   selectedIds.length && deleteProgress.total === 0
-                    ? "#ef4444"
+                    ? isDarkMode
+                      ? "#ef4444"
+                      : "#ef4444"
                     : "#9ca3af",
                 color: "#fff",
                 border: "none",
@@ -3237,6 +5146,44 @@ function Inventory() {
               New Acquisitions
             </button>
 
+            <button
+              onClick={getLastTagsForEachDeviceType}
+              style={{
+                background: isDarkMode ? "#8b5cf6" : "#8b5cf6",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#7c3aed";
+                e.target.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "#8b5cf6";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+              </svg>
+              Last Tags
+            </button>
+
             {deleteProgress.total > 0 && (
               <span
                 style={{
@@ -3289,8 +5236,8 @@ function Inventory() {
       {hasActiveHeaderFilters && (
         <div
           style={{
-            background: "#f0f9ff",
-            border: "1px solid #0ea5e9",
+            background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
+            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
             borderRadius: "6px",
             padding: "12px 16px",
             margin: "0 24px 16px 24px",
@@ -3307,7 +5254,7 @@ function Inventory() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              color: "#0369a1",
+              color: isDarkMode ? "#dbeafe" : "#0369a1",
             }}
           >
             <svg
@@ -3336,13 +5283,15 @@ function Inventory() {
                   key={key}
                   style={{
                     display: "inline-block",
-                    background: "#ffffff",
-                    border: "1px solid #0ea5e9",
+                    background: isDarkMode ? "#1e3a8a" : "#ffffff",
+                    border: isDarkMode
+                      ? "1px solid #3b82f6"
+                      : "1px solid #0ea5e9",
                     borderRadius: "4px",
                     padding: "4px 8px",
                     margin: "0 4px 4px 0",
                     fontSize: "12px",
-                    color: "#0369a1",
+                    color: isDarkMode ? "#dbeafe" : "#0369a1",
                   }}
                 >
                   {key}: {value}
@@ -3357,7 +5306,7 @@ function Inventory() {
               fontSize: "12px",
               border: "1px solid #0ea5e9",
               borderRadius: "4px",
-              background: "#ffffff",
+              background: isDarkMode ? "#374151" : "#ffffff",
               color: "#0369a1",
               fontFamily:
                 "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -3373,7 +5322,7 @@ function Inventory() {
               e.target.style.color = "#ffffff";
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = "#ffffff";
+              e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
               e.target.style.color = "#0369a1";
             }}
           >
@@ -3395,6 +5344,89 @@ function Inventory() {
         </div>
       )}
 
+      {/* Selection Counter */}
+      {selectedIds.length > 0 && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: isDarkMode ? "#1e40af" : "#dbeafe",
+            borderRadius: "6px",
+            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #3b82f6",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "14px",
+              fontWeight: 500,
+              color: isDarkMode ? "#60a5fa" : "#1e40af",
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"></path>
+            </svg>
+            <span>
+              {selectedIds.length} asset{selectedIds.length !== 1 ? "s" : ""}{" "}
+              selected
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedIds([]);
+              setSelectAll(false);
+            }}
+            style={{
+              background: "transparent",
+              border: `1px solid ${isDarkMode ? "#60a5fa" : "#1e40af"}`,
+              color: isDarkMode ? "#60a5fa" : "#1e40af",
+              cursor: "pointer",
+              padding: "4px 8px",
+              borderRadius: "4px",
+              fontSize: "12px",
+              fontWeight: 500,
+              transition: "all 0.15s ease",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = isDarkMode ? "#60a5fa" : "#1e40af";
+              e.target.style.color = isDarkMode ? "#1e40af" : "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "transparent";
+              e.target.style.color = isDarkMode ? "#60a5fa" : "#1e40af";
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Clear Selection
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <TableLoadingSpinner text="Loading inventory..." />
       ) : (
@@ -3402,10 +5434,11 @@ function Inventory() {
           style={{
             flex: 1,
             overflow: "hidden", // Prevent outer container overflow
-            background: "#fff",
-            border: "1px solid #d1d5db",
-            boxShadow:
-              "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
+            background: isDarkMode ? "#1f2937" : "#fff",
+            border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+            boxShadow: isDarkMode
+              ? "0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2)"
+              : "0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)",
             borderRadius: "8px", // Add border radius for better appearance
             position: "relative", // Enable positioning for sticky elements
             display: "flex",
@@ -3420,818 +5453,944 @@ function Inventory() {
               maxHeight: "100%",
               scrollbarWidth: "thin", // Show thin scrollbar for better UX
               scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
-                // Custom webkit scrollbar styling
-                WebkitScrollbar: { width: "8px", height: "8px" },
-                WebkitScrollbarTrack: { background: "#f1f5f9" },
-                WebkitScrollbarThumb: { background: "#cbd5e1", borderRadius: "4px" },
-                }}
-                >
-                <table
-                style={{
+              // Custom webkit scrollbar styling
+              WebkitScrollbar: { width: "8px", height: "8px" },
+              WebkitScrollbarTrack: { background: "#f1f5f9" },
+              WebkitScrollbarThumb: {
+                background: "#cbd5e1",
+                borderRadius: "4px",
+              },
+            }}
+          >
+            <table
+              style={{
                 width: "100%",
                 minWidth: "900px", // Increased for better laptop/desktop display
                 borderCollapse: "collapse",
-                background: "#fff",
+                background: isDarkMode ? "#1f2937" : "#fff",
                 fontSize: "14px",
-                border: "1px solid #d1d5db",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
                 tableLayout: "fixed", // Fixed layout for better column control
-                }}
-                >
-                <thead>
+              }}
+            >
+              <thead style={{ position: "sticky", top: "0", zIndex: "10" }}>
                 {/* Header Row */}
-                <tr style={{ background: "#f9fafb" }}>
+                <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
                   <th
-                  style={{
-                  width: "4%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "4%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                  style={{ width: 16, height: 16, margin: 0 }}
-                  />
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "3%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "3%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  #
+                    #
                   </th>
                   <th
-                  style={{
-                  width: "13%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "13%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  DEVICE TAG
+                    DEVICE TAG
                   </th>
                   <th
-                  style={{
-                  width: "11%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "11%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  TYPE
+                    TYPE
                   </th>
                   <th
-                  style={{
-                  width: "10%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  BRAND
+                    BRAND
                   </th>
                   <th
-                  style={{
-                  width: "10%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  MODEL
+                    MODEL
                   </th>
                   <th
-                  style={{
-                  width: "9%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  CLIENT
+                    CLIENT
                   </th>
                   <th
-                  style={{
-                  width: "9%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  CONDITION
+                    CONDITION
                   </th>
                   <th
-                  style={{
-                  width: "15%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  REMARKS
+                    REMARKS
                   </th>
                   <th
-                  style={{
-                  width: "12%", // Percentage-based for responsiveness
-                  padding: "8px 6px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%", // Percentage-based for responsiveness
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  ACQUISITION DATE
+                    ACQUISITION DATE
                   </th>
                   <th
-                  style={{
-                  width: "8%", // Percentage-based for responsiveness
-                  padding: "8px 4px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#374151",
-                  textAlign: "center",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: 0,
-                  background: "#f9fafb",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "8%", // Percentage-based for responsiveness
+                      padding: "8px 4px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
                   >
-                  ACTIONS
+                    ACTIONS
                   </th>
                 </tr>
-                
+
                 {/* Filter Row */}
-                <tr style={{ background: "#ffffff" }}>
+                <tr style={{ background: isDarkMode ? "#1f2937" : "#ffffff" }}>
                   <th
-                  style={{
-                  width: "4%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "4%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for checkbox column */}
+                    {/* Empty cell for checkbox column */}
                   </th>
                   <th
-                  style={{
-                  width: "3%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "3%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for # column */}
+                    {/* Empty cell for # column */}
                   </th>
                   <th
-                  style={{
-                  width: "13%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "13%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.deviceTag || ""}
-                  onChange={(value) => updateHeaderFilter("deviceTag", value)}
-                  placeholder="Filter by tag..."
-                  />
+                    <TextFilter
+                      value={headerFilters.deviceTag || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceTag", value)
+                      }
+                      placeholder="Filter by tag..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "11%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "11%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.deviceType || ""}
-                  onChange={(value) => updateHeaderFilter("deviceType", value)}
-                  options={[...new Set(devices.map(d => d.deviceType).filter(Boolean))]}
-                  placeholder="All Types"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.deviceType || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("deviceType", value)
+                      }
+                      options={[
+                        ...new Set(
+                          devices.map((d) => d.deviceType).filter(Boolean)
+                        ),
+                      ]}
+                      placeholder="All Types"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "10%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.brand || ""}
-                  onChange={(value) => updateHeaderFilter("brand", value)}
-                  placeholder="Filter by brand..."
-                  />
+                    <TextFilter
+                      value={headerFilters.brand || ""}
+                      onChange={(value) => updateHeaderFilter("brand", value)}
+                      placeholder="Filter by brand..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "10%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "10%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.model || ""}
-                  onChange={(value) => updateHeaderFilter("model", value)}
-                  placeholder="Filter by model..."
-                  />
+                    <TextFilter
+                      value={headerFilters.model || ""}
+                      onChange={(value) => updateHeaderFilter("model", value)}
+                      placeholder="Filter by model..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "9%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.client || ""}
-                  onChange={(value) => updateHeaderFilter("client", value)}
-                  options={[...new Set(devices.map(d => d.client).filter(Boolean))]}
-                  placeholder="All Clients"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={[
+                        ...new Set(
+                          devices.map((d) => d.client).filter(Boolean)
+                        ),
+                      ]}
+                      placeholder="All Clients"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "9%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "9%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DropdownFilter
-                  value={headerFilters.condition || ""}
-                  onChange={(value) => updateHeaderFilter("condition", value)}
-                  options={["BRANDNEW", "GOOD", "DEFECTIVE"]}
-                  placeholder="All Conditions"
-                  />
+                    <DropdownFilter
+                      value={headerFilters.condition || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("condition", value)
+                      }
+                      options={["BRANDNEW", "GOOD", "DEFECTIVE"]}
+                      placeholder="All Conditions"
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "15%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <TextFilter
-                  value={headerFilters.remarks || ""}
-                  onChange={(value) => updateHeaderFilter("remarks", value)}
-                  placeholder="Filter by remarks..."
-                  />
+                    <TextFilter
+                      value={headerFilters.remarks || ""}
+                      onChange={(value) => updateHeaderFilter("remarks", value)}
+                      placeholder="Filter by remarks..."
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "12%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "12%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  <DateFilter
-                  value={headerFilters.acquisitionDate || ""}
-                  onChange={(value) => updateHeaderFilter("acquisitionDate", value)}
-                  />
+                    <DateFilter
+                      value={headerFilters.acquisitionDate || ""}
+                      onChange={(value) =>
+                        updateHeaderFilter("acquisitionDate", value)
+                      }
+                    />
                   </th>
                   <th
-                  style={{
-                  width: "8%",
-                  padding: "6px 4px",
-                  border: "1px solid #d1d5db",
-                  position: "sticky",
-                  top: "37px",
-                  background: "#ffffff",
-                  zIndex: 10,
-                  }}
+                    style={{
+                      width: "8%",
+                      padding: "6px 4px",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: "37px",
+                      background: isDarkMode ? "#374151" : "#ffffff",
+                      zIndex: 10,
+                    }}
                   >
-                  {/* Empty cell for actions column */}
+                    {/* Empty cell for actions column */}
                   </th>
                 </tr>
-                </thead>
-                <tbody>
+              </thead>
+              <tbody>
                 {(() => {
                   // Filter devices based on search AND exclude assigned devices
                   const filteredDevices = getUnassignedDevices(
-                  devices,
-                  deviceSearch,
-                  headerFilters
+                    devices,
+                    deviceSearch,
+                    headerFilters
                   );
 
                   // Calculate pagination
                   const totalPages = Math.ceil(
-                  filteredDevices.length / devicesPerPage
+                    filteredDevices.length / devicesPerPage
                   );
                   const startIndex = (currentPage - 1) * devicesPerPage;
                   const endIndex = startIndex + devicesPerPage;
                   const currentDevices = filteredDevices.slice(
-                  startIndex,
-                  endIndex
+                    startIndex,
+                    endIndex
                   );
 
                   if (currentDevices.length === 0) {
-                  return (
-                    <tr>
-                    <td 
-                      colSpan="11" 
-                      style={{
-                      padding: "40px 20px",
-                      textAlign: "center",
-                      color: "#9ca3af",
-                      fontSize: "14px",
-                      fontWeight: "400",
-                      border: "1px solid #d1d5db",
-                      }}
-                    >
-                      {deviceSearch || hasActiveHeaderFilters
-                      ? "No inventory devices found matching your criteria."
-                      : "No inventory devices to display."}
-                    </td>
-                    </tr>
-                  );
+                    return (
+                      <tr>
+                        <td
+                          colSpan="11"
+                          style={{
+                            padding: "40px 20px",
+                            textAlign: "center",
+                            color: isDarkMode ? "#9ca3af" : "#9ca3af",
+                            fontSize: "14px",
+                            fontWeight: "400",
+                            border: isDarkMode
+                              ? "1px solid #374151"
+                              : "1px solid #d1d5db",
+                          }}
+                        >
+                          {deviceSearch || hasActiveHeaderFilters
+                            ? "No inventory devices found matching your criteria."
+                            : "No inventory devices to display."}
+                        </td>
+                      </tr>
+                    );
                   }
 
                   return currentDevices.map((device, index) => (
-                  <tr
-                    key={device.id}
-                    style={{
-                    borderBottom: "1px solid #d1d5db",
-                    background:
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                    }}
-                    onClick={() => handleSelectOne(device.id)}
-                    onMouseEnter={(e) => {
-                    if (index % 2 === 0) {
-                      e.currentTarget.style.background =
-                      "rgb(235, 235, 240)";
-                    } else {
-                      e.currentTarget.style.background =
-                      "rgb(225, 225, 235)";
-                    }
-                    }}
-                    onMouseLeave={(e) => {
-                    e.currentTarget.style.background =
-                      index % 2 === 0
-                      ? "rgb(250, 250, 252)"
-                      : "rgb(240, 240, 243)";
-                    }}
-                  >
-                    <td
-                    style={{
-                      width: "4%",
-                      padding: "8px 4px",
-                      textAlign: "center",
-                      border: "1px solid #d1d5db",
-                    }}
-                    >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(device.id)}
-                      onChange={(e) => {
-                      e.stopPropagation();
-                      handleSelectOne(device.id);
-                      }}
-                      style={{ width: 16, height: 16, margin: 0 }}
-                    />
-                    </td>
-                    <td
-                    style={{
-                      width: "3%",
-                      padding: "8px 4px",
-                      fontSize: "14px",
-                      color: "rgb(55, 65, 81)",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    {(currentPage - 1) * devicesPerPage + index + 1}
-                    </td>
-                    <td
-                    style={{
-                      width: "13%",
-                      padding: "8px 6px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <span
-                      onClick={(e) => {
-                      e.stopPropagation();
-                      handleShowDeviceHistory(device);
-                      }}
+                    <tr
+                      key={device.id}
                       style={{
-                      cursor: "pointer",
-                      color: "rgb(107, 114, 128)",
-                      textDecoration: "none",
-                      fontWeight: 400,
-                      transition: "color 0.2s",
-                      display: "block",
-                      width: "100%",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      fontSize: "13px", // Slightly smaller to fit better
-                      }}
-                      onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "rgb(75, 85, 99)")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "rgb(107, 114, 128)")
-                      }
-                      title={`Click to view device history: ${device.deviceTag}`}
-                    >
-                      {device.deviceTag}
-                    </span>
-                    </td>
-                    <td
-                    style={{
-                      width: "11%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.deviceType}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.brand}
-                    </td>
-                    <td
-                    style={{
-                      width: "10%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.model || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.client || "-"}
-                    </td>
-                    <td
-                    style={{
-                      width: "9%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      overflow: "hidden",
-                    }}
-                    >
-                    <div
-                      style={{
-                      display: "inline-block",
-                      background: getConditionColor(device.condition),
-                      color: getConditionTextColor(device.condition),
-                      padding: "4px 6px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      textAlign: "center",
-                      width: "100%",
-                      boxSizing: "border-box",
-                      boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                      }}
-                    >
-                      {device.condition}
-                    </div>
-                    </td>
-                    <td
-                    style={{
-                      width: "15%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                      overflow: "hidden",
-                    }}
-                    >
-                    {device.remarks || ""}
-                    </td>
-                    <td
-                    style={{
-                      width: "12%",
-                      padding: "8px 6px",
-                      fontSize: "13px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      lineHeight: "1.4",
-                    }}
-                    >
-                    {device.acquisitionDate ? (
-                      formatDateToMMDDYYYY(device.acquisitionDate)
-                    ) : (
-                      <span
-                      style={{ color: "#9ca3af", fontStyle: "italic" }}
-                      >
-                      Not recorded
-                      </span>
-                    )}
-                    </td>
-                    <td
-                    style={{
-                      width: "8%",
-                      padding: "4px 2px",
-                      fontSize: "14px",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      textAlign: "center",
-                    }}
-                    >
-                    <div
-                      style={{
-                      display: "flex",
-                      gap: "1px",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexWrap: "nowrap",
-                      minWidth: "fit-content",
-                      }}
-                    >
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
+                        borderBottom: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        background:
+                          index % 2 === 0
+                            ? isDarkMode
+                              ? "#1f2937"
+                              : "rgb(250, 250, 252)"
+                            : isDarkMode
+                            ? "#111827"
+                            : "rgb(240, 240, 243)",
                         cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
+                        transition: "background 0.15s",
                       }}
+                      onClick={() => handleSelectOne(device.id)}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#3b82f6";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(59, 130, 246, 0.3)";
+                        if (index % 2 === 0) {
+                          e.currentTarget.style.background = isDarkMode
+                            ? "#374151"
+                            : "rgb(235, 235, 240)";
+                        } else {
+                          e.currentTarget.style.background = isDarkMode
+                            ? "#1f2937"
+                            : "rgb(225, 225, 235)";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
+                        e.currentTarget.style.background =
+                          index % 2 === 0
+                            ? isDarkMode
+                              ? "#1f2937"
+                              : "rgb(250, 250, 252)"
+                            : isDarkMode
+                            ? "#111827"
+                            : "rgb(240, 240, 243)";
                       }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(device);
-                      }}
-                      title="Edit"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                    >
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "4%",
+                          padding: "8px 4px",
+                          textAlign: "center",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                      </svg>
-                      </button>
-                      <button
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        border: "none",
-                        outline: "none",
-                        borderRadius: 4,
-                        background: "transparent",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                        padding: "3px",
-                        minWidth: "24px",
-                        minHeight: "24px",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#ef4444";
-                        e.currentTarget.style.transform = "scale(1.1)";
-                        e.currentTarget.style.boxShadow =
-                        "0 4px 12px rgba(239, 68, 68, 0.3)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.transform = "scale(1)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(device.id);
-                      }}
-                      title="Delete"
-                      >
-                      <svg
-                        width="14"
-                        height="14"
-                        fill="none"
-                        stroke="#6b7280"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        viewBox="0 0 24 24"
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(device.id)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectOne(device.id);
+                          }}
+                          style={{
+                            width: 16,
+                            height: 16,
+                            margin: 0,
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
+                        />
+                      </td>
+                      <td
                         style={{
-                        transition: "stroke 0.2s ease",
+                          width: "3%",
+                          padding: "8px 4px",
+                          fontSize: "14px",
+                          color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
                         }}
-                        onMouseEnter={(e) =>
-                        (e.currentTarget.style.stroke = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                        (e.currentTarget.style.stroke = "#6b7280")
-                        }
                       >
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                      </svg>
-                      </button>
-                    </div>
-                    </td>
-                  </tr>
+                        {(currentPage - 1) * devicesPerPage + index + 1}
+                      </td>
+                      <td
+                        style={{
+                          width: "13%",
+                          padding: "8px 6px",
+                          fontSize: "14px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleShowDeviceHistory(device);
+                          }}
+                          style={{
+                            cursor: "pointer",
+                            color: isDarkMode
+                              ? "#f3f4f6"
+                              : "rgb(107, 114, 128)",
+                            textDecoration: "none",
+                            fontWeight: 400,
+                            transition: "color 0.2s",
+                            display: "block",
+                            width: "100%",
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            fontSize: "13px", // Slightly smaller to fit better
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = isDarkMode
+                              ? "#d1d5db"
+                              : "rgb(75, 85, 99)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = isDarkMode
+                              ? "#f3f4f6"
+                              : "rgb(107, 114, 128)")
+                          }
+                          title={`Click to view device history: ${device.deviceTag}`}
+                        >
+                          {device.deviceTag}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          width: "11%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.deviceType}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.brand}
+                      </td>
+                      <td
+                        style={{
+                          width: "10%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.model || ""}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {device.client || "-"}
+                      </td>
+                      <td
+                        style={{
+                          width: "9%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-block",
+                            background: getConditionColor(device.condition),
+                            color: getConditionTextColor(device.condition),
+                            padding: "4px 8px",
+                            borderRadius: "4px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textAlign: "center",
+                            lineHeight: "1.2",
+                            whiteSpace: "nowrap",
+                            minWidth: "70px",
+                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          {device.condition}
+                        </span>
+                      </td>
+                      <td
+                        style={{
+                          width: "12%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <TruncatedText
+                          text={device.remarks || ""}
+                          maxLength={15}
+                          style={{
+                            textAlign: "center",
+                            fontSize: "13px",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                          }}
+                        />
+                      </td>
+                      <td
+                        style={{
+                          width: "12%",
+                          padding: "8px 6px",
+                          fontSize: "13px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                          wordWrap: "break-word",
+                          whiteSpace: "normal",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {device.acquisitionDate ? (
+                          formatDateToMMDDYYYY(device.acquisitionDate)
+                        ) : (
+                          <span
+                            style={{ color: "#9ca3af", fontStyle: "italic" }}
+                          >
+                            Not recorded
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          width: "8%",
+                          padding: "4px 2px",
+                          fontSize: "14px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          border: isDarkMode
+                            ? "1px solid #4b5563"
+                            : "1px solid #d1d5db",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "1px",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexWrap: "nowrap",
+                            minWidth: "fit-content",
+                          }}
+                        >
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "#3b82f6";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(59, 130, 246, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(device);
+                            }}
+                            title="Edit"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                            </svg>
+                          </button>
+                          <button
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "none",
+                              outline: "none",
+                              borderRadius: 4,
+                              background: "transparent",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              padding: "3px",
+                              minWidth: "24px",
+                              minHeight: "24px",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1.1)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(239, 68, 68, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "transparent";
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(device.id);
+                            }}
+                            title="Delete"
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              fill="none"
+                              stroke="#6b7280"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              viewBox="0 0 24 24"
+                              style={{
+                                transition: "stroke 0.2s ease",
+                              }}
+                              onMouseEnter={(e) =>
+                                (e.currentTarget.style.stroke = "#ffffff")
+                              }
+                              onMouseLeave={(e) =>
+                                (e.currentTarget.style.stroke = "#6b7280")
+                              }
+                            >
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ));
                 })()}
-                </tbody>
-              </table>
-              </div>
-              
-              {/* Fixed Pagination Footer */}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Fixed Pagination Footer */}
           {(() => {
             // Filter devices based on search AND exclude assigned devices
             const filteredDevices = getUnassignedDevices(
@@ -4239,7 +6398,7 @@ function Inventory() {
               deviceSearch,
               headerFilters
             );
-            
+
             const totalPages = Math.ceil(
               filteredDevices.length / devicesPerPage
             );
@@ -4256,11 +6415,13 @@ function Inventory() {
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 20px", // Reduced padding for fixed layout
-                  background: "#fff",
+                  background: isDarkMode ? "#1f2937" : "#fff",
                   borderRadius: "0",
                   boxShadow: "none",
                   border: "none",
-                  borderTop: "1px solid #e5e7eb",
+                  borderTop: isDarkMode
+                    ? "1px solid #374151"
+                    : "1px solid #e5e7eb",
                   position: "sticky",
                   bottom: "0",
                   zIndex: "10",
@@ -4270,7 +6431,7 @@ function Inventory() {
                 {/* Left side - Device count and per page selector */}
                 <div
                   style={{
-                    color: "#445F6D",
+                    color: isDarkMode ? "#f3f4f6" : "#445F6D",
                     fontSize: "14px",
                     fontWeight: "600",
                     display: "flex",
@@ -4283,8 +6444,14 @@ function Inventory() {
                       ? "Showing 0 - 0 of 0 devices"
                       : `Showing ${startIndex} - ${endIndex} of ${filteredDevices.length} devices`}
                   </span>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <span style={{ fontSize: "13px" }}>Show:</span>
                     <select
                       value={devicesPerPage}
@@ -4295,10 +6462,12 @@ function Inventory() {
                       style={{
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         fontSize: "13px",
-                        background: "#fff",
-                        color: "#445F6D",
+                        background: isDarkMode ? "#374151" : "#fff",
+                        color: isDarkMode ? "#f3f4f6" : "#445F6D",
                       }}
                     >
                       <option value={10}>10</option>
@@ -4312,16 +6481,38 @@ function Inventory() {
 
                 {/* Right side - Pagination controls */}
                 {totalPages > 1 && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     <button
                       onClick={() => setCurrentPage(1)}
                       disabled={currentPage === 1}
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
+                        background:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -4352,9 +6543,25 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
-                        background: currentPage === 1 ? "#f5f7fa" : "#fff",
-                        color: currentPage === 1 ? "#9ca3af" : "#445F6D",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
+                        background:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === 1
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -4403,9 +6610,21 @@ function Inventory() {
                             style={{
                               padding: "8px 12px",
                               borderRadius: "6px",
-                              border: "1px solid #e0e7ef",
-                              background: i === currentPage ? "#70C1B3" : "#fff",
-                              color: i === currentPage ? "#fff" : "#445F6D",
+                              border: `1px solid ${
+                                isDarkMode ? "#4b5563" : "#e0e7ef"
+                              }`,
+                              background:
+                                i === currentPage
+                                  ? "#2563eb"
+                                  : isDarkMode
+                                  ? "#1f2937"
+                                  : "#fff",
+                              color:
+                                i === currentPage
+                                  ? "#fff"
+                                  : isDarkMode
+                                  ? "#f3f4f6"
+                                  : "#445F6D",
                               cursor: "pointer",
                               fontSize: "14px",
                               fontWeight: "500",
@@ -4426,12 +6645,29 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         background:
-                          currentPage === totalPages ? "#f5f7fa" : "#fff",
-                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor:
-                          currentPage === totalPages ? "not-allowed" : "pointer",
+                          currentPage === totalPages
+                            ? "not-allowed"
+                            : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
                         display: "flex",
@@ -4460,12 +6696,29 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #e0e7ef",
+                        border: `1px solid ${
+                          isDarkMode ? "#4b5563" : "#e0e7ef"
+                        }`,
                         background:
-                          currentPage === totalPages ? "#f5f7fa" : "#fff",
-                        color: currentPage === totalPages ? "#9ca3af" : "#445F6D",
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#374151"
+                              : "#f5f7fa"
+                            : isDarkMode
+                            ? "#1f2937"
+                            : "#fff",
+                        color:
+                          currentPage === totalPages
+                            ? isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af"
+                            : isDarkMode
+                            ? "#f3f4f6"
+                            : "#445F6D",
                         cursor:
-                          currentPage === totalPages ? "not-allowed" : "pointer",
+                          currentPage === totalPages
+                            ? "not-allowed"
+                            : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
                         display: "flex",
@@ -4510,7 +6763,9 @@ function Inventory() {
             {assignModalStep === 1 && (
               <>
                 <h4 style={styles.modalTitle}>
-                  Assign Device: {assigningDevice.deviceTag}
+                  {selectedIds.length > 1
+                    ? `Assign ${selectedIds.length} Selected Devices`
+                    : `Assign Device: ${assigningDevice.deviceTag}`}
                 </h4>
                 <input
                   type="text"
@@ -4520,11 +6775,13 @@ function Inventory() {
                   style={{
                     width: "100%",
                     padding: "12px 16px",
-                    border: "1.5px solid #cbd5e1",
+                    border: isDarkMode
+                      ? "1.5px solid #4b5563"
+                      : "1.5px solid #cbd5e1",
                     borderRadius: 8,
                     fontSize: 15,
-                    background: "#f8fafc",
-                    color: "#1f2937",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
+                    color: isDarkMode ? "#f3f4f6" : "#1f2937",
                     marginBottom: 16,
                     boxSizing: "border-box",
                     outline: "none",
@@ -4534,11 +6791,15 @@ function Inventory() {
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = "#2563eb";
-                    e.target.style.background = "#fff";
+                    e.target.style.background = isDarkMode ? "#1f2937" : "#fff";
                   }}
                   onBlur={(e) => {
-                    e.target.style.borderColor = "#cbd5e1";
-                    e.target.style.background = "#f8fafc";
+                    e.target.style.borderColor = isDarkMode
+                      ? "#4b5563"
+                      : "#cbd5e1";
+                    e.target.style.background = isDarkMode
+                      ? "#374151"
+                      : "#f8fafc";
                   }}
                 />
                 <div
@@ -4548,9 +6809,11 @@ function Inventory() {
                     padding: 0,
                     margin: 0,
                     width: "100%",
-                    border: "1px solid #e2e8f0",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #e2e8f0",
                     borderRadius: 8,
-                    background: "#f9fafb",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
                     marginBottom: 16,
                     scrollbarWidth: "none",
                     msOverflowStyle: "none",
@@ -4568,10 +6831,12 @@ function Inventory() {
                         <button
                           style={{
                             width: "100%",
-                            background: "#fff",
-                            color: "#374151",
+                            background: isDarkMode ? "#1f2937" : "#fff",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
                             border: "none",
-                            borderBottom: "1px solid #e5e7eb",
+                            borderBottom: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #e5e7eb",
                             fontWeight: 500,
                             fontSize: 15,
                             padding: "12px 16px",
@@ -4582,12 +6847,18 @@ function Inventory() {
                               "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                           }}
                           onMouseEnter={(e) => {
-                            e.target.style.background = "#f3f4f6";
+                            e.target.style.background = isDarkMode
+                              ? "#374151"
+                              : "#f3f4f6";
                             e.target.style.color = "#2563eb";
                           }}
                           onMouseLeave={(e) => {
-                            e.target.style.background = "#fff";
-                            e.target.style.color = "#374151";
+                            e.target.style.background = isDarkMode
+                              ? "#1f2937"
+                              : "#fff";
+                            e.target.style.color = isDarkMode
+                              ? "#f3f4f6"
+                              : "#374151";
                           }}
                           onClick={() => {
                             setSelectedAssignEmployee(emp);
@@ -4608,7 +6879,22 @@ function Inventory() {
                 >
                   <button
                     onClick={closeAssignModal}
-                    style={styles.inventoryModalButtonSecondary}
+                    style={{
+                      background: "#6b7280",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "9px 20px",
+                      fontSize: 15,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      marginLeft: 4,
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                      transition: "background 0.2s, box-shadow 0.2s",
+                      outline: "none",
+                      fontFamily:
+                        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    }}
                   >
                     Cancel
                   </button>
@@ -4624,158 +6910,211 @@ function Inventory() {
                     {selectedAssignEmployee.fullName}
                   </span>
                 </h4>
+
+                {/* Device condition information */}
+                {(assigningDevice || selectedIds.length > 0) && (
+                  <div
+                    style={{
+                      background: isDarkMode ? "#451a03" : "#fef3c7",
+                      border: isDarkMode
+                        ? "1px solid #92400e"
+                        : "1px solid #f59e0b",
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 16,
+                      fontSize: 14,
+                      color: isDarkMode ? "#fbbf24" : "#92400e",
+                    }}
+                  >
+                    {assigningDevice ? (
+                      <>
+                        <strong>
+                          Device Condition: {assigningDevice.condition}
+                        </strong>
+                        <br />
+                        {assigningDevice.condition === "GOOD" &&
+                          "Checkboxes will be automatically selected based on device condition (Stock only)."}
+                        {assigningDevice.condition === "BRANDNEW" &&
+                          "Checkboxes will be automatically selected based on device condition (Newly Purchased + Stock)."}
+                      </>
+                    ) : (
+                      <>
+                        <strong>
+                          Bulk Assignment: {selectedIds.length} device(s)
+                          selected
+                        </strong>
+                        <br />
+                        Checkboxes will be automatically selected based on mixed
+                        device conditions.
+                      </>
+                    )}
+                  </div>
+                )}
+
                 <div
                   style={{
                     ...styles.modalSection,
-                    background: "#f8fafc",
+                    background: isDarkMode ? "#374151" : "#f8fafc",
                     padding: 16,
                     borderRadius: 8,
-                    border: "1px solid #e2e8f0",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #e2e8f0",
                     marginBottom: 16,
                   }}
                 >
-                  <div
-                    style={{
-                      ...styles.modalLabel,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#374151",
-                      marginBottom: 12,
-                    }}
-                  >
-                    New Issue:
-                  </div>
-                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="newIssueNew"
-                        checked={assignModalChecks.newIssueNew}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Newly Purchased
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="newIssueStock"
-                        checked={assignModalChecks.newIssueStock}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Stock
-                    </label>
-                  </div>
-                  <div
-                    style={{
-                      ...styles.modalLabel,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#374151",
-                      marginBottom: 12,
-                    }}
-                  >
-                    Work From Home/Borrowed:
-                  </div>
-                  <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="wfhNew"
-                        checked={assignModalChecks.wfhNew}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Newly Purchased
-                    </label>
-                    <label
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        fontSize: 14,
-                        color: "#475569",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        name="wfhStock"
-                        checked={assignModalChecks.wfhStock}
-                        onChange={handleAssignModalCheckbox}
-                        style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#2563eb",
-                          marginRight: 8,
-                        }}
-                      />{" "}
-                      Stock
-                    </label>
-                  </div>
-                  <div style={{ marginTop: 4 }}>
+                  {/* New Issue Section */}
+                  <div style={{ marginBottom: 24 }}>
                     <label
                       style={{
                         display: "flex",
                         alignItems: "center",
                         fontSize: 14,
                         fontWeight: 600,
-                        color: "#dc2626",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        marginBottom: 12,
                         cursor: "pointer",
                       }}
                     >
                       <input
-                        type="checkbox"
-                        name="temporaryDeploy"
-                        checked={assignModalChecks.temporaryDeploy}
-                        onChange={handleAssignModalCheckbox}
+                        type="radio"
+                        name="issueType"
+                        checked={
+                          assignModalChecks.issueTypeSelected === "newIssue"
+                        }
+                        onChange={() => handleAssignModalRadio("newIssue")}
                         style={{
-                          ...styles.modalCheckbox,
-                          accentColor: "#dc2626",
                           marginRight: 8,
+                          transform: "scale(1.2)",
+                          accentColor: "#6b7280",
                         }}
-                      />{" "}
-                      Temporary Deploy
+                      />
+                      New Issue
                     </label>
+                    <div style={{ marginLeft: 28, display: "flex", gap: 20 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="newIssueNew"
+                          checked={assignModalChecks.newIssueNew}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#6b7280",
+                          }}
+                        />
+                        Newly Purchased
+                      </label>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="newIssueStock"
+                          checked={assignModalChecks.newIssueStock}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#6b7280",
+                          }}
+                        />
+                        Stock
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Work From Home/Borrowed Section */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        marginBottom: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="issueType"
+                        checked={assignModalChecks.issueTypeSelected === "wfh"}
+                        onChange={() => handleAssignModalRadio("wfh")}
+                        style={{
+                          marginRight: 8,
+                          transform: "scale(1.2)",
+                          accentColor: "#6b7280",
+                        }}
+                      />
+                      Work From Home/Borrowed
+                    </label>
+                    <div style={{ marginLeft: 28, display: "flex", gap: 20 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="wfhNew"
+                          checked={assignModalChecks.wfhNew}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#6b7280",
+                          }}
+                        />
+                        Newly Purchased
+                      </label>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          name="wfhStock"
+                          checked={assignModalChecks.wfhStock}
+                          onChange={handleAssignModalCheckbox}
+                          style={{
+                            marginRight: 8,
+                            transform: "scale(1.2)",
+                            accentColor: "#6b7280",
+                          }}
+                        />
+                        Stock
+                      </label>
+                    </div>
                   </div>
                 </div>
                 {!assignModalShowGenerate && (
@@ -4795,7 +7134,22 @@ function Inventory() {
                     </button>
                     <button
                       onClick={closeAssignModal}
-                      style={styles.inventoryModalButtonSecondary}
+                      style={{
+                        background: "#6b7280",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: 8,
+                        padding: "9px 20px",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        marginLeft: 4,
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        transition: "background 0.2s, box-shadow 0.2s",
+                        outline: "none",
+                        fontFamily:
+                          "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                      }}
                     >
                       Cancel
                     </button>
@@ -4875,7 +7229,22 @@ function Inventory() {
                         )}
                         <button
                           onClick={closeAssignModal}
-                          style={styles.inventoryModalButtonSecondary}
+                          style={{
+                            background: "#6b7280",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: 8,
+                            padding: "9px 20px",
+                            fontSize: 15,
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            marginLeft: 4,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            transition: "background 0.2s, box-shadow 0.2s",
+                            outline: "none",
+                            fontFamily:
+                              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                          }}
                         >
                           Cancel
                         </button>
@@ -5223,15 +7592,18 @@ function Inventory() {
                         style={{
                           ...styles.inventoryInputGroup,
                           marginBottom: 10,
+                          position: "relative",
+                          zIndex: 10,
                         }}
                       >
                         <label style={styles.inventoryLabel}>Client:</label>
-                        <input
-                          name="client"
+                        <SearchableDropdown
                           value={currentData.client}
                           onChange={handleNewAcqInput}
-                          style={styles.inventoryInput}
-                          placeholder="Enter client name"
+                          options={clients}
+                          placeholder="Search and select client..."
+                          displayKey="clientName"
+                          valueKey="clientName"
                         />
                       </div>
 
@@ -5255,7 +7627,7 @@ function Inventory() {
                             type="checkbox"
                             checked={currentData.useManualSerial || false}
                             onChange={handleManualSerialToggle}
-                            style={{ marginRight: 6, accentColor: "#2563eb" }}
+                            style={{ marginRight: 6, accentColor: "#6b7280" }}
                           />
                           Assign Serial Manually for this Device Type
                         </label>
@@ -5271,7 +7643,7 @@ function Inventory() {
                           <label style={styles.inventoryLabel}>Quantity:</label>
                           <input
                             type="number"
-                            value={currentData.manualQuantity || 1}
+                            value={currentData.manualQuantity || ""}
                             onChange={handleQuantityChange}
                             style={styles.inventoryInput}
                             min="1"
@@ -5293,7 +7665,7 @@ function Inventory() {
                           <input
                             name="quantity"
                             type="number"
-                            value={currentData.quantity || 1}
+                            value={currentData.quantity || ""}
                             onChange={handleNewAcqInput}
                             style={styles.inventoryInput}
                             min="1"
@@ -5327,7 +7699,7 @@ function Inventory() {
                                 style={{
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  color: "#374151",
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
                                   marginBottom: 4,
                                 }}
                               >
@@ -5697,9 +8069,11 @@ function Inventory() {
                             style={{
                               marginBottom: 12,
                               padding: 10,
-                              background: "#f1f5f9",
+                              background: isDarkMode ? "#374151" : "#f1f5f9",
                               borderRadius: 6,
-                              border: "1px solid #cbd5e1",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #cbd5e1",
                               width: "100%",
                               boxSizing: "border-box",
                             }}
@@ -5707,13 +8081,18 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 13,
-                                color: "#64748b",
+                                color: isDarkMode ? "#f3f4f6" : "#64748b",
                                 marginBottom: 4,
                               }}
                             >
                               <strong>Device Details:</strong>
                             </div>
-                            <div style={{ fontSize: 12, color: "#475569" }}>
+                            <div
+                              style={{
+                                fontSize: 12,
+                                color: isDarkMode ? "#d1d5db" : "#475569",
+                              }}
+                            >
                               Type: {currentManualTab.data.deviceType} | Brand:{" "}
                               {currentManualTab.data.brand} | Model:{" "}
                               {currentManualTab.data.model || "N/A"} |
@@ -5729,8 +8108,10 @@ function Inventory() {
                               width: "100%",
                               marginBottom: 12,
                               padding: 10,
-                              background: "#f8fafc",
-                              border: "1px solid #e2e8f0",
+                              background: isDarkMode ? "#374151" : "#f8fafc",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e2e8f0",
                               borderRadius: 6,
                               boxSizing: "border-box",
                             }}
@@ -5739,7 +8120,7 @@ function Inventory() {
                               style={{
                                 fontSize: 13,
                                 fontWeight: 600,
-                                color: "#374151",
+                                color: isDarkMode ? "#f3f4f6" : "#374151",
                                 marginBottom: 6,
                               }}
                             >
@@ -5748,7 +8129,7 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 12,
-                                color: "#64748b",
+                                color: isDarkMode ? "#d1d5db" : "#64748b",
                                 marginBottom: 6,
                               }}
                             >
@@ -5761,7 +8142,9 @@ function Inventory() {
                                 width: "100%",
                                 height: 70,
                                 padding: "6px 8px",
-                                border: "1.5px solid #cbd5e1",
+                                border: isDarkMode
+                                  ? "1.5px solid #4b5563"
+                                  : "1.5px solid #cbd5e1",
                                 borderRadius: 4,
                                 fontSize: 13,
                                 fontFamily: "Maax, monospace",
@@ -5771,7 +8154,10 @@ function Inventory() {
                                 outline: "none",
                                 transition:
                                   "border-color 0.2s, box-shadow 0.2s",
-                                backgroundColor: "#fff",
+                                backgroundColor: isDarkMode
+                                  ? "#374151"
+                                  : "#fff",
+                                color: isDarkMode ? "#f3f4f6" : "#000",
                               }}
                               placeholder="Serial1&#10;Serial2&#10;Serial3&#10;..."
                               value={importTexts[currentManualTab.id] || ""}
@@ -5860,7 +8246,7 @@ function Inventory() {
                             <div
                               style={{
                                 fontSize: 11,
-                                color: "#6b7280",
+                                color: isDarkMode ? "#9ca3af" : "#6b7280",
                                 fontStyle: "italic",
                               }}
                             >
@@ -5874,10 +8260,12 @@ function Inventory() {
                               width: "100%",
                               maxHeight: 300,
                               overflowY: "auto",
-                              border: "1px solid #e2e8f0",
+                              border: isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #e2e8f0",
                               borderRadius: 8,
                               padding: 12,
-                              background: "#fafbfc",
+                              background: isDarkMode ? "#1f2937" : "#fafbfc",
                               boxSizing: "border-box",
                             }}
                           >
@@ -5896,11 +8284,17 @@ function Inventory() {
                                   <div
                                     key={item.id}
                                     style={{
-                                      background: "#fff",
+                                      background: isDarkMode
+                                        ? "#374151"
+                                        : "#fff",
                                       padding: 8,
                                       borderRadius: 6,
-                                      border: "1px solid #e2e8f0",
-                                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                      border: isDarkMode
+                                        ? "1px solid #4b5563"
+                                        : "1px solid #e2e8f0",
+                                      boxShadow: isDarkMode
+                                        ? "0 1px 2px rgba(0,0,0,0.3)"
+                                        : "0 1px 2px rgba(0,0,0,0.05)",
                                       width: "100%",
                                       boxSizing: "border-box",
                                     }}
@@ -5910,7 +8304,9 @@ function Inventory() {
                                         ...styles.inventoryLabel,
                                         fontSize: 12,
                                         fontWeight: 600,
-                                        color: "#374151",
+                                        color: isDarkMode
+                                          ? "#f3f4f6"
+                                          : "#374151",
                                         marginBottom: 4,
                                         display: "block",
                                       }}
@@ -5933,8 +8329,13 @@ function Inventory() {
                                         padding: "6px 8px",
                                         fontSize: 13,
                                         height: "32px",
-                                        backgroundColor: "#fff",
-                                        border: "1.5px solid #cbd5e1",
+                                        backgroundColor: isDarkMode
+                                          ? "#374151"
+                                          : "#fff",
+                                        color: isDarkMode ? "#f3f4f6" : "#000",
+                                        border: isDarkMode
+                                          ? "1.5px solid #4b5563"
+                                          : "1.5px solid #cbd5e1",
                                         borderRadius: 4,
                                         outline: "none",
                                         transition:
@@ -6069,17 +8470,20 @@ function Inventory() {
         >
           <div
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#1f2937" : "#fff",
               padding: "36px 40px",
               borderRadius: 18,
               minWidth: "min(400px, 90vw)",
               maxWidth: "min(500px, 95vw)",
               width: "auto",
-              boxShadow: "0 12px 48px rgba(37,99,235,0.18)",
+              boxShadow: isDarkMode
+                ? "0 12px 48px rgba(0,0,0,0.4)"
+                : "0 12px 48px rgba(37,99,235,0.18)",
               position: "relative",
               margin: "20px",
               boxSizing: "border-box",
               fontFamily: "Maax, sans-serif",
+              border: isDarkMode ? "1px solid #374151" : "none",
             }}
           >
             <h2
@@ -6098,7 +8502,7 @@ function Inventory() {
             <p
               style={{
                 margin: "0 0 16px 0",
-                color: "#374151",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
                 fontSize: 16,
                 textAlign: "center",
               }}
@@ -6108,7 +8512,7 @@ function Inventory() {
             </p>
             <p
               style={{
-                color: "#666",
+                color: isDarkMode ? "#9ca3af" : "#666",
                 fontSize: "14px",
                 marginTop: 8,
                 textAlign: "center",
@@ -6153,8 +8557,8 @@ function Inventory() {
               <button
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 style={{
-                  background: "#e0e7ef",
-                  color: "#233037",
+                  background: isDarkMode ? "#4b5563" : "#e0e7ef",
+                  color: isDarkMode ? "#f3f4f6" : "#233037",
                   border: "none",
                   borderRadius: 8,
                   padding: "8px 18px",
@@ -6176,409 +8580,3 @@ function Inventory() {
 }
 
 export default Inventory;
-
-const styles = {
-  pageContainer: {
-    padding: "0", // Remove padding for fixed layout
-    maxWidth: "100%",
-    background: "transparent", // Let parent handle background
-    height: "100%", // Fill available height
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden", // Prevent page-level scrolling
-  },
-  headerBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16, // Reduced margin for fixed layout
-    padding: "16px 24px", // Added consistent padding
-    flexShrink: 0, // Prevent header from shrinking
-    background: "#fff", // Add background for visual separation
-    borderBottom: "1px solid #e5e7eb",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 700,
-    color: "#222e3a",
-    letterSpacing: 1,
-    margin: 0,
-  },
-  headerBarGoogle: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    marginBottom: 24,
-    padding: "0 24px",
-  },
-  googleTitle: {
-    color: "#233037",
-    fontWeight: 800,
-    fontSize: 28,
-    marginBottom: 18,
-    letterSpacing: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  googleSearchBar: {
-    display: "flex",
-    alignItems: "center",
-    background: "#fff",
-    borderRadius: 24,
-    boxShadow: "0 2px 8px rgba(68,95,109,0.10)",
-    border: "1.5px solid #e0e7ef",
-    padding: "2px 16px 2px 12px",
-    width: 320,
-    transition: "box-shadow  0.2s, border 0.2s",
-    marginBottom: 0,
-  },
-  googleSearchInput: {
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    fontSize: 17,
-    color: "#233037",
-    padding: "10px 0 10px 8px",
-    width: "100%",
-    fontWeight: 500,
-  },
-  buttonBar: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 18,
-    padding: "0 24px",
-  },
-  button: {
-    background: "#70C1B3",
-    color: "#233037",
-    border: "none",
-    borderRadius: 8,
-    padding: "10px 22px",
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    margin: 0,
-  },
-  buttonDisabled: {
-    background: "#e9eef3",
-    color: "#b0b8c1",
-    cursor: "not-allowed",
-  },
-  tableContainer: {
-    marginTop: 0,
-    overflowX: "auto",
-    overflowY: "auto", // Allow vertical scrolling
-    padding: "0",
-    flex: 1, // Take remaining space
-    minHeight: 0, // Allow shrinking
-    background: "#fff",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitScrollbar: { display: "none" },
-  },
-  table: {
-    width: "100%",
-    minWidth: 900,
-    borderCollapse: "collapse",
-    borderSpacing: 0,
-    background: "#fff",
-    overflow: "hidden",
-    tableLayout: "auto",
-  },
-  th: {
-    padding: "12px 16px",
-    background: "rgb(255, 255, 255)",
-    color: "rgb(55, 65, 81)",
-    fontWeight: 500,
-    fontSize: 12,
-    border: "none",
-    textAlign: "left",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    position: "sticky",
-    top: 0,
-    zIndex: 5,
-  },
-  td: {
-    padding: "12px 16px",
-    color: "#374151",
-    fontSize: 14,
-    borderBottom: "1px solid #e5e7eb",
-    background: "#fff",
-    verticalAlign: "middle",
-    wordBreak: "break-word",
-  },
-  iconButton: {
-    background: "none",
-    border: "none",
-    color: "#64748b",
-    fontSize: 18,
-    padding: 6,
-    borderRadius: 6,
-    cursor: "pointer",
-    marginRight: 4,
-    transition: "background 0.2s, color 0.2s",
-    outline: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconButtonHover: {
-    background: "#e0e7ef",
-    color: "#2563eb",
-  },
-  deletingText: {
-    marginLeft: 16,
-    color: "#e57373",
-    fontWeight: 500,
-    fontSize: 15,
-  },
-  modalOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(34, 46, 58, 0.18)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2000,
-  },
-  modalContent: {
-    background: "#fff",
-    padding: 28,
-    borderRadius: 14,
-    minWidth: 260,
-    maxWidth: 340,
-    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    position: "relative",
-    border: "1.5px solid #e5e7eb",
-    transition: "box-shadow 0.2s",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalContent: {
-    background: "#fff",
-    padding: 20,
-    borderRadius: 12,
-    minWidth: 480,
-    maxWidth: 520,
-    width: "70vw",
-    boxShadow: "0 6px 24px rgba(34,46,58,0.13)",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    position: "relative",
-    border: "1.5px solid #e5e7eb",
-    transition: "box-shadow 0.2s",
-    maxHeight: "85vh",
-    overflowY: "auto",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitScrollbar: { display: "none" },
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: "#2563eb",
-    marginBottom: 16,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalTitle: {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#2563eb",
-    marginBottom: 14,
-    letterSpacing: 0.5,
-    textAlign: "center",
-    width: "100%",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryInputGroup: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-    marginBottom: 10,
-    width: "100%",
-    minWidth: 140,
-  },
-  inventoryLabel: {
-    alignSelf: "flex-start",
-    fontWeight: 500,
-    color: "#222e3a",
-    marginBottom: 3,
-    fontSize: 13,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryInput: {
-    width: "100%",
-    minWidth: 0,
-    fontSize: 13,
-    padding: "6px 8px",
-    borderRadius: 5,
-    border: "1.2px solid #cbd5e1",
-    background: "#f1f5f9",
-    height: "30px",
-    boxSizing: "border-box",
-    marginBottom: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    outline: "none",
-    transition: "border-color 0.2s, box-shadow 0.2s",
-  },
-  inventoryModalButton: {
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 15,
-    fontWeight: 500,
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalButtonSmall: {
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: 7,
-    padding: "7px 14px",
-    fontSize: 14,
-    fontWeight: 500,
-    cursor: "pointer",
-    marginLeft: 4,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  inventoryModalButtonSecondary: {
-    background: "#e0e7ef",
-    color: "#2563eb",
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 15,
-    fontWeight: 500,
-    cursor: "pointer",
-    marginLeft: 4,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-    transition: "background 0.2s, box-shadow 0.2s",
-    outline: "none",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  modalCheckbox: {
-    accentColor: "#2563eb",
-    width: 18,
-    height: 18,
-    marginRight: 8,
-  },
-  modalSection: {
-    width: "100%",
-    marginBottom: 14,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-start",
-  },
-  modalLabel: {
-    fontWeight: 500,
-    color: "#222e3a",
-    marginBottom: 5,
-    fontSize: 15,
-    textAlign: "left",
-    width: "100%",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  actionEditButton: {
-    background: "transparent",
-    border: "none",
-    borderRadius: 4,
-    padding: "6px",
-    cursor: "pointer",
-    transition: "background 0.18s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionEditButtonHover: {
-    background: "#dbeafe",
-  },
-  actionDeleteButton: {
-    background: "transparent",
-    border: "none",
-    borderRadius: 4,
-    padding: "6px",
-    cursor: "pointer",
-    transition: "background 0.18s",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionDeleteButtonHover: {
-    background: "#fef2f2",
-  },
-  // Tab styles for the New Acquisitions modal
-  tabButton: {
-    border: "none",
-    padding: "8px 12px",
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: "pointer",
-    borderRadius: "6px 6px 0 0",
-    transition: "all 0.2s",
-    display: "flex",
-    alignItems: "center",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    minWidth: 80,
-    maxWidth: 120,
-    justifyContent: "space-between",
-    flexShrink: 0,
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-  addTabButton: {
-    background: "#f1f5f9",
-    color: "#64748b",
-    border: "1px solid #e2e8f0",
-    borderRadius: 6,
-    width: 32,
-    height: 32,
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "all 0.2s",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    fontFamily:
-      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  },
-};

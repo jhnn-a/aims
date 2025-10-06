@@ -8,11 +8,13 @@ import {
   MdComputer,
   MdAdminPanelSettings,
 } from "react-icons/md";
+import { useTheme } from "../context/ThemeContext";
 import "./Sidebar.css";
 
 function Sidebar({ user }) {
   const location = useLocation();
   const [showCredits, setShowCredits] = useState(false);
+  const { isDarkMode } = useTheme();
 
   const links = [
     { to: "/dashboard", label: "Dashboard", icon: <MdDashboard size={22} /> },
@@ -32,7 +34,13 @@ function Sidebar({ user }) {
   ];
 
   return (
-    <nav className="sidebar-nav">
+    <nav
+      className="sidebar-nav"
+      style={{
+        backgroundColor: isDarkMode ? "#1f2937" : undefined,
+        borderRight: isDarkMode ? "1px solid #374151" : undefined,
+      }}
+    >
       <ul className="sidebar-list">
         {links.map((link) => (
           <li key={link.to} className="sidebar-list-item">
@@ -43,6 +51,15 @@ function Sidebar({ user }) {
                   ? "sidebar-link active"
                   : "sidebar-link"
               }
+              style={{
+                color: isDarkMode ? "#d1d5db" : undefined,
+                ...(location.pathname === link.to && isDarkMode
+                  ? {
+                      backgroundColor: "#374151",
+                      color: "#60a5fa",
+                    }
+                  : {}),
+              }}
             >
               <span
                 style={{
@@ -58,7 +75,12 @@ function Sidebar({ user }) {
           </li>
         ))}
       </ul>
-      <hr className="sidebar-divider" />
+      <hr
+        className="sidebar-divider"
+        style={{
+          borderColor: isDarkMode ? "#374151" : undefined,
+        }}
+      />
       <div className="sidebar-bottom">
         <span
           className={`sidebar-footer-clickable${
@@ -69,6 +91,7 @@ function Sidebar({ user }) {
             display: "inline-block",
             position: "relative",
             fontWeight: 700,
+            color: isDarkMode ? "#9ca3af" : undefined,
           }}
           onMouseEnter={() => setShowCredits(true)}
           onMouseLeave={() => setShowCredits(false)}
@@ -78,7 +101,14 @@ function Sidebar({ user }) {
           </span>{" "}
           &copy; {new Date().getFullYear()}
           {showCredits && (
-            <div className="sidebar-credits-tooltip">
+            <div
+              className="sidebar-credits-tooltip"
+              style={{
+                backgroundColor: isDarkMode ? "#374151" : undefined,
+                color: isDarkMode ? "#f3f4f6" : undefined,
+                border: isDarkMode ? "1px solid #4b5563" : undefined,
+              }}
+            >
               <div className="sidebar-credits-title">Developed by</div>
               <div className="sidebar-credits-names">
                 Ryan Bumalic
