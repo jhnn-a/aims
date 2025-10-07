@@ -30,6 +30,7 @@ import { generateNextDeviceTag } from "./InventoryUtils";
 import { getAllClients } from "../services/clientService";
 // Import theme context for dark mode
 import { useTheme } from "../context/ThemeContext";
+import { useSnackbar } from "../components/Snackbar";
 
 const emptyUnit = {
   Tag: "",
@@ -39,8 +40,10 @@ const emptyUnit = {
   cpuModel: "", // New field for CPU model
   CPU: "",
   RAM: "",
-  Drive: "",
+  Drive1: "", // Split main drive into Drive1
+  Drive2: "", // Optional secondary drive
   GPU: "",
+  model: "", // Device model (matches Assets/Inventory)
   Condition: "", // Renamed from Status to Condition
   OS: "",
   client: "", // New field for client assignment
@@ -110,15 +113,6 @@ const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
     ramSize >= 16 &&
     hasSSD &&
     hasGPU
-  ) {
-    return 5;
-  }
-
-  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
-  if (
-    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
-    ramSize >= 8 &&
-    hasSSD
   ) {
     return 4;
   }
@@ -736,14 +730,25 @@ const UnitSpecs = () => {
           "CPU Gen",
           "CpuGen",
         ]);
-        const ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB
-        const storage = normalizeFieldValue(rawRow, [
+        let ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB or number
+        if (ram && /^(\d+)$/.test(ram)) ram = `${ram}GB`; // normalize plain numbers
+        const drive1 = normalizeFieldValue(rawRow, [
+          "Drive1",
+          "Drive 1",
+          "PrimaryDrive",
           "Drive",
           "Storage",
           "drive",
           "Storage1",
         ]);
-        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu"]);
+        const drive2 = normalizeFieldValue(rawRow, [
+          "Drive2",
+          "Drive 2",
+          "SecondaryDrive",
+          "Storage2",
+          "drive2",
+        ]);
+        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu", "gpu"]);
         const condition = normalizeFieldValue(rawRow, [
           "Condition",
           "Status",
@@ -793,13 +798,15 @@ const UnitSpecs = () => {
         );
         const snap = await getDocs(q);
 
-        // Common payload mapping to device schema used elsewhere (Inventory/Assets)
+        // Build derived/legacy compatibility fields
+        const combinedStorage = [drive1, drive2].filter(Boolean).join(" + ");
         const payload = {
-          // Only include fields that have values to avoid mass overwrites with empty strings
           ...(deviceType ? { deviceType } : {}),
-          ...(cpuGen ? { cpuGen } : {}),
+          ...(cpuGen ? { cpuGen, cpu: cpuGen } : {}), // store both for compatibility
           ...(ram ? { ram } : {}),
-          ...(storage ? { storage } : {}),
+          ...(drive1 ? { Drive1: drive1 } : {}),
+          ...(drive2 ? { Drive2: drive2 } : {}),
+          ...(combinedStorage ? { storage: combinedStorage } : {}), // legacy aggregate
           ...(gpu ? { gpu } : {}),
           ...(condition ? { condition } : {}),
           ...(os ? { os } : {}),
@@ -831,15 +838,24 @@ const UnitSpecs = () => {
         }
       }
 
-      toast.success(
-        `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`
-      );
+      const summary = `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`;
+      toast.success(summary);
+      showSuccess(summary, 6000);
+      setLastImportStats({
+        updated: updateCount,
+        created: createCount,
+        skipped: skipCount,
+        errors: 0,
+      });
       if (skipped.length) {
         console.warn("Skipped rows (no tag):", skipped.slice(0, 5));
       }
     } catch (err) {
       console.error(err);
-      toast.error("Import failed");
+      const failMsg = `Import failed: ${err.message || "Unknown error"}`;
+      toast.error(failMsg);
+      showError(failMsg, 7000);
+      setLastImportStats((prev) => ({ ...prev, errors: prev.errors + 1 }));
     } finally {
       e.target.value = ""; // allow re-select same file
     }
@@ -864,7 +880,9 @@ const UnitSpecs = () => {
         DeviceType: u.deviceType || "",
         CPU: u.CPU || u.cpuGen || "",
         RAM: u.RAM,
-        Drive: u.Drive,
+        Drive1: u.Drive1 || "",
+        Drive2: u.Drive2 || "",
+        Model: u.model || "",
         GPU: u.GPU,
         Condition: u.Condition || u.Status || "",
         OS: u.OS,
@@ -894,6 +912,13 @@ const UnitSpecs = () => {
   };
 
   const importInputRef = useRef(null);
+  const { showSuccess, showError } = useSnackbar();
+  const [lastImportStats, setLastImportStats] = useState({
+    updated: 0,
+    created: 0,
+    skipped: 0,
+    errors: 0,
+  });
 
   // Fetch data from Firestore on mount and after changes
   const fetchData = async () => {
@@ -936,15 +961,30 @@ const UnitSpecs = () => {
           return match ? match[1] : "";
         };
 
-        const extractStorage = (storageString) => {
-          if (!storageString) return "";
-          const match = storageString.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
+        const normalizeCapacity = (segment) => {
+          if (!segment) return "";
+          const match = segment.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
           if (match) {
             const value = parseFloat(match[1]);
             const unit = match[2].toUpperCase();
             return unit === "TB" ? `${value * 1000}GB` : `${value}GB`;
           }
-          return storageString;
+          return segment.trim();
+        };
+        const splitStorage = (storageString) => {
+          if (!storageString) return { d1: "", d2: "" };
+          // Split by common delimiters
+          const parts = storageString
+            .split(/[,;+\/]|\band\b/i)
+            .map((p) => p.trim())
+            .filter(Boolean);
+          if (parts.length === 0) return { d1: "", d2: "" };
+          if (parts.length === 1)
+            return { d1: normalizeCapacity(parts[0]), d2: "" };
+          return {
+            d1: normalizeCapacity(parts[0]),
+            d2: normalizeCapacity(parts[1]),
+          };
         };
 
         const extractRAM = (ramString) => {
@@ -977,7 +1017,13 @@ const UnitSpecs = () => {
           cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
           CPU: device.cpuGen || device.cpu || "",
           RAM: extractRAM(device.ram || ""),
-          Drive: extractStorage(device.storage || ""),
+          ...(() => {
+            const { d1, d2 } = splitStorage(
+              device.storage || device.Drive1 || device.Drive2 || ""
+            );
+            return { Drive1: d1, Drive2: d2 };
+          })(),
+          model: device.model || "",
           GPU: device.gpu || "",
           Condition: device.condition || "",
           OS: device.os || device.operatingSystem || "",
@@ -1213,8 +1259,12 @@ const UnitSpecs = () => {
       )
         .filter(Boolean)
         .sort((a, b) => a - b);
-    if (key === "Drive")
-      return Array.from(new Set(data.map((u) => u.Drive))).filter(Boolean);
+    if (key === "Drive 1")
+      return Array.from(new Set(data.map((u) => u.Drive1))).filter(Boolean);
+    if (key === "Drive 2")
+      return Array.from(new Set(data.map((u) => u.Drive2))).filter(Boolean);
+    if (key === "Models")
+      return Array.from(new Set(data.map((u) => u.model))).filter(Boolean);
     if (key === "GPU")
       return Array.from(new Set(data.map((u) => u.GPU))).filter(Boolean);
     if (key === "Status")
@@ -1238,7 +1288,7 @@ const UnitSpecs = () => {
               u.category,
               u.cpuGen,
               u.RAM,
-              u.Drive,
+              u.Drive1,
               u.GPU
             );
           })
@@ -1283,7 +1333,7 @@ const UnitSpecs = () => {
                   unit.category,
                   unit.cpuGen,
                   unit.RAM,
-                  unit.Drive,
+                  unit.Drive1,
                   unit.GPU
                 )
               : "";
@@ -2102,7 +2152,13 @@ const UnitSpecs = () => {
               }}
               title="Import & upsert devices from Excel by Tag"
             >
-              Import (.xlsx)
+              {`Import (.xlsx)${
+                lastImportStats.updated ||
+                lastImportStats.created ||
+                lastImportStats.skipped
+                  ? ` - U:${lastImportStats.updated} C:${lastImportStats.created} S:${lastImportStats.skipped}`
+                  : ""
+              }`}
             </button>
             <input
               ref={importInputRef}
@@ -2234,9 +2290,10 @@ const UnitSpecs = () => {
                   "Device Type",
                   "CPU",
                   "RAM",
-                  "Drive",
+                  "Drive 1",
+                  "Drive 2",
+                  "Models",
                   "GPU",
-                  "Condition",
                   "OS",
                   "Client",
                 ].map((col) => (
@@ -2256,8 +2313,6 @@ const UnitSpecs = () => {
                           ? "15%"
                           : col === "GPU"
                           ? "12%"
-                          : col === "Condition"
-                          ? "10%"
                           : col === "OS"
                           ? "8%"
                           : "13%", // Client
@@ -2296,8 +2351,12 @@ const UnitSpecs = () => {
                     >
                       {col === "CPU"
                         ? "CPU GEN"
-                        : col === "Drive"
-                        ? "MAIN DRIVE"
+                        : col === "Drive 1"
+                        ? "DRIVE 1"
+                        : col === "Drive 2"
+                        ? "DRIVE 2"
+                        : col === "Models"
+                        ? "MODELS"
                         : col.toUpperCase()}
                     </span>
                     <span
@@ -2542,7 +2601,7 @@ const UnitSpecs = () => {
                     </td>
                     <td
                       style={{
-                        width: "15%",
+                        width: "12%",
                         padding: "8px 6px",
                         fontSize: "14px",
                         color: isDarkMode ? "#f3f4f6" : "#374151",
@@ -2554,7 +2613,39 @@ const UnitSpecs = () => {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {unit.Drive}
+                      {unit.Drive1 || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "12%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.Drive2 || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "14%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.model || ""}
                     </td>
                     <td
                       style={{
@@ -2571,45 +2662,6 @@ const UnitSpecs = () => {
                       }}
                     >
                       {unit.GPU}
-                    </td>
-                    <td
-                      style={{
-                        width: "10%",
-                        padding: "8px 6px",
-                        fontSize: "14px",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        border: isDarkMode
-                          ? "1px solid #374151"
-                          : "1px solid #d1d5db",
-                        textAlign: "center",
-                      }}
-                    >
-                      {unit.Condition || unit.Status ? (
-                        <div
-                          style={{
-                            display: "inline-block",
-                            background: getConditionColor(
-                              unit.Condition || unit.Status
-                            ),
-                            color: getConditionTextColor(
-                              unit.Condition || unit.Status
-                            ),
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            textAlign: "center",
-                            minWidth: "70px",
-                            lineHeight: "1.2",
-                            whiteSpace: "nowrap",
-                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          {unit.Condition || unit.Status}
-                        </div>
-                      ) : (
-                        ""
-                      )}
                     </td>
                     <td
                       style={{
@@ -2662,87 +2714,6 @@ const UnitSpecs = () => {
                             minWidth: "fit-content",
                           }}
                         >
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4,
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "3px",
-                              minWidth: "24px",
-                              minHeight: "24px",
-                            }}
-                            onClick={() =>
-                              collectionName === "InventoryUnits"
-                                ? handleMove(
-                                    unit,
-                                    "InventoryUnits",
-                                    "DeployedUnits"
-                                  )
-                                : handleMove(
-                                    unit,
-                                    "DeployedUnits",
-                                    "InventoryUnits"
-                                  )
-                            }
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#10b981";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(16, 185, 129, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            title={
-                              collectionName === "InventoryUnits"
-                                ? "Deploy"
-                                : "Return"
-                            }
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              {collectionName === "InventoryUnits" ? (
-                                // Deploy icon (upload arrow)
-                                <>
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="7 10 12 15 17 10" />
-                                  <line x1="12" y1="15" x2="12" y2="3" />
-                                </>
-                              ) : (
-                                // Return icon (download arrow)
-                                <>
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="17 8 12 3 7 8" />
-                                  <line x1="12" y1="3" x2="12" y2="15" />
-                                </>
-                              )}
-                            </svg>
-                          </button>
                           <button
                             style={{
                               display: "flex",
@@ -3378,55 +3349,157 @@ const UnitSpecs = () => {
               </select>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
+            <div style={{ display: "flex", gap: 16, width: "100%", flex: 2 }}>
+              <div
                 style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
                 }}
               >
-                Drive:
-              </label>
-              <input
-                name="Drive"
-                placeholder="MAIN DRIVE"
-                value={form.Drive}
-                onChange={handleChange}
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  Drive 1:
+                </label>
+                <input
+                  name="Drive1"
+                  placeholder="Primary Drive"
+                  value={form.Drive1}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+              <div
                 style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
                   marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
                 }}
-              />
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  Drive 2:
+                </label>
+                <input
+                  name="Drive2"
+                  placeholder="Secondary Drive (optional)"
+                  value={form.Drive2}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  Model:
+                </label>
+                <input
+                  name="model"
+                  placeholder="Model (e.g. ThinkPad T480)"
+                  value={form.model}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
             </div>
           </div>
 

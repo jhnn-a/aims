@@ -1069,6 +1069,12 @@ function Assets() {
     return client ? client.clientName : "";
   };
 
+  // Get device owner (client field from device, or "Joii Philippines" if not assigned to a client)
+  const getDeviceOwner = (device) => {
+    if (!device) return "";
+    return device.client || "Joii Philippines";
+  };
+
   // Get client name for assigned employee
   const getEmployeeClient = (employeeId) => {
     if (!employeeId) return "";
@@ -1346,11 +1352,11 @@ function Assets() {
           delete filtersToApply.assignedTo;
         }
 
-        // Handle client filter separately since it needs client name matching
+        // Handle client filter separately since it uses device owner
         if (filtersToApply.client) {
           const clientFilter = filtersToApply.client.toLowerCase();
-          const clientName = getEmployeeClient(device.assignedTo);
-          if (!clientName.toLowerCase().includes(clientFilter)) {
+          const deviceOwner = getDeviceOwner(device);
+          if (!deviceOwner.toLowerCase().includes(clientFilter)) {
             return false;
           }
           delete filtersToApply.client;
@@ -2708,7 +2714,7 @@ function Assets() {
                       zIndex: 10,
                     }}
                   >
-                    Client
+                    Device Owner
                   </th>
                   <th
                     style={{
@@ -3292,7 +3298,7 @@ function Assets() {
                           }}
                         >
                           {renderCellWithTooltip(
-                            getEmployeeClient(device.assignedTo) || "-",
+                            getDeviceOwner(device) || "-",
                             18
                           )}
                         </td>
