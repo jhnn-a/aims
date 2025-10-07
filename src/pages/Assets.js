@@ -2110,10 +2110,46 @@ function Assets() {
               min-width: 80px;
             }
           }
+
+          /* Custom scrollbar with transparent background */
+          .assets-main-scroll::-webkit-scrollbar {
+            width: 10px;
+          }
+
+          .assets-main-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+
+          .assets-main-scroll::-webkit-scrollbar-thumb {
+            background: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.3)"
+                : "rgba(209, 213, 219, 0.5)"
+            };
+            border-radius: 5px;
+          }
+
+          .assets-main-scroll::-webkit-scrollbar-thumb:hover {
+            background: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.5)"
+                : "rgba(209, 213, 219, 0.8)"
+            };
+          }
+
+          /* Firefox scrollbar */
+          .assets-main-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.3)"
+                : "rgba(209, 213, 219, 0.5)"
+            } transparent;
+          }
         `}
       </style>
       <div
-        className="assets-container"
+        className="assets-container assets-main-scroll"
         style={{
           height: "100vh",
           display: "flex",

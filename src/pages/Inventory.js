@@ -4746,6 +4746,36 @@ function Inventory() {
             max-width: 800px;
           }
         }
+
+        /* Custom scrollbar with transparent background */
+        .inventory-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .inventory-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
+        }
       `}</style>
       <div
         style={{
@@ -5446,20 +5476,12 @@ function Inventory() {
           }}
         >
           <div
+            className="inventory-main-scroll"
             style={{
               flex: 1,
               overflowX: "auto",
               overflowY: "auto",
               maxHeight: "100%",
-              scrollbarWidth: "thin", // Show thin scrollbar for better UX
-              scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
-              // Custom webkit scrollbar styling
-              WebkitScrollbar: { width: "8px", height: "8px" },
-              WebkitScrollbarTrack: { background: "#f1f5f9" },
-              WebkitScrollbarThumb: {
-                background: "#cbd5e1",
-                borderRadius: "4px",
-              },
             }}
           >
             <table

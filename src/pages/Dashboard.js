@@ -983,10 +983,47 @@ function Dashboard() {
                 : "rgba(209, 213, 219, 0.5)"
             } transparent;
           }
+
+          /* Custom scrollbar for Main Dashboard */
+          .dashboard-main-scroll::-webkit-scrollbar {
+            width: 10px;
+          }
+
+          .dashboard-main-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+
+          .dashboard-main-scroll::-webkit-scrollbar-thumb {
+            background: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.3)"
+                : "rgba(209, 213, 219, 0.5)"
+            };
+            border-radius: 5px;
+          }
+
+          .dashboard-main-scroll::-webkit-scrollbar-thumb:hover {
+            background: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.5)"
+                : "rgba(209, 213, 219, 0.8)"
+            };
+          }
+
+          /* Firefox scrollbar for main dashboard */
+          .dashboard-main-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: ${
+              isDarkMode
+                ? "rgba(156, 163, 175, 0.3)"
+                : "rgba(209, 213, 219, 0.5)"
+            } transparent;
+          }
         `}
       </style>
       <div
         id="dashboard-container"
+        className="dashboard-main-scroll"
         style={{
           padding: "40px 48px 20px 48px",
           width: "100%",
