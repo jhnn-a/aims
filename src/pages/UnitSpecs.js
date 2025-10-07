@@ -2199,7 +2199,6 @@ const UnitSpecs = () => {
             flex: 1,
             overflow: "auto",
             maxHeight: "calc(100vh - 300px)", // Increased from 280px to give more space
-            paddingBottom: "20px", // Add padding at bottom for last row visibility
           }}
         >
           <table
@@ -2829,6 +2828,8 @@ const UnitSpecs = () => {
               )}
             </tbody>
           </table>
+          {/* Spacer to prevent pagination overlap */}
+          <div style={{ height: "10px" }}></div>
         </div>
       </div>
     );
