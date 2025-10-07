@@ -2194,6 +2194,7 @@ const UnitSpecs = () => {
 
         {/* Scrollable Table Container */}
         <div
+          className="unitspecs-main-scroll"
           style={{
             flex: 1,
             overflow: "auto",
@@ -3888,6 +3889,37 @@ const UnitSpecs = () => {
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Custom scrollbar with transparent background */
+        .unitspecs-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .unitspecs-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
+        }
+      `}</style>
       {/* Header outside card */}
       <div
         style={{

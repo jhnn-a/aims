@@ -5206,6 +5206,37 @@ export default function Employee() {
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Custom scrollbar with transparent background */
+        .employee-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .employee-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .employee-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .employee-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .employee-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
+        }
+      `}</style>
       {/* Header */}
       <div
         style={{
@@ -5596,6 +5627,7 @@ export default function Employee() {
         }}
       >
         <div
+          className="employee-main-scroll"
           style={{
             flex: 1,
             overflow: "auto",
