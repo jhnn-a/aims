@@ -16,6 +16,7 @@ import Employee from "./pages/Employee";
 import Clients from "./pages/Clients";
 import UnitSpecs from "./pages/UnitSpecs";
 import UserManagement from "./pages/UserManagement";
+import UserLogs from "./pages/UserLogs";
 import { SnackbarProvider, SnackbarContainer } from "./components/Snackbar";
 import LastTagsFloatingWindow from "./components/LastTagsFloatingWindow";
 // ...existing code...
@@ -91,7 +92,10 @@ function App() {
         setCurrentUser(null);
         return;
       }
-      setCurrentUser({ ...userData, uid: userId });
+      const userWithId = { ...userData, uid: userId };
+      console.log("Setting currentUser with data:", userWithId); // Debug log
+      console.log("Username field:", userWithId.username); // Debug log
+      setCurrentUser(userWithId);
       setIsAuthenticated(true);
       setLoginError("");
       navigate("/dashboard", { replace: true });
@@ -113,6 +117,7 @@ function App() {
               <Route path="/clients" element={<Clients />} />
               <Route path="/unit-specs" element={<UnitSpecs />} />
               <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/user-logs" element={<UserLogs />} />
             </Routes>
           </main>
         </div>

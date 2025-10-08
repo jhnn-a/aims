@@ -7,6 +7,7 @@ import {
   MdHandshake,
   MdComputer,
   MdAdminPanelSettings,
+  MdHistory,
 } from "react-icons/md";
 import { useTheme } from "../context/ThemeContext";
 import "./Sidebar.css";
@@ -30,6 +31,11 @@ function Sidebar({ user }) {
       to: "/user-management",
       label: "User Management",
       icon: <MdAdminPanelSettings size={22} />,
+    },
+    {
+      to: "/user-logs",
+      label: "User Logs",
+      icon: <MdHistory size={22} />,
     },
   ];
 

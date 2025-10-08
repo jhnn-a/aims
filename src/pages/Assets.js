@@ -7,7 +7,6 @@ import React, { useEffect, useState } from "react";
 import {
   getAllDevices,
   updateDevice,
-  addDevice,
   deleteDevice,
 } from "../services/deviceService"; // Database operations for devices
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
@@ -25,9 +24,7 @@ import {
   TextFilter,
   DropdownFilter,
   DateFilter,
-  FilterContainer,
   useTableFilters,
-  applyFilters,
 } from "../components/TableHeaderFilters"; // Table filtering components
 import {
   formatDateToYYYYMMDD,
@@ -36,6 +33,8 @@ import {
 import { doc, setDoc, deleteDoc, getDoc } from "firebase/firestore"; // Firestore database operations
 import { db } from "../utils/firebase"; // Firebase configuration
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export utility
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -77,9 +76,26 @@ const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
         wordBreak: "break-word",
         whiteSpace: "normal",
         cursor: onClick ? "pointer" : "default",
+        transition: onClick ? "all 0.2s ease" : "none",
+        textDecoration: onClick ? "underline" : "none",
+        textDecorationColor: onClick ? "transparent" : "none",
       }}
       onClick={onClick}
-      title={onClick ? "Click to view device history" : undefined}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.textDecorationColor = "#3b82f6";
+          e.currentTarget.style.color = "#3b82f6";
+          e.currentTarget.style.fontWeight = "500";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.textDecorationColor = "transparent";
+          e.currentTarget.style.color = "";
+          e.currentTarget.style.fontWeight = "";
+        }
+      }}
+      title={onClick ? "Click to view device details and history" : undefined}
     >
       {displayContent}
     </span>
@@ -105,9 +121,57 @@ function DeviceFormModal({
   onSerialToggle, // Function to handle serial number toggle
   editingDevice, // Boolean indicating if editing existing device
   deviceTypes, // Array of device types passed from parent component
+  deviceForHistory, // Device object for showing history (optional)
 }) {
   // === THEME INTEGRATION ===
   const { isDarkMode } = useTheme();
+
+  // === DEVICE HISTORY STATE ===
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // === DATE FORMATTING FUNCTIONS ===
+  const formatDateToMMDDYYYY = (dateValue) => {
+    if (!dateValue) return "";
+    let date;
+    if (typeof dateValue === "object" && dateValue.seconds) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return "";
+    }
+    if (isNaN(date)) return "";
+    return (
+      (date.getMonth() + 1).toString().padStart(2, "0") +
+      "/" +
+      date.getDate().toString().padStart(2, "0") +
+      "/" +
+      date.getFullYear()
+    );
+  };
+
+  const formatTimeToAMPM = (dateValue) => {
+    if (!dateValue) return "";
+    let date;
+    if (typeof dateValue === "object" && dateValue.seconds) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return "";
+    }
+    if (isNaN(date)) return "";
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for devices
@@ -118,6 +182,30 @@ function DeviceFormModal({
   ];
 
   const isEditMode = Boolean(editingDevice);
+
+  // === FETCH DEVICE HISTORY ===
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (deviceForHistory && deviceForHistory.deviceTag) {
+        setHistoryLoading(true);
+        try {
+          const { getDeviceHistoryByTag } = await import(
+            "../services/deviceHistoryService"
+          );
+          const historyData = await getDeviceHistoryByTag(
+            deviceForHistory.deviceTag
+          );
+          setHistory(historyData || []);
+        } catch (error) {
+          console.error("Error fetching device history:", error);
+          setHistory([]);
+        } finally {
+          setHistoryLoading(false);
+        }
+      }
+    };
+    fetchHistory();
+  }, [deviceForHistory]);
 
   // === MODAL STYLES ===
   const styles = {
@@ -138,7 +226,7 @@ function DeviceFormModal({
       borderRadius: 12,
       padding: 20,
       minWidth: 480,
-      maxWidth: 520,
+      maxWidth: deviceForHistory ? 600 : 520, // Wider when showing history
       width: "70vw",
       fontFamily:
         'Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -150,9 +238,10 @@ function DeviceFormModal({
       alignItems: "flex-start",
       position: "relative",
       border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
-      transition: "box-shadow 0.2s",
-      maxHeight: "85vh",
-      overflowY: "auto",
+      transition: "box-shadow 0.2s, max-width 0.3s",
+      maxHeight: "90vh", // Increased from 85vh to fill more space
+      height: deviceForHistory ? "90vh" : "auto", // Fixed height when showing history
+      overflowY: deviceForHistory ? "hidden" : "auto", // Prevent double scrollbars
       scrollbarWidth: "none",
       msOverflowStyle: "none",
       WebkitScrollbar: { display: "none" },
@@ -249,6 +338,22 @@ function DeviceFormModal({
             : isDarkMode
             ? "#1f2937"
             : "#ffffff",
+          maxWidth: deviceForHistory ? "1400px" : "600px", // Wider modal when showing history
+          display: "flex",
+          flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
+          gap: deviceForHistory ? "24px" : "0",
+          padding: deviceForHistory ? "32px" : "24px",
+          // Dynamic height based on device type when showing history
+          height: deviceForHistory
+            ? data.deviceType === "PC" || data.deviceType === "Laptop"
+              ? "auto"
+              : "auto"
+            : "auto",
+          maxHeight: deviceForHistory
+            ? data.deviceType === "PC" || data.deviceType === "Laptop"
+              ? "85vh"
+              : "75vh"
+            : "85vh",
         }}
       >
         <style>{`
@@ -263,495 +368,679 @@ function DeviceFormModal({
             border-color: #64748b;
           }
         `}</style>
+
+        {/* LEFT SIDE: Edit Device Form */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "16px",
+            flex: deviceForHistory ? "1" : "none",
+            minWidth: deviceForHistory ? "500px" : "auto",
+            width: deviceForHistory ? "auto" : "100%",
           }}
         >
-          {isEditMode && (
-            <svg
-              width="20"
-              height="20"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-              style={{ flexShrink: 0 }}
-              aria-hidden="true"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          )}
-          <h3
-            id="modal-title"
-            style={{
-              ...styles.inventoryModalTitle,
-              color: isEditMode
-                ? "#2563eb"
-                : isDarkMode
-                ? "#3b82f6"
-                : "#2563eb",
-            }}
-          >
-            {isEditMode ? "Edit Device" : "Add Device"}
-          </h3>
-        </div>
-
-        {isEditMode && (
           <div
             style={{
-              backgroundColor: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              borderRadius: "6px",
-              padding: "8px 12px",
-              marginBottom: "16px",
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              fontSize: "14px",
-              color: "#1d4ed8",
+              marginBottom: "16px",
             }}
           >
-            <svg
-              width="16"
-              height="16"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Editing existing device - modify the fields below to update the
-            device information
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onSave();
-          }}
-          style={{ width: "100%" }}
-        >
-          {/* Row 1: Device Type and Brand */}
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              width: "100%",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
-              }}
-            >
-              <label style={styles.inventoryLabel}>Device Type:</label>
-              <select
-                name="deviceType"
-                value={(() => {
-                  // Find the matching device type from the available options
-                  const currentType = data.deviceType;
-                  if (!currentType) return "";
-
-                  // Check if it exactly matches any available device type
-                  const exactMatch = deviceTypes.find(
-                    (type) => type.label === currentType
-                  );
-                  if (exactMatch) return currentType;
-
-                  // Try case-insensitive match
-                  const matchedType = deviceTypes.find(
-                    (type) =>
-                      type.label.toLowerCase() === currentType.toLowerCase()
-                  );
-
-                  return matchedType ? matchedType.label : currentType;
-                })()}
-                onChange={onChange}
-                disabled
-                style={{
-                  ...styles.inventoryInput,
-                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
-                  color: isDarkMode ? "#9ca3af" : "#666",
-                  cursor: "not-allowed",
-                }}
+            {isEditMode && (
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                style={{ flexShrink: 0 }}
+                aria-hidden="true"
               >
-                <option value="">Select Device Type</option>
-                {deviceTypes.map((type) => (
-                  <option key={type.label} value={type.label}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+            )}
+            <h3
+              id="modal-title"
               style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
+                ...styles.inventoryModalTitle,
+                color: isEditMode
+                  ? "#2563eb"
+                  : isDarkMode
+                  ? "#3b82f6"
+                  : "#2563eb",
               }}
             >
-              <label style={styles.inventoryLabel}>Brand:</label>
-              <input
-                name="brand"
-                value={data.brand || ""}
-                onChange={onChange}
-                style={styles.inventoryInput}
-                autoComplete="off"
-              />
-            </div>
+              {isEditMode ? "Edit Device" : "Add Device"}
+            </h3>
           </div>
 
-          {/* Row 2: Device Tag (full width when visible) */}
-          {data.deviceType && (
-            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-              <label style={styles.inventoryLabel}>Device Tag:</label>
-              <input
-                name="deviceTag"
-                value={data.deviceTag || ""}
-                onChange={onChange}
-                disabled
-                style={{
-                  ...styles.inventoryInput,
-                  backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
-                  color: isDarkMode ? "#9ca3af" : "#666",
-                  cursor: "not-allowed",
-                }}
-                placeholder="Device tag cannot be changed"
-              />
+          {isEditMode && (
+            <div
+              style={{
+                backgroundColor: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "6px",
+                padding: "8px 12px",
+                marginBottom: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "14px",
+                color: "#1d4ed8",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Editing existing device - modify the fields below to update the
+              device information
             </div>
           )}
 
-          {/* Row 3: Model and Condition */}
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              width: "100%",
-              marginBottom: 12,
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSave();
             }}
+            style={{ width: "100%" }}
           >
+            {/* Row 1: Device Type and Brand */}
             <div
               style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
               }}
             >
-              <label style={styles.inventoryLabel}>Model:</label>
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Device Type:</label>
+                <select
+                  name="deviceType"
+                  value={(() => {
+                    // Find the matching device type from the available options
+                    const currentType = data.deviceType;
+                    if (!currentType) return "";
+
+                    // Check if it exactly matches any available device type
+                    const exactMatch = deviceTypes.find(
+                      (type) => type.label === currentType
+                    );
+                    if (exactMatch) return currentType;
+
+                    // Try case-insensitive match
+                    const matchedType = deviceTypes.find(
+                      (type) =>
+                        type.label.toLowerCase() === currentType.toLowerCase()
+                    );
+
+                    return matchedType ? matchedType.label : currentType;
+                  })()}
+                  onChange={onChange}
+                  disabled
+                  style={{
+                    ...styles.inventoryInput,
+                    backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                    color: isDarkMode ? "#9ca3af" : "#666",
+                    cursor: "not-allowed",
+                  }}
+                >
+                  <option value="">Select Device Type</option>
+                  {deviceTypes.map((type) => (
+                    <option key={type.label} value={type.label}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Brand:</label>
+                <input
+                  name="brand"
+                  value={data.brand || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Device Tag (full width when visible) */}
+            {data.deviceType && (
+              <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+                <label style={styles.inventoryLabel}>Device Tag:</label>
+                <input
+                  name="deviceTag"
+                  value={data.deviceTag || ""}
+                  onChange={onChange}
+                  disabled
+                  style={{
+                    ...styles.inventoryInput,
+                    backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
+                    color: isDarkMode ? "#9ca3af" : "#666",
+                    cursor: "not-allowed",
+                  }}
+                  placeholder="Device tag cannot be changed"
+                />
+              </div>
+            )}
+
+            {/* Row 3: Model and Condition */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Model:</label>
+                <input
+                  name="model"
+                  value={data.model || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Condition:</label>
+                <select
+                  name="condition"
+                  value={data.condition || ""}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select Condition</option>
+                  {conditions.map((cond) => (
+                    <option key={cond} value={cond}>
+                      {cond}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 4: Acquisition Date (full width) */}
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Acquisition Date:</label>
               <input
-                name="model"
-                value={data.model || ""}
+                name="acquisitionDate"
+                type="date"
+                value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
                 onChange={onChange}
-                style={styles.inventoryInput}
-                autoComplete="off"
+                style={{
+                  ...styles.inventoryInput,
+                  colorScheme: isDarkMode ? "dark" : "light",
+                }}
               />
             </div>
 
-            <div
-              style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
-              }}
-            >
-              <label style={styles.inventoryLabel}>Condition:</label>
-              <select
-                name="condition"
-                value={data.condition || ""}
-                onChange={onChange}
-                style={styles.inventoryInput}
-              >
-                <option value="">Select Condition</option>
-                {conditions.map((cond) => (
-                  <option key={cond} value={cond}>
-                    {cond}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Row 4: Acquisition Date (full width) */}
-          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-            <label style={styles.inventoryLabel}>Acquisition Date:</label>
-            <input
-              name="acquisitionDate"
-              type="date"
-              value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
-              onChange={onChange}
-              style={{
-                ...styles.inventoryInput,
-                colorScheme: isDarkMode ? "dark" : "light",
-              }}
-            />
-          </div>
-
-          {/* Conditional PC/Laptop Specifications */}
-          {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
-            <div style={{ gridColumn: "1 / -1", marginBottom: 20 }}>
-              <div
-                style={{
-                  border: isDarkMode
-                    ? "1px solid #4b5563"
-                    : "1px solid #d1d5db",
-                  borderRadius: "8px",
-                  padding: "16px",
-                  background: isDarkMode ? "#374151" : "#f9fafb",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
-              >
-                <h4
-                  style={{
-                    margin: "0 0 16px 0",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: isDarkMode ? "#f3f4f6" : "#374151",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
-                  </svg>
-                  {data.deviceType} Specifications
-                </h4>
-
-                {/* Row 1: CPU Gen and RAM */}
+            {/* Conditional PC/Laptop Specifications */}
+            {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+              <div style={{ gridColumn: "1 / -1", marginBottom: 20 }}>
                 <div
                   style={{
-                    display: "flex",
-                    gap: "16px",
-                    marginBottom: "12px",
+                    border: isDarkMode
+                      ? "1px solid #4b5563"
+                      : "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    background: isDarkMode ? "#374151" : "#f9fafb",
+                    width: "100%",
+                    boxSizing: "border-box",
                   }}
                 >
-                  <div
+                  <h4
                     style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
+                      margin: "0 0 16px 0",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
                     }}
                   >
-                    <label style={styles.inventoryLabel}>
-                      CPU - System Unit:
-                    </label>
-                    <input
-                      type="text"
-                      name="cpuGen"
-                      value={data.cpuGen || ""}
-                      onChange={onChange}
-                      placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
-                      style={styles.inventoryInput}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
-                    }}
-                  >
-                    <label style={styles.inventoryLabel}>RAM:</label>
-                    <select
-                      name="ram"
-                      value={data.ram || ""}
-                      onChange={onChange}
-                      style={styles.inventoryInput}
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <option value="">Select RAM</option>
-                      <option value="4GB">4GB</option>
-                      <option value="8GB">8GB</option>
-                      <option value="16GB">16GB</option>
-                      <option value="32GB">32GB</option>
-                      <option value="64GB">64GB</option>
-                    </select>
-                  </div>
-                </div>
+                      <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+                    </svg>
+                    {data.deviceType} Specifications
+                  </h4>
 
-                {/* Row 2: Drive 1 and Drive 2 */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "16px",
-                    marginBottom: "12px",
-                  }}
-                >
+                  {/* Row 1: CPU Gen and RAM */}
                   <div
                     style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: "12px",
                     }}
                   >
-                    <label style={styles.inventoryLabel}>Drive 1:</label>
-                    <input
-                      name="drive1"
-                      value={data.drive1 || ""}
-                      onChange={onChange}
-                      placeholder="e.g., 256 GB SSD"
-                      style={styles.inventoryInput}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
-                    }}
-                  >
-                    <label style={styles.inventoryLabel}>
-                      Drive 2 (Optional):
-                    </label>
-                    <input
-                      name="drive2"
-                      value={data.drive2 || ""}
-                      onChange={onChange}
-                      placeholder="e.g., 1 TB HDD"
-                      style={styles.inventoryInput}
-                    />
-                  </div>
-                </div>
-
-                {/* Row 3: GPU and OS */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "16px",
-                    marginBottom: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
-                    }}
-                  >
-                    <label style={styles.inventoryLabel}>GPU:</label>
-                    <input
-                      name="gpu"
-                      value={data.gpu || ""}
-                      onChange={onChange}
-                      placeholder="e.g., Integrated / GTX 1650"
-                      style={styles.inventoryInput}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      ...styles.inventoryInputGroup,
-                      flex: 1,
-                      marginBottom: 0,
-                    }}
-                  >
-                    <label style={styles.inventoryLabel}>OS:</label>
-                    <select
-                      name="os"
-                      value={data.os || ""}
-                      onChange={onChange}
-                      style={styles.inventoryInput}
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
                     >
-                      <option value="">Select OS</option>
-                      <option value="Windows 10">Windows 10</option>
-                      <option value="Windows 11">Windows 11</option>
-                    </select>
+                      <label style={styles.inventoryLabel}>
+                        CPU - System Unit:
+                      </label>
+                      <input
+                        type="text"
+                        name="cpuGen"
+                        value={data.cpuGen || ""}
+                        onChange={onChange}
+                        placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                        style={styles.inventoryInput}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <label style={styles.inventoryLabel}>RAM:</label>
+                      <select
+                        name="ram"
+                        value={data.ram || ""}
+                        onChange={onChange}
+                        style={styles.inventoryInput}
+                      >
+                        <option value="">Select RAM</option>
+                        <option value="4GB">4GB</option>
+                        <option value="8GB">8GB</option>
+                        <option value="16GB">16GB</option>
+                        <option value="32GB">32GB</option>
+                        <option value="64GB">64GB</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Drive 1 and Drive 2 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <label style={styles.inventoryLabel}>Drive 1:</label>
+                      <input
+                        name="drive1"
+                        value={data.drive1 || ""}
+                        onChange={onChange}
+                        placeholder="e.g., 256 GB SSD"
+                        style={styles.inventoryInput}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <label style={styles.inventoryLabel}>
+                        Drive 2 (Optional):
+                      </label>
+                      <input
+                        name="drive2"
+                        value={data.drive2 || ""}
+                        onChange={onChange}
+                        placeholder="e.g., 1 TB HDD"
+                        style={styles.inventoryInput}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 3: GPU and OS */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <label style={styles.inventoryLabel}>GPU:</label>
+                      <input
+                        name="gpu"
+                        value={data.gpu || ""}
+                        onChange={onChange}
+                        placeholder="e.g., Integrated / GTX 1650"
+                        style={styles.inventoryInput}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        ...styles.inventoryInputGroup,
+                        flex: 1,
+                        marginBottom: 0,
+                      }}
+                    >
+                      <label style={styles.inventoryLabel}>OS:</label>
+                      <select
+                        name="os"
+                        value={data.os || ""}
+                        onChange={onChange}
+                        style={styles.inventoryInput}
+                      >
+                        <option value="">Select OS</option>
+                        <option value="Windows 10">Windows 10</option>
+                        <option value="Windows 11">Windows 11</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Row 5: Remarks (full width) */}
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Remarks:</label>
+              <textarea
+                name="remarks"
+                value={data.remarks || ""}
+                onChange={onChange}
+                rows={3}
+                style={{
+                  ...styles.inventoryInput,
+                  resize: "vertical",
+                }}
+              />
             </div>
-          )}
+          </form>
 
-          {/* Row 5: Remarks (full width) */}
-          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-            <label style={styles.inventoryLabel}>Remarks:</label>
-            <textarea
-              name="remarks"
-              value={data.remarks || ""}
-              onChange={onChange}
-              rows={3}
-              style={{
-                ...styles.inventoryInput,
-                resize: "vertical",
-              }}
-            />
-          </div>
-        </form>
-
-        {/* Buttons */}
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            justifyContent: "flex-end",
-            marginTop: 32,
-          }}
-        >
-          <button
-            onClick={onCancel}
-            style={{
-              padding: "12px 24px",
-              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-              borderRadius: 8,
-              background: isDarkMode ? "#374151" : "white",
-              color: isDarkMode ? "#f3f4f6" : "#374151",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onSave}
-            disabled={!isValid}
-            style={{
-              padding: "12px 24px",
-              border: "none",
-              borderRadius: 8,
-              background: isValid ? "#2563eb" : "#9ca3af",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: isValid ? "pointer" : "not-allowed",
-              fontFamily: "inherit",
-            }}
-          >
-            Save Device
-          </button>
-        </div>
-
-        {saveError && (
+          {/* Buttons */}
           <div
             style={{
-              color: "#e57373",
-              marginTop: 16,
-              fontWeight: 600,
-              textAlign: "center",
-              fontSize: 14,
+              display: "flex",
+              gap: 16,
+              justifyContent: "flex-end",
+              marginTop: 32,
             }}
           >
-            {saveError}
+            <button
+              onClick={onCancel}
+              style={{
+                padding: "12px 24px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: 8,
+                background: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSave}
+              disabled={!isValid}
+              style={{
+                padding: "12px 24px",
+                border: "none",
+                borderRadius: 8,
+                background: isValid ? "#2563eb" : "#9ca3af",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isValid ? "pointer" : "not-allowed",
+                fontFamily: "inherit",
+              }}
+            >
+              Save Device
+            </button>
+          </div>
+
+          {saveError && (
+            <div
+              style={{
+                color: "#e57373",
+                marginTop: 16,
+                fontWeight: 600,
+                textAlign: "center",
+                fontSize: 14,
+              }}
+            >
+              {saveError}
+            </div>
+          )}
+        </div>
+        {/* END LEFT SIDE */}
+
+        {/* RIGHT SIDE: Asset History */}
+        {deviceForHistory && (
+          <div
+            style={{
+              flex: "1",
+              minWidth: "450px",
+              maxWidth: "600px",
+              borderLeft: isDarkMode
+                ? "2px solid #374151"
+                : "2px solid #e5e7eb",
+              paddingLeft: "24px",
+              display: "flex",
+              flexDirection: "column",
+              // Auto height for natural sizing
+              height: "auto",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                marginBottom: 16,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Asset History
+            </h3>
+
+            {historyLoading ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "40px 20px",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                Loading history...
+              </div>
+            ) : history.length === 0 ? (
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  fontSize: 14,
+                }}
+              >
+                No history available for this device.
+              </div>
+            ) : (
+              <div
+                style={{
+                  // All devices: auto to fit content naturally
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  paddingRight: "8px",
+                  maxHeight:
+                    data.deviceType === "PC" || data.deviceType === "Laptop"
+                      ? "600px"
+                      : "400px",
+                }}
+                className="assets-main-scroll"
+              >
+                {history
+                  .slice(
+                    0,
+                    // Show 7 items for PC/Laptop, 4 for other devices
+                    data.deviceType === "PC" || data.deviceType === "Laptop"
+                      ? 7
+                      : 4
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        background: isDarkMode ? "#374151" : "#fafafa",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        padding: "12px 16px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: isDarkMode ? "#f3f4f6" : "#111827",
+                            marginRight: 8,
+                          }}
+                        >
+                          {item.action || "Unknown Action"}
+                        </div>
+                        {item.employeeName && (
+                          <div
+                            style={{
+                              fontSize: 13,
+                              color: isDarkMode ? "#e5e7eb" : "#374151",
+                              backgroundColor: isDarkMode
+                                ? "#1f2937"
+                                : "#f3f4f6",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {item.employeeName}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: isDarkMode ? "#9ca3af" : "#6b7280",
+                          marginBottom: 8,
+                        }}
+                      >
+                        {item.date ? formatDateToMMDDYYYY(item.date) : "N/A"} at{" "}
+                        {item.date ? formatTimeToAMPM(item.date) : "N/A"}
+                      </div>
+                      {(item.reason || item.condition) && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? "#9ca3af" : "#4b5563",
+                          }}
+                        >
+                          {item.reason && (
+                            <div style={{ marginBottom: 4 }}>
+                              <strong>Reason:</strong> {item.reason}
+                            </div>
+                          )}
+                          {item.condition && (
+                            <div>
+                              <strong>Condition:</strong> {item.condition}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -764,6 +1053,7 @@ function DeviceFormModal({
 function Assets() {
   // === THEME HOOK ===
   const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+  const { currentUser } = useCurrentUser(); // Get current user for logging
 
   // === DYNAMIC STYLES OBJECT ===
   const styles = {
@@ -978,7 +1268,6 @@ function Assets() {
   const [devicesPerPage, setDevicesPerPage] = useState(50); // Number of devices displayed per page
 
   // === DEVICE HISTORY STATE ===
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
     useState(null); // Device selected for history view
 
@@ -1097,6 +1386,7 @@ function Assets() {
   const handleEdit = (device) => {
     const { id, ...rest } = device;
     setForm({ ...rest, _editDeviceId: id });
+    setSelectedDeviceForHistory(device); // Also set device for history display
     setShowForm(true);
   };
 
@@ -1125,13 +1415,11 @@ function Assets() {
   };
 
   const handleShowDeviceHistory = (device) => {
+    // Open the edit modal with history section
+    const { id, ...rest } = device;
+    setForm({ ...rest, _editDeviceId: id });
     setSelectedDeviceForHistory(device);
-    setShowDeviceHistory(true);
-  };
-
-  const handleCloseDeviceHistory = () => {
-    setShowDeviceHistory(false);
-    setSelectedDeviceForHistory(null);
+    setShowForm(true);
   };
 
   // === EXPORT HANDLER ===
@@ -1139,6 +1427,19 @@ function Assets() {
   const handleExportToExcel = async () => {
     try {
       await exportInventoryToExcel({ devices: filteredDevices, employees });
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.DEVICE_EXPORT,
+        `Exported ${filteredDevices.length} deployed asset(s) to Excel`,
+        {
+          deviceCount: filteredDevices.length,
+        }
+      );
+
       showSuccess("Deployed assets exported successfully!");
     } catch (err) {
       console.error("Export failed:", err);
@@ -1300,6 +1601,34 @@ function Assets() {
         condition,
         date: new Date().toISOString(),
       });
+
+      // Log to User Logs
+      try {
+        console.log("Attempting to log device unassignment (Assets):", {
+          user: currentUser?.uid,
+          deviceTag: unassignDevice.deviceTag,
+          previousEmployee: getEmployeeName(unassignDevice.assignedTo),
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_UNASSIGN,
+          `Unassigned device ${unassignDevice.deviceTag} from ${getEmployeeName(
+            unassignDevice.assignedTo
+          )}`,
+          {
+            deviceTag: unassignDevice.deviceTag,
+            deviceType: unassignDevice.deviceType,
+            previousEmployee: getEmployeeName(unassignDevice.assignedTo),
+            reason: reason,
+          }
+        );
+        console.log("Device unassignment logged successfully (Assets)");
+      } catch (logError) {
+        console.error("Error logging device unassignment (Assets):", logError);
+      }
+
       setUnassignDevice(null);
       loadDevicesAndEmployees();
       showSuccess(
@@ -1541,6 +1870,29 @@ function Assets() {
         prev.filter((d) => !selectedDeviceIds.includes(d.id))
       );
       const deletedCount = devicesToDelete.length;
+
+      // Log to User Logs
+      try {
+        console.log("Attempting to log bulk delete (Assets):", {
+          user: currentUser?.uid,
+          deviceCount: deletedCount,
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_DELETE,
+          `Deleted ${deletedCount} deployed device(s)`,
+          {
+            deviceCount: deletedCount,
+            deviceTags: devicesToDelete.map((d) => d.deviceTag).join(", "),
+          }
+        );
+        console.log("Bulk delete logged successfully (Assets)");
+      } catch (logError) {
+        console.error("Error logging bulk delete (Assets):", logError);
+      }
+
       showUndoNotification(
         `${deletedCount} deployed device(s) deleted`,
         async () => {
@@ -1641,6 +1993,35 @@ function Assets() {
       docxFileName: `${emp.fullName || "Employee"} - Transfer.docx`,
     });
     setBulkReassignModalOpen(false);
+
+    // Log to User Logs
+    try {
+      console.log("Attempting to log bulk reassignment:", {
+        user: currentUser?.uid,
+        deviceCount: selectedDeviceIds.length,
+        transfereeName: emp.fullName,
+      });
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.DEVICE_TRANSFER,
+        `Reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`,
+        {
+          deviceCount: selectedDeviceIds.length,
+          transfereeId: emp.id,
+          transfereeName: emp.fullName,
+          deviceTags: devices
+            .filter((d) => selectedDeviceIds.includes(d.id))
+            .map((d) => d.deviceTag)
+            .join(", "),
+        }
+      );
+      console.log("Bulk reassignment logged successfully");
+    } catch (logError) {
+      console.error("Error logging bulk reassignment:", logError);
+    }
+
     setSelectedDeviceIds([]);
     showSuccess(
       `Successfully reassigned ${selectedDeviceIds.length} device(s) to ${emp.fullName}`
@@ -1716,6 +2097,35 @@ function Assets() {
       devices: selected,
       reason: bulkUnassignReason,
     });
+
+    // Log to User Logs
+    try {
+      console.log("Attempting to log bulk unassignment:", {
+        user: currentUser?.uid,
+        deviceCount: selected.length,
+        employeeName: emp.fullName,
+      });
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.DEVICE_UNASSIGN,
+        `Bulk unassigned ${selected.length} device(s) from ${
+          emp.fullName || "employee"
+        }`,
+        {
+          deviceCount: selected.length,
+          employeeId: empId,
+          employeeName: emp.fullName,
+          reason: reason,
+          deviceTags: selected.map((d) => d.deviceTag).join(", "),
+        }
+      );
+      console.log("Bulk unassignment logged successfully");
+    } catch (logError) {
+      console.error("Error logging bulk unassignment:", logError);
+    }
+
     setSelectedDeviceIds([]);
     showSuccess(
       `Successfully unassigned ${selected.length} device(s) from ${
@@ -4245,6 +4655,7 @@ function Assets() {
             onCancel={() => {
               setShowForm(false);
               setForm({});
+              setSelectedDeviceForHistory(null); // Clear history device when closing
             }}
             onGenerateTag={() => {}}
             employees={employees}
@@ -4257,6 +4668,7 @@ function Assets() {
             onSerialToggle={() => setUseSerial(!useSerial)}
             editingDevice={form._editDeviceId}
             deviceTypes={deviceTypes}
+            deviceForHistory={selectedDeviceForHistory} // Pass device for history display
           />
         )}
 
@@ -4808,14 +5220,8 @@ function Assets() {
           </div>
         )}
 
-        {/* Device History Modal */}
-        {showDeviceHistory && selectedDeviceForHistory && (
-          <DeviceHistory
-            deviceTag={selectedDeviceForHistory.deviceTag}
-            deviceId={selectedDeviceForHistory.id}
-            onClose={handleCloseDeviceHistory}
-          />
-        )}
+        {/* Device History Modal - Now combined with Edit Modal */}
+        {/* History is now shown inside the Edit Device Modal */}
       </div>
       {showBulkDeleteConfirm && (
         <div

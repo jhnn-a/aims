@@ -10,6 +10,8 @@ import {
 import { useSnackbar } from "../components/Snackbar";
 import { TableLoadingSpinner } from "../components/LoadingSpinner";
 import { useTheme } from "../context/ThemeContext";
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 function ClientFormModal({
   data,
@@ -618,6 +620,7 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 function Clients() {
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
   const { isDarkMode } = useTheme();
+  const currentUser = useCurrentUser(); // Get current user for logging
 
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -661,6 +664,20 @@ function Clients() {
     setIsDeleting(true);
     try {
       await deleteClient(clientToDelete.id);
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.CLIENT_DELETE,
+        `Deleted client ${clientToDelete.clientName}`,
+        {
+          clientId: clientToDelete.id,
+          clientName: clientToDelete.clientName,
+        }
+      );
+
       setClients((prev) => prev.filter((c) => c.id !== clientToDelete.id));
       setShowDeleteDialog(false);
       setClientToDelete(null);
@@ -669,7 +686,7 @@ function Clients() {
       showError("Failed to delete client. Please try again.");
     }
     setIsDeleting(false);
-  }, [clientToDelete, showSuccess, showError]);
+  }, [clientToDelete, showSuccess, showError, currentUser]);
 
   const handleShowEmployees = async (clientId = "CLI0001") => {
     setEmployeesModalClientId(clientId);
@@ -715,12 +732,25 @@ function Clients() {
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `clients_export_${ts}.xlsx`;
       XLSX.writeFile(wb, filename);
+
+      // Log to User Logs
+      createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.CLIENT_EXPORT,
+        `Exported ${clients.length} client(s) to Excel`,
+        {
+          clientCount: clients.length,
+        }
+      );
+
       showSuccess("Clients exported successfully");
     } catch (err) {
       console.error(err);
       showError("Failed to export clients");
     }
-  }, [clients, showError, showSuccess]);
+  }, [clients, showError, showSuccess, currentUser]);
 
   const handleInputChange = useCallback(
     ({ target: { name, value } }) => {
@@ -748,9 +778,36 @@ function Clients() {
 
       if (form.id) {
         await updateClient(form.id, payload);
+
+        // Log to User Logs
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.CLIENT_UPDATE,
+          `Updated client ${payload.clientName}`,
+          {
+            clientId: form.id,
+            clientName: payload.clientName,
+          }
+        );
+
         showSuccess("Client updated successfully");
       } else {
         await addClient(payload);
+
+        // Log to User Logs
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.CLIENT_CREATE,
+          `Added new client ${payload.clientName}`,
+          {
+            clientName: payload.clientName,
+          }
+        );
+
         showSuccess("Client added successfully");
       }
 

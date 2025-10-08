@@ -34,6 +34,8 @@ import { useTheme } from "../context/ThemeContext";
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
@@ -979,6 +981,7 @@ function EmployeeAssetsModal({
   deviceHistory = [],
   clients = [],
   getDepartmentForForm,
+  currentUser,
   onDeviceUpdate,
 }) {
   const { isDarkMode } = useTheme();
@@ -1249,6 +1252,33 @@ function EmployeeAssetsModal({
               : "Manual unassignment from Employee page",
             condition: deviceCondition,
           });
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device unassignment:", {
+              user: currentUser?.uid,
+              deviceTag: device.deviceTag,
+              employeeName: employee.fullName,
+            });
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_UNASSIGN,
+              `Unassigned device ${device.deviceTag} from ${employee.fullName}`,
+              {
+                deviceTag: device.deviceTag,
+                deviceType: device.deviceType,
+                employeeId: employee.id,
+                employeeName: employee.fullName,
+                condition: deviceCondition,
+                source: isBulk ? "bulk" : "single",
+              }
+            );
+            console.log("Device unassignment logged successfully");
+          } catch (logError) {
+            console.error("Error logging device unassignment:", logError);
+          }
         } else if (type === "reassign" && newEmployee) {
           // Reassign device - automatically change BRANDNEW to GOOD when reassigning
           const newCondition =
@@ -1288,6 +1318,35 @@ function EmployeeAssetsModal({
               : `Reassigned from ${employee.fullName}`,
             condition: newCondition, // New condition after reassignment
           });
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device reassignment:", {
+              user: currentUser?.uid,
+              deviceTag: device.deviceTag,
+              fromEmployee: employee.fullName,
+              toEmployee: newEmployee.fullName,
+            });
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_TRANSFER,
+              `Reassigned device ${device.deviceTag} from ${employee.fullName} to ${newEmployee.fullName}`,
+              {
+                deviceTag: device.deviceTag,
+                deviceType: device.deviceType,
+                fromEmployeeId: employee.id,
+                fromEmployeeName: employee.fullName,
+                toEmployeeId: newEmployee.id,
+                toEmployeeName: newEmployee.fullName,
+                source: isBulk ? "bulk" : "single",
+              }
+            );
+            console.log("Device reassignment logged successfully");
+          } catch (logError) {
+            console.error("Error logging device reassignment:", logError);
+          }
         }
 
         currentProgress += progressStep;
@@ -3615,6 +3674,7 @@ function formatHistoryDate(dateValue) {
 
 export default function Employee() {
   const { isDarkMode } = useTheme();
+  const { currentUser } = useCurrentUser(); // Get current user for logging
   const [employees, setEmployees] = useState([]);
   const [resignedEmployees, setResignedEmployees] = useState([]);
   const [entities, setEntities] = useState([]);
@@ -3982,6 +4042,23 @@ export default function Employee() {
           dataToSave
         );
         await updateEmployee(form.id, dataToSave);
+
+        // Log to User Logs
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.EMPLOYEE_UPDATE,
+          `Updated ${form.isEntity ? "entity" : "employee"} ${
+            dataToSave.fullName || dataToSave.description
+          }`,
+          {
+            employeeId: form.id,
+            employeeName: dataToSave.fullName || dataToSave.description,
+            isEntity: form.isEntity,
+          }
+        );
+
         showSuccess(
           form.isEntity
             ? "Entity updated successfully!"
@@ -3990,6 +4067,24 @@ export default function Employee() {
       } else {
         console.log("Adding new employee/entity with data:", dataToSave);
         await addEmployee(dataToSave);
+
+        // Log to User Logs
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.EMPLOYEE_CREATE,
+          `Added new ${form.isEntity ? "entity" : "employee"} ${
+            dataToSave.fullName || dataToSave.description
+          }`,
+          {
+            employeeName: dataToSave.fullName || dataToSave.description,
+            department: dataToSave.department,
+            position: dataToSave.position,
+            isEntity: form.isEntity,
+          }
+        );
+
         showSuccess(
           form.isEntity
             ? "Entity added successfully!"
@@ -4052,6 +4147,21 @@ export default function Employee() {
 
       // Perform the resignation
       await resignEmployee(id, reason);
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.EMPLOYEE_UPDATE,
+        `Resigned employee ${employee.fullName}`,
+        {
+          employeeId: id,
+          employeeName: employee.fullName,
+          reason: reason,
+        }
+      );
+
       loadClientsAndEmployees();
 
       // Show undo notification
@@ -4396,6 +4506,21 @@ export default function Employee() {
         }
 
         if (createdCount + updatedCount > 0) {
+          // Log to User Logs
+          await createUserLog(
+            currentUser?.uid,
+            currentUser?.username || currentUser?.email,
+            currentUser?.email,
+            ACTION_TYPES.EMPLOYEE_IMPORT,
+            `Imported employees from Excel: ${createdCount} added, ${updatedCount} updated`,
+            {
+              createdCount: createdCount,
+              updatedCount: updatedCount,
+              skippedCount: skippedCount,
+              errorCount: errorCount,
+            }
+          );
+
           showSuccess(
             `Import summary: ${createdCount} added, ${updatedCount} updated, ${skippedCount} unchanged${
               errorCount > 0 ? `, ${errorCount} errors` : ""
@@ -5046,6 +5171,21 @@ export default function Employee() {
     const message = searchTerm
       ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")`
       : `Excel file exported successfully! (${exportData.length} ${activeTab} employees)`;
+
+    // Log to User Logs
+    createUserLog(
+      currentUser?.uid,
+      currentUser?.username || currentUser?.email,
+      currentUser?.email,
+      ACTION_TYPES.EMPLOYEE_EXPORT,
+      `Exported ${exportData.length} ${activeTab} employee(s) to Excel`,
+      {
+        employeeCount: exportData.length,
+        tabType: activeTab,
+        filtered: !!searchTerm,
+      }
+    );
+
     showSuccess(message);
   };
 
@@ -6840,6 +6980,7 @@ export default function Employee() {
         deviceHistory={employeeDeviceHistory}
         clients={clients}
         getDepartmentForForm={getDepartmentForForm}
+        currentUser={currentUser}
         onDeviceUpdate={async () => {
           // Refresh devices and employee device history
           await loadClientsAndEmployees();

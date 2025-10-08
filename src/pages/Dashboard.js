@@ -3,12 +3,19 @@ import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
 import { getAllClients } from "../services/clientService";
 import { exportDashboardToExcel } from "../utils/exportDashboardToExcel";
-import { getDeviceHistory } from "../services/deviceHistoryService";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useCurrentUser } from "../CurrentUserContext";
 import { useTheme } from "../context/ThemeContext";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { db } from "../utils/firebase";
+import { formatActionType } from "../services/userLogService";
 import {
   PieChart,
   Pie,
@@ -458,10 +465,8 @@ function Dashboard() {
   const [defectiveCount, setDefectiveCount] = useState(0);
 
   // Enhanced dashboard state
-  const [clientAllocation, setClientAllocation] = useState([]);
   const [utilizationRate, setUtilizationRate] = useState(0);
   const [totalAdmins, setTotalAdmins] = useState(0);
-  const [workingDevices, setWorkingDevices] = useState([]);
   const [stockroomData, setStockroomData] = useState([]);
   const [cpuSpecifications, setCpuSpecifications] = useState([]);
   const [employeeMap, setEmployeeMap] = useState({});
@@ -469,6 +474,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [systemHistory, setSystemHistory] = useState([]);
   const [allDevices, setAllDevices] = useState([]);
+  const [clientAssetCounts, setClientAssetCounts] = useState([]);
 
   // Extract fetchData as a standalone function for reuse
   const fetchData = async () => {
@@ -510,12 +516,6 @@ function Dashboard() {
         return !device.assignedTo || device.assignedTo === "";
       }).length;
       setInventoryCount(inventory);
-
-      // Get working devices (GOOD or BRANDNEW condition)
-      const workingDevicesList = devices.filter(
-        (d) => d.condition === "GOOD" || d.condition === "BRANDNEW"
-      );
-      setWorkingDevices(workingDevicesList);
 
       // Calculate stockroom data (usable devices that are NOT assigned)
       const stockroomMap = {};
@@ -646,36 +646,29 @@ function Dashboard() {
 
       // Enhanced metrics calculations
 
-      // Client allocation calculation
+      // Total Assets Count Owned by Client calculation
       const clientMap = {};
       clients.forEach((client) => {
         clientMap[client.id || client.name] = client.name || client.id;
       });
 
-      const clientAllocationMap = {};
+      // Total Assets Count Owned by Client calculation
+      const clientAssetCountMap = {};
       devices.forEach((device) => {
-        if (device.assignedTo && device.status === "In Use") {
-          const employee = employees.find(
-            (emp) => emp.id === device.assignedTo
-          );
-          if (employee && employee.clientAssigned) {
-            const clientName =
-              clientMap[employee.clientAssigned] ||
-              employee.clientAssigned ||
-              "Unassigned";
-            clientAllocationMap[clientName] =
-              (clientAllocationMap[clientName] || 0) + 1;
-          } else {
-            clientAllocationMap["Internal"] =
-              (clientAllocationMap["Internal"] || 0) + 1;
-          }
+        // Check if device has a client assigned directly
+        if (device.client && device.client.trim() !== "") {
+          const clientName = clientMap[device.client] || device.client;
+          clientAssetCountMap[clientName] =
+            (clientAssetCountMap[clientName] || 0) + 1;
         }
       });
 
-      const clientAllocationData = Object.entries(clientAllocationMap)
+      // Only include clients with at least 1 asset
+      const clientAssetCountData = Object.entries(clientAssetCountMap)
+        .filter(([client, count]) => count > 0)
         .map(([client, count]) => ({ client, count }))
         .sort((a, b) => b.count - a.count);
-      setClientAllocation(clientAllocationData);
+      setClientAssetCounts(clientAssetCountData);
 
       // Utilization rate calculation
       const totalDevices = devices.length;
@@ -808,32 +801,32 @@ function Dashboard() {
     fetchData();
   }, []);
 
-  // Separate useEffect for real-time device history listener
+  // Separate useEffect for real-time user logs listener
   useEffect(() => {
-    const historyCollection = collection(db, "deviceHistory");
+    const logsCollection = collection(db, "userLogs");
+    const logsQuery = query(
+      logsCollection,
+      orderBy("timestamp", "desc"),
+      limit(10)
+    );
 
-    // Set up real-time listener for device history
+    // Set up real-time listener for user logs
     const unsubscribe = onSnapshot(
-      historyCollection,
+      logsQuery,
       (snapshot) => {
         try {
-          const history = snapshot.docs.map((doc) => ({
+          const logs = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
 
-          const sorted = history.sort(
-            (a, b) => new Date(b.date) - new Date(a.date)
-          );
-
-          const last10 = sorted.slice(0, 10);
-          const formatted = last10.map((entry) => ({
-            event: formatHistoryEvent(entry, employeeMap),
-            date: formatShortDate(entry.date),
-            rawEntry: entry,
+          const formatted = logs.map((log) => ({
+            event: formatUserLogEvent(log),
+            date: formatShortDate(log.timestamp?.toDate?.() || new Date()),
+            rawEntry: log,
           }));
 
-          // If no history data, provide fallback
+          // If no logs data, provide fallback
           if (formatted.length === 0) {
             const fallbackHistory = [
               {
@@ -850,11 +843,11 @@ function Dashboard() {
             setSystemHistory(formatted);
           }
         } catch (error) {
-          console.error("Error processing device history:", error);
+          console.error("Error processing user logs:", error);
         }
       },
       (error) => {
-        console.error("Error listening to device history:", error);
+        console.error("Error listening to user logs:", error);
         // Provide fallback on error
         const fallbackHistory = [
           {
@@ -872,7 +865,7 @@ function Dashboard() {
 
     // Cleanup listener on unmount
     return () => unsubscribe();
-  }, [employeeMap]); // Re-subscribe when employeeMap changes
+  }, []); // No dependencies needed for user logs
 
   if (loading) {
     return (
@@ -2587,27 +2580,153 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Secondary Charts Grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
-            gap: 24,
-            marginBottom: 32,
-          }}
-        >
-          {/* Device Allocation by Client */}
-          {clientAllocation.length > 0 && (
-            <CustomBarChart
-              data={clientAllocation}
-              title="🏢 Device Allocation by Client"
-              xKey="client"
-              yKey="count"
-              height={350}
-              isDarkMode={isDarkMode}
-            />
-          )}
-        </div>
+        {/* Total Assets Count Owned by Client */}
+        {clientAssetCounts.length > 0 && (
+          <div
+            style={{
+              background: isDarkMode ? "#1f2937" : "#fff",
+              borderRadius: 12,
+              padding: 24,
+              border: `1px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
+              marginBottom: 32,
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 18,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              🏢 Total Assets Count Owned by Client
+            </h3>
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 14,
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "left",
+                        borderBottom: isDarkMode
+                          ? "2px solid #374151"
+                          : "2px solid #e5e7eb",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Client Name
+                    </th>
+                    <th
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: isDarkMode
+                          ? "2px solid #374151"
+                          : "2px solid #e5e7eb",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      Total Assets
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientAssetCounts.map((item, index) => (
+                    <tr
+                      key={index}
+                      style={{
+                        borderBottom: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #f3f4f6",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isDarkMode
+                          ? "#374151"
+                          : "#f9fafb";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.client}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: isDarkMode ? "#60a5fa" : "#3b82f6",
+                          fontWeight: 700,
+                          fontSize: "16px",
+                        }}
+                      >
+                        {item.count}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr
+                    style={{
+                      borderTop: isDarkMode
+                        ? "2px solid #374151"
+                        : "2px solid #e5e7eb",
+                      backgroundColor: isDarkMode ? "#1f2937" : "#f9fafb",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        fontWeight: 700,
+                        fontSize: "15px",
+                      }}
+                    >
+                      Total
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color: isDarkMode ? "#34d399" : "#10b981",
+                        fontWeight: 700,
+                        fontSize: "17px",
+                      }}
+                    >
+                      {clientAssetCounts.reduce(
+                        (sum, item) => sum + item.count,
+                        0
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Recent Activity & Export Options */}
         <div
@@ -2859,6 +2978,25 @@ function Dashboard() {
 }
 
 // Helper to format device history events
+// Format user log entry for display in Recent Activity
+function formatUserLogEvent(log) {
+  // Prefer userName over userEmail, fallback to "User"
+  const userName = log.userName || log.userEmail || "User";
+
+  // Use the description if available (it already contains the action details)
+  if (log.description) {
+    // Check if description already starts with the username to avoid duplication
+    if (log.description.includes(userName)) {
+      return log.description;
+    }
+    return `${userName}: ${log.description}`;
+  }
+
+  // Fallback to formatting action type
+  const action = formatActionType(log.actionType);
+  return `${userName}: ${action}`;
+}
+
 function formatHistoryEvent(entry, employeeMap = {}) {
   const deviceInfo = entry.deviceTag
     ? `${entry.deviceTag}`

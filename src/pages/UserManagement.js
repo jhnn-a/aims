@@ -15,6 +15,7 @@ import LoadingSpinner, {
 } from "../components/LoadingSpinner";
 // Import theme context for dark mode
 import { useTheme } from "../context/ThemeContext";
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 function UserManagement() {
   const { currentUser } = useCurrentUser();
@@ -223,6 +224,20 @@ function UserManagement() {
       setPassword("");
       setRePassword("");
       setShowModal(false);
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.USER_CREATE,
+        `Created new user ${username} (${email})`,
+        {
+          newUserEmail: email,
+          newUsername: username,
+        }
+      );
+
       setSnackbar({
         open: true,
         message: "Account created successfully!",
@@ -267,6 +282,21 @@ function UserManagement() {
         email: editModal.user.email,
         ...(editPassword !== "" ? { password: editPassword } : {}),
       });
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.USER_UPDATE,
+        `Updated user ${editModal.user.username} (${editModal.user.email})`,
+        {
+          updatedUserEmail: editModal.user.email,
+          updatedUsername: editModal.user.username,
+          passwordChanged: editPassword !== "",
+        }
+      );
+
       setEditModal({ open: false, user: null });
       setSnackbar({
         open: true,
@@ -309,6 +339,21 @@ function UserManagement() {
       const db = getFirestore();
       await deleteDoc(doc(db, "users", uid));
       setUsers((prev) => prev.filter((u) => u.uid !== uid));
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.USER_DELETE,
+        `Deleted user ${
+          userToDelete?.username || userToDelete?.email || "Unknown"
+        }`,
+        {
+          deletedUserEmail: userToDelete?.email,
+          deletedUsername: userToDelete?.username,
+        }
+      );
 
       // Show snackbar with undo functionality
       setSnackbar({
