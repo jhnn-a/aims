@@ -102,6 +102,197 @@ const renderCellWithTooltip = (content, maxLength = 20, onClick = null) => {
   );
 };
 
+// === SEARCHABLE DROPDOWN COMPONENT ===
+// Reusable searchable dropdown for client selection
+function SearchableDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Search and select client...",
+  displayKey = "clientName",
+  valueKey = "clientName",
+  style = {},
+}) {
+  const { isDarkMode } = useTheme();
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = React.useRef(null);
+
+  // Filter options based on search term
+  const filteredOptions = options.filter((option) => {
+    const searchValue = option[displayKey];
+    return (
+      searchValue &&
+      String(searchValue).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+        setSearchTerm("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputClick = () => {
+    setIsOpen(!isOpen);
+    setSearchTerm("");
+  };
+
+  const handleSelectOption = (option) => {
+    onChange({ target: { name: "client", value: option[valueKey] } });
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  const dropdownStyles = {
+    container: {
+      position: "relative",
+      width: "100%",
+      ...style,
+    },
+    inputContainer: {
+      position: "relative",
+      width: "100%",
+    },
+    input: {
+      width: "100%",
+      fontSize: 13,
+      padding: "8px 32px 8px 12px",
+      borderRadius: 5,
+      border: isDarkMode ? "1.2px solid #4b5563" : "1.2px solid #cbd5e1",
+      background: isDarkMode ? "#374151" : "#f1f5f9",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      height: "38px",
+      boxSizing: "border-box",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      outline: "none",
+      transition: "border-color 0.2s, box-shadow 0.2s",
+      cursor: "pointer",
+    },
+    dropdownArrow: {
+      position: "absolute",
+      right: "12px",
+      top: "50%",
+      transform: `translateY(-50%) ${
+        isOpen ? "rotate(180deg)" : "rotate(0deg)"
+      }`,
+      transition: "transform 0.2s",
+      pointerEvents: "none",
+      fontSize: "12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+    },
+    dropdown: {
+      position: "absolute",
+      top: "calc(100% + 2px)",
+      left: 0,
+      right: 0,
+      background: isDarkMode ? "#1f2937" : "#fff",
+      border: isDarkMode ? "1px solid #4b5563" : "1px solid #cbd5e1",
+      borderRadius: 5,
+      maxHeight: "140px",
+      overflowY: "auto",
+      zIndex: 1000,
+      boxShadow: isDarkMode
+        ? "0 4px 12px rgba(0, 0, 0, 0.4)"
+        : "0 4px 12px rgba(0, 0, 0, 0.15)",
+      minWidth: "200px",
+      scrollbarWidth: "thin",
+      scrollbarColor: isDarkMode ? "#4b5563 #374151" : "#cbd5e1 #f8fafc",
+    },
+    searchInput: {
+      width: "100%",
+      padding: "8px 12px",
+      border: "none",
+      borderBottom: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      outline: "none",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      background: isDarkMode ? "#1f2937" : "#f8fafc",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+      boxSizing: "border-box",
+    },
+    option: {
+      padding: "10px 12px",
+      cursor: "pointer",
+      fontSize: 13,
+      borderBottom: isDarkMode ? "1px solid #374151" : "1px solid #f1f5f9",
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      transition: "background-color 0.15s",
+      background: isDarkMode ? "#1f2937" : "#fff",
+      color: isDarkMode ? "#f3f4f6" : "#374151",
+    },
+    noResults: {
+      padding: "10px 12px",
+      color: isDarkMode ? "#9ca3af" : "#6b7280",
+      fontStyle: "italic",
+      fontSize: 13,
+      fontFamily:
+        "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    },
+  };
+
+  return (
+    <div ref={dropdownRef} style={dropdownStyles.container}>
+      <div style={dropdownStyles.inputContainer}>
+        <input
+          type="text"
+          value={value || ""}
+          onClick={handleInputClick}
+          placeholder={placeholder}
+          style={dropdownStyles.input}
+          readOnly
+        />
+        <span style={dropdownStyles.dropdownArrow}>▼</span>
+      </div>
+
+      {isOpen && (
+        <div style={dropdownStyles.dropdown}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Type to search clients..."
+            style={dropdownStyles.searchInput}
+            autoFocus
+          />
+          {filteredOptions.length === 0 ? (
+            <div style={dropdownStyles.noResults}>No clients found</div>
+          ) : (
+            filteredOptions.map((option, index) => (
+              <div
+                key={option.id || index}
+                style={dropdownStyles.option}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#4b5563"
+                    : "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = isDarkMode
+                    ? "#1f2937"
+                    : "#fff";
+                }}
+                onClick={() => handleSelectOption(option)}
+              >
+                {option[displayKey]}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // === DEVICE FORM MODAL COMPONENT ===
 // Modal component for adding/editing device information
 // Features: Device type selection, tag generation, employee assignment, validation
@@ -112,6 +303,7 @@ function DeviceFormModal({
   onCancel, // Function to close modal without saving
   onGenerateTag, // Function to generate automatic asset tags
   employees, // List of employees for assignment dropdown
+  clients, // List of clients for device owner dropdown
   tagError, // Error message for tag validation
   saveError, // Error message for save operation
   isValid, // Boolean indicating if form data is valid
@@ -132,7 +324,7 @@ function DeviceFormModal({
 
   // === DATE FORMATTING FUNCTIONS ===
   const formatDateToMMDDYYYY = (dateValue) => {
-    if (!dateValue) return "";
+    if (!dateValue) return "Invalid Date";
     let date;
     if (typeof dateValue === "object" && dateValue.seconds) {
       date = new Date(dateValue.seconds * 1000);
@@ -141,9 +333,15 @@ function DeviceFormModal({
     } else if (typeof dateValue === "string") {
       date = new Date(dateValue);
     } else {
-      return "";
+      return "Invalid Date";
     }
-    if (isNaN(date)) return "";
+    if (isNaN(date)) return "Invalid Date";
+    
+    // Check if date is January 1, 1970 (Unix epoch / invalid date marker)
+    if (date.getFullYear() === 1970 && date.getMonth() === 0 && date.getDate() === 1) {
+      return "Invalid Date";
+    }
+    
     return (
       (date.getMonth() + 1).toString().padStart(2, "0") +
       "/" +
@@ -154,7 +352,7 @@ function DeviceFormModal({
   };
 
   const formatTimeToAMPM = (dateValue) => {
-    if (!dateValue) return "";
+    if (!dateValue) return "--:--";
     let date;
     if (typeof dateValue === "object" && dateValue.seconds) {
       date = new Date(dateValue.seconds * 1000);
@@ -163,9 +361,15 @@ function DeviceFormModal({
     } else if (typeof dateValue === "string") {
       date = new Date(dateValue);
     } else {
-      return "";
+      return "--:--";
     }
-    if (isNaN(date)) return "";
+    if (isNaN(date)) return "--:--";
+    
+    // Check if date is January 1, 1970 (Unix epoch / invalid date marker)
+    if (date.getFullYear() === 1970 && date.getMonth() === 0 && date.getDate() === 1) {
+      return "--:--";
+    }
+    
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -195,7 +399,41 @@ function DeviceFormModal({
           const historyData = await getDeviceHistoryByTag(
             deviceForHistory.deviceTag
           );
-          setHistory(historyData || []);
+          
+          // Sort by date descending (newest first) - handle both Timestamp objects and strings
+          // Invalid dates (1970 or NaN) will be pushed to the end
+          const sortedHistory = (historyData || []).sort((a, b) => {
+            let dateA, dateB;
+            
+            // Handle Firestore Timestamp objects
+            if (a.date && typeof a.date === 'object' && a.date.seconds) {
+              dateA = new Date(a.date.seconds * 1000);
+            } else if (a.date) {
+              dateA = new Date(a.date);
+            } else {
+              dateA = new Date(0); // Invalid date marker
+            }
+            
+            if (b.date && typeof b.date === 'object' && b.date.seconds) {
+              dateB = new Date(b.date.seconds * 1000);
+            } else if (b.date) {
+              dateB = new Date(b.date);
+            } else {
+              dateB = new Date(0); // Invalid date marker
+            }
+            
+            // Check for 1970 dates (invalid) - push them to the end
+            const isAInvalid = isNaN(dateA) || (dateA.getFullYear() === 1970 && dateA.getMonth() === 0 && dateA.getDate() === 1);
+            const isBInvalid = isNaN(dateB) || (dateB.getFullYear() === 1970 && dateB.getMonth() === 0 && dateB.getDate() === 1);
+            
+            if (isAInvalid && !isBInvalid) return 1; // A is invalid, push to end
+            if (!isAInvalid && isBInvalid) return -1; // B is invalid, push to end
+            if (isAInvalid && isBInvalid) return 0; // Both invalid, keep same order
+            
+            return dateB - dateA; // Newest first
+          });
+          
+          setHistory(sortedHistory);
         } catch (error) {
           console.error("Error fetching device history:", error);
           setHistory([]);
@@ -612,6 +850,19 @@ function DeviceFormModal({
               />
             </div>
 
+            {/* Row 5: Device Owner (Client) */}
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Device Owner:</label>
+              <SearchableDropdown
+                value={data.client}
+                onChange={onChange}
+                options={clients || []}
+                placeholder="Search and select device owner..."
+                displayKey="clientName"
+                valueKey="clientName"
+              />
+            </div>
+
             {/* Conditional PC/Laptop Specifications */}
             {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
               <div style={{ gridColumn: "1 / -1", marginBottom: 20 }}>
@@ -795,7 +1046,7 @@ function DeviceFormModal({
               </div>
             )}
 
-            {/* Row 5: Remarks (full width) */}
+            {/* Row 6: Remarks (full width) */}
             <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
               <label style={styles.inventoryLabel}>Remarks:</label>
               <textarea
@@ -955,15 +1206,78 @@ function DeviceFormModal({
                 }}
                 className="assets-main-scroll"
               >
-                {history
-                  .slice(
-                    0,
-                    // Show 7 items for PC/Laptop, 4 for other devices
-                    data.deviceType === "PC" || data.deviceType === "Laptop"
-                      ? 7
-                      : 4
-                  )
-                  .map((item, index) => (
+                {history.map((item, index) => {
+                  // Format the history entry
+                  const formatHistoryEntry = (historyItem) => {
+                    const { action, employeeName, changes, reason, condition, remarks } = historyItem;
+                    let title = "";
+                    let details = [];
+                    
+                    switch (action) {
+                      case "created":
+                        title = "Asset Created";
+                        details.push("Device added to inventory");
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "assigned":
+                        title = "Asset Assigned";
+                        if (employeeName) details.push(`Assigned to: ${employeeName}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "unassigned":
+                      case "returned":
+                        title = action === "returned" ? "Asset Returned" : "Asset Unassigned";
+                        if (employeeName) details.push(`Returned by: ${employeeName}`);
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "reassigned":
+                        title = "Asset Reassigned";
+                        if (employeeName) details.push(`Reassigned to: ${employeeName}`);
+                        if (changes && changes.previousEmployee) details.push(`From: ${changes.previousEmployee}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        break;
+                      case "updated":
+                        title = "Asset Information Updated";
+                        if (changes && typeof changes === "object") {
+                          Object.entries(changes).forEach(([field, change]) => {
+                            if (change && typeof change === "object" && "old" in change && "new" in change) {
+                              const oldVal = change.old || "(empty)";
+                              const newVal = change.new || "(empty)";
+                              const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
+                              details.push(`${fieldName}: "${oldVal}" → "${newVal}"`);
+                            }
+                          });
+                        }
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "retired":
+                        title = "Asset Retired";
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition) details.push(`Final Condition: ${condition}`);
+                        break;
+                      case "added":
+                        title = "Remarks Added";
+                        if (remarks) details.push(remarks);
+                        break;
+                      case "removed":
+                        title = "Information Removed";
+                        if (remarks) details.push(remarks);
+                        break;
+                      default:
+                        title = action || "Unknown Action";
+                        if (employeeName) details.push(`Employee: ${employeeName}`);
+                        if (remarks) details.push(remarks);
+                    }
+                    
+                    return { title, details, hasDetails: details.length > 0 };
+                  };
+                  
+                  const formatted = formatHistoryEntry(item);
+                  
+                  return (
                     <div
                       key={index}
                       style={{
@@ -990,9 +1304,9 @@ function DeviceFormModal({
                             marginRight: 8,
                           }}
                         >
-                          {item.action || "Unknown Action"}
+                          {formatted.title}
                         </div>
-                        {item.employeeName && (
+                        {item.employeeName && !formatted.details.some(d => d.includes(item.employeeName)) && (
                           <div
                             style={{
                               fontSize: 13,
@@ -1015,30 +1329,27 @@ function DeviceFormModal({
                           marginBottom: 8,
                         }}
                       >
-                        {item.date ? formatDateToMMDDYYYY(item.date) : "N/A"} at{" "}
-                        {item.date ? formatTimeToAMPM(item.date) : "N/A"}
+                        {item.date ? formatDateToMMDDYYYY(item.date) : "Invalid Date"} at{" "}
+                        {item.date ? formatTimeToAMPM(item.date) : "--:--"}
                       </div>
-                      {(item.reason || item.condition) && (
+                      {formatted.hasDetails && (
                         <div
                           style={{
-                            fontSize: 12,
-                            color: isDarkMode ? "#9ca3af" : "#4b5563",
+                            fontSize: 13,
+                            color: isDarkMode ? "#d1d5db" : "#4b5563",
+                            lineHeight: "1.5",
                           }}
                         >
-                          {item.reason && (
-                            <div style={{ marginBottom: 4 }}>
-                              <strong>Reason:</strong> {item.reason}
+                          {formatted.details.map((detail, idx) => (
+                            <div key={idx} style={{ marginBottom: 4 }}>
+                              • {detail}
                             </div>
-                          )}
-                          {item.condition && (
-                            <div>
-                              <strong>Condition:</strong> {item.condition}
-                            </div>
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1358,10 +1669,10 @@ function Assets() {
     return client ? client.clientName : "";
   };
 
-  // Get device owner (client field from device, or "Joii Philippines" if not assigned to a client)
+  // Get device owner (client field from device, or empty if not set)
   const getDeviceOwner = (device) => {
     if (!device) return "";
-    return device.client || "Joii Philippines";
+    return device.client || "";
   };
 
   // Get client name for assigned employee
@@ -1394,6 +1705,48 @@ function Assets() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // === CHANGE TRACKING FUNCTION ===
+  // Compares old and new device data to track specific field changes
+  const getDeviceChanges = (oldDevice, newDevice) => {
+    const changes = {};
+    const fieldLabels = {
+      deviceType: "Device Type",
+      deviceTag: "Device Tag",
+      brand: "Brand",
+      model: "Model",
+      client: "Client",
+      condition: "Condition",
+      remarks: "Remarks",
+      acquisitionDate: "Acquisition Date",
+      assignedTo: "Assigned To",
+      cpu: "CPU",
+      cpuGen: "CPU Generation",
+      ram: "RAM",
+      drive1: "Primary Drive",
+      drive2: "Secondary Drive",
+      gpu: "GPU",
+      os: "Operating System",
+      serialNumber: "Serial Number",
+      category: "Category",
+      lifespan: "Lifespan",
+    };
+
+    // Compare each field
+    Object.keys(fieldLabels).forEach((field) => {
+      const oldValue = (oldDevice && oldDevice[field]) || "";
+      const newValue = (newDevice && newDevice[field]) || "";
+
+      if (oldValue !== newValue) {
+        changes[field] = {
+          old: oldValue === "" ? "(empty)" : oldValue,
+          new: newValue === "" ? "(empty)" : newValue,
+        };
+      }
+    });
+
+    return Object.keys(changes).length > 0 ? changes : null;
+  };
+
   const handleSave = async () => {
     setShowForm(false); // Close modal immediately to prevent multiple clicks
     setSaveError("");
@@ -1404,8 +1757,28 @@ function Assets() {
       return;
     }
     try {
+      // Get the original device data for comparison
+      const originalDevice = devices.find((d) => d.id === form._editDeviceId);
       const { id, ...payloadWithoutId } = form;
+      
+      // Track changes
+      const changes = getDeviceChanges(originalDevice, payloadWithoutId);
+      
       await updateDevice(form._editDeviceId, payloadWithoutId);
+      
+      // Log device update with change details
+      if (changes) {
+        await logDeviceHistory({
+          employeeId: payloadWithoutId.assignedTo || null,
+          employeeName: payloadWithoutId.assignedTo ? getEmployeeName(payloadWithoutId.assignedTo) : null,
+          deviceId: form._editDeviceId,
+          deviceTag: payloadWithoutId.deviceTag,
+          action: "updated",
+          date: new Date().toISOString(),
+          changes: changes,
+        });
+      }
+      
       setForm({});
       loadDevicesAndEmployees();
       showSuccess("Device updated successfully!");
@@ -2145,7 +2518,7 @@ function Assets() {
       d = new Date(date);
     }
     if (isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-US", {
+    return d.toLocaleDateString("en-GB", {
       year: "numeric",
       month: "long",
       day: "2-digit",
@@ -3442,7 +3815,7 @@ function Assets() {
                       value={headerFilters.client || ""}
                       onChange={(value) => updateHeaderFilter("client", value)}
                       options={clients.map((client) => client.clientName)}
-                      placeholder="All Clients"
+                      placeholder="All Owners"
                     />
                   </th>
                   <th
@@ -4659,6 +5032,7 @@ function Assets() {
             }}
             onGenerateTag={() => {}}
             employees={employees}
+            clients={clients}
             tagError={tagError}
             setTagError={setTagError}
             saveError={saveError}

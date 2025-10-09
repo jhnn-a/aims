@@ -44,6 +44,44 @@ const getCurrentDate = () => {
   return new Date().toISOString().slice(0, 10);
 };
 
+// Helper function to convert MM/DD/YYYY to YYYY-MM-DD for date input
+const convertToInputFormat = (dateStr) => {
+  if (!dateStr) return "";
+  
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Handle MM/DD/YYYY format
+  const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, month, day, year] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  return "";
+};
+
+// Helper function to convert YYYY-MM-DD to MM/DD/YYYY for storage
+const convertToStorageFormat = (dateStr) => {
+  if (!dateStr) return "";
+  
+  // If already in MM/DD/YYYY format, return as-is
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Handle YYYY-MM-DD format
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
+  }
+  
+  return "";
+};
+
 // === SEARCHABLE DROPDOWN COMPONENT ===
 // Reusable searchable dropdown for client selection
 function SearchableDropdown({
@@ -679,8 +717,11 @@ function EmployeeFormModal({
                   <input
                     type="date"
                     name="dateHired"
-                    value={data.dateHired ? data.dateHired : ""}
-                    onChange={onChange}
+                    value={data.dateHired ? convertToInputFormat(data.dateHired) : ""}
+                    onChange={(e) => {
+                      const convertedDate = convertToStorageFormat(e.target.value);
+                      onChange({ target: { name: 'dateHired', value: convertedDate } });
+                    }}
                     style={{
                       width: "100%",
                       padding: "clamp(6px, 0.8vw, 10px)",
@@ -1421,7 +1462,7 @@ function EmployeeAssetsModal({
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
             return new Date(dateStr.seconds * 1000).toLocaleDateString(
-              "en-US",
+              "en-GB",
               {
                 year: "numeric",
                 month: "long",
@@ -1434,7 +1475,7 @@ function EmployeeAssetsModal({
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
 
-          return date.toLocaleDateString("en-US", {
+          return date.toLocaleDateString("en-GB", {
             year: "numeric",
             month: "long",
             day: "2-digit",
@@ -1574,7 +1615,7 @@ function EmployeeAssetsModal({
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
             return new Date(dateStr.seconds * 1000).toLocaleDateString(
-              "en-US",
+              "en-GB",
               {
                 year: "numeric",
                 month: "long",
@@ -1587,7 +1628,7 @@ function EmployeeAssetsModal({
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
 
-          return date.toLocaleDateString("en-US", {
+          return date.toLocaleDateString("en-GB", {
             year: "numeric",
             month: "long",
             day: "2-digit",
@@ -5704,7 +5745,10 @@ export default function Employee() {
           {activeTab === "active" && (
             <button
               onClick={() => {
-                setForm({ dateHired: getCurrentDate() });
+                setForm({ 
+                  dateHired: getCurrentDate(),
+                  isEntity: false
+                });
                 setShowForm(true);
               }}
               style={{
@@ -6411,6 +6455,8 @@ export default function Employee() {
                                 clientId: employee.clientId || "",
                                 fullName: employee.fullName || "",
                                 position: employee.position || "",
+                                // Ensure isEntity is properly set for employees
+                                isEntity: employee.isEntity || false,
                                 // Split fullName into components for editing
                                 ...splitFullName(employee.fullName || ""),
                               };

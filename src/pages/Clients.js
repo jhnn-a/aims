@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getAllEmployees } from "../services/employeeService";
+import { getAllDevices } from "../services/deviceService";
 import * as XLSX from "xlsx";
 import {
   addClient,
@@ -623,6 +624,8 @@ function Clients() {
   const currentUser = useCurrentUser(); // Get current user for logging
 
   const [clients, setClients] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showEmployeesModal, setShowEmployeesModal] = useState(false);
@@ -705,10 +708,42 @@ function Clients() {
   }, []);
   const fetchClients = useCallback(async () => {
     setLoading(true);
-    const [clientData] = await Promise.all([getAllClients()]);
+    const [clientData, deviceData, employeeData] = await Promise.all([
+      getAllClients(),
+      getAllDevices(),
+      getAllEmployees(),
+    ]);
     setClients(clientData);
+    setDevices(deviceData);
+    setEmployees(employeeData);
     setLoading(false);
   }, []);
+
+  // Calculate owned assets count for a client
+  const getOwnedAssetsCount = useCallback(
+    (clientName) => {
+      if (!devices || !clientName) return 0;
+      // Count only devices where client field explicitly matches the client name (case-insensitive)
+      const normalizedClientName = clientName.trim().toLowerCase();
+      
+      const matchedDevices = devices.filter((device) => {
+        // Only count devices with explicit client field set
+        if (!device.client || device.client.trim() === "") return false;
+        return device.client.trim().toLowerCase() === normalizedClientName;
+      });
+      
+      // Debug logging for Joii Philippines
+      if (normalizedClientName === "joii philippines") {
+        console.log("=== Joii Philippines Asset Count Debug (Explicit Only) ===");
+        console.log("Total devices:", devices.length);
+        console.log("Devices with explicit client='Joii Philippines':", matchedDevices.length);
+        console.log("Devices with no client field:", devices.filter(d => !d.client || d.client.trim() === "").length);
+      }
+      
+      return matchedDevices.length;
+    },
+    [devices, employees, clients]
+  );
 
   // Export clients to Excel using SheetJS
   const handleExportClients = useCallback(() => {
@@ -723,6 +758,7 @@ function Clients() {
         "Client ID": c.id || "",
         "Client Name": c.clientName || "",
         Employees: c.employeeCount != null ? c.employeeCount : "",
+        "Owned Assets": getOwnedAssetsCount(c.clientName),
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -1425,6 +1461,25 @@ function Clients() {
                   <th
                     style={{
                       width: "15%",
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    OWNED ASSETS
+                  </th>
+                  <th
+                    style={{
+                      width: "15%",
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
@@ -1447,7 +1502,7 @@ function Clients() {
                 {filteredClients.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
@@ -1615,6 +1670,20 @@ function Clients() {
                           }}
                         >
                           {client.employeeCount ?? 0}
+                        </td>
+                        <td
+                          style={{
+                            width: "15%",
+                            padding: "8px 6px",
+                            fontSize: "14px",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
+                            textAlign: "center",
+                          }}
+                        >
+                          {getOwnedAssetsCount(client.clientName)}
                         </td>
                         <td
                           style={{

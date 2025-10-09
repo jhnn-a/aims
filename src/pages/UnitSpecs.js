@@ -142,7 +142,7 @@ const calculateAppraisalDate = (
     const appraisalDate = new Date(addedDate);
     appraisalDate.setFullYear(appraisalDate.getFullYear() + lifespanYears);
 
-    return appraisalDate.toLocaleDateString("en-US", {
+    return appraisalDate.toLocaleDateString("en-GB", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",

@@ -324,7 +324,41 @@ function DeviceFormModal({
           const historyData = await getDeviceHistoryByTag(
             deviceForHistory.deviceTag
           );
-          setHistory(historyData || []);
+          
+          // Filter out entries without valid dates, then sort by date descending (newest first)
+          const validHistory = (historyData || []).filter(item => {
+            if (!item.date) return false;
+            
+            // Check if it's a valid Firestore Timestamp
+            if (typeof item.date === 'object' && item.date.seconds) {
+              return true;
+            }
+            
+            // Check if it's a valid date string
+            const testDate = new Date(item.date);
+            return !isNaN(testDate.getTime());
+          });
+          
+          const sortedHistory = validHistory.sort((a, b) => {
+            let dateA, dateB;
+            
+            // Handle Firestore Timestamp objects
+            if (a.date && typeof a.date === 'object' && a.date.seconds) {
+              dateA = a.date.seconds * 1000;
+            } else {
+              dateA = new Date(a.date).getTime();
+            }
+            
+            if (b.date && typeof b.date === 'object' && b.date.seconds) {
+              dateB = b.date.seconds * 1000;
+            } else {
+              dateB = new Date(b.date).getTime();
+            }
+            
+            return dateB - dateA; // Newest first
+          });
+          
+          setHistory(sortedHistory);
         } catch (error) {
           console.error("Error fetching device history:", error);
           setHistory([]);
@@ -1205,15 +1239,78 @@ function DeviceFormModal({
                 }}
                 className="inventory-main-scroll"
               >
-                {history
-                  .slice(
-                    0,
-                    // Show 7 items for PC/Laptop, 4 for other devices
-                    data.deviceType === "PC" || data.deviceType === "Laptop"
-                      ? 7
-                      : 4
-                  )
-                  .map((item, index) => (
+                {history.map((item, index) => {
+                  // Format the history entry using the service function
+                  const formatHistoryEntry = (historyItem) => {
+                    const { action, employeeName, changes, reason, condition, remarks } = historyItem;
+                    let title = "";
+                    let details = [];
+                    
+                    switch (action) {
+                      case "created":
+                        title = "Asset Created";
+                        details.push("Device added to inventory");
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "assigned":
+                        title = "Asset Assigned";
+                        if (employeeName) details.push(`Assigned to: ${employeeName}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "unassigned":
+                      case "returned":
+                        title = action === "returned" ? "Asset Returned" : "Asset Unassigned";
+                        if (employeeName) details.push(`Returned by: ${employeeName}`);
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "reassigned":
+                        title = "Asset Reassigned";
+                        if (employeeName) details.push(`Reassigned to: ${employeeName}`);
+                        if (changes && changes.previousEmployee) details.push(`From: ${changes.previousEmployee}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        break;
+                      case "updated":
+                        title = "Asset Information Updated";
+                        if (changes && typeof changes === "object") {
+                          Object.entries(changes).forEach(([field, change]) => {
+                            if (change && typeof change === "object" && "old" in change && "new" in change) {
+                              const oldVal = change.old || "(empty)";
+                              const newVal = change.new || "(empty)";
+                              const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
+                              details.push(`${fieldName}: "${oldVal}" → "${newVal}"`);
+                            }
+                          });
+                        }
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "retired":
+                        title = "Asset Retired";
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition) details.push(`Final Condition: ${condition}`);
+                        break;
+                      case "added":
+                        title = "Remarks Added";
+                        if (remarks) details.push(remarks);
+                        break;
+                      case "removed":
+                        title = "Information Removed";
+                        if (remarks) details.push(remarks);
+                        break;
+                      default:
+                        title = action || "Unknown Action";
+                        if (employeeName) details.push(`Employee: ${employeeName}`);
+                        if (remarks) details.push(remarks);
+                    }
+                    
+                    return { title, details, hasDetails: details.length > 0 };
+                  };
+                  
+                  const formatted = formatHistoryEntry(item);
+                  
+                  return (
                     <div
                       key={index}
                       style={{
@@ -1240,9 +1337,9 @@ function DeviceFormModal({
                             marginRight: 8,
                           }}
                         >
-                          {item.action || "Unknown Action"}
+                          {formatted.title}
                         </div>
-                        {item.employeeName && (
+                        {item.employeeName && !formatted.details.some(d => d.includes(item.employeeName)) && (
                           <div
                             style={{
                               fontSize: 13,
@@ -1268,27 +1365,24 @@ function DeviceFormModal({
                         {item.date ? formatDateToMMDDYYYY(item.date) : "N/A"} at{" "}
                         {item.date ? formatTimeToAMPM(item.date) : "N/A"}
                       </div>
-                      {(item.reason || item.condition) && (
+                      {formatted.hasDetails && (
                         <div
                           style={{
-                            fontSize: 12,
-                            color: isDarkMode ? "#9ca3af" : "#4b5563",
+                            fontSize: 13,
+                            color: isDarkMode ? "#d1d5db" : "#4b5563",
+                            lineHeight: "1.5",
                           }}
                         >
-                          {item.reason && (
-                            <div style={{ marginBottom: 4 }}>
-                              <strong>Reason:</strong> {item.reason}
+                          {formatted.details.map((detail, idx) => (
+                            <div key={idx} style={{ marginBottom: 4 }}>
+                              • {detail}
                             </div>
-                          )}
-                          {item.condition && (
-                            <div>
-                              <strong>Condition:</strong> {item.condition}
-                            </div>
-                          )}
+                          ))}
                         </div>
                       )}
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2217,9 +2311,9 @@ function Inventory() {
     form.condition.trim() !== "" &&
     !tagError;
 
-  // Helper function to compare device data and generate change description
+  // Helper function to compare device data and generate structured change object
   const getDeviceChanges = (oldDevice, newDevice) => {
-    const changes = [];
+    const changes = {};
     const fieldLabels = {
       deviceType: "Device Type",
       deviceTag: "Device Tag",
@@ -2229,24 +2323,32 @@ function Inventory() {
       condition: "Condition",
       remarks: "Remarks",
       acquisitionDate: "Acquisition Date",
+      cpu: "CPU",
+      cpuGen: "CPU Generation",
+      ram: "RAM",
+      drive1: "Primary Drive",
+      drive2: "Secondary Drive",
+      gpu: "GPU",
+      os: "Operating System",
+      serialNumber: "Serial Number",
+      category: "Category",
+      lifespan: "Lifespan",
     };
 
-    // Compare each field
+    // Compare each field and build structured changes object
     Object.keys(fieldLabels).forEach((field) => {
       const oldValue = (oldDevice && oldDevice[field]) || "";
       const newValue = (newDevice && newDevice[field]) || "";
 
       if (oldValue !== newValue) {
-        // Format empty values for better readability
-        const oldDisplay = oldValue === "" ? "(empty)" : oldValue;
-        const newDisplay = newValue === "" ? "(empty)" : newValue;
-        changes.push(`${fieldLabels[field]}: ${oldDisplay} → ${newDisplay}`);
+        changes[field] = {
+          old: oldValue === "" ? "(empty)" : oldValue,
+          new: newValue === "" ? "(empty)" : newValue,
+        };
       }
     });
 
-    return changes.length > 0
-      ? `Updated: ${changes.join(", ")}`
-      : "No changes detected";
+    return Object.keys(changes).length > 0 ? changes : null;
   };
 
   // === SYNC TO UNITSPECS FUNCTION ===
@@ -2573,7 +2675,7 @@ function Inventory() {
           const originalDevice = allDevices.find(
             (d) => d.id === form._editDeviceId
           );
-          const changeDescription = getDeviceChanges(originalDevice, payload);
+          const changes = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
 
@@ -2581,15 +2683,17 @@ function Inventory() {
           await syncToUnitSpecs(payload);
 
           // Log device update with change details
-          await logDeviceHistory({
-            employeeId: null,
-            employeeName: null,
-            deviceId: form._editDeviceId,
-            deviceTag: payload.deviceTag,
-            action: "updated",
-            reason: changeDescription,
-            date: new Date(),
-          });
+          if (changes) {
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: form._editDeviceId,
+              deviceTag: payload.deviceTag,
+              action: "updated",
+              changes: changes, // Pass structured changes object
+              date: new Date(),
+            });
+          }
 
           // Log to User Logs
           try {
@@ -2597,6 +2701,14 @@ function Inventory() {
               user: currentUser?.uid,
               deviceTag: payload.deviceTag,
             });
+            
+            // Create readable change description for user logs
+            const changeDescription = changes
+              ? Object.entries(changes)
+                  .map(([field, change]) => `${field}: ${change.old} → ${change.new}`)
+                  .join(", ")
+              : "No changes detected";
+            
             await createUserLog(
               currentUser?.uid,
               currentUser?.username || currentUser?.email,
@@ -2665,7 +2777,7 @@ function Inventory() {
           const originalDevice = allDevices.find(
             (d) => d.id === form._editDeviceId
           );
-          const changeDescription = getDeviceChanges(originalDevice, payload);
+          const changes = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
 
@@ -2673,15 +2785,17 @@ function Inventory() {
           await syncToUnitSpecs(payload);
 
           // Log device update with change details
-          await logDeviceHistory({
-            employeeId: null,
-            employeeName: null,
-            deviceId: form._editDeviceId,
-            deviceTag: payload.deviceTag,
-            action: "updated",
-            reason: changeDescription,
-            date: new Date(),
-          });
+          if (changes) {
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: form._editDeviceId,
+              deviceTag: payload.deviceTag,
+              action: "updated",
+              changes: changes, // Pass structured changes object
+              date: new Date(),
+            });
+          }
 
           // Log to User Logs
           try {
@@ -2689,6 +2803,14 @@ function Inventory() {
               user: currentUser?.uid,
               deviceTag: payload.deviceTag,
             });
+            
+            // Create readable change description for user logs
+            const changeDescription = changes
+              ? Object.entries(changes)
+                  .map(([field, change]) => `${field}: ${change.old} → ${change.new}`)
+                  .join(", ")
+              : "No changes detected";
+            
             await createUserLog(
               currentUser?.uid,
               currentUser?.username || currentUser?.email,
@@ -4721,7 +4843,7 @@ function Inventory() {
         { label: "Laptop", code: "LPT" },
         { label: "Monitor", code: "MN" },
         { label: "Mouse", code: "M" },
-        { label: "PC", code: "PC" },
+        // PC is processed separately in pcCpuTypes array below
         { label: "PSU", code: "PSU" },
         { label: "RAM", code: "RAM" },
         { label: "SSD", code: "SSD" },
@@ -6213,7 +6335,7 @@ function Inventory() {
                       zIndex: 10,
                     }}
                   >
-                    CLIENT
+                    DEVICE OWNER
                   </th>
                   <th
                     style={{
@@ -6431,7 +6553,7 @@ function Inventory() {
                           devices.map((d) => d.client).filter(Boolean)
                         ),
                       ]}
-                      placeholder="All Clients"
+                      placeholder="All Owners"
                     />
                   </th>
                   <th

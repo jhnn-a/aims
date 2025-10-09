@@ -389,48 +389,6 @@ function CustomBarChart({
   );
 }
 
-// Time Range Filter Component
-function TimeRangeFilter({ value, onChange, isDarkMode }) {
-  const options = [
-    { value: "7days", label: "Last 7 days" },
-    { value: "30days", label: "Last 30 days" },
-    { value: "90days", label: "Last 90 days" },
-    { value: "custom", label: "Custom range" },
-  ];
-
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <span
-        style={{
-          fontSize: 14,
-          fontWeight: 500,
-          color: isDarkMode ? "#9ca3af" : "#6b7280",
-        }}
-      >
-        Time Range:
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          padding: "6px 12px",
-          borderRadius: 6,
-          border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-          fontSize: 14,
-          background: isDarkMode ? "#374151" : "#fff",
-          color: isDarkMode ? "#f3f4f6" : "#374151",
-        }}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 function Dashboard() {
   // Use custom hook to get current user, with fallback for missing context
   let currentUser = undefined;
@@ -470,7 +428,6 @@ function Dashboard() {
   const [stockroomData, setStockroomData] = useState([]);
   const [cpuSpecifications, setCpuSpecifications] = useState([]);
   const [employeeMap, setEmployeeMap] = useState({});
-  const [timeRange, setTimeRange] = useState("30days");
   const [loading, setLoading] = useState(true);
   const [systemHistory, setSystemHistory] = useState([]);
   const [allDevices, setAllDevices] = useState([]);
@@ -648,16 +605,28 @@ function Dashboard() {
 
       // Total Assets Count Owned by Client calculation
       const clientMap = {};
+      // Create a normalized map for case-insensitive matching
+      const normalizedClientMap = {};
       clients.forEach((client) => {
-        clientMap[client.id || client.name] = client.name || client.id;
+        const clientName = client.clientName || client.name || client.id;
+        clientMap[client.id || client.name] = clientName;
+        // Store normalized version for matching
+        normalizedClientMap[clientName.trim().toLowerCase()] = clientName;
       });
+      // Always ensure "Joii Philippines" is in the normalized map for default owner
+      if (!normalizedClientMap["joii philippines"]) {
+        normalizedClientMap["joii philippines"] = "Joii Philippines";
+      }
 
       // Total Assets Count Owned by Client calculation
+      // Only count devices with explicit client field set
       const clientAssetCountMap = {};
       devices.forEach((device) => {
-        // Check if device has a client assigned directly
+        // Only count devices that have a client explicitly set
         if (device.client && device.client.trim() !== "") {
-          const clientName = clientMap[device.client] || device.client;
+          const normalizedDeviceClient = device.client.trim().toLowerCase();
+          // Find the proper client name using case-insensitive matching
+          const clientName = normalizedClientMap[normalizedDeviceClient] || device.client;
           clientAssetCountMap[clientName] =
             (clientAssetCountMap[clientName] || 0) + 1;
         }
@@ -1029,43 +998,27 @@ function Dashboard() {
           position: "relative",
         }}
       >
-        {/* Header with time range filter and theme toggle */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 32,
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontSize: 32,
-                fontWeight: 800,
-                color: "#2563eb",
-                margin: "0 0 8px 0",
-              }}
-            >
-              Hello {username}, Welcome Back!
-            </h1>
-            <p
-              style={{
-                fontSize: 17,
-                color: isDarkMode ? "#9ca3af" : "#6b7280",
-                margin: 0,
-              }}
-            >
-              Comprehensive asset and inventory management dashboard
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <TimeRangeFilter
-              value={timeRange}
-              onChange={setTimeRange}
-              isDarkMode={isDarkMode}
-            />
-          </div>
+        {/* Header */}
+        <div>
+          <h1
+            style={{
+              fontSize: 32,
+              fontWeight: 800,
+              color: "#2563eb",
+              margin: "0 0 8px 0",
+            }}
+          >
+            Hello {username}, Welcome Back!
+          </h1>
+          <p
+            style={{
+              fontSize: 17,
+              color: isDarkMode ? "#9ca3af" : "#6b7280",
+              margin: "0 0 32px 0",
+            }}
+          >
+            Comprehensive asset and inventory management dashboard
+          </p>
         </div>
 
         {/* Core Metrics Cards */}
@@ -2882,7 +2835,6 @@ function Dashboard() {
                     deviceStatus: deviceStatusData,
                     utilizationRate,
                     allDevices,
-                    timeRange,
                   });
                 }
               }}

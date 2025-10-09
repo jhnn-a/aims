@@ -94,7 +94,7 @@ export const formatDateToInputValue = (dateString) => {
     return dateString.toISOString().split("T")[0];
   }
 
-  // Convert MM/DD/YYYY to YYYY-MM-DD
+  // Convert DD/MM/YYYY to YYYY-MM-DD
   const parts = dateString.split("/");
   if (parts.length === 3) {
     const month = parts[0].padStart(2, "0");
@@ -207,7 +207,7 @@ export const generateNextDeviceTag = (deviceType, existingDevices) => {
   return `${prefix}${String(nextNumber).padStart(4, "0")}`;
 };
 
-// Utility function to convert MM/DD/YYYY to YYYY-MM-DD for date input
+// Utility function to convert DD/MM/YYYY to YYYY-MM-DD for date input
 export const formatDateToYYYYMMDD = (dateString) => {
   if (!dateString) return "";
 
@@ -216,7 +216,7 @@ export const formatDateToYYYYMMDD = (dateString) => {
     return dateString;
   }
 
-  // Convert MM/DD/YYYY to YYYY-MM-DD
+  // Convert DD/MM/YYYY to YYYY-MM-DD
   const parts = dateString.split("/");
   if (parts.length === 3) {
     const month = parts[0].padStart(2, "0");
