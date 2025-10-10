@@ -336,12 +336,16 @@ function DeviceFormModal({
       return "Invalid Date";
     }
     if (isNaN(date)) return "Invalid Date";
-    
+
     // Check if date is January 1, 1970 (Unix epoch / invalid date marker)
-    if (date.getFullYear() === 1970 && date.getMonth() === 0 && date.getDate() === 1) {
+    if (
+      date.getFullYear() === 1970 &&
+      date.getMonth() === 0 &&
+      date.getDate() === 1
+    ) {
       return "Invalid Date";
     }
-    
+
     return (
       (date.getMonth() + 1).toString().padStart(2, "0") +
       "/" +
@@ -364,12 +368,16 @@ function DeviceFormModal({
       return "--:--";
     }
     if (isNaN(date)) return "--:--";
-    
+
     // Check if date is January 1, 1970 (Unix epoch / invalid date marker)
-    if (date.getFullYear() === 1970 && date.getMonth() === 0 && date.getDate() === 1) {
+    if (
+      date.getFullYear() === 1970 &&
+      date.getMonth() === 0 &&
+      date.getDate() === 1
+    ) {
       return "--:--";
     }
-    
+
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -399,40 +407,48 @@ function DeviceFormModal({
           const historyData = await getDeviceHistoryByTag(
             deviceForHistory.deviceTag
           );
-          
+
           // Sort by date descending (newest first) - handle both Timestamp objects and strings
           // Invalid dates (1970 or NaN) will be pushed to the end
           const sortedHistory = (historyData || []).sort((a, b) => {
             let dateA, dateB;
-            
+
             // Handle Firestore Timestamp objects
-            if (a.date && typeof a.date === 'object' && a.date.seconds) {
+            if (a.date && typeof a.date === "object" && a.date.seconds) {
               dateA = new Date(a.date.seconds * 1000);
             } else if (a.date) {
               dateA = new Date(a.date);
             } else {
               dateA = new Date(0); // Invalid date marker
             }
-            
-            if (b.date && typeof b.date === 'object' && b.date.seconds) {
+
+            if (b.date && typeof b.date === "object" && b.date.seconds) {
               dateB = new Date(b.date.seconds * 1000);
             } else if (b.date) {
               dateB = new Date(b.date);
             } else {
               dateB = new Date(0); // Invalid date marker
             }
-            
+
             // Check for 1970 dates (invalid) - push them to the end
-            const isAInvalid = isNaN(dateA) || (dateA.getFullYear() === 1970 && dateA.getMonth() === 0 && dateA.getDate() === 1);
-            const isBInvalid = isNaN(dateB) || (dateB.getFullYear() === 1970 && dateB.getMonth() === 0 && dateB.getDate() === 1);
-            
+            const isAInvalid =
+              isNaN(dateA) ||
+              (dateA.getFullYear() === 1970 &&
+                dateA.getMonth() === 0 &&
+                dateA.getDate() === 1);
+            const isBInvalid =
+              isNaN(dateB) ||
+              (dateB.getFullYear() === 1970 &&
+                dateB.getMonth() === 0 &&
+                dateB.getDate() === 1);
+
             if (isAInvalid && !isBInvalid) return 1; // A is invalid, push to end
             if (!isAInvalid && isBInvalid) return -1; // B is invalid, push to end
             if (isAInvalid && isBInvalid) return 0; // Both invalid, keep same order
-            
+
             return dateB - dateA; // Newest first
           });
-          
+
           setHistory(sortedHistory);
         } catch (error) {
           console.error("Error fetching device history:", error);
@@ -1209,10 +1225,17 @@ function DeviceFormModal({
                 {history.map((item, index) => {
                   // Format the history entry
                   const formatHistoryEntry = (historyItem) => {
-                    const { action, employeeName, changes, reason, condition, remarks } = historyItem;
+                    const {
+                      action,
+                      employeeName,
+                      changes,
+                      reason,
+                      condition,
+                      remarks,
+                    } = historyItem;
                     let title = "";
                     let details = [];
-                    
+
                     switch (action) {
                       case "created":
                         title = "Asset Created";
@@ -1221,33 +1244,49 @@ function DeviceFormModal({
                         break;
                       case "assigned":
                         title = "Asset Assigned";
-                        if (employeeName) details.push(`Assigned to: ${employeeName}`);
+                        if (employeeName)
+                          details.push(`Assigned to: ${employeeName}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         if (remarks) details.push(`Notes: ${remarks}`);
                         break;
                       case "unassigned":
                       case "returned":
-                        title = action === "returned" ? "Asset Returned" : "Asset Unassigned";
-                        if (employeeName) details.push(`Returned by: ${employeeName}`);
+                        title =
+                          action === "returned"
+                            ? "Asset Returned"
+                            : "Asset Unassigned";
+                        if (employeeName)
+                          details.push(`Returned by: ${employeeName}`);
                         if (reason) details.push(`Reason: ${reason}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         if (remarks) details.push(`Notes: ${remarks}`);
                         break;
                       case "reassigned":
                         title = "Asset Reassigned";
-                        if (employeeName) details.push(`Reassigned to: ${employeeName}`);
-                        if (changes && changes.previousEmployee) details.push(`From: ${changes.previousEmployee}`);
+                        if (employeeName)
+                          details.push(`Reassigned to: ${employeeName}`);
+                        if (changes && changes.previousEmployee)
+                          details.push(`From: ${changes.previousEmployee}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         break;
                       case "updated":
                         title = "Asset Information Updated";
                         if (changes && typeof changes === "object") {
                           Object.entries(changes).forEach(([field, change]) => {
-                            if (change && typeof change === "object" && "old" in change && "new" in change) {
+                            if (
+                              change &&
+                              typeof change === "object" &&
+                              "old" in change &&
+                              "new" in change
+                            ) {
                               const oldVal = change.old || "(empty)";
                               const newVal = change.new || "(empty)";
-                              const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-                              details.push(`${fieldName}: "${oldVal}" → "${newVal}"`);
+                              const fieldName =
+                                field.charAt(0).toUpperCase() +
+                                field.slice(1).replace(/([A-Z])/g, " $1");
+                              details.push(
+                                `${fieldName}: "${oldVal}" → "${newVal}"`
+                              );
                             }
                           });
                         }
@@ -1256,7 +1295,8 @@ function DeviceFormModal({
                       case "retired":
                         title = "Asset Retired";
                         if (reason) details.push(`Reason: ${reason}`);
-                        if (condition) details.push(`Final Condition: ${condition}`);
+                        if (condition)
+                          details.push(`Final Condition: ${condition}`);
                         break;
                       case "added":
                         title = "Remarks Added";
@@ -1268,15 +1308,16 @@ function DeviceFormModal({
                         break;
                       default:
                         title = action || "Unknown Action";
-                        if (employeeName) details.push(`Employee: ${employeeName}`);
+                        if (employeeName)
+                          details.push(`Employee: ${employeeName}`);
                         if (remarks) details.push(remarks);
                     }
-                    
+
                     return { title, details, hasDetails: details.length > 0 };
                   };
-                  
+
                   const formatted = formatHistoryEntry(item);
-                  
+
                   return (
                     <div
                       key={index}
@@ -1306,21 +1347,24 @@ function DeviceFormModal({
                         >
                           {formatted.title}
                         </div>
-                        {item.employeeName && !formatted.details.some(d => d.includes(item.employeeName)) && (
-                          <div
-                            style={{
-                              fontSize: 13,
-                              color: isDarkMode ? "#e5e7eb" : "#374151",
-                              backgroundColor: isDarkMode
-                                ? "#1f2937"
-                                : "#f3f4f6",
-                              padding: "2px 8px",
-                              borderRadius: 4,
-                            }}
-                          >
-                            {item.employeeName}
-                          </div>
-                        )}
+                        {item.employeeName &&
+                          !formatted.details.some((d) =>
+                            d.includes(item.employeeName)
+                          ) && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: isDarkMode ? "#e5e7eb" : "#374151",
+                                backgroundColor: isDarkMode
+                                  ? "#1f2937"
+                                  : "#f3f4f6",
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                              }}
+                            >
+                              {item.employeeName}
+                            </div>
+                          )}
                       </div>
                       <div
                         style={{
@@ -1329,8 +1373,10 @@ function DeviceFormModal({
                           marginBottom: 8,
                         }}
                       >
-                        {item.date ? formatDateToMMDDYYYY(item.date) : "Invalid Date"} at{" "}
-                        {item.date ? formatTimeToAMPM(item.date) : "--:--"}
+                        {item.date
+                          ? formatDateToMMDDYYYY(item.date)
+                          : "Invalid Date"}{" "}
+                        at {item.date ? formatTimeToAMPM(item.date) : "--:--"}
                       </div>
                       {formatted.hasDetails && (
                         <div
@@ -1760,17 +1806,19 @@ function Assets() {
       // Get the original device data for comparison
       const originalDevice = devices.find((d) => d.id === form._editDeviceId);
       const { id, ...payloadWithoutId } = form;
-      
+
       // Track changes
       const changes = getDeviceChanges(originalDevice, payloadWithoutId);
-      
+
       await updateDevice(form._editDeviceId, payloadWithoutId);
-      
+
       // Log device update with change details
       if (changes) {
         await logDeviceHistory({
           employeeId: payloadWithoutId.assignedTo || null,
-          employeeName: payloadWithoutId.assignedTo ? getEmployeeName(payloadWithoutId.assignedTo) : null,
+          employeeName: payloadWithoutId.assignedTo
+            ? getEmployeeName(payloadWithoutId.assignedTo)
+            : null,
           deviceId: form._editDeviceId,
           deviceTag: payloadWithoutId.deviceTag,
           action: "updated",
@@ -1778,7 +1826,7 @@ function Assets() {
           changes: changes,
         });
       }
-      
+
       setForm({});
       loadDevicesAndEmployees();
       showSuccess("Device updated successfully!");
