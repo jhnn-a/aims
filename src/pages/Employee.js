@@ -37,11 +37,145 @@ import { saveAs } from "file-saver"; // File download functionality
 import { useCurrentUser } from "../CurrentUserContext"; // Current user context
 import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
+// Defensive wrapper for createUserLog to prevent undefined actionType errors
+const safeCreateUserLog = async (
+  userId,
+  userName,
+  userEmail,
+  actionType,
+  description,
+  affectedData = {}
+) => {
+  try {
+    // Debug: Log ACTION_TYPES object to check if it's properly imported (only log once)
+    if (!window.ACTION_TYPES_LOGGED) {
+      console.log("ACTION_TYPES object:", ACTION_TYPES);
+      window.ACTION_TYPES_LOGGED = true;
+    }
+
+    // Validate all required parameters
+    if (!actionType || actionType === undefined || actionType === null) {
+      console.error(
+        "CRITICAL ERROR: actionType is invalid in safeCreateUserLog",
+        {
+          actionType,
+          typeOfActionType: typeof actionType,
+          userId,
+          userName,
+          userEmail,
+          description,
+          affectedData,
+          stack: new Error().stack,
+        }
+      );
+
+      // Try to determine which action type should be used based on description
+      let fallbackActionType = ACTION_TYPES.SYSTEM_ERROR;
+      if (description && description.toLowerCase().includes("import")) {
+        fallbackActionType = ACTION_TYPES.DEVICE_IMPORT;
+      } else if (
+        description &&
+        description.toLowerCase().includes("employee")
+      ) {
+        if (
+          description.toLowerCase().includes("create") ||
+          description.toLowerCase().includes("add")
+        ) {
+          fallbackActionType = ACTION_TYPES.EMPLOYEE_CREATE;
+        } else if (description.toLowerCase().includes("update")) {
+          fallbackActionType = ACTION_TYPES.EMPLOYEE_UPDATE;
+        }
+      }
+
+      console.warn(`Using fallback actionType: ${fallbackActionType}`);
+      actionType = fallbackActionType;
+    }
+
+    // Ensure all parameters are valid
+    const safeUserId = userId || "system";
+    const safeUserName = userName || "System User";
+    const safeUserEmail = userEmail || "system@aims.local";
+    const safeDescription = description || "No description provided";
+    const safeAffectedData = affectedData || {};
+
+    console.log("Calling createUserLog with validated parameters:", {
+      userId: safeUserId,
+      userName: safeUserName,
+      userEmail: safeUserEmail,
+      actionType,
+      description: safeDescription,
+    });
+
+    return await createUserLog(
+      safeUserId,
+      safeUserName,
+      safeUserEmail,
+      actionType,
+      safeDescription,
+      safeAffectedData
+    );
+  } catch (error) {
+    console.error("Error in safeCreateUserLog:", error);
+    console.error("Full error details:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      userName,
+      userEmail,
+      actionType,
+      description,
+      affectedData,
+    });
+
+    // Don't re-throw the error to prevent breaking the main functionality
+    console.warn("User logging failed, but continuing with main operation");
+    return null;
+  }
+};
+
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
 // Helper function to get current date in YYYY-MM-DD format
 const getCurrentDate = () => {
   return new Date().toISOString().slice(0, 10);
+};
+
+// Helper function to convert MM/DD/YYYY to YYYY-MM-DD for date input
+const convertToInputFormat = (dateStr) => {
+  if (!dateStr) return "";
+
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Handle MM/DD/YYYY format
+  const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, month, day, year] = match;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return "";
+};
+
+// Helper function to convert YYYY-MM-DD to MM/DD/YYYY for storage
+const convertToStorageFormat = (dateStr) => {
+  if (!dateStr) return "";
+
+  // If already in MM/DD/YYYY format, return as-is
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  // Handle YYYY-MM-DD format
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
+  }
+
+  return "";
 };
 
 // === SEARCHABLE DROPDOWN COMPONENT ===
@@ -679,8 +813,17 @@ function EmployeeFormModal({
                   <input
                     type="date"
                     name="dateHired"
-                    value={data.dateHired ? data.dateHired : ""}
-                    onChange={onChange}
+                    value={
+                      data.dateHired ? convertToInputFormat(data.dateHired) : ""
+                    }
+                    onChange={(e) => {
+                      const convertedDate = convertToStorageFormat(
+                        e.target.value
+                      );
+                      onChange({
+                        target: { name: "dateHired", value: convertedDate },
+                      });
+                    }}
                     style={{
                       width: "100%",
                       padding: "clamp(6px, 0.8vw, 10px)",
@@ -1421,7 +1564,7 @@ function EmployeeAssetsModal({
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
             return new Date(dateStr.seconds * 1000).toLocaleDateString(
-              "en-US",
+              "en-GB",
               {
                 year: "numeric",
                 month: "long",
@@ -1434,7 +1577,7 @@ function EmployeeAssetsModal({
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
 
-          return date.toLocaleDateString("en-US", {
+          return date.toLocaleDateString("en-GB", {
             year: "numeric",
             month: "long",
             day: "2-digit",
@@ -1574,7 +1717,7 @@ function EmployeeAssetsModal({
           // Handle Firestore timestamp object
           if (dateStr && typeof dateStr === "object" && dateStr.seconds) {
             return new Date(dateStr.seconds * 1000).toLocaleDateString(
-              "en-US",
+              "en-GB",
               {
                 year: "numeric",
                 month: "long",
@@ -1587,7 +1730,7 @@ function EmployeeAssetsModal({
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return "";
 
-          return date.toLocaleDateString("en-US", {
+          return date.toLocaleDateString("en-GB", {
             year: "numeric",
             month: "long",
             day: "2-digit",
@@ -3673,6 +3816,9 @@ function formatHistoryDate(dateValue) {
 }
 
 export default function Employee() {
+  // Debug: Check if ACTION_TYPES is properly imported
+  console.log("Employee component loaded. ACTION_TYPES:", ACTION_TYPES);
+
   const { isDarkMode } = useTheme();
   const { currentUser } = useCurrentUser(); // Get current user for logging
   const [employees, setEmployees] = useState([]);
@@ -4044,7 +4190,7 @@ export default function Employee() {
         await updateEmployee(form.id, dataToSave);
 
         // Log to User Logs
-        await createUserLog(
+        await safeCreateUserLog(
           currentUser?.uid,
           currentUser?.username || currentUser?.email,
           currentUser?.email,
@@ -4069,7 +4215,7 @@ export default function Employee() {
         await addEmployee(dataToSave);
 
         // Log to User Logs
-        await createUserLog(
+        await safeCreateUserLog(
           currentUser?.uid,
           currentUser?.username || currentUser?.email,
           currentUser?.email,
@@ -4732,39 +4878,38 @@ export default function Employee() {
           }
         };
 
+        // Helper function to find client ID by name or ID (case-insensitive)
+        const findClientIdByName = (clientIdentifier) => {
+          if (!clientIdentifier || clientIdentifier.trim() === "") return "";
+
+          const normalizedIdentifier = clientIdentifier.trim().toLowerCase();
+
+          // First try to match by exact client ID
+          let client = clients.find(
+            (client) =>
+              client.id && client.id.toLowerCase() === normalizedIdentifier
+          );
+
+          // If not found by ID, try to match by client name (case-insensitive)
+          if (!client) {
+            client = clients.find(
+              (client) =>
+                client.clientName &&
+                client.clientName.trim().toLowerCase() === normalizedIdentifier
+            );
+          }
+
+          return client ? client.id : "";
+        };
+
         const existingTags = new Set(
           existingDevices
             .map((d) => normalizeTag(d.deviceTag))
             .filter((t) => t.length > 0)
         );
 
-        // Helper function to generate unique device tag with JOII prefix
-        const generateDeviceTag = (deviceType) => {
-          const typeConfig = CANONICAL_DEVICE_TYPES.find(
-            (type) => type.label.toLowerCase() === deviceType?.toLowerCase()
-          );
-          const prefix = typeConfig ? typeConfig.joiiCode : "JOIIDEV";
-
-          // Find highest existing number for this JOII prefix (including in-memory additions)
-          let maxNum = 0;
-          existingDevices.forEach((device) => {
-            if (device.deviceTag && device.deviceTag.startsWith(prefix)) {
-              const num = parseInt(device.deviceTag.replace(prefix, ""), 10);
-              if (!isNaN(num) && num > maxNum) maxNum = num;
-            }
-          });
-
-          // Also check tags that have been generated in this import session
-          existingTags.forEach((tag) => {
-            if (tag.startsWith(prefix.toLowerCase())) {
-              const num = parseInt(tag.replace(prefix.toLowerCase(), ""), 10);
-              if (!isNaN(num) && num > maxNum) maxNum = num;
-            }
-          });
-
-          const newTag = `${prefix}${String(maxNum + 1).padStart(4, "0")}`;
-          return newTag;
-        };
+        // Track device tags within this import batch to prevent duplicates
+        const currentImportTags = new Set();
 
         const yieldToBrowser = () =>
           new Promise((resolve) => setTimeout(resolve, 0));
@@ -4813,6 +4958,37 @@ export default function Employee() {
             const dateDeployed = row["DATE DEPLOYED"];
             const employeeId = (row["EMPLOYEE ID"] || "").toString().trim();
 
+            // Extract Client information
+            const deviceOwner = (row["CLIENT"] || "").toString().trim();
+
+            // Process Client information early for debug logging
+            let clientId = "";
+            let clientName = "";
+            if (deviceOwner && deviceOwner.trim() !== "") {
+              clientId = findClientIdByName(deviceOwner);
+              if (clientId) {
+                // Find the actual client object to get the proper name
+                const clientObj = clients.find((c) => c.id === clientId);
+                clientName = clientObj ? clientObj.clientName : deviceOwner;
+                console.log(
+                  `✅ Client "${deviceOwner}" found with ID: ${clientId} (Name: ${clientName})`
+                );
+              } else {
+                // Since CLIENT is required, this is now an error that fails the import
+                errorCount++;
+                errors.push(
+                  `Row with Employee "${employeeName}": Client "${deviceOwner}" not found in system. Available clients: ${clients
+                    .map((c) => c.clientName)
+                    .join(", ")}`
+                );
+                console.error(
+                  `❌ ERROR: Client "${deviceOwner}" not found in system. Available clients:`,
+                  clients.map((c) => ({ id: c.id, name: c.clientName }))
+                );
+                continue; // Skip this row since CLIENT is required
+              }
+            }
+
             console.log("Processing asset row:", {
               employeeName,
               deviceType,
@@ -4820,6 +4996,9 @@ export default function Employee() {
               deviceTag,
               dateDeployed,
               employeeId,
+              deviceOwner,
+              clientId: clientId || "(not found/empty)",
+              clientName: clientName || "(not found/empty)",
             });
 
             // Special debug logging for specific problematic employees
@@ -4828,19 +5007,33 @@ export default function Employee() {
                 employeeName,
                 deviceType,
                 brand,
-                deviceTag: deviceTag || "(BLANK - should auto-generate)",
+                deviceTag: deviceTag || "(BLANK - REQUIRED)",
                 dateDeployed,
                 employeeId,
+                deviceOwner,
+                clientId: clientId || "(not found/empty)",
+                clientName: clientName || "(not found/empty)",
                 rawRow: row,
               });
             }
 
-            // Validate required fields and device type
-            if (!deviceType || !brand) {
+            // Validate required fields according to template
+            if (
+              !deviceType ||
+              !brand ||
+              !deviceTag ||
+              !employeeId ||
+              !dateDeployed ||
+              !deviceOwner
+            ) {
               errorCount++;
               const missing = [];
               if (!deviceType) missing.push("TYPE");
               if (!brand) missing.push("BRAND");
+              if (!deviceTag) missing.push("DEVICE TAG");
+              if (!employeeId) missing.push("EMPLOYEE ID");
+              if (!dateDeployed) missing.push("DATE DEPLOYED");
+              if (!deviceOwner) missing.push("CLIENT");
 
               errors.push(
                 `Row with Employee "${employeeName}": Missing required fields: ${missing.join(
@@ -4851,7 +5044,7 @@ export default function Employee() {
               const safeEmpId = employeeId ? employeeId : "(missing)";
               const safeTag = deviceTag
                 ? deviceTag
-                : "(blank - would auto-generate if valid)";
+                : "(REQUIRED - cannot proceed without device tag)";
               console.warn(
                 `Skipped (missing required fields): Employee ID: ${safeEmpId}, Device Tag: ${safeTag}, Missing: ${missing.join(
                   ", "
@@ -4873,9 +5066,7 @@ export default function Employee() {
               );
               // Enhanced error details for debugging
               const safeEmpId = employeeId ? employeeId : "(missing)";
-              const safeTag = deviceTag
-                ? deviceTag
-                : "(blank - will auto-generate)";
+              const safeTag = deviceTag ? deviceTag : "(blank - REQUIRED)";
               console.warn(
                 `Skipped (invalid device type): Employee ID: ${safeEmpId}, Device Tag: ${safeTag}, Attempted Type: "${deviceType}"`
               );
@@ -4924,61 +5115,63 @@ export default function Employee() {
               );
               // Enhanced error details for debugging
               const safeEmpId = employeeId ? employeeId : "(missing)";
-              const safeTag = deviceTag
-                ? deviceTag
-                : "(blank - will auto-generate)";
+              const safeTag = deviceTag ? deviceTag : "(blank - REQUIRED)";
               console.warn(
                 `Skipped (employee not found): Employee ID: ${safeEmpId}, Employee Name: "${employeeName}", Device Tag: ${safeTag}`
               );
               continue;
             }
 
-            // Generate device tag if blank or if duplicate exists
+            // Validate device tag is provided (required field per template)
             console.log(
               `Processing device for ${employeeName}: deviceTag="${deviceTag}", deviceType="${deviceType}"`
             );
 
-            // Special debug for specific employees
-            if (employeeId === "EMP0008" || employeeId === "EMP0019") {
-              console.log(`🔍 Auto-tag generation check for ${employeeId}:`, {
-                deviceTag: deviceTag || "(BLANK)",
-                deviceTagLength: deviceTag ? deviceTag.length : 0,
-                deviceType,
-                shouldGenerate:
-                  !deviceTag ||
-                  deviceTag === "" ||
-                  existingTags.has(normalizeTag(deviceTag)),
-                existingTagsCount: existingTags.size,
-              });
-            }
-
-            // Enhanced condition check for blank tags
+            // Check if device tag is blank (required field)
             const isBlankTag =
               !deviceTag || deviceTag === "" || deviceTag.trim() === "";
-            const isDuplicateTag =
-              deviceTag && existingTags.has(normalizeTag(deviceTag));
 
-            if (isBlankTag || isDuplicateTag) {
-              const originalTag = deviceTag;
-              deviceTag = generateDeviceTag(deviceType);
-              if (originalTag && originalTag !== "") {
-                console.log(
-                  `Duplicate device tag "${originalTag}" found, generated new tag: ${deviceTag}`
-                );
-              } else {
-                console.log(
-                  `No device tag provided for ${deviceType}, generated new tag: ${deviceTag}`
-                );
-
-                // Special debug for specific employees
-                if (employeeId === "EMP0008" || employeeId === "EMP0019") {
-                  console.log(
-                    `🔍 Generated tag for ${employeeId}: ${deviceTag}`
-                  );
-                }
-              }
-              existingTags.add(normalizeTag(deviceTag)); // Add to set to prevent duplicates in this batch
+            if (isBlankTag) {
+              errors.push(
+                `Row ${
+                  i + 1
+                }: DEVICE TAG is required and cannot be blank for employee ${employeeName} (${employeeId}). Please provide a valid device tag.`
+              );
+              continue;
             }
+
+            // Check for duplicate device tags
+            const normalizedTag = normalizeTag(deviceTag);
+            let existingDevice = null;
+            let isUpdatingExisting = false;
+
+            // First check if this tag appears multiple times in the current import batch
+            if (currentImportTags.has(normalizedTag)) {
+              errors.push(
+                `Row ${
+                  i + 1
+                }: Duplicate DEVICE TAG "${deviceTag}" found within this import file for employee ${employeeName} (${employeeId}). Each device tag can only appear once per import.`
+              );
+              continue;
+            }
+
+            // Check if device tag already exists in the system
+            if (existingTags.has(normalizedTag)) {
+              // Find the existing device with this tag
+              existingDevice = existingDevices.find(
+                (device) => normalizeTag(device.deviceTag) === normalizedTag
+              );
+
+              if (existingDevice) {
+                isUpdatingExisting = true;
+                console.log(
+                  `Device tag "${deviceTag}" already exists - will update existing device for employee ${employeeName} (${employeeId})`
+                );
+              }
+            }
+
+            // Add to current import tracking set
+            currentImportTags.add(normalizedTag);
 
             // Normalize date deployed (Excel serial, string, etc.) to mm/dd/yyyy; fallback to today
             const assignmentDateMDY = parseExcelDate(dateDeployed);
@@ -5002,6 +5195,7 @@ export default function Employee() {
               status: "GOOD", // Status set to GOOD since asset is deployed to employee
               assignedTo: employee.id,
               assignmentDate: assignmentDateISO,
+              client: clientName, // Store client NAME for Device Owner display, not clientId
               remarks: `Imported deployed asset for ${employee.fullName}`,
               specifications: row["SPECIFICATIONS"] || "",
               warranty: row["WARRANTY"] || "",
@@ -5009,24 +5203,61 @@ export default function Employee() {
               supplier: row["SUPPLIER"] || "",
             };
 
-            console.log("Creating device:", deviceData);
+            console.log(
+              isUpdatingExisting
+                ? "Updating existing device:"
+                : "Creating new device:",
+              {
+                ...deviceData,
+                clientDetails: clientName
+                  ? {
+                      clientId,
+                      clientName,
+                      deviceOwnerInput: deviceOwner,
+                      storedAsClient: clientName,
+                    }
+                  : "No client assigned",
+                existingDeviceId: existingDevice?.id || "N/A",
+              }
+            );
 
-            // Add device to database
-            const createdDevice = await addDevice(deviceData);
+            // Create new device or update existing one
+            let deviceResult;
+            if (isUpdatingExisting && existingDevice) {
+              // Update existing device with new data
+              await updateDevice(existingDevice.id, deviceData);
+              // Create a result object with the existing device ID since updateDevice may not return the device
+              deviceResult = { id: existingDevice.id };
+              console.log(
+                `Updated existing device ${existingDevice.id} with tag "${deviceTag}"`
+              );
+            } else {
+              // Create new device
+              deviceResult = await addDevice(deviceData);
+              console.log(`Created new device with tag "${deviceTag}"`);
+            }
 
             // Log device history for assignment
-            await logDeviceHistory({
+            const historyDetails = {
               employeeId: employee.id,
               employeeName: employee.fullName,
-              deviceId: createdDevice.id,
+              deviceId: deviceResult.id,
               deviceTag: deviceTag,
-              action: "assigned",
+              action: isUpdatingExisting ? "updated_assignment" : "assigned",
               date: new Date(assignmentDateISO).toISOString(),
-              reason: "Bulk import of deployed assets",
-            });
+              reason: isUpdatingExisting
+                ? "Updated device assignment via bulk import"
+                : "Bulk import of deployed assets",
+            };
 
-            // Add to existing tags set to prevent duplicates in this import
-            existingTags.add(normalizeTag(deviceTag));
+            // Add client information to history if available
+            if (clientId && clientName) {
+              historyDetails.clientId = clientId;
+              historyDetails.clientName = clientName;
+              historyDetails.reason += ` (Client: ${clientName})`;
+            }
+
+            await logDeviceHistory(historyDetails);
 
             successCount++;
           } catch (error) {
@@ -5064,7 +5295,46 @@ export default function Employee() {
 
         if (successCount > 0) {
           showSuccess(message);
+
+          // Comprehensive data refresh to update all UI components
+          console.log("Refreshing all data after successful import...");
           await loadClientsAndEmployees(); // Refresh data
+
+          // Force re-render of any cached device lists by triggering state updates
+          if (typeof window !== "undefined" && window.location) {
+            // Trigger a custom event that other components can listen to for updates
+            window.dispatchEvent(
+              new CustomEvent("devicesUpdated", {
+                detail: {
+                  importedCount: successCount,
+                  source: "deployedAssetsImport",
+                },
+              })
+            );
+          }
+
+          console.log("Data refresh completed after import");
+
+          // Log successful import to User Logs
+          try {
+            await safeCreateUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_IMPORT,
+              `Imported ${successCount} deployed assets from Excel file`,
+              {
+                importedCount: successCount,
+                errorCount: errorCount,
+                skippedCount: skippedCount,
+                totalRows: rows.length,
+                source: "deployedAssetsImport",
+              }
+            );
+          } catch (logError) {
+            console.error("Error logging deployed assets import:", logError);
+            // Don't fail the import if logging fails
+          }
         } else {
           showError(`No assets were imported. ${message}`);
         }
@@ -5704,7 +5974,10 @@ export default function Employee() {
           {activeTab === "active" && (
             <button
               onClick={() => {
-                setForm({ dateHired: getCurrentDate() });
+                setForm({
+                  dateHired: getCurrentDate(),
+                  isEntity: false,
+                });
                 setShowForm(true);
               }}
               style={{
@@ -6411,6 +6684,8 @@ export default function Employee() {
                                 clientId: employee.clientId || "",
                                 fullName: employee.fullName || "",
                                 position: employee.position || "",
+                                // Ensure isEntity is properly set for employees
+                                isEntity: employee.isEntity || false,
                                 // Split fullName into components for editing
                                 ...splitFullName(employee.fullName || ""),
                               };

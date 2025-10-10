@@ -521,7 +521,7 @@ const DeviceHistory = ({ deviceTag, deviceId, onClose }) => {
                       )}
                     </div>
                     <div style={styles.dateTime}>
-                      {formatDateToMMDDYYYY(item.date)} at{" "}
+                      {formatDateToDDMMYYYY(item.date)} at{" "}
                       {formatTimeToAMPM(item.date)}
                     </div>
                     {(item.reason || item.condition) && (
