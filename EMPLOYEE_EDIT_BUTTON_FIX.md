@@ -1,12 +1,15 @@
 # Employee Edit Action Button Fix
 
 ## Issue
+
 The Edit Action Button in Employee.js was showing an error when trying to save employee changes:
+
 ```
 Error saving employee: Function addDoc() called with invalid data. Unsupported field value: undefined (found in field affectedData.isEntity in document userLogs/...)
 ```
 
 ## Root Cause
+
 The `isEntity` field was being passed as `undefined` to the user logging system in two scenarios:
 
 1. **When editing existing employees**: The original employee data might not have an `isEntity` field, so `form.isEntity` became `undefined`
@@ -15,9 +18,11 @@ The `isEntity` field was being passed as `undefined` to the user logging system 
 ## Solution Applied
 
 ### 1. Fixed Employee Edit Form Initialization
+
 **File**: `src/pages/Employee.js` - Lines ~6445-6460
 
 **Before**:
+
 ```javascript
 const formattedEmployee = {
   ...employee,
@@ -31,6 +36,7 @@ const formattedEmployee = {
 ```
 
 **After**:
+
 ```javascript
 const formattedEmployee = {
   ...employee,
@@ -46,9 +52,11 @@ const formattedEmployee = {
 ```
 
 ### 2. Fixed New Employee Form Initialization
+
 **File**: `src/pages/Employee.js` - Lines ~5747-5752
 
 **Before**:
+
 ```javascript
 onClick={() => {
   setForm({ dateHired: getCurrentDate() });
@@ -57,9 +65,10 @@ onClick={() => {
 ```
 
 **After**:
+
 ```javascript
 onClick={() => {
-  setForm({ 
+  setForm({
     dateHired: getCurrentDate(),
     isEntity: false
   });
@@ -68,6 +77,7 @@ onClick={() => {
 ```
 
 ## Impact
+
 - ✅ Edit Employee button now works without throwing undefined field errors
 - ✅ Add Employee button properly initializes with `isEntity: false`
 - ✅ User logging for both add and edit operations now receives proper boolean values
@@ -76,12 +86,15 @@ onClick={() => {
 ## Technical Details
 
 ### User Logging Structure
+
 The user logging system expects:
+
 ```javascript
-createUserLog(uid, username, email, actionType, description, affectedData)
+createUserLog(uid, username, email, actionType, description, affectedData);
 ```
 
 Where `affectedData` includes:
+
 ```javascript
 {
   employeeId: form.id,
@@ -91,21 +104,27 @@ Where `affectedData` includes:
 ```
 
 ### Form State Management
+
 The form state starts as `{}` and is populated when:
+
 - Adding new employee: `{ dateHired: "...", isEntity: false }`
 - Adding new entity: `{ description: "", department: "", isEntity: true }`
 - Editing employee: `{ ...employee, isEntity: false, ... }`
 - Editing entity: `{ ...employee, isEntity: true, ... }`
 
 ## Testing
+
 After applying the fix:
+
 1. ✅ Create new employee → No undefined isEntity error
 2. ✅ Edit existing employee → No undefined isEntity error
 3. ✅ Create new entity → Still works (was already correct)
 4. ✅ Edit existing entity → Still works (was already correct)
 
 ## Files Modified
+
 - `src/pages/Employee.js` (2 locations fixed)
 
 ## Implementation Date
+
 October 9, 2025

@@ -1,55 +1,67 @@
 # Asset History Feature Implementation
 
 ## Overview
+
 The Asset History feature has been enhanced to provide detailed tracking of all asset-related activities with chronological display from newest to oldest.
 
 ## Features Implemented
 
 ### 1. Chronological Sorting ✓
+
 - **Newest First**: Asset history is automatically sorted with the most recent activities displayed at the top
 - **Handles Multiple Date Formats**: Supports Firestore Timestamp objects and ISO date strings
 - **Error Handling**: Invalid dates are pushed to the end of the list
 
 ### 2. Detailed Activity Logging
+
 The system now tracks and displays comprehensive information for each action type:
 
 #### **Asset Created**
+
 - Indicates when a device was first added to inventory
 - Displays any initial notes or remarks
 
 #### **Asset Assigned**
+
 - Shows who the asset was assigned to
 - Displays the condition at time of assignment
 - Includes any assignment notes
 
 #### **Asset Unassigned/Returned**
+
 - Shows who returned the asset
 - Displays the reason for return
 - Shows the condition upon return
 - Includes any return notes
 
 #### **Asset Reassigned**
+
 - Shows the new assignee
 - Displays who previously had the asset
 - Shows condition at time of reassignment
 
 #### **Asset Information Updated**
+
 - Lists each field that was changed
 - Shows old value → new value for each field
 - Example: "Serial Number: "(empty)" → "SN12345""
 - Includes update notes
 
 #### **Asset Retired**
+
 - Shows retirement reason
 - Displays final condition
 - Includes retirement notes
 
 #### **Remarks Added/Removed**
+
 - Shows when information was added or removed
 - Displays the specific remarks
 
 ### 3. Enhanced Display Format
+
 Each history entry now shows:
+
 - **Action Title**: Clear, human-readable description of what happened
 - **Timestamp**: Date and time in MM/DD/YYYY format with AM/PM
 - **Employee Badge**: Visual indicator when an employee is involved
@@ -61,12 +73,15 @@ Each history entry now shows:
   - Remarks
 
 ### 4. Dynamic Updates
+
 - History automatically refreshes when the modal opens
 - Updates immediately after any device action
 - No page refresh required
 
 ### 5. Improved Storage Structure
+
 The `deviceHistory` collection now stores:
+
 ```javascript
 {
   employeeId: string,
@@ -85,6 +100,7 @@ The `deviceHistory` collection now stores:
 ## Files Modified
 
 ### 1. `src/services/deviceHistoryService.js`
+
 - Enhanced `logDeviceHistory()` function to accept:
   - `changes` parameter for field-level tracking
   - `remarks` parameter for additional notes
@@ -92,6 +108,7 @@ The `deviceHistory` collection now stores:
 - Improved sorting logic in `getDeviceHistoryByTag()`
 
 ### 2. `src/pages/Inventory.js`
+
 - Updated history fetching with proper sorting (lines 315-356)
 - Enhanced history display component (lines 1165-1388)
 - Added inline `formatHistoryEntry()` function for rendering
@@ -99,6 +116,7 @@ The `deviceHistory` collection now stores:
 - Added scrollable container for long history lists
 
 ### 3. `src/pages/Assets.js`
+
 - Updated history fetching with proper sorting (lines 186-230)
 - Enhanced history display component (lines 967-1132)
 - Added inline `formatHistoryEntry()` function for rendering
@@ -108,16 +126,18 @@ The `deviceHistory` collection now stores:
 ## Usage Examples
 
 ### Logging Asset Creation
+
 ```javascript
 await logDeviceHistory({
   deviceTag: "JOIIPC0001",
   deviceId: deviceId,
   action: "created",
-  remarks: "Initial inventory entry"
+  remarks: "Initial inventory entry",
 });
 ```
 
 ### Logging Field Updates
+
 ```javascript
 await logDeviceHistory({
   deviceTag: "JOIIPC0001",
@@ -125,13 +145,14 @@ await logDeviceHistory({
   action: "updated",
   changes: {
     serialNumber: { old: "", new: "SN123456" },
-    remarks: { old: "Good condition", new: "Excellent condition" }
+    remarks: { old: "Good condition", new: "Excellent condition" },
   },
-  remarks: "Updated device information"
+  remarks: "Updated device information",
 });
 ```
 
 ### Logging Asset Assignment
+
 ```javascript
 await logDeviceHistory({
   employeeId: "EMP001",
@@ -140,7 +161,7 @@ await logDeviceHistory({
   deviceId: deviceId,
   action: "assigned",
   condition: "GOOD",
-  remarks: "Standard workstation assignment"
+  remarks: "Standard workstation assignment",
 });
 ```
 

@@ -49,15 +49,15 @@ function App() {
       </CurrentUserProvider>
     </ThemeProvider>
   );
-  // ...existing code...
+}
 
-  function AppContent({
-    navigate,
-    isAuthenticated,
-    setIsAuthenticated,
-    loginError,
-    setLoginError,
-  }) {
+function AppContent({
+  navigate,
+  isAuthenticated,
+  setIsAuthenticated,
+  loginError,
+  setLoginError,
+}) {
     const { currentUser, setCurrentUser } = useCurrentUser();
     const location = useLocation();
 
@@ -125,7 +125,6 @@ function App() {
         <LastTagsFloatingWindow />
       </SnackbarProvider>
     );
-  }
 }
 
 export default App;

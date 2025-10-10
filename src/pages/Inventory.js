@@ -324,40 +324,40 @@ function DeviceFormModal({
           const historyData = await getDeviceHistoryByTag(
             deviceForHistory.deviceTag
           );
-          
+
           // Filter out entries without valid dates, then sort by date descending (newest first)
-          const validHistory = (historyData || []).filter(item => {
+          const validHistory = (historyData || []).filter((item) => {
             if (!item.date) return false;
-            
+
             // Check if it's a valid Firestore Timestamp
-            if (typeof item.date === 'object' && item.date.seconds) {
+            if (typeof item.date === "object" && item.date.seconds) {
               return true;
             }
-            
+
             // Check if it's a valid date string
             const testDate = new Date(item.date);
             return !isNaN(testDate.getTime());
           });
-          
+
           const sortedHistory = validHistory.sort((a, b) => {
             let dateA, dateB;
-            
+
             // Handle Firestore Timestamp objects
-            if (a.date && typeof a.date === 'object' && a.date.seconds) {
+            if (a.date && typeof a.date === "object" && a.date.seconds) {
               dateA = a.date.seconds * 1000;
             } else {
               dateA = new Date(a.date).getTime();
             }
-            
-            if (b.date && typeof b.date === 'object' && b.date.seconds) {
+
+            if (b.date && typeof b.date === "object" && b.date.seconds) {
               dateB = b.date.seconds * 1000;
             } else {
               dateB = new Date(b.date).getTime();
             }
-            
+
             return dateB - dateA; // Newest first
           });
-          
+
           setHistory(sortedHistory);
         } catch (error) {
           console.error("Error fetching device history:", error);
@@ -1242,10 +1242,17 @@ function DeviceFormModal({
                 {history.map((item, index) => {
                   // Format the history entry using the service function
                   const formatHistoryEntry = (historyItem) => {
-                    const { action, employeeName, changes, reason, condition, remarks } = historyItem;
+                    const {
+                      action,
+                      employeeName,
+                      changes,
+                      reason,
+                      condition,
+                      remarks,
+                    } = historyItem;
                     let title = "";
                     let details = [];
-                    
+
                     switch (action) {
                       case "created":
                         title = "Asset Created";
@@ -1254,33 +1261,49 @@ function DeviceFormModal({
                         break;
                       case "assigned":
                         title = "Asset Assigned";
-                        if (employeeName) details.push(`Assigned to: ${employeeName}`);
+                        if (employeeName)
+                          details.push(`Assigned to: ${employeeName}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         if (remarks) details.push(`Notes: ${remarks}`);
                         break;
                       case "unassigned":
                       case "returned":
-                        title = action === "returned" ? "Asset Returned" : "Asset Unassigned";
-                        if (employeeName) details.push(`Returned by: ${employeeName}`);
+                        title =
+                          action === "returned"
+                            ? "Asset Returned"
+                            : "Asset Unassigned";
+                        if (employeeName)
+                          details.push(`Returned by: ${employeeName}`);
                         if (reason) details.push(`Reason: ${reason}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         if (remarks) details.push(`Notes: ${remarks}`);
                         break;
                       case "reassigned":
                         title = "Asset Reassigned";
-                        if (employeeName) details.push(`Reassigned to: ${employeeName}`);
-                        if (changes && changes.previousEmployee) details.push(`From: ${changes.previousEmployee}`);
+                        if (employeeName)
+                          details.push(`Reassigned to: ${employeeName}`);
+                        if (changes && changes.previousEmployee)
+                          details.push(`From: ${changes.previousEmployee}`);
                         if (condition) details.push(`Condition: ${condition}`);
                         break;
                       case "updated":
                         title = "Asset Information Updated";
                         if (changes && typeof changes === "object") {
                           Object.entries(changes).forEach(([field, change]) => {
-                            if (change && typeof change === "object" && "old" in change && "new" in change) {
+                            if (
+                              change &&
+                              typeof change === "object" &&
+                              "old" in change &&
+                              "new" in change
+                            ) {
                               const oldVal = change.old || "(empty)";
                               const newVal = change.new || "(empty)";
-                              const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/([A-Z])/g, ' $1');
-                              details.push(`${fieldName}: "${oldVal}" → "${newVal}"`);
+                              const fieldName =
+                                field.charAt(0).toUpperCase() +
+                                field.slice(1).replace(/([A-Z])/g, " $1");
+                              details.push(
+                                `${fieldName}: "${oldVal}" → "${newVal}"`
+                              );
                             }
                           });
                         }
@@ -1289,7 +1312,8 @@ function DeviceFormModal({
                       case "retired":
                         title = "Asset Retired";
                         if (reason) details.push(`Reason: ${reason}`);
-                        if (condition) details.push(`Final Condition: ${condition}`);
+                        if (condition)
+                          details.push(`Final Condition: ${condition}`);
                         break;
                       case "added":
                         title = "Remarks Added";
@@ -1301,15 +1325,16 @@ function DeviceFormModal({
                         break;
                       default:
                         title = action || "Unknown Action";
-                        if (employeeName) details.push(`Employee: ${employeeName}`);
+                        if (employeeName)
+                          details.push(`Employee: ${employeeName}`);
                         if (remarks) details.push(remarks);
                     }
-                    
+
                     return { title, details, hasDetails: details.length > 0 };
                   };
-                  
+
                   const formatted = formatHistoryEntry(item);
-                  
+
                   return (
                     <div
                       key={index}
@@ -1339,21 +1364,24 @@ function DeviceFormModal({
                         >
                           {formatted.title}
                         </div>
-                        {item.employeeName && !formatted.details.some(d => d.includes(item.employeeName)) && (
-                          <div
-                            style={{
-                              fontSize: 13,
-                              color: isDarkMode ? "#e5e7eb" : "#374151",
-                              backgroundColor: isDarkMode
-                                ? "#1f2937"
-                                : "#f3f4f6",
-                              padding: "2px 8px",
-                              borderRadius: 4,
-                            }}
-                          >
-                            {item.employeeName}
-                          </div>
-                        )}
+                        {item.employeeName &&
+                          !formatted.details.some((d) =>
+                            d.includes(item.employeeName)
+                          ) && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: isDarkMode ? "#e5e7eb" : "#374151",
+                                backgroundColor: isDarkMode
+                                  ? "#1f2937"
+                                  : "#f3f4f6",
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                              }}
+                            >
+                              {item.employeeName}
+                            </div>
+                          )}
                       </div>
                       <div
                         style={{
@@ -2701,14 +2729,17 @@ function Inventory() {
               user: currentUser?.uid,
               deviceTag: payload.deviceTag,
             });
-            
+
             // Create readable change description for user logs
             const changeDescription = changes
               ? Object.entries(changes)
-                  .map(([field, change]) => `${field}: ${change.old} → ${change.new}`)
+                  .map(
+                    ([field, change]) =>
+                      `${field}: ${change.old} → ${change.new}`
+                  )
                   .join(", ")
               : "No changes detected";
-            
+
             await createUserLog(
               currentUser?.uid,
               currentUser?.username || currentUser?.email,
@@ -2803,14 +2834,17 @@ function Inventory() {
               user: currentUser?.uid,
               deviceTag: payload.deviceTag,
             });
-            
+
             // Create readable change description for user logs
             const changeDescription = changes
               ? Object.entries(changes)
-                  .map(([field, change]) => `${field}: ${change.old} → ${change.new}`)
+                  .map(
+                    ([field, change]) =>
+                      `${field}: ${change.old} → ${change.new}`
+                  )
                   .join(", ")
               : "No changes detected";
-            
+
             await createUserLog(
               currentUser?.uid,
               currentUser?.username || currentUser?.email,

@@ -46,6 +46,7 @@ export const ACTION_TYPES = {
   CLIENT_CREATE: "client_create",
   CLIENT_UPDATE: "client_update",
   CLIENT_DELETE: "client_delete",
+  CLIENT_EXPORT: "client_export",
 
   // Unit Specifications
   UNITSPEC_CREATE: "unitspec_create",

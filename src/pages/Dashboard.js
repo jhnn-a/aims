@@ -626,7 +626,8 @@ function Dashboard() {
         if (device.client && device.client.trim() !== "") {
           const normalizedDeviceClient = device.client.trim().toLowerCase();
           // Find the proper client name using case-insensitive matching
-          const clientName = normalizedClientMap[normalizedDeviceClient] || device.client;
+          const clientName =
+            normalizedClientMap[normalizedDeviceClient] || device.client;
           clientAssetCountMap[clientName] =
             (clientAssetCountMap[clientName] || 0) + 1;
         }

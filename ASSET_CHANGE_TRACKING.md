@@ -1,6 +1,7 @@
 # Asset Change Tracking Enhancement
 
 ## Overview
+
 Enhanced the Asset History system to track and display specific field changes when assets are updated. Now when you change any field (like Condition from "GOOD" to "DEFECTIVE"), the history will show exactly what changed.
 
 ## Implementation Details
@@ -8,11 +9,11 @@ Enhanced the Asset History system to track and display specific field changes wh
 ### Changes Made
 
 #### 1. Assets.js
+
 - **Added `getDeviceChanges()` function** (lines ~1499-1534)
   - Compares old and new device data
   - Tracks changes across all relevant fields
   - Returns structured changes object: `{ fieldName: { old: value, new: value } }`
-  
 - **Updated `handleSave()` function** (lines ~1536-1571)
   - Retrieves original device data before update
   - Calls `getDeviceChanges()` to detect modifications
@@ -20,20 +21,20 @@ Enhanced the Asset History system to track and display specific field changes wh
   - Only logs if changes are detected
 
 #### 2. Inventory.js
+
 - **Updated `getDeviceChanges()` function** (lines ~2315-2345)
   - Changed from returning string description to structured object
   - Added more fields to track (CPU, RAM, drives, GPU, OS, etc.)
   - Returns `{ fieldName: { old: value, new: value } }` format
-  
 - **Updated `handleSave()` for serial number path** (lines ~2674-2713)
   - Uses structured changes object for history logging
   - Converts changes to readable description for User Logs
-  
 - **Updated `handleSave()` for non-serial path** (lines ~2782-2821)
   - Same structured changes approach
   - Maintains consistency across both code paths
 
 #### 3. deviceHistoryService.js (Already Supported)
+
 - The `logDeviceHistory()` function already accepts `changes` parameter
 - The `formatHistoryEntry()` function already formats changes for display
 - Format: `"Field Name: 'old value' → 'new value'"`
@@ -43,6 +44,7 @@ Enhanced the Asset History system to track and display specific field changes wh
 The following fields are now tracked for changes:
 
 ### Basic Information
+
 - Device Type
 - Device Tag
 - Brand
@@ -51,11 +53,13 @@ The following fields are now tracked for changes:
 - Serial Number
 
 ### Status & Condition
+
 - Condition (e.g., GOOD → DEFECTIVE)
 - Acquisition Date
 - Assigned To
 
 ### Technical Specifications (for PCs/Laptops)
+
 - CPU
 - CPU Generation
 - RAM
@@ -65,6 +69,7 @@ The following fields are now tracked for changes:
 - Operating System
 
 ### Additional Fields
+
 - Category
 - Lifespan
 - Remarks
@@ -97,6 +102,7 @@ The following fields are now tracked for changes:
 ### Multiple Changes Example:
 
 If user changes multiple fields at once:
+
 ```javascript
 {
   condition: { old: "GOOD", new: "DEFECTIVE" },
@@ -106,6 +112,7 @@ If user changes multiple fields at once:
 ```
 
 Displays as:
+
 ```
 Asset Information Updated
 12/15/2024 at 10:30 AM
@@ -117,6 +124,7 @@ Asset Information Updated
 ## Display Format
 
 ### In Asset History Modal:
+
 - **Title**: "Asset Information Updated"
 - **Timestamp**: MM/DD/YYYY at HH:MM AM/PM
 - **Details**: Bullet-pointed list of changes
@@ -144,19 +152,23 @@ Asset Information Updated
 ### Test Scenarios:
 
 #### Scenario 1: Single Field Change
+
 - Change Condition: GOOD → DEFECTIVE
 - Expected: History shows "Condition: 'GOOD' → 'DEFECTIVE'"
 
 #### Scenario 2: Multiple Field Changes
+
 - Change Condition: GOOD → DEFECTIVE
 - Change Remarks: "" → "Keyboard not working"
 - Expected: History shows both changes as separate bullets
 
 #### Scenario 3: Empty Values
+
 - Change Remarks from "Test" to empty
 - Expected: Shows "Remarks: 'Test' → '(empty)'"
 
 #### Scenario 4: No Changes
+
 - Open edit form, don't change anything, save
 - Expected: No history entry created (or entry with "No changes detected")
 
@@ -172,6 +184,7 @@ Asset Information Updated
 ## Integration with Existing Features
 
 ### Works With:
+
 - ✅ Asset History modal in Assets.js
 - ✅ Asset History modal in Inventory.js
 - ✅ History sorting (newest first)
@@ -180,6 +193,7 @@ Asset Information Updated
 - ✅ User Logs system (separate simplified format)
 
 ### Compatible With:
+
 - ✅ UnitSpecs sync
 - ✅ Employee assignment tracking
 - ✅ Firestore database structure

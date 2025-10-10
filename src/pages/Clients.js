@@ -14,6 +14,79 @@ import { useTheme } from "../context/ThemeContext";
 import { useCurrentUser } from "../CurrentUserContext"; // Current user context
 import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
+// Defensive wrapper for createUserLog to prevent undefined actionType errors
+const safeCreateUserLog = async (userId, userName, userEmail, actionType, description, affectedData = {}) => {
+  try {
+    // Debug: Log ACTION_TYPES object to check if it's properly imported (only log once per component)
+    if (!window.CLIENTS_ACTION_TYPES_LOGGED) {
+      console.log("Clients.js - ACTION_TYPES object:", ACTION_TYPES);
+      window.CLIENTS_ACTION_TYPES_LOGGED = true;
+    }
+    
+    // Validate all required parameters
+    if (!actionType || actionType === undefined || actionType === null) {
+      console.error("CRITICAL ERROR: actionType is invalid in Clients.js safeCreateUserLog", {
+        actionType,
+        typeOfActionType: typeof actionType,
+        userId,
+        userName,
+        userEmail,
+        description,
+        affectedData,
+        stack: new Error().stack
+      });
+      
+      // Try to determine which action type should be used based on description
+      let fallbackActionType = ACTION_TYPES.SYSTEM_ERROR;
+      if (description && description.toLowerCase().includes('delete')) {
+        fallbackActionType = ACTION_TYPES.CLIENT_DELETE;
+      } else if (description && description.toLowerCase().includes('export')) {
+        fallbackActionType = ACTION_TYPES.CLIENT_EXPORT;
+      } else if (description && description.toLowerCase().includes('update')) {
+        fallbackActionType = ACTION_TYPES.CLIENT_UPDATE;
+      } else if (description && (description.toLowerCase().includes('add') || description.toLowerCase().includes('create'))) {
+        fallbackActionType = ACTION_TYPES.CLIENT_CREATE;
+      }
+      
+      console.warn(`Using fallback actionType: ${fallbackActionType}`);
+      actionType = fallbackActionType;
+    }
+    
+    // Ensure all parameters are valid
+    const safeUserId = userId || "system";
+    const safeUserName = userName || "System User";
+    const safeUserEmail = userEmail || "system@aims.local";
+    const safeDescription = description || "No description provided";
+    const safeAffectedData = affectedData || {};
+    
+    console.log("Clients.js - Calling createUserLog with validated parameters:", {
+      userId: safeUserId,
+      userName: safeUserName,
+      userEmail: safeUserEmail,
+      actionType,
+      description: safeDescription
+    });
+    
+    return await createUserLog(safeUserId, safeUserName, safeUserEmail, actionType, safeDescription, safeAffectedData);
+  } catch (error) {
+    console.error("Error in Clients.js safeCreateUserLog:", error);
+    console.error("Full error details:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      userName,
+      userEmail,
+      actionType,
+      description,
+      affectedData
+    });
+    
+    // Don't re-throw the error to prevent breaking the main functionality
+    console.warn("User logging failed in Clients.js, but continuing with main operation");
+    return null;
+  }
+};
+
 function ClientFormModal({
   data,
   onChange,
@@ -619,6 +692,9 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 }
 
 function Clients() {
+  // Debug: Check if ACTION_TYPES is properly imported in Clients component
+  console.log("Clients component loaded. ACTION_TYPES:", ACTION_TYPES);
+  
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
   const { isDarkMode } = useTheme();
   const currentUser = useCurrentUser(); // Get current user for logging
@@ -669,7 +745,7 @@ function Clients() {
       await deleteClient(clientToDelete.id);
 
       // Log to User Logs
-      await createUserLog(
+      await safeCreateUserLog(
         currentUser?.uid,
         currentUser?.username || currentUser?.email,
         currentUser?.email,
@@ -725,21 +801,29 @@ function Clients() {
       if (!devices || !clientName) return 0;
       // Count only devices where client field explicitly matches the client name (case-insensitive)
       const normalizedClientName = clientName.trim().toLowerCase();
-      
+
       const matchedDevices = devices.filter((device) => {
         // Only count devices with explicit client field set
         if (!device.client || device.client.trim() === "") return false;
         return device.client.trim().toLowerCase() === normalizedClientName;
       });
-      
+
       // Debug logging for Joii Philippines
       if (normalizedClientName === "joii philippines") {
-        console.log("=== Joii Philippines Asset Count Debug (Explicit Only) ===");
+        console.log(
+          "=== Joii Philippines Asset Count Debug (Explicit Only) ==="
+        );
         console.log("Total devices:", devices.length);
-        console.log("Devices with explicit client='Joii Philippines':", matchedDevices.length);
-        console.log("Devices with no client field:", devices.filter(d => !d.client || d.client.trim() === "").length);
+        console.log(
+          "Devices with explicit client='Joii Philippines':",
+          matchedDevices.length
+        );
+        console.log(
+          "Devices with no client field:",
+          devices.filter((d) => !d.client || d.client.trim() === "").length
+        );
       }
-      
+
       return matchedDevices.length;
     },
     [devices, employees, clients]
@@ -770,7 +854,7 @@ function Clients() {
       XLSX.writeFile(wb, filename);
 
       // Log to User Logs
-      createUserLog(
+      safeCreateUserLog(
         currentUser?.uid,
         currentUser?.username || currentUser?.email,
         currentUser?.email,
@@ -816,7 +900,7 @@ function Clients() {
         await updateClient(form.id, payload);
 
         // Log to User Logs
-        await createUserLog(
+        await safeCreateUserLog(
           currentUser?.uid,
           currentUser?.username || currentUser?.email,
           currentUser?.email,
@@ -833,7 +917,7 @@ function Clients() {
         await addClient(payload);
 
         // Log to User Logs
-        await createUserLog(
+        await safeCreateUserLog(
           currentUser?.uid,
           currentUser?.username || currentUser?.email,
           currentUser?.email,
