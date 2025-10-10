@@ -15,59 +15,83 @@ import { useCurrentUser } from "../CurrentUserContext"; // Current user context
 import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 // Defensive wrapper for createUserLog to prevent undefined actionType errors
-const safeCreateUserLog = async (userId, userName, userEmail, actionType, description, affectedData = {}) => {
+const safeCreateUserLog = async (
+  userId,
+  userName,
+  userEmail,
+  actionType,
+  description,
+  affectedData = {}
+) => {
   try {
     // Debug: Log ACTION_TYPES object to check if it's properly imported (only log once per component)
     if (!window.CLIENTS_ACTION_TYPES_LOGGED) {
       console.log("Clients.js - ACTION_TYPES object:", ACTION_TYPES);
       window.CLIENTS_ACTION_TYPES_LOGGED = true;
     }
-    
+
     // Validate all required parameters
     if (!actionType || actionType === undefined || actionType === null) {
-      console.error("CRITICAL ERROR: actionType is invalid in Clients.js safeCreateUserLog", {
-        actionType,
-        typeOfActionType: typeof actionType,
-        userId,
-        userName,
-        userEmail,
-        description,
-        affectedData,
-        stack: new Error().stack
-      });
-      
+      console.error(
+        "CRITICAL ERROR: actionType is invalid in Clients.js safeCreateUserLog",
+        {
+          actionType,
+          typeOfActionType: typeof actionType,
+          userId,
+          userName,
+          userEmail,
+          description,
+          affectedData,
+          stack: new Error().stack,
+        }
+      );
+
       // Try to determine which action type should be used based on description
       let fallbackActionType = ACTION_TYPES.SYSTEM_ERROR;
-      if (description && description.toLowerCase().includes('delete')) {
+      if (description && description.toLowerCase().includes("delete")) {
         fallbackActionType = ACTION_TYPES.CLIENT_DELETE;
-      } else if (description && description.toLowerCase().includes('export')) {
+      } else if (description && description.toLowerCase().includes("export")) {
         fallbackActionType = ACTION_TYPES.CLIENT_EXPORT;
-      } else if (description && description.toLowerCase().includes('update')) {
+      } else if (description && description.toLowerCase().includes("update")) {
         fallbackActionType = ACTION_TYPES.CLIENT_UPDATE;
-      } else if (description && (description.toLowerCase().includes('add') || description.toLowerCase().includes('create'))) {
+      } else if (
+        description &&
+        (description.toLowerCase().includes("add") ||
+          description.toLowerCase().includes("create"))
+      ) {
         fallbackActionType = ACTION_TYPES.CLIENT_CREATE;
       }
-      
+
       console.warn(`Using fallback actionType: ${fallbackActionType}`);
       actionType = fallbackActionType;
     }
-    
+
     // Ensure all parameters are valid
     const safeUserId = userId || "system";
     const safeUserName = userName || "System User";
     const safeUserEmail = userEmail || "system@aims.local";
     const safeDescription = description || "No description provided";
     const safeAffectedData = affectedData || {};
-    
-    console.log("Clients.js - Calling createUserLog with validated parameters:", {
-      userId: safeUserId,
-      userName: safeUserName,
-      userEmail: safeUserEmail,
+
+    console.log(
+      "Clients.js - Calling createUserLog with validated parameters:",
+      {
+        userId: safeUserId,
+        userName: safeUserName,
+        userEmail: safeUserEmail,
+        actionType,
+        description: safeDescription,
+      }
+    );
+
+    return await createUserLog(
+      safeUserId,
+      safeUserName,
+      safeUserEmail,
       actionType,
-      description: safeDescription
-    });
-    
-    return await createUserLog(safeUserId, safeUserName, safeUserEmail, actionType, safeDescription, safeAffectedData);
+      safeDescription,
+      safeAffectedData
+    );
   } catch (error) {
     console.error("Error in Clients.js safeCreateUserLog:", error);
     console.error("Full error details:", {
@@ -78,11 +102,13 @@ const safeCreateUserLog = async (userId, userName, userEmail, actionType, descri
       userEmail,
       actionType,
       description,
-      affectedData
+      affectedData,
     });
-    
+
     // Don't re-throw the error to prevent breaking the main functionality
-    console.warn("User logging failed in Clients.js, but continuing with main operation");
+    console.warn(
+      "User logging failed in Clients.js, but continuing with main operation"
+    );
     return null;
   }
 };
@@ -694,7 +720,7 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 function Clients() {
   // Debug: Check if ACTION_TYPES is properly imported in Clients component
   console.log("Clients component loaded. ACTION_TYPES:", ACTION_TYPES);
-  
+
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
   const { isDarkMode } = useTheme();
   const currentUser = useCurrentUser(); // Get current user for logging

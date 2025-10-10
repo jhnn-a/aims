@@ -6,46 +6,62 @@ console.log("=== DEPLOYED ASSETS IMPORT TEST ===");
 // Test the client lookup functionality
 function testClientLookup() {
   console.log("\n--- Testing Client Lookup Logic ---");
-  
+
   // Sample clients data (replace with actual data structure)
   const sampleClients = [
     { id: "CLIENT001", clientName: "Joii Philippines" },
     { id: "TECH001", clientName: "Tech Corp" },
-    { id: "CLIENT003", clientName: "Global Solutions Inc" }
+    { id: "CLIENT003", clientName: "Global Solutions Inc" },
   ];
 
   // Helper function (copy from Employee.js)
   const findClientIdByName = (clientIdentifier, clients) => {
     if (!clientIdentifier || clientIdentifier.trim() === "") return "";
-    
+
     const normalizedIdentifier = clientIdentifier.trim().toLowerCase();
-    
+
     // First try to match by exact client ID
-    let client = clients.find(client => 
-      client.id && 
-      client.id.toLowerCase() === normalizedIdentifier
+    let client = clients.find(
+      (client) => client.id && client.id.toLowerCase() === normalizedIdentifier
     );
-    
+
     // If not found by ID, try to match by client name (case-insensitive)
     if (!client) {
-      client = clients.find(client => 
-        client.clientName && 
-        client.clientName.trim().toLowerCase() === normalizedIdentifier
+      client = clients.find(
+        (client) =>
+          client.clientName &&
+          client.clientName.trim().toLowerCase() === normalizedIdentifier
       );
     }
-    
+
     return client ? client.id : "";
   };
 
   // Test cases
   const testCases = [
-    { input: "Joii Philippines", expected: "CLIENT001", description: "Client name match" },
+    {
+      input: "Joii Philippines",
+      expected: "CLIENT001",
+      description: "Client name match",
+    },
     { input: "TECH001", expected: "TECH001", description: "Client ID match" },
-    { input: "tech corp", expected: "TECH001", description: "Case-insensitive name match" },
-    { input: "client001", expected: "CLIENT001", description: "Case-insensitive ID match" },
+    {
+      input: "tech corp",
+      expected: "TECH001",
+      description: "Case-insensitive name match",
+    },
+    {
+      input: "client001",
+      expected: "CLIENT001",
+      description: "Case-insensitive ID match",
+    },
     { input: "NonExistent", expected: "", description: "Non-existent client" },
     { input: "", expected: "", description: "Empty input" },
-    { input: "  Joii Philippines  ", expected: "CLIENT001", description: "Whitespace handling" }
+    {
+      input: "  Joii Philippines  ",
+      expected: "CLIENT001",
+      description: "Whitespace handling",
+    },
   ];
 
   testCases.forEach((testCase, index) => {
@@ -63,7 +79,7 @@ function testClientLookup() {
 // Test the device data structure
 function testDeviceDataStructure() {
   console.log("\n--- Testing Device Data Structure ---");
-  
+
   const sampleDeviceData = {
     deviceType: "PC",
     brand: "Dell",
@@ -79,65 +95,74 @@ function testDeviceDataStructure() {
     specifications: "i5, 8GB RAM",
     warranty: "3 years",
     purchaseDate: "2025-09-01",
-    supplier: "Dell Direct"
+    supplier: "Dell Direct",
   };
 
   console.log("Sample device data structure:");
   console.log(JSON.stringify(sampleDeviceData, null, 2));
-  
+
   // Validate required fields for client assignment
-  const requiredFields = ['deviceType', 'brand', 'deviceTag', 'assignedTo'];
-  const clientFields = ['client']; // This should contain the client ID
-  
+  const requiredFields = ["deviceType", "brand", "deviceTag", "assignedTo"];
+  const clientFields = ["client"]; // This should contain the client ID
+
   console.log("\nValidation checks:");
-  requiredFields.forEach(field => {
-    const hasField = sampleDeviceData.hasOwnProperty(field) && sampleDeviceData[field];
+  requiredFields.forEach((field) => {
+    const hasField =
+      sampleDeviceData.hasOwnProperty(field) && sampleDeviceData[field];
     console.log(`  ${field}: ${hasField ? "✅ Present" : "❌ Missing"}`);
   });
-  
-  clientFields.forEach(field => {
+
+  clientFields.forEach((field) => {
     const hasField = sampleDeviceData.hasOwnProperty(field);
     const hasValue = hasField && sampleDeviceData[field];
-    console.log(`  ${field}: ${hasField ? (hasValue ? "✅ Present with value" : "⚠️ Present but empty") : "❌ Missing"}`);
+    console.log(
+      `  ${field}: ${
+        hasField
+          ? hasValue
+            ? "✅ Present with value"
+            : "⚠️ Present but empty"
+          : "❌ Missing"
+      }`
+    );
   });
 }
 
 // Test Excel data processing
 function testExcelDataProcessing() {
   console.log("\n--- Testing Excel Data Processing ---");
-  
+
   // Sample Excel row data
   const sampleExcelRows = [
     {
-      "Employee": "John Doe",
-      "TYPE": "PC",
-      "BRAND": "Dell",
+      Employee: "John Doe",
+      TYPE: "PC",
+      BRAND: "Dell",
       "DEVICE OWNED": "Joii Philippines",
       "DEVICE TAG": "JOIIPC0001",
       "DATE DEPLOYED": "10/9/2025",
       "EMPLOYEE ID": "EMP0001",
-      "MODEL": "OptiPlex 7090",
-      "SERIAL NUMBER": "ABC123456"
+      MODEL: "OptiPlex 7090",
+      "SERIAL NUMBER": "ABC123456",
     },
     {
-      "Employee": "Jane Smith",
-      "TYPE": "Laptop",
-      "BRAND": "HP",
+      Employee: "Jane Smith",
+      TYPE: "Laptop",
+      BRAND: "HP",
       "DEVICE OWNED": "TECH001", // Using Client ID instead of name
       "DEVICE TAG": "",
       "DATE DEPLOYED": "10/8/2025",
       "EMPLOYEE ID": "EMP0002",
-      "MODEL": "ProBook 450"
+      MODEL: "ProBook 450",
     },
     {
-      "Employee": "Bob Johnson",
-      "TYPE": "Monitor",
-      "BRAND": "Asus",
+      Employee: "Bob Johnson",
+      TYPE: "Monitor",
+      BRAND: "Asus",
       "DEVICE OWNED": "", // No client specified
       "DEVICE TAG": "JOIIMON0001",
       "DATE DEPLOYED": "10/7/2025",
-      "EMPLOYEE ID": "EMP0003"
-    }
+      "EMPLOYEE ID": "EMP0003",
+    },
   ];
 
   console.log("Sample Excel data processing:");
@@ -146,8 +171,16 @@ function testExcelDataProcessing() {
     console.log(`  Employee: ${row["Employee"]}`);
     console.log(`  Device Type: ${row["TYPE"]}`);
     console.log(`  Brand: ${row["BRAND"]}`);
-    console.log(`  Device Owned: "${row["DEVICE OWNED"]}" ${row["DEVICE OWNED"] ? "" : "(empty - no client assignment)"}`);
-    console.log(`  Device Tag: "${row["DEVICE TAG"]}" ${row["DEVICE TAG"] ? "" : "(empty - will auto-generate)"}`);
+    console.log(
+      `  Device Owned: "${row["DEVICE OWNED"]}" ${
+        row["DEVICE OWNED"] ? "" : "(empty - no client assignment)"
+      }`
+    );
+    console.log(
+      `  Device Tag: "${row["DEVICE TAG"]}" ${
+        row["DEVICE TAG"] ? "" : "(empty - will auto-generate)"
+      }`
+    );
     console.log(`  Employee ID: ${row["EMPLOYEE ID"]}`);
   });
 }
@@ -157,10 +190,10 @@ function runAllTests() {
   testClientLookup();
   testDeviceDataStructure();
   testExcelDataProcessing();
-  
+
   console.log("\n=== TEST SUMMARY ===");
   console.log("✅ Client lookup logic tested");
-  console.log("✅ Device data structure validated"); 
+  console.log("✅ Device data structure validated");
   console.log("✅ Excel data processing verified");
   console.log("\nTo use this import functionality:");
   console.log("1. Create Excel file with 'DEVICE OWNED' column");
@@ -171,8 +204,13 @@ function runAllTests() {
 }
 
 // Export for Node.js or run directly
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { testClientLookup, testDeviceDataStructure, testExcelDataProcessing, runAllTests };
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    testClientLookup,
+    testDeviceDataStructure,
+    testExcelDataProcessing,
+    runAllTests,
+  };
 } else {
   // Run tests if loaded in browser
   runAllTests();

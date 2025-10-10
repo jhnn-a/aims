@@ -5,6 +5,7 @@
 Your Excel file should contain the following columns (headers must match exactly):
 
 ### Required Columns:
+
 - **Employee** - Full name of the employee (e.g., "John Doe")
 - **TYPE** - Device type (e.g., "PC", "Laptop", "Monitor", "Printer")
 - **BRAND** - Device brand (e.g., "Dell", "HP", "Asus", "Canon")
@@ -14,6 +15,7 @@ Your Excel file should contain the following columns (headers must match exactly
 - **EMPLOYEE ID** - Employee ID for validation (Required, e.g., "EMP0001")
 
 ### Optional Columns:
+
 - **MODEL** - Device model (e.g., "OptiPlex 7090")
 - **SERIAL NUMBER** - Device serial number (e.g., "ABC123456")
 - **SPECIFICATIONS** - Technical specifications (e.g., "i5, 8GB RAM, 256GB SSD")
@@ -23,22 +25,24 @@ Your Excel file should contain the following columns (headers must match exactly
 
 ## Sample Excel Data:
 
-| Employee | TYPE | BRAND | CLIENT | DEVICE TAG | DATE DEPLOYED | EMPLOYEE ID | MODEL | SERIAL NUMBER | SPECIFICATIONS | WARRANTY | PURCHASE DATE | SUPPLIER |
-|----------|------|-------|--------|------------|---------------|-------------|-------|---------------|----------------|----------|---------------|----------|
-| John Doe | PC | Dell | Joii Philippines | JOIIPC0001 | 10/9/2025 | EMP0001 | OptiPlex 7090 | ABC123456 | i5, 8GB RAM | 3 years | 9/1/2025 | Dell Direct |
-| Jane Smith | Laptop | HP | TECH001 | JOIILAP0002 | 10/8/2025 | EMP0002 | ProBook 450 | XYZ789012 | i7, 16GB RAM | 2 years | 9/15/2025 | HP Store |
-| Bob Johnson | Monitor | Asus | Joii Philippines | JOIIMON0001 | 10/7/2025 | EMP0003 | VG248QE | MON987654 | 24" 1080p | 1 year | 9/20/2025 | Asus Direct |
+| Employee    | TYPE    | BRAND | CLIENT           | DEVICE TAG  | DATE DEPLOYED | EMPLOYEE ID | MODEL         | SERIAL NUMBER | SPECIFICATIONS | WARRANTY | PURCHASE DATE | SUPPLIER    |
+| ----------- | ------- | ----- | ---------------- | ----------- | ------------- | ----------- | ------------- | ------------- | -------------- | -------- | ------------- | ----------- |
+| John Doe    | PC      | Dell  | Joii Philippines | JOIIPC0001  | 10/9/2025     | EMP0001     | OptiPlex 7090 | ABC123456     | i5, 8GB RAM    | 3 years  | 9/1/2025      | Dell Direct |
+| Jane Smith  | Laptop  | HP    | TECH001          | JOIILAP0002 | 10/8/2025     | EMP0002     | ProBook 450   | XYZ789012     | i7, 16GB RAM   | 2 years  | 9/15/2025     | HP Store    |
+| Bob Johnson | Monitor | Asus  | Joii Philippines | JOIIMON0001 | 10/7/2025     | EMP0003     | VG248QE       | MON987654     | 24" 1080p      | 1 year   | 9/20/2025     | Asus Direct |
 
 ## Important Notes:
 
-1. **Client (Enhanced)**: 
+1. **Client (Enhanced)**:
+
    - Supports both Client Name (e.g., "Homecorp") and Client ID (e.g., "CLI0001")
    - Client ID lookup takes priority over name matching for accuracy
    - Case-insensitive matching for both ID and name
    - The actual Client Name will be stored in the device record for display (not the Client ID)
    - If client not found, import will fail for that row with an error message
 
-2. **Device Tag**: 
+2. **Device Tag**:
+
    - REQUIRED field - cannot be blank
    - If a device tag already exists in the system, the existing device will be UPDATED with the new imported data
    - Multiple rows with the same device tag within a single import file will be rejected (each tag must be unique per import)
@@ -50,7 +54,7 @@ Your Excel file should contain the following columns (headers must match exactly
 
 5. **Case Sensitivity**: Device types and client names are matched case-insensitively
 
-6. **Validation**: 
+6. **Validation**:
    - Invalid device types or missing required fields will be skipped with error messages
    - Blank DEVICE TAG values will cause import failure with specific error messages
    - Duplicate DEVICE TAG values within the same import file will be rejected (each tag can only appear once per import)
@@ -58,6 +62,7 @@ Your Excel file should contain the following columns (headers must match exactly
    - CLIENT names that don't exist in the system will result in devices imported without client assignment (with warnings)
 
 ## Valid Device Types:
+
 - PC
 - Laptop
 - Monitor
