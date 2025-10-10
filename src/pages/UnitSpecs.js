@@ -75,6 +75,25 @@ const osOptions = [
   { label: "Windows 11", value: "WIN11" },
 ];
 
+// Helper: normalize various OS strings to option value keys
+const normalizeOsToValue = (osString) => {
+  if (!osString) return "";
+  const s = String(osString).toLowerCase().trim();
+  if (s.includes("windows 10") || s.includes("win10") || s === "win10") return "WIN10";
+  if (s.includes("windows 11") || s.includes("win11") || s === "win11") return "WIN11";
+  return "";
+};
+
+// Normalize RAM to numeric option value (e.g. "8GB" -> 8)
+const normalizeRamToValue = (ramString) => {
+  if (ramString === null || ramString === undefined) return "";
+  const s = String(ramString).toLowerCase().trim();
+  // If already a plain number string or number, extract digits
+  const m = s.match(/(\d+)/);
+  if (m) return parseInt(m[1], 10);
+  return "";
+};
+
 const conditionOptions = [
   { label: "BRANDNEW", value: "BRANDNEW" },
   { label: "GOOD", value: "GOOD" },
@@ -1305,10 +1324,44 @@ const UnitSpecs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    toast.error(
-      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to add or modify devices."
-    );
-    return;
+  console.log("UnitSpecs.handleSubmit called", { editId, editCollection });
+    try {
+      // If editing an existing unit, allow update
+      if (editId && editCollection) {
+        // Build payload from form (avoid including empty fields unnecessarily)
+        const payload = {
+          ...form,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Remove internal-only fields that shouldn't be stored
+        delete payload.id;
+        delete payload.Tag; // Tag might be managed elsewhere
+
+        const docRef = doc(db, editCollection, editId);
+        await updateDoc(docRef, payload);
+
+        toast.success("Unit updated successfully.");
+        // Refresh local state: refetch units or update in-place
+        // Simple approach: close modal and reload page data via existing fetch functions
+        setShowModal(false);
+        setEditId(null);
+        setEditCollection("");
+        setForm(emptyUnit);
+        // Trigger a refresh by calling the existing data load if available
+        // (Assumes the component's data load uses effects on mount or external trigger)
+        return;
+      }
+
+      // Creating new units is disallowed in UnitSpecs - guide user to Company Assets
+      toast.error(
+        "Creating new units is disabled here. Use Company Assets (Inventory/Assets) to add devices."
+      );
+      return;
+    } catch (err) {
+      console.error("Failed to save unit:", err);
+      toast.error(`Failed to save unit: ${err.message || "Unknown error"}`);
+    }
   };
 
   const handleMove = async (unit, from, to) => {
@@ -1322,8 +1375,23 @@ const UnitSpecs = () => {
     // Allow editing - removed read-only restriction
     setEditId(unit.id);
     setEditCollection(collectionName);
-    setForm({ ...unit });
-    setShowModal(true);
+  // Normalize OS to option value so the select control matches
+  const normalizedOS = normalizeOsToValue(unit.OS || unit.os || "");
+  const normalizedRAM = normalizeRamToValue(unit.RAM || unit.ram || "");
+  // Prefer the full CPU string (unit.CPU or unit.cpu) when opening edit modal so users see e.g. "i3-12100"
+  const fullCpu = (unit.CPU || unit.cpu || unit.cpuGen || "").toString();
+  // ramOptions holds numbers (4,8,16...). Ensure form.RAM matches those values
+  setForm({
+    ...unit,
+    OS: normalizedOS,
+    RAM: normalizedRAM || "",
+    // Put full CPU into cpuGen input and also keep CPU field in sync
+    cpuGen: fullCpu,
+    CPU: fullCpu,
+  });
+  // Close any open filter/popover that may be sitting above the modal
+  setFilterPopup({ open: false, column: null, table: null, anchor: null });
+  setShowModal(true);
   };
 
   const handleCancelEdit = () => {
@@ -2791,9 +2859,8 @@ const UnitSpecs = () => {
                         border: isDarkMode
                           ? "1px solid #374151"
                           : "1px solid #d1d5db",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        wordBreak: "break-word",
+                        whiteSpace: "normal",
                       }}
                     >
                       {unit.model || ""}
@@ -2998,7 +3065,8 @@ const UnitSpecs = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 2000,
+  zIndex: 99999,
+  pointerEvents: "auto",
       }}
     >
       <div
@@ -3036,6 +3104,8 @@ const UnitSpecs = () => {
           fontFamily:
             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           animation: "modalFadeIn 0.2s ease-out",
+          // Ensure the modal content is interactive
+          pointerEvents: "auto",
         }}
         role="dialog"
         aria-modal="true"
@@ -3384,10 +3454,11 @@ const UnitSpecs = () => {
                 >
                   CPU - System Unit:
                 </label>
-                <select
+                <input
                   name="cpuGen"
                   value={form.cpuGen}
                   onChange={handleChange}
+                  placeholder="e.g., i5 - 10400"
                   style={{
                     width: "100%",
                     minWidth: 0,
@@ -3407,15 +3478,7 @@ const UnitSpecs = () => {
                     outline: "none",
                     transition: "border-color 0.2s, box-shadow 0.2s",
                   }}
-                  required
-                >
-                  <option value="">Select CPU System Unit</option>
-                  {cpuGenOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div
@@ -3768,63 +3831,7 @@ const UnitSpecs = () => {
               />
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                Condition:
-              </label>
-              <select
-                name="Condition"
-                value={form.Condition}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                required
-              >
-                <option value="">Select Condition</option>
-                {conditionOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Condition field removed from edit modal per request */}
           </div>
 
           {/* Row 6: Client and Remarks */}
@@ -3858,7 +3865,7 @@ const UnitSpecs = () => {
                     "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
-                Client:
+                Client Owned:
               </label>
               <select
                 name="client"
