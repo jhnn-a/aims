@@ -26,10 +26,11 @@ import { db } from "../utils/firebase"; // Firebase configuration
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
-import DeviceHistory from "../components/DeviceHistory"; // Device history modal component
 import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
 import { useTheme } from "../context/ThemeContext"; // Dark mode theme context
 import { useLastTagsGlobalState } from "../hooks/useLastTagsGlobalState"; // Global Last Tags state
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 import {
   initialForm, // Default form data structure
   fieldLabels, // Display labels for form fields
@@ -259,9 +260,115 @@ function DeviceFormModal({
   setTagError,
   onSerialToggle,
   editingDevice,
+  deviceForHistory, // Device object for showing history (optional)
 }) {
   // === THEME CONTEXT ===
   const { isDarkMode } = useTheme(); // Get dark mode state from theme context
+
+  // === DEVICE HISTORY STATE ===
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // === DATE FORMATTING FUNCTIONS ===
+  const formatDateToMMDDYYYY = (dateValue) => {
+    if (!dateValue) return "";
+    let date;
+    if (typeof dateValue === "object" && dateValue.seconds) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return "";
+    }
+    if (isNaN(date)) return "";
+    return (
+      (date.getMonth() + 1).toString().padStart(2, "0") +
+      "/" +
+      date.getDate().toString().padStart(2, "0") +
+      "/" +
+      date.getFullYear()
+    );
+  };
+
+  const formatTimeToAMPM = (dateValue) => {
+    if (!dateValue) return "";
+    let date;
+    if (typeof dateValue === "object" && dateValue.seconds) {
+      date = new Date(dateValue.seconds * 1000);
+    } else if (dateValue instanceof Date) {
+      date = dateValue;
+    } else if (typeof dateValue === "string") {
+      date = new Date(dateValue);
+    } else {
+      return "";
+    }
+    if (isNaN(date)) return "";
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  // === FETCH DEVICE HISTORY ===
+  useEffect(() => {
+    const fetchHistory = async () => {
+      if (deviceForHistory && deviceForHistory.deviceTag) {
+        setHistoryLoading(true);
+        try {
+          const { getDeviceHistoryByTag } = await import(
+            "../services/deviceHistoryService"
+          );
+          const historyData = await getDeviceHistoryByTag(
+            deviceForHistory.deviceTag
+          );
+
+          // Filter out entries without valid dates, then sort by date descending (newest first)
+          const validHistory = (historyData || []).filter((item) => {
+            if (!item.date) return false;
+
+            // Check if it's a valid Firestore Timestamp
+            if (typeof item.date === "object" && item.date.seconds) {
+              return true;
+            }
+
+            // Check if it's a valid date string
+            const testDate = new Date(item.date);
+            return !isNaN(testDate.getTime());
+          });
+
+          const sortedHistory = validHistory.sort((a, b) => {
+            let dateA, dateB;
+
+            // Handle Firestore Timestamp objects
+            if (a.date && typeof a.date === "object" && a.date.seconds) {
+              dateA = a.date.seconds * 1000;
+            } else {
+              dateA = new Date(a.date).getTime();
+            }
+
+            if (b.date && typeof b.date === "object" && b.date.seconds) {
+              dateB = b.date.seconds * 1000;
+            } else {
+              dateB = new Date(b.date).getTime();
+            }
+
+            return dateB - dateA; // Newest first
+          });
+
+          setHistory(sortedHistory);
+        } catch (error) {
+          console.error("Error fetching device history:", error);
+          setHistory([]);
+        } finally {
+          setHistoryLoading(false);
+        }
+      }
+    };
+    fetchHistory();
+  }, [deviceForHistory]);
 
   // === MODAL STYLES ===
   const styles = {
@@ -279,21 +386,33 @@ function DeviceFormModal({
     },
     inventoryModalContent: {
       background: isDarkMode ? "#1f2937" : "#fff",
-      padding: 20,
+      padding: deviceForHistory ? 32 : 20,
       borderRadius: 12,
       minWidth: 480,
-      maxWidth: 520,
+      maxWidth: deviceForHistory ? 1400 : 520, // Wider modal when showing history
       width: "70vw",
       boxShadow: isDarkMode
         ? "0 6px 24px rgba(0,0,0,0.4)"
         : "0 6px 24px rgba(34,46,58,0.13)",
       display: "flex",
-      flexDirection: "column",
+      flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
       alignItems: "flex-start",
       position: "relative",
       border: `1.5px solid ${isDarkMode ? "#374151" : "#e5e7eb"}`,
       transition: "box-shadow 0.2s",
-      maxHeight: "85vh",
+      gap: deviceForHistory ? "24px" : "0",
+      // Dynamic height based on device type when showing history
+      height: deviceForHistory
+        ? data.deviceType === "PC" || data.deviceType === "Laptop"
+          ? "auto"
+          : "auto"
+        : "auto",
+      maxHeight: deviceForHistory
+        ? data.deviceType === "PC" || data.deviceType === "Laptop"
+          ? "85vh"
+          : "75vh"
+        : "85vh",
+      overflowY: deviceForHistory ? "hidden" : "auto", // Prevent double scrollbars
       overflowY: "auto",
       scrollbarWidth: "none",
       msOverflowStyle: "none",
@@ -438,99 +557,93 @@ function DeviceFormModal({
             border-color: #64748b;
           }
         `}</style>
+
+        {/* LEFT SIDE: Edit Device Form */}
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "16px",
+            flex: deviceForHistory ? "1" : "none",
+            minWidth: deviceForHistory ? "500px" : "auto",
+            width: deviceForHistory ? "auto" : "100%",
           }}
         >
-          {isEditMode && (
-            <svg
-              width="20"
-              height="20"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-              style={{ flexShrink: 0 }}
-              aria-hidden="true"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-            </svg>
-          )}
-          <h3
-            id="modal-title"
-            style={{
-              ...styles.inventoryModalTitle,
-              color: isEditMode
-                ? "#2563eb"
-                : isDarkMode
-                ? "#3b82f6"
-                : "#2563eb",
-            }}
-          >
-            {isEditMode ? "Edit Device" : "Add Device"}
-          </h3>
-        </div>
-
-        {isEditMode && (
           <div
             style={{
-              backgroundColor: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              borderRadius: "6px",
-              padding: "8px 12px",
-              marginBottom: "16px",
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              fontSize: "14px",
-              color: "#1d4ed8",
+              marginBottom: "16px",
             }}
           >
-            <svg
-              width="16"
-              height="16"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+            {isEditMode && (
+              <svg
+                width="20"
+                height="20"
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                style={{ flexShrink: 0 }}
+                aria-hidden="true"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+              </svg>
+            )}
+            <h3
+              id="modal-title"
+              style={{
+                ...styles.inventoryModalTitle,
+                color: isEditMode
+                  ? "#2563eb"
+                  : isDarkMode
+                  ? "#3b82f6"
+                  : "#2563eb",
+              }}
             >
-              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Editing existing device - modify the fields below to update the
-            device information
+              {isEditMode ? "Edit Device" : "Add Device"}
+            </h3>
           </div>
-        )}
 
-        {/* Row 1: Device Type and Size/Brand */}
-        <div
-          style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}
-        >
+          {isEditMode && (
+            <div
+              style={{
+                backgroundColor: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: "6px",
+                padding: "8px 12px",
+                marginBottom: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "14px",
+                color: "#1d4ed8",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Editing existing device - modify the fields below to update the
+              device information
+            </div>
+          )}
+
+          {/* Row 1: Device Type and Size/Brand */}
           <div
-            style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
+            style={{
+              display: "flex",
+              gap: 16,
+              width: "100%",
+              marginBottom: 12,
+            }}
           >
-            <label style={styles.inventoryLabel}>Device Type:</label>
-            <select
-              name="deviceType"
-              value={data.deviceType}
-              onChange={onChange}
-              style={styles.inventoryInput}
-            >
-              <option value="">Select Device Type</option>
-              {deviceTypes.map((type) => (
-                <option key={type.label} value={type.label}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {data.deviceType === "RAM" ? (
             <div
               style={{
                 ...styles.inventoryInputGroup,
@@ -538,29 +651,68 @@ function DeviceFormModal({
                 marginBottom: 0,
               }}
             >
-              <label style={styles.inventoryLabel}>Size:</label>
+              <label style={styles.inventoryLabel}>Device Type:</label>
               <select
-                name="ramSize"
-                value={data.ramSize}
+                name="deviceType"
+                value={data.deviceType}
                 onChange={onChange}
                 style={styles.inventoryInput}
               >
-                <option value="">Select Size</option>
-                <option value="4GB">4 GB RAM</option>
-                <option value="8GB">8 GB RAM</option>
-                <option value="16GB">16 GB RAM</option>
-                <option value="32GB">32 GB RAM</option>
-                <option value="64GB">64 GB RAM</option>
+                <option value="">Select Device Type</option>
+                {deviceTypes.map((type) => (
+                  <option key={type.label} value={type.label}>
+                    {type.label}
+                  </option>
+                ))}
               </select>
             </div>
-          ) : (
-            <div
-              style={{
-                ...styles.inventoryInputGroup,
-                flex: 1,
-                marginBottom: 0,
-              }}
-            >
+
+            {data.deviceType === "RAM" ? (
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Size:</label>
+                <select
+                  name="ramSize"
+                  value={data.ramSize}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select Size</option>
+                  <option value="4GB">4 GB RAM</option>
+                  <option value="8GB">8 GB RAM</option>
+                  <option value="16GB">16 GB RAM</option>
+                  <option value="32GB">32 GB RAM</option>
+                  <option value="64GB">64 GB RAM</option>
+                </select>
+              </div>
+            ) : (
+              <div
+                style={{
+                  ...styles.inventoryInputGroup,
+                  flex: 1,
+                  marginBottom: 0,
+                }}
+              >
+                <label style={styles.inventoryLabel}>Brand:</label>
+                <input
+                  name="brand"
+                  value={data.brand}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                  autoComplete="off"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Row 1.5: Brand for RAM only (when RAM is selected) */}
+          {data.deviceType === "RAM" && (
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
               <label style={styles.inventoryLabel}>Brand:</label>
               <input
                 name="brand"
@@ -571,425 +723,698 @@ function DeviceFormModal({
               />
             </div>
           )}
-        </div>
 
-        {/* Row 1.5: Brand for RAM only (when RAM is selected) */}
-        {data.deviceType === "RAM" && (
-          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-            <label style={styles.inventoryLabel}>Brand:</label>
-            <input
-              name="brand"
-              value={data.brand}
-              onChange={onChange}
-              style={styles.inventoryInput}
-              autoComplete="off"
-            />
-          </div>
-        )}
-
-        {/* Row 2: Device Tag (full width when visible) */}
-        {data.deviceType && (
-          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-            <label style={styles.inventoryLabel}>Device Tag:</label>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <input
-                name="deviceTag"
-                value={data.deviceTag}
-                onChange={onChange}
+          {/* Row 2: Device Tag (full width when visible) */}
+          {data.deviceType && (
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Device Tag:</label>
+              <div
                 style={{
-                  flex: 1,
-                  padding: "8px 12px",
-                  borderRadius: 6,
-                  border: isDarkMode
-                    ? "1.5px solid #4b5563"
-                    : "1.5px solid #cbd5e1",
-                  background: editingDevice
-                    ? isDarkMode
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  width: "100%",
+                }}
+              >
+                <input
+                  name="deviceTag"
+                  value={data.deviceTag}
+                  onChange={onChange}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    border: isDarkMode
+                      ? "1.5px solid #4b5563"
+                      : "1.5px solid #cbd5e1",
+                    background: editingDevice
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f5f5f5"
+                      : isDarkMode
                       ? "#374151"
-                      : "#f5f5f5"
-                    : isDarkMode
-                    ? "#374151"
-                    : "#f1f5f9",
+                      : "#f1f5f9",
+                    color: editingDevice
+                      ? isDarkMode
+                        ? "#9ca3af"
+                        : "#666"
+                      : isDarkMode
+                      ? "#f3f4f6"
+                      : "#000",
+                    fontSize: 14,
+                    height: "36px",
+                    boxSizing: "border-box",
+                    cursor: editingDevice ? "not-allowed" : "text",
+                  }}
+                  maxLength={64}
+                  placeholder={
+                    useSerial
+                      ? "Enter Serial Number"
+                      : "Auto-generated device tag"
+                  }
+                  disabled={editingDevice}
+                  readOnly={!useSerial}
+                />
+              </div>
+              <label
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  fontWeight: 400,
+                  fontSize: 13,
                   color: editingDevice
-                    ? isDarkMode
-                      ? "#9ca3af"
-                      : "#666"
+                    ? "#999"
                     : isDarkMode
                     ? "#f3f4f6"
-                    : "#000",
-                  fontSize: 14,
-                  height: "36px",
-                  boxSizing: "border-box",
-                  cursor: editingDevice ? "not-allowed" : "text",
+                    : "#222e3a",
                 }}
-                maxLength={64}
-                placeholder={
-                  useSerial
-                    ? "Enter Serial Number"
-                    : "Auto-generated device tag"
-                }
-                disabled={editingDevice}
-                readOnly={!useSerial}
-              />
+              >
+                <input
+                  type="checkbox"
+                  checked={useSerial}
+                  onChange={handleSerialToggle}
+                  style={{
+                    marginRight: 6,
+                    accentColor: "#6b7280",
+                    cursor: editingDevice ? "not-allowed" : "pointer",
+                  }}
+                  disabled={editingDevice}
+                />
+                Use Serial Number Instead
+              </label>
+              {tagError && (
+                <span
+                  style={{
+                    color: "#e57373",
+                    fontSize: 12,
+                    marginTop: 4,
+                    display: "block",
+                  }}
+                >
+                  {tagError}
+                </span>
+              )}
+              {saveError && (
+                <span
+                  style={{
+                    color: "#e57373",
+                    fontSize: 12,
+                    marginTop: 4,
+                    display: "block",
+                  }}
+                >
+                  {saveError}
+                </span>
+              )}
             </div>
-            <label
-              style={{
-                marginTop: 8,
-                display: "flex",
-                alignItems: "center",
-                fontWeight: 400,
-                fontSize: 13,
-                color: editingDevice
-                  ? "#999"
-                  : isDarkMode
-                  ? "#f3f4f6"
-                  : "#222e3a",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={useSerial}
-                onChange={handleSerialToggle}
-                style={{
-                  marginRight: 6,
-                  accentColor: "#6b7280",
-                  cursor: editingDevice ? "not-allowed" : "pointer",
-                }}
-                disabled={editingDevice}
-              />
-              Use Serial Number Instead
-            </label>
-            {tagError && (
-              <span
-                style={{
-                  color: "#e57373",
-                  fontSize: 12,
-                  marginTop: 4,
-                  display: "block",
-                }}
-              >
-                {tagError}
-              </span>
-            )}
-            {saveError && (
-              <span
-                style={{
-                  color: "#e57373",
-                  fontSize: 12,
-                  marginTop: 4,
-                  display: "block",
-                }}
-              >
-                {saveError}
-              </span>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Row 3: Model and Condition */}
-        <div
-          style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}
-        >
-          <div
-            style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
-          >
-            <label style={styles.inventoryLabel}>Model:</label>
-            <input
-              name="model"
-              value={data.model}
-              onChange={onChange}
-              style={styles.inventoryInput}
-            />
-          </div>
-
-          <div
-            style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}
-          >
-            <label style={styles.inventoryLabel}>Condition:</label>
-            <select
-              name="condition"
-              value={data.condition}
-              onChange={onChange}
-              style={styles.inventoryInput}
-            >
-              <option value="">Select Condition</option>
-              {conditions.map((cond) => (
-                <option key={cond} value={cond}>
-                  {cond}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Row 4: Client */}
-        <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-          <label style={styles.inventoryLabel}>Client:</label>
-          <SearchableDropdown
-            value={data.client}
-            onChange={onChange}
-            options={clients}
-            placeholder="Search and select client..."
-            displayKey="clientName"
-            valueKey="clientName"
-          />
-        </div>
-
-        {/* Row 5: Remarks only (removed Assigned To and Assignment Date) */}
-        <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-          <label style={styles.inventoryLabel}>Remarks:</label>
-          <input
-            name="remarks"
-            value={data.remarks}
-            onChange={onChange}
-            style={styles.inventoryInput}
-          />
-        </div>
-
-        {/* Conditional PC/Laptop Specifications */}
-        {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+          {/* Row 3: Model and Condition */}
           <div
             style={{
-              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
-              borderRadius: "6px",
-              padding: "12px",
-              marginBottom: 12,
-              background: isDarkMode ? "#374151" : "#f9fafb",
+              display: "flex",
+              gap: 16,
               width: "100%",
-              boxSizing: "border-box",
+              marginBottom: 12,
             }}
           >
-            <h4
-              style={{
-                margin: "0 0 10px 0",
-                fontSize: "13px",
-                fontWeight: "600",
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
-              </svg>
-              {data.deviceType} Specifications
-            </h4>
-
-            {/* Row 1: CPU Gen and RAM */}
             <div
               style={{
-                display: "flex",
-                gap: 16,
-                width: "100%",
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
-              >
-                <label style={styles.inventoryLabel}>CPU - System Unit:</label>
-                <input
-                  type="text"
-                  name="cpuGen"
-                  value={data.cpuGen || ""}
-                  onChange={onChange}
-                  placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
-                  style={styles.inventoryInput}
-                />
-              </div>
-
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
-              >
-                <label style={styles.inventoryLabel}>RAM:</label>
-                <select
-                  name="ram"
-                  value={data.ram || ""}
-                  onChange={onChange}
-                  style={styles.inventoryInput}
-                >
-                  <option value="">Select RAM</option>
-                  <option value="4GB">4GB</option>
-                  <option value="8GB">8GB</option>
-                  <option value="16GB">16GB</option>
-                  <option value="32GB">32GB</option>
-                  <option value="64GB">64GB</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Row 2: Drive 1 and Drive 2 */}
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                width: "100%",
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
-              >
-                <label style={styles.inventoryLabel}>Drive 1:</label>
-                <input
-                  name="drive1"
-                  value={data.drive1 || ""}
-                  onChange={onChange}
-                  style={styles.inventoryInput}
-                  placeholder="e.g., 256 GB SSD"
-                />
-              </div>
-
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
-              >
-                <label style={styles.inventoryLabel}>Drive 2 (Optional):</label>
-                <input
-                  name="drive2"
-                  value={data.drive2 || ""}
-                  onChange={onChange}
-                  style={styles.inventoryInput}
-                  placeholder="e.g., 1 TB HDD"
-                />
-              </div>
-            </div>
-
-            {/* Row 3: GPU and OS */}
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                width: "100%",
+                ...styles.inventoryInputGroup,
+                flex: 1,
                 marginBottom: 0,
               }}
             >
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
-              >
-                <label style={styles.inventoryLabel}>GPU:</label>
-                <input
-                  name="gpu"
-                  value={data.gpu || ""}
-                  onChange={onChange}
-                  style={styles.inventoryInput}
-                  placeholder="e.g., Integrated / GTX 1650"
-                />
-              </div>
+              <label style={styles.inventoryLabel}>Model:</label>
+              <input
+                name="model"
+                value={data.model}
+                onChange={onChange}
+                style={styles.inventoryInput}
+              />
+            </div>
 
-              <div
-                style={{
-                  ...styles.inventoryInputGroup,
-                  flex: 1,
-                  marginBottom: 0,
-                }}
+            <div
+              style={{
+                ...styles.inventoryInputGroup,
+                flex: 1,
+                marginBottom: 0,
+              }}
+            >
+              <label style={styles.inventoryLabel}>Condition:</label>
+              <select
+                name="condition"
+                value={data.condition}
+                onChange={onChange}
+                style={styles.inventoryInput}
               >
-                <label style={styles.inventoryLabel}>OS:</label>
-                <select
-                  name="os"
-                  value={data.os || ""}
-                  onChange={onChange}
-                  style={styles.inventoryInput}
-                >
-                  <option value="">Select OS</option>
-                  <option value="Windows 10">Windows 10</option>
-                  <option value="Windows 11">Windows 11</option>
-                </select>
-              </div>
+                <option value="">Select Condition</option>
+                {conditions.map((cond) => (
+                  <option key={cond} value={cond}>
+                    {cond}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          {/* Row 4: Client */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Client:</label>
+            <SearchableDropdown
+              value={data.client}
+              onChange={onChange}
+              options={clients}
+              placeholder="Search and select client..."
+              displayKey="clientName"
+              valueKey="clientName"
+            />
+          </div>
+
+          {/* Row 5: Remarks only (removed Assigned To and Assignment Date) */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Remarks:</label>
+            <input
+              name="remarks"
+              value={data.remarks}
+              onChange={onChange}
+              style={styles.inventoryInput}
+            />
+          </div>
+
+          {/* Conditional PC/Laptop Specifications */}
+          {(data.deviceType === "PC" || data.deviceType === "Laptop") && (
+            <div
+              style={{
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: "6px",
+                padding: "12px",
+                marginBottom: 12,
+                background: isDarkMode ? "#374151" : "#f9fafb",
+                width: "100%",
+                boxSizing: "border-box",
+              }}
+            >
+              <h4
+                style={{
+                  margin: "0 0 10px 0",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+                </svg>
+                {data.deviceType} Specifications
+              </h4>
+
+              {/* Row 1: CPU Gen and RAM */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  width: "100%",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>
+                    CPU - System Unit:
+                  </label>
+                  <input
+                    type="text"
+                    name="cpuGen"
+                    value={data.cpuGen || ""}
+                    onChange={onChange}
+                    placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                    style={styles.inventoryInput}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>RAM:</label>
+                  <select
+                    name="ram"
+                    value={data.ram || ""}
+                    onChange={onChange}
+                    style={styles.inventoryInput}
+                  >
+                    <option value="">Select RAM</option>
+                    <option value="4GB">4GB</option>
+                    <option value="8GB">8GB</option>
+                    <option value="16GB">16GB</option>
+                    <option value="32GB">32GB</option>
+                    <option value="64GB">64GB</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 2: Drive 1 and Drive 2 */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  width: "100%",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>Drive 1:</label>
+                  <input
+                    name="drive1"
+                    value={data.drive1 || ""}
+                    onChange={onChange}
+                    style={styles.inventoryInput}
+                    placeholder="e.g., 256 GB SSD"
+                  />
+                </div>
+
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>
+                    Drive 2 (Optional):
+                  </label>
+                  <input
+                    name="drive2"
+                    value={data.drive2 || ""}
+                    onChange={onChange}
+                    style={styles.inventoryInput}
+                    placeholder="e.g., 1 TB HDD"
+                  />
+                </div>
+              </div>
+
+              {/* Row 3: GPU and OS */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  width: "100%",
+                  marginBottom: 0,
+                }}
+              >
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>GPU:</label>
+                  <input
+                    name="gpu"
+                    value={data.gpu || ""}
+                    onChange={onChange}
+                    style={styles.inventoryInput}
+                    placeholder="e.g., Integrated / GTX 1650"
+                  />
+                </div>
+
+                <div
+                  style={{
+                    ...styles.inventoryInputGroup,
+                    flex: 1,
+                    marginBottom: 0,
+                  }}
+                >
+                  <label style={styles.inventoryLabel}>OS:</label>
+                  <select
+                    name="os"
+                    value={data.os || ""}
+                    onChange={onChange}
+                    style={styles.inventoryInput}
+                  >
+                    <option value="">Select OS</option>
+                    <option value="Windows 10">Windows 10</option>
+                    <option value="Windows 11">Windows 11</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Acquisition Date:</label>
+            <input
+              name="acquisitionDate"
+              type="date"
+              value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
+              onChange={onChange}
+              style={styles.inventoryInput}
+            />
+          </div>
+
+          {/* Buttons */}
+          <div
+            style={{
+              display: "flex",
+              gap: 16,
+              justifyContent: "flex-end",
+              marginTop: 32,
+            }}
+          >
+            <button
+              onClick={onCancel}
+              style={{
+                padding: "12px 24px",
+                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                borderRadius: 8,
+                background: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSave}
+              disabled={!isValid}
+              style={{
+                padding: "12px 24px",
+                border: "none",
+                borderRadius: 8,
+                background: isValid ? "#2563eb" : "#9ca3af",
+                color: "white",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: isValid ? "pointer" : "not-allowed",
+                fontFamily: "inherit",
+              }}
+            >
+              Save Device
+            </button>
+          </div>
+
+          {saveError && (
+            <div
+              style={{
+                color: "#e57373",
+                marginTop: 16,
+                fontWeight: 600,
+                textAlign: "center",
+                fontSize: 14,
+              }}
+            >
+              {saveError}
+            </div>
+          )}
+        </div>
+        {/* END LEFT SIDE */}
+
+        {/* RIGHT SIDE: Asset History */}
+        {deviceForHistory && (
+          <div
+            style={{
+              flex: "1",
+              minWidth: "450px",
+              maxWidth: "600px",
+              borderLeft: isDarkMode
+                ? "2px solid #374151"
+                : "2px solid #e5e7eb",
+              paddingLeft: "24px",
+              display: "flex",
+              flexDirection: "column",
+              height: "auto",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: isDarkMode ? "#f3f4f6" : "#1f2937",
+                marginBottom: 16,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Asset History
+            </h3>
+
+            {historyLoading ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  padding: "40px 20px",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                }}
+              >
+                Loading history...
+              </div>
+            ) : history.length === 0 ? (
+              <div
+                style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                  color: isDarkMode ? "#9ca3af" : "#6b7280",
+                  fontSize: 14,
+                }}
+              >
+                No history available for this device.
+              </div>
+            ) : (
+              <div
+                style={{
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  paddingRight: "8px",
+                  maxHeight:
+                    data.deviceType === "PC" || data.deviceType === "Laptop"
+                      ? "600px"
+                      : "400px",
+                }}
+                className="inventory-main-scroll"
+              >
+                {history.map((item, index) => {
+                  // Format the history entry using the service function
+                  const formatHistoryEntry = (historyItem) => {
+                    const {
+                      action,
+                      employeeName,
+                      changes,
+                      reason,
+                      condition,
+                      remarks,
+                    } = historyItem;
+                    let title = "";
+                    let details = [];
+
+                    switch (action) {
+                      case "created":
+                        title = "Asset Created";
+                        details.push("Device added to inventory");
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "assigned":
+                        title = "Asset Assigned";
+                        if (employeeName)
+                          details.push(`Assigned to: ${employeeName}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "unassigned":
+                      case "returned":
+                        title =
+                          action === "returned"
+                            ? "Asset Returned"
+                            : "Asset Unassigned";
+                        if (employeeName)
+                          details.push(`Returned by: ${employeeName}`);
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "reassigned":
+                        title = "Asset Reassigned";
+                        if (employeeName)
+                          details.push(`Reassigned to: ${employeeName}`);
+                        if (changes && changes.previousEmployee)
+                          details.push(`From: ${changes.previousEmployee}`);
+                        if (condition) details.push(`Condition: ${condition}`);
+                        break;
+                      case "updated":
+                        title = "Asset Information Updated";
+                        if (changes && typeof changes === "object") {
+                          Object.entries(changes).forEach(([field, change]) => {
+                            if (
+                              change &&
+                              typeof change === "object" &&
+                              "old" in change &&
+                              "new" in change
+                            ) {
+                              const oldVal = change.old || "(empty)";
+                              const newVal = change.new || "(empty)";
+                              const fieldName =
+                                field.charAt(0).toUpperCase() +
+                                field.slice(1).replace(/([A-Z])/g, " $1");
+                              details.push(
+                                `${fieldName}: "${oldVal}" → "${newVal}"`
+                              );
+                            }
+                          });
+                        }
+                        if (remarks) details.push(`Notes: ${remarks}`);
+                        break;
+                      case "retired":
+                        title = "Asset Retired";
+                        if (reason) details.push(`Reason: ${reason}`);
+                        if (condition)
+                          details.push(`Final Condition: ${condition}`);
+                        break;
+                      case "added":
+                        title = "Remarks Added";
+                        if (remarks) details.push(remarks);
+                        break;
+                      case "removed":
+                        title = "Information Removed";
+                        if (remarks) details.push(remarks);
+                        break;
+                      default:
+                        title = action || "Unknown Action";
+                        if (employeeName)
+                          details.push(`Employee: ${employeeName}`);
+                        if (remarks) details.push(remarks);
+                    }
+
+                    return { title, details, hasDetails: details.length > 0 };
+                  };
+
+                  const formatted = formatHistoryEntry(item);
+
+                  return (
+                    <div
+                      key={index}
+                      style={{
+                        background: isDarkMode ? "#374151" : "#fafafa",
+                        border: isDarkMode
+                          ? "1px solid #4b5563"
+                          : "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        padding: "12px 16px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: isDarkMode ? "#f3f4f6" : "#111827",
+                            marginRight: 8,
+                          }}
+                        >
+                          {formatted.title}
+                        </div>
+                        {item.employeeName &&
+                          !formatted.details.some((d) =>
+                            d.includes(item.employeeName)
+                          ) && (
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: isDarkMode ? "#e5e7eb" : "#374151",
+                                backgroundColor: isDarkMode
+                                  ? "#1f2937"
+                                  : "#f3f4f6",
+                                padding: "2px 8px",
+                                borderRadius: 4,
+                              }}
+                            >
+                              {item.employeeName}
+                            </div>
+                          )}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: isDarkMode ? "#9ca3af" : "#6b7280",
+                          marginBottom: 8,
+                        }}
+                      >
+                        {item.date ? formatDateToMMDDYYYY(item.date) : "N/A"} at{" "}
+                        {item.date ? formatTimeToAMPM(item.date) : "N/A"}
+                      </div>
+                      {formatted.hasDetails && (
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: isDarkMode ? "#d1d5db" : "#4b5563",
+                            lineHeight: "1.5",
+                          }}
+                        >
+                          {formatted.details.map((detail, idx) => (
+                            <div key={idx} style={{ marginBottom: 4 }}>
+                              • {detail}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
-
-        <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
-          <label style={styles.inventoryLabel}>Acquisition Date:</label>
-          <input
-            name="acquisitionDate"
-            type="date"
-            value={formatDateToYYYYMMDD(data.acquisitionDate) || ""}
-            onChange={onChange}
-            style={styles.inventoryInput}
-          />
-        </div>
-
-        {/* Buttons */}
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            justifyContent: "center",
-            gap: 10,
-            width: "100%",
-          }}
-        >
-          <button
-            onClick={onSave}
-            disabled={!isValid}
-            style={{
-              ...styles.inventoryModalButton,
-              opacity: isValid ? 1 : 0.6,
-              cursor: isValid ? "pointer" : "not-allowed",
-            }}
-            aria-label={
-              isEditMode ? "Update device information" : "Save new device"
-            }
-          >
-            {isEditMode ? "Update" : "Save"}
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              background: "#6b7280",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: 8,
-              padding: "9px 20px",
-              fontSize: 15,
-              fontWeight: 500,
-              cursor: "pointer",
-              marginLeft: 4,
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-              transition: "background 0.2s, box-shadow 0.2s",
-              outline: "none",
-              fontFamily:
-                "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-            }}
-            aria-label="Cancel and close dialog"
-          >
-            Cancel
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -1111,6 +1536,8 @@ function DeleteConfirmationModal({ onConfirm, onCancel, deviceTag }) {
 // === MAIN INVENTORY PAGE COMPONENT ===
 // This component manages the display and operations for unassigned inventory devices
 function Inventory() {
+  const { currentUser } = useCurrentUser(); // Get current user for logging
+
   // === UTILITY COMPONENTS ===
   // Helper component to create truncated text with hover tooltip for long content
   const TruncatedText = ({
@@ -1378,7 +1805,6 @@ function Inventory() {
   const [headerFilters, setHeaderFilters] = useState({}); // Advanced filtering system for table columns
 
   // === DEVICE HISTORY STATE ===
-  const [showDeviceHistory, setShowDeviceHistory] = useState(false); // Device history modal visibility
   const [selectedDeviceForHistory, setSelectedDeviceForHistory] =
     useState(null); // Device selected for history view
 
@@ -1431,6 +1857,7 @@ function Inventory() {
         quantity: 1,
         supplier: "",
         client: "",
+        ramSize: "", // For RAM devices: 4GB, 8GB, 16GB, 32GB, 64GB
       },
     },
   ]);
@@ -1912,9 +2339,9 @@ function Inventory() {
     form.condition.trim() !== "" &&
     !tagError;
 
-  // Helper function to compare device data and generate change description
+  // Helper function to compare device data and generate structured change object
   const getDeviceChanges = (oldDevice, newDevice) => {
-    const changes = [];
+    const changes = {};
     const fieldLabels = {
       deviceType: "Device Type",
       deviceTag: "Device Tag",
@@ -1924,24 +2351,32 @@ function Inventory() {
       condition: "Condition",
       remarks: "Remarks",
       acquisitionDate: "Acquisition Date",
+      cpu: "CPU",
+      cpuGen: "CPU Generation",
+      ram: "RAM",
+      drive1: "Primary Drive",
+      drive2: "Secondary Drive",
+      gpu: "GPU",
+      os: "Operating System",
+      serialNumber: "Serial Number",
+      category: "Category",
+      lifespan: "Lifespan",
     };
 
-    // Compare each field
+    // Compare each field and build structured changes object
     Object.keys(fieldLabels).forEach((field) => {
       const oldValue = (oldDevice && oldDevice[field]) || "";
       const newValue = (newDevice && newDevice[field]) || "";
 
       if (oldValue !== newValue) {
-        // Format empty values for better readability
-        const oldDisplay = oldValue === "" ? "(empty)" : oldValue;
-        const newDisplay = newValue === "" ? "(empty)" : newValue;
-        changes.push(`${fieldLabels[field]}: ${oldDisplay} → ${newDisplay}`);
+        changes[field] = {
+          old: oldValue === "" ? "(empty)" : oldValue,
+          new: newValue === "" ? "(empty)" : newValue,
+        };
       }
     });
 
-    return changes.length > 0
-      ? `Updated: ${changes.join(", ")}`
-      : "No changes detected";
+    return Object.keys(changes).length > 0 ? changes : null;
   };
 
   // === SYNC TO UNITSPECS FUNCTION ===
@@ -2230,13 +2665,45 @@ function Inventory() {
             action: "added",
             date: new Date(), // Store full timestamp for precise ordering
           });
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device creation:", {
+              user: currentUser?.uid,
+              deviceTag: payload.deviceTag,
+            });
+            console.log("Current user data:", currentUser); // Debug: Full user object
+            console.log(
+              "Username:",
+              currentUser?.username,
+              "Email:",
+              currentUser?.email
+            ); // Debug: Fields
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_CREATE,
+              `Added new device ${payload.deviceTag} to inventory`,
+              {
+                deviceTag: payload.deviceTag,
+                deviceType: payload.deviceType,
+                brand: payload.brand,
+                model: payload.model,
+              }
+            );
+            console.log("Device creation logged successfully");
+          } catch (logError) {
+            console.error("Error logging device creation:", logError);
+          }
+
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
           // Get the original device data for comparison
           const originalDevice = allDevices.find(
             (d) => d.id === form._editDeviceId
           );
-          const changeDescription = getDeviceChanges(originalDevice, payload);
+          const changes = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
 
@@ -2244,15 +2711,50 @@ function Inventory() {
           await syncToUnitSpecs(payload);
 
           // Log device update with change details
-          await logDeviceHistory({
-            employeeId: null,
-            employeeName: null,
-            deviceId: form._editDeviceId,
-            deviceTag: payload.deviceTag,
-            action: "updated",
-            reason: changeDescription,
-            date: new Date(),
-          });
+          if (changes) {
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: form._editDeviceId,
+              deviceTag: payload.deviceTag,
+              action: "updated",
+              changes: changes, // Pass structured changes object
+              date: new Date(),
+            });
+          }
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device update:", {
+              user: currentUser?.uid,
+              deviceTag: payload.deviceTag,
+            });
+
+            // Create readable change description for user logs
+            const changeDescription = changes
+              ? Object.entries(changes)
+                  .map(
+                    ([field, change]) =>
+                      `${field}: ${change.old} → ${change.new}`
+                  )
+                  .join(", ")
+              : "No changes detected";
+
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_UPDATE,
+              `Updated device ${payload.deviceTag}`,
+              {
+                deviceTag: payload.deviceTag,
+                changes: changeDescription,
+              }
+            );
+            console.log("Device update logged successfully");
+          } catch (logError) {
+            console.error("Error logging device update:", logError);
+          }
 
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
@@ -2272,13 +2774,41 @@ function Inventory() {
             action: "added",
             date: new Date(), // Store full timestamp for precise ordering
           });
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device creation (non-serial):", {
+              user: currentUser?.uid,
+              deviceTag: payload.deviceTag,
+            });
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_CREATE,
+              `Added new device ${payload.deviceTag} to inventory`,
+              {
+                deviceTag: payload.deviceTag,
+                deviceType: payload.deviceType,
+                brand: payload.brand,
+                model: payload.model,
+              }
+            );
+            console.log("Device creation logged successfully (non-serial)");
+          } catch (logError) {
+            console.error(
+              "Error logging device creation (non-serial):",
+              logError
+            );
+          }
+
           showSuccess(`Device ${payload.deviceTag} added successfully!`);
         } else {
           // Get the original device data for comparison
           const originalDevice = allDevices.find(
             (d) => d.id === form._editDeviceId
           );
-          const changeDescription = getDeviceChanges(originalDevice, payload);
+          const changes = getDeviceChanges(originalDevice, payload);
 
           await updateDevice(form._editDeviceId, payload);
 
@@ -2286,15 +2816,53 @@ function Inventory() {
           await syncToUnitSpecs(payload);
 
           // Log device update with change details
-          await logDeviceHistory({
-            employeeId: null,
-            employeeName: null,
-            deviceId: form._editDeviceId,
-            deviceTag: payload.deviceTag,
-            action: "updated",
-            reason: changeDescription,
-            date: new Date(),
-          });
+          if (changes) {
+            await logDeviceHistory({
+              employeeId: null,
+              employeeName: null,
+              deviceId: form._editDeviceId,
+              deviceTag: payload.deviceTag,
+              action: "updated",
+              changes: changes, // Pass structured changes object
+              date: new Date(),
+            });
+          }
+
+          // Log to User Logs
+          try {
+            console.log("Attempting to log device update (non-serial):", {
+              user: currentUser?.uid,
+              deviceTag: payload.deviceTag,
+            });
+
+            // Create readable change description for user logs
+            const changeDescription = changes
+              ? Object.entries(changes)
+                  .map(
+                    ([field, change]) =>
+                      `${field}: ${change.old} → ${change.new}`
+                  )
+                  .join(", ")
+              : "No changes detected";
+
+            await createUserLog(
+              currentUser?.uid,
+              currentUser?.username || currentUser?.email,
+              currentUser?.email,
+              ACTION_TYPES.DEVICE_UPDATE,
+              `Updated device ${payload.deviceTag}`,
+              {
+                deviceTag: payload.deviceTag,
+                changes: changeDescription,
+              }
+            );
+            console.log("Device update logged successfully (non-serial)");
+          } catch (logError) {
+            console.error(
+              "Error logging device update (non-serial):",
+              logError
+            );
+          }
 
           showSuccess(`Device ${payload.deviceTag} updated successfully!`);
         }
@@ -2429,20 +2997,9 @@ function Inventory() {
     }
     setUseSerial(isSerialFormat);
 
-    setShowForm(true);
-  };
-
-  const handleShowDeviceHistory = (device) => {
-    // console.log("Opening device history for device:", device);
-    // console.log("Device tag:", device.deviceTag);
-    // console.log("Device ID:", device.id);
+    // Set the device for history display in the modal
     setSelectedDeviceForHistory(device);
-    setShowDeviceHistory(true);
-  };
-
-  const handleCloseDeviceHistory = () => {
-    setShowDeviceHistory(false);
-    setSelectedDeviceForHistory(null);
+    setShowForm(true);
   };
 
   const handleDelete = (id) => {
@@ -2460,6 +3017,30 @@ function Inventory() {
 
       // Delete the device
       await deleteDevice(deviceToDelete.id);
+
+      // Log to User Logs
+      try {
+        console.log("Attempting to log device deletion:", {
+          user: currentUser?.uid,
+          deviceTag: deviceData.deviceTag,
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_DELETE,
+          `Deleted device ${deviceData.deviceTag} from inventory`,
+          {
+            deviceTag: deviceData.deviceTag,
+            deviceType: deviceData.deviceType,
+            brand: deviceData.brand,
+            model: deviceData.model,
+          }
+        );
+        console.log("Device deletion logged successfully");
+      } catch (logError) {
+        console.error("Error logging device deletion:", logError);
+      }
 
       // Remove from UI immediately
       setDevices((prev) => prev.filter((d) => d.id !== deviceToDelete.id));
@@ -2514,6 +3095,7 @@ function Inventory() {
     setShowForm(false);
     setSaveError("");
     setTagError("");
+    setSelectedDeviceForHistory(null);
   };
 
   const getEmployeeName = (id) => {
@@ -2740,6 +3322,36 @@ function Inventory() {
 
       // Remove from UI immediately
       setDevices((prev) => prev.filter((d) => !selectedIds.includes(d.id)));
+
+      // Log to User Logs
+      try {
+        const deviceTags = devicesToDelete.map((d) => d.deviceTag).join(", ");
+        console.log("Attempting to log bulk delete:", {
+          user: currentUser?.uid,
+          count: devicesToDelete.length,
+          deviceTags: deviceTags,
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_DELETE,
+          `Bulk deleted ${devicesToDelete.length} device(s) from inventory`,
+          {
+            count: devicesToDelete.length,
+            deviceTags: deviceTags,
+            devices: devicesToDelete.map((d) => ({
+              deviceTag: d.deviceTag,
+              deviceType: d.deviceType,
+              brand: d.brand,
+              model: d.model,
+            })),
+          }
+        );
+        console.log("Bulk delete logged successfully");
+      } catch (logError) {
+        console.error("Error logging bulk delete:", logError);
+      }
 
       // Show undo notification
       showUndoNotification(
@@ -3091,6 +3703,32 @@ function Inventory() {
         date: new Date(), // Store full timestamp for precise ordering
         assignmentType: assignModalChecks.issueTypeSelected, // Store assignment type for history tracking
       });
+
+      // Log to User Logs
+      try {
+        console.log("Attempting to log device assignment:", {
+          user: currentUser?.uid,
+          deviceTag: dev.deviceTag,
+          employeeName: selectedAssignEmployee.fullName,
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_ASSIGN,
+          `Assigned device ${dev.deviceTag} to ${selectedAssignEmployee.fullName}`,
+          {
+            deviceTag: dev.deviceTag,
+            deviceType: dev.deviceType,
+            employeeId: selectedAssignEmployee.id,
+            employeeName: selectedAssignEmployee.fullName,
+            assignmentType: assignModalChecks.issueTypeSelected,
+          }
+        );
+        console.log("Device assignment logged successfully");
+      } catch (logError) {
+        console.error("Error logging device assignment:", logError);
+      }
     }
 
     // Clear selected IDs after assignment
@@ -3122,6 +3760,28 @@ function Inventory() {
         devices: filteredDevices, // Export only the filtered/displayed devices
         employees,
       });
+
+      // Log to User Logs
+      try {
+        console.log("Attempting to log inventory export:", {
+          user: currentUser?.uid,
+          count: filteredDevices.length,
+        });
+        await createUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.DEVICE_EXPORT,
+          `Exported ${filteredDevices.length} inventory device(s) to Excel`,
+          {
+            deviceCount: filteredDevices.length,
+          }
+        );
+        console.log("Inventory export logged successfully");
+      } catch (logError) {
+        console.error("Error logging inventory export:", logError);
+      }
+
       showSuccess("Inventory data exported successfully!");
     } catch (error) {
       showError("Failed to export inventory data. Please try again.");
@@ -3169,6 +3829,7 @@ function Inventory() {
     acquisitionDate,
     quantity,
     client,
+    ramSize,
   }) => {
     // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
@@ -3176,12 +3837,26 @@ function Inventory() {
       throw new Error("Please fill in all required fields.");
     }
 
+    // For RAM devices, validate that ramSize is selected
+    if (deviceType === "RAM" && !ramSize) {
+      throw new Error("Please select RAM size for RAM devices.");
+    }
+
     const typeObj = deviceTypes.find((t) => t.label === deviceType);
     if (!typeObj) {
       throw new Error("Invalid device type.");
     }
 
-    const prefix = `JOII${typeObj.code}`;
+    // Determine prefix based on device type
+    let prefix;
+    if (deviceType === "RAM" && ramSize) {
+      // Extract size number (e.g., "8GB" -> "8")
+      const sizeNumber = ramSize.replace("GB", "");
+      prefix = `JOIIRAM${sizeNumber}`;
+    } else {
+      prefix = `JOII${typeObj.code}`;
+    }
+
     const qty = parseInt(quantity, 10);
 
     if (isNaN(qty) || qty < 1 || qty > 100) {
@@ -3263,6 +3938,35 @@ function Inventory() {
         console.error(`Failed to add device ${deviceTag}:`, error);
       }
     }
+
+    // Log bulk acquisition to User Logs
+    try {
+      console.log("Attempting to log bulk acquisition (New Acquisitions):", {
+        user: currentUser?.uid,
+        deviceType: deviceType,
+        quantity: added,
+      });
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.DEVICE_CREATE,
+        `Added ${added} new device(s) via New Acquisitions (${deviceType})`,
+        {
+          deviceType: deviceType,
+          brand: brand,
+          model: model,
+          quantity: added,
+          startTag: `${prefix}${String(startTag).padStart(4, "0")}`,
+          endTag: `${prefix}${String(endTag).padStart(4, "0")}`,
+          acquisitionDate: acquisitionDate,
+        }
+      );
+      console.log("Bulk acquisition logged successfully");
+    } catch (logError) {
+      console.error("Error logging bulk acquisition:", logError);
+    }
+
     await loadDevicesAndEmployees();
     // console.log(
     //   `addDevicesInBulk completed: added ${added} devices of type "${deviceType}"`
@@ -3293,15 +3997,38 @@ function Inventory() {
     if (name === "deviceType" && value) {
       initializeTagFields(value);
     }
+
+    // Re-initialize TAG fields when RAM size is selected (for RAM devices)
+    if (name === "ramSize" && value) {
+      const activeTab = newAcqTabs.find((tab) => tab.id === activeTabId);
+      if (activeTab?.data.deviceType === "RAM") {
+        initializeTagFields("RAM", value);
+      }
+    }
   };
 
   // Function to auto-initialize quantity field and show next available TAGs
-  const initializeTagFields = async (deviceType) => {
+  const initializeTagFields = async (deviceType, ramSize = null) => {
     try {
       const typeObj = deviceTypes.find((t) => t.label === deviceType);
       if (!typeObj) return;
 
-      const prefix = `JOII${typeObj.code}`;
+      // For RAM devices, require ramSize to be selected first
+      if (deviceType === "RAM" && !ramSize) {
+        setNewAcqError("Please select RAM size first");
+        return;
+      }
+
+      // Determine prefix based on device type
+      let prefix;
+      if (deviceType === "RAM" && ramSize) {
+        // Extract size number (e.g., "8GB" -> "8")
+        const sizeNumber = ramSize.replace("GB", "");
+        prefix = `JOIIRAM${sizeNumber}`;
+      } else {
+        prefix = `JOII${typeObj.code}`;
+      }
+
       const isHeadset = typeObj.code === "H";
       const legacyHeadsetPrefix = "JOIIHS";
       const allDevices = await getAllDevices();
@@ -3365,6 +4092,7 @@ function Inventory() {
         quantity: 1,
         supplier: "",
         client: "",
+        ramSize: "", // For RAM devices: 4GB, 8GB, 16GB, 32GB, 64GB
         useManualSerial: false,
         manualQuantity: 1,
         manualSerials: [],
@@ -4149,7 +4877,7 @@ function Inventory() {
         { label: "Laptop", code: "LPT" },
         { label: "Monitor", code: "MN" },
         { label: "Mouse", code: "M" },
-        { label: "PC", code: "PC" },
+        // PC is processed separately in pcCpuTypes array below
         { label: "PSU", code: "PSU" },
         { label: "RAM", code: "RAM" },
         { label: "SSD", code: "SSD" },
@@ -4746,6 +5474,36 @@ function Inventory() {
             max-width: 800px;
           }
         }
+
+        /* Custom scrollbar with transparent background */
+        .inventory-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .inventory-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .inventory-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
+        }
       `}</style>
       <div
         style={{
@@ -5229,6 +5987,7 @@ function Inventory() {
           setUseSerial={setUseSerial}
           onSerialToggle={handleSerialToggle}
           editingDevice={form._editDeviceId}
+          deviceForHistory={selectedDeviceForHistory}
         />
       )}
 
@@ -5446,20 +6205,12 @@ function Inventory() {
           }}
         >
           <div
+            className="inventory-main-scroll"
             style={{
               flex: 1,
               overflowX: "auto",
               overflowY: "auto",
               maxHeight: "100%",
-              scrollbarWidth: "thin", // Show thin scrollbar for better UX
-              scrollbarColor: "#cbd5e1 #f1f5f9", // Custom scrollbar colors
-              // Custom webkit scrollbar styling
-              WebkitScrollbar: { width: "8px", height: "8px" },
-              WebkitScrollbarTrack: { background: "#f1f5f9" },
-              WebkitScrollbarThumb: {
-                background: "#cbd5e1",
-                borderRadius: "4px",
-              },
             }}
           >
             <table
@@ -5618,7 +6369,7 @@ function Inventory() {
                       zIndex: 10,
                     }}
                   >
-                    CLIENT
+                    DEVICE OWNER
                   </th>
                   <th
                     style={{
@@ -5836,7 +6587,7 @@ function Inventory() {
                           devices.map((d) => d.client).filter(Boolean)
                         ),
                       ]}
-                      placeholder="All Clients"
+                      placeholder="All Owners"
                     />
                   </th>
                   <th
@@ -6061,33 +6812,38 @@ function Inventory() {
                         <span
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleShowDeviceHistory(device);
+                            handleEdit(device);
                           }}
                           style={{
                             cursor: "pointer",
                             color: isDarkMode
                               ? "#f3f4f6"
                               : "rgb(107, 114, 128)",
-                            textDecoration: "none",
+                            textDecoration: "underline",
+                            textDecorationColor: "transparent",
                             fontWeight: 400,
-                            transition: "color 0.2s",
+                            transition: "all 0.2s ease",
                             display: "block",
                             width: "100%",
                             wordWrap: "break-word",
                             whiteSpace: "normal",
-                            fontSize: "13px", // Slightly smaller to fit better
+                            fontSize: "13px",
                           }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.color = isDarkMode
-                              ? "#d1d5db"
-                              : "rgb(75, 85, 99)")
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.color = isDarkMode
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "#3b82f6";
+                            e.currentTarget.style.textDecorationColor =
+                              "#3b82f6";
+                            e.currentTarget.style.fontWeight = "500";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = isDarkMode
                               ? "#f3f4f6"
-                              : "rgb(107, 114, 128)")
-                          }
-                          title={`Click to view device history: ${device.deviceTag}`}
+                              : "rgb(107, 114, 128)";
+                            e.currentTarget.style.textDecorationColor =
+                              "transparent";
+                            e.currentTarget.style.fontWeight = "400";
+                          }}
+                          title="Click to view device details and history"
                         >
                           {device.deviceTag}
                         </span>
@@ -7455,6 +8211,49 @@ function Inventory() {
                             ))}
                           </select>
                         </div>
+                        {/* RAM Size Selector - Only shown for RAM devices */}
+                        {currentData.deviceType === "RAM" && (
+                          <div
+                            style={{
+                              ...styles.inventoryInputGroup,
+                              flex: 1,
+                              marginBottom: 0,
+                            }}
+                          >
+                            <label style={styles.inventoryLabel}>
+                              RAM Size:
+                            </label>
+                            <select
+                              name="ramSize"
+                              value={currentData.ramSize}
+                              onChange={handleNewAcqInput}
+                              style={{
+                                ...styles.inventoryInput,
+                                borderColor: !currentData.ramSize
+                                  ? "#f59e0b"
+                                  : styles.inventoryInput.borderColor,
+                              }}
+                            >
+                              <option value="">Select RAM Size</option>
+                              <option value="4GB">4GB</option>
+                              <option value="8GB">8GB</option>
+                              <option value="16GB">16GB</option>
+                              <option value="32GB">32GB</option>
+                              <option value="64GB">64GB</option>
+                            </select>
+                            {!currentData.ramSize && (
+                              <span
+                                style={{
+                                  color: "#f59e0b",
+                                  fontSize: 11,
+                                  marginTop: 2,
+                                }}
+                              >
+                                RAM size is required for proper tagging
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div
                           style={{
                             ...styles.inventoryInputGroup,
@@ -7717,7 +8516,25 @@ function Inventory() {
                                     (t) => t.label === currentData.deviceType
                                   );
                                   if (typeObj) {
-                                    const prefix = `JOII${typeObj.code}`;
+                                    // Determine prefix based on device type
+                                    let prefix;
+                                    if (
+                                      currentData.deviceType === "RAM" &&
+                                      currentData.ramSize
+                                    ) {
+                                      // For RAM with size selected, use size-specific prefix
+                                      const sizeNumber =
+                                        currentData.ramSize.replace("GB", "");
+                                      prefix = `JOIIRAM${sizeNumber}`;
+                                    } else if (
+                                      currentData.deviceType === "RAM"
+                                    ) {
+                                      // For RAM without size selected, show prompt
+                                      return "Select RAM size to preview TAGs";
+                                    } else {
+                                      prefix = `JOII${typeObj.code}`;
+                                    }
+
                                     const qty =
                                       parseInt(currentData.quantity) || 1;
                                     const nextTag =
@@ -8432,15 +9249,6 @@ function Inventory() {
             )}
           </div>
         </div>
-      )}
-
-      {/* Device History Modal */}
-      {showDeviceHistory && selectedDeviceForHistory && (
-        <DeviceHistory
-          deviceTag={selectedDeviceForHistory.deviceTag}
-          deviceId={selectedDeviceForHistory.id}
-          onClose={handleCloseDeviceHistory}
-        />
       )}
 
       {/* Delete Confirmation Modal */}

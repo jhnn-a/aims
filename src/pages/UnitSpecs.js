@@ -30,6 +30,9 @@ import { generateNextDeviceTag } from "./InventoryUtils";
 import { getAllClients } from "../services/clientService";
 // Import theme context for dark mode
 import { useTheme } from "../context/ThemeContext";
+import { useSnackbar } from "../components/Snackbar";
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
 
 const emptyUnit = {
   Tag: "",
@@ -39,8 +42,10 @@ const emptyUnit = {
   cpuModel: "", // New field for CPU model
   CPU: "",
   RAM: "",
-  Drive: "",
+  Drive1: "", // Split main drive into Drive1
+  Drive2: "", // Optional secondary drive
   GPU: "",
+  model: "", // Device model (matches Assets/Inventory)
   Condition: "", // Renamed from Status to Condition
   OS: "",
   client: "", // New field for client assignment
@@ -69,6 +74,25 @@ const osOptions = [
   { label: "Windows 10", value: "WIN10" },
   { label: "Windows 11", value: "WIN11" },
 ];
+
+// Helper: normalize various OS strings to option value keys
+const normalizeOsToValue = (osString) => {
+  if (!osString) return "";
+  const s = String(osString).toLowerCase().trim();
+  if (s.includes("windows 10") || s.includes("win10") || s === "win10") return "WIN10";
+  if (s.includes("windows 11") || s.includes("win11") || s === "win11") return "WIN11";
+  return "";
+};
+
+// Normalize RAM to numeric option value (e.g. "8GB" -> 8)
+const normalizeRamToValue = (ramString) => {
+  if (ramString === null || ramString === undefined) return "";
+  const s = String(ramString).toLowerCase().trim();
+  // If already a plain number string or number, extract digits
+  const m = s.match(/(\d+)/);
+  if (m) return parseInt(m[1], 10);
+  return "";
+};
 
 const conditionOptions = [
   { label: "BRANDNEW", value: "BRANDNEW" },
@@ -111,15 +135,6 @@ const getLifespanYears = (category, cpuGen, ram, drive, gpu) => {
     hasSSD &&
     hasGPU
   ) {
-    return 5;
-  }
-
-  // Mid-range criteria: i5/i7, 8GB+ RAM, SSD
-  if (
-    (cpuGeneration === "i5" || cpuGeneration === "i7") &&
-    ramSize >= 8 &&
-    hasSSD
-  ) {
     return 4;
   }
 
@@ -146,7 +161,7 @@ const calculateAppraisalDate = (
     const appraisalDate = new Date(addedDate);
     appraisalDate.setFullYear(appraisalDate.getFullYear() + lifespanYears);
 
-    return appraisalDate.toLocaleDateString("en-US", {
+    return appraisalDate.toLocaleDateString("en-GB", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -576,6 +591,7 @@ const deleteIcon = (
 const UnitSpecs = () => {
   // Initialize theme context for dark mode
   const { isDarkMode } = useTheme();
+  const currentUser = useCurrentUser(); // Get current user for logging
 
   const [inventory, setInventory] = useState([]);
   const [deployed, setDeployed] = useState([]);
@@ -680,6 +696,12 @@ const UnitSpecs = () => {
   const handleImportExcel = async (e, targetTable = "InventoryUnits") => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Set importing flag in both state and sessionStorage
+    sessionStorage.setItem("unitSpecsImporting", "true");
+    setImporting(true);
+    setImportProgress({ current: 0, total: 0 });
+
     try {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
@@ -689,6 +711,7 @@ const UnitSpecs = () => {
 
       if (!rows.length) {
         toast.error("Import file is empty");
+        setImporting(false);
         return;
       }
 
@@ -697,6 +720,9 @@ const UnitSpecs = () => {
       let updateCount = 0;
       let skipCount = 0;
       const skipped = [];
+
+      // Set total for progress tracking
+      setImportProgress({ current: 0, total: rows.length });
 
       // Helper: normalize header-based keys
       const normalizeFieldValue = (row, keys) => {
@@ -707,8 +733,34 @@ const UnitSpecs = () => {
         return "";
       };
 
+      // Helper: normalize drive size (convert 1000GB to 1TB, etc.)
+      const normalizeDriveSize = (driveValue) => {
+        if (!driveValue) return "";
+
+        const driveStr = String(driveValue).trim();
+
+        // Match patterns like "1000GB", "1000 GB", "2000GB", etc.
+        const gbMatch = driveStr.match(/^(\d+)\s*GB$/i);
+        if (gbMatch) {
+          const gbSize = parseInt(gbMatch[1], 10);
+          // Convert multiples of 1000GB to TB
+          if (gbSize >= 1000 && gbSize % 1000 === 0) {
+            const tbSize = gbSize / 1000;
+            return `${tbSize}TB`;
+          }
+        }
+
+        // Return as-is if no conversion needed
+        return driveStr;
+      };
+
       const validTypes = ["PC", "LAPTOP", "DESKTOP", "NOTEBOOK", "COMPUTER"]; // accepted as PC/Laptop class
-      for (const rawRow of rows) {
+      for (let i = 0; i < rows.length; i++) {
+        const rawRow = rows[i];
+
+        // Update progress
+        setImportProgress({ current: i + 1, total: rows.length });
+
         const tag = (
           normalizeFieldValue(rawRow, [
             "Tag",
@@ -736,14 +788,30 @@ const UnitSpecs = () => {
           "CPU Gen",
           "CpuGen",
         ]);
-        const ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB
-        const storage = normalizeFieldValue(rawRow, [
+        let ram = normalizeFieldValue(rawRow, ["RAM", "Ram", "Memory"]); // expect e.g. 8GB or number
+        if (ram && /^(\d+)$/.test(ram)) ram = `${ram}GB`; // normalize plain numbers
+
+        // Extract and normalize drive values
+        const drive1Raw = normalizeFieldValue(rawRow, [
+          "Drive1",
+          "Drive 1",
+          "PrimaryDrive",
           "Drive",
           "Storage",
           "drive",
           "Storage1",
         ]);
-        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu"]);
+        const drive1 = normalizeDriveSize(drive1Raw);
+
+        const drive2Raw = normalizeFieldValue(rawRow, [
+          "Drive2",
+          "Drive 2",
+          "SecondaryDrive",
+          "Storage2",
+          "drive2",
+        ]);
+        const drive2 = normalizeDriveSize(drive2Raw);
+        const gpu = normalizeFieldValue(rawRow, ["GPU", "Gpu", "gpu"]);
         const condition = normalizeFieldValue(rawRow, [
           "Condition",
           "Status",
@@ -793,13 +861,18 @@ const UnitSpecs = () => {
         );
         const snap = await getDocs(q);
 
-        // Common payload mapping to device schema used elsewhere (Inventory/Assets)
+        // Build derived/legacy compatibility fields
+        const combinedStorage = [drive1, drive2].filter(Boolean).join(" + ");
         const payload = {
-          // Only include fields that have values to avoid mass overwrites with empty strings
           ...(deviceType ? { deviceType } : {}),
-          ...(cpuGen ? { cpuGen } : {}),
+          ...(cpuGen ? { cpuGen, cpu: cpuGen } : {}), // store both for compatibility
           ...(ram ? { ram } : {}),
-          ...(storage ? { storage } : {}),
+          // Always include drive fields (use empty string if not provided)
+          drive1: drive1 || "",
+          drive2: drive2 || "",
+          Drive1: drive1 || "", // Keep capitalized for compatibility
+          Drive2: drive2 || "", // Keep capitalized for compatibility
+          ...(combinedStorage ? { storage: combinedStorage } : {}), // legacy aggregate
           ...(gpu ? { gpu } : {}),
           ...(condition ? { condition } : {}),
           ...(os ? { os } : {}),
@@ -831,17 +904,50 @@ const UnitSpecs = () => {
         }
       }
 
-      toast.success(
-        `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`
+      const summary = `Import summary: ${updateCount} updated, ${createCount} created, ${skipCount} skipped.`;
+
+      // Log to User Logs
+      await createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.UNITSPEC_IMPORT,
+        `Imported units: ${createCount} created, ${updateCount} updated`,
+        {
+          createdCount: createCount,
+          updatedCount: updateCount,
+          skippedCount: skipCount,
+          targetCollection: targetTable,
+        }
       );
+
+      toast.success(summary);
+      showSuccess(summary, 6000);
+      setLastImportStats({
+        updated: updateCount,
+        created: createCount,
+        skipped: skipCount,
+        errors: 0,
+      });
       if (skipped.length) {
         console.warn("Skipped rows (no tag):", skipped.slice(0, 5));
       }
     } catch (err) {
       console.error(err);
-      toast.error("Import failed");
+      const failMsg = `Import failed: ${err.message || "Unknown error"}`;
+      toast.error(failMsg);
+      showError(failMsg, 7000);
+      setLastImportStats((prev) => ({ ...prev, errors: prev.errors + 1 }));
     } finally {
+      // Clear importing flag from both state and sessionStorage
+      sessionStorage.removeItem("unitSpecsImporting");
+      setImporting(false);
+      setImportProgress({ current: 0, total: 0 });
       e.target.value = ""; // allow re-select same file
+
+      // Manually refresh data after import completes
+      // This ensures the table shows updated data without flicker during import
+      fetchData();
     }
   };
 
@@ -864,7 +970,9 @@ const UnitSpecs = () => {
         DeviceType: u.deviceType || "",
         CPU: u.CPU || u.cpuGen || "",
         RAM: u.RAM,
-        Drive: u.Drive,
+        Drive1: u.Drive1 || "",
+        Drive2: u.Drive2 || "",
+        Model: u.model || "",
         GPU: u.GPU,
         Condition: u.Condition || u.Status || "",
         OS: u.OS,
@@ -886,6 +994,22 @@ const UnitSpecs = () => {
         isInventory ? "Inventory" : "Deployed"
       }_${new Date().toISOString().slice(0, 10)}.xlsx`;
       XLSX.writeFile(workbook, fileName);
+
+      // Log to User Logs
+      createUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.UNITSPEC_EXPORT,
+        `Exported ${sorted.length} unit(s) from ${
+          isInventory ? "Inventory" : "Deployed"
+        } to Excel`,
+        {
+          unitsCount: sorted.length,
+          collection: activeTab,
+        }
+      );
+
       toast.success("Export complete");
     } catch (err) {
       console.error(err);
@@ -894,6 +1018,25 @@ const UnitSpecs = () => {
   };
 
   const importInputRef = useRef(null);
+  const { showSuccess, showError } = useSnackbar();
+
+  // Check if import is in progress from sessionStorage (persists across navigation)
+  const isImportInProgress = () => {
+    const importStatus = sessionStorage.getItem("unitSpecsImporting");
+    return importStatus === "true";
+  };
+
+  const [importing, setImporting] = useState(isImportInProgress());
+  const [importProgress, setImportProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const [lastImportStats, setLastImportStats] = useState({
+    updated: 0,
+    created: 0,
+    skipped: 0,
+    errors: 0,
+  });
 
   // Fetch data from Firestore on mount and after changes
   const fetchData = async () => {
@@ -936,15 +1079,44 @@ const UnitSpecs = () => {
           return match ? match[1] : "";
         };
 
-        const extractStorage = (storageString) => {
-          if (!storageString) return "";
-          const match = storageString.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
+        const normalizeCapacity = (segment) => {
+          if (!segment) return "";
+          const match = segment.match(/(\d+(?:\.\d+)?)\s*(TB|GB|tb|gb)/i);
           if (match) {
             const value = parseFloat(match[1]);
             const unit = match[2].toUpperCase();
             return unit === "TB" ? `${value * 1000}GB` : `${value}GB`;
           }
-          return storageString;
+          return segment.trim();
+        };
+        const splitStorage = (storageString) => {
+          if (!storageString) return { d1: "", d2: "" };
+          // Split by common delimiters
+          const parts = storageString
+            .split(/[,;+\/]|\band\b/i)
+            .map((p) => p.trim())
+            .filter(Boolean);
+          if (parts.length === 0) return { d1: "", d2: "" };
+
+          // Apply normalizeDriveSize to convert 1000GB -> 1TB
+          const normalizeDrive = (driveValue) => {
+            if (!driveValue) return "";
+            const gbMatch = driveValue.match(/^(\d+(?:\.\d+)?)\s*GB$/i);
+            if (gbMatch) {
+              const gb = parseFloat(gbMatch[1]);
+              if (gb >= 1000 && gb % 1000 === 0) {
+                return `${gb / 1000}TB`;
+              }
+            }
+            return driveValue;
+          };
+
+          if (parts.length === 1)
+            return { d1: normalizeDrive(normalizeCapacity(parts[0])), d2: "" };
+          return {
+            d1: normalizeDrive(normalizeCapacity(parts[0])),
+            d2: normalizeDrive(normalizeCapacity(parts[1])),
+          };
         };
 
         const extractRAM = (ramString) => {
@@ -968,6 +1140,19 @@ const UnitSpecs = () => {
             return addedDate.toISOString();
           })();
 
+        // Apply normalizeDriveSize to convert 1000GB -> 1TB on display
+        const normalizeDrive = (driveValue) => {
+          if (!driveValue) return "";
+          const gbMatch = driveValue.match(/^(\d+(?:\.\d+)?)\s*GB$/i);
+          if (gbMatch) {
+            const gb = parseFloat(gbMatch[1]);
+            if (gb >= 1000 && gb % 1000 === 0) {
+              return `${gb / 1000}TB`;
+            }
+          }
+          return driveValue;
+        };
+
         return {
           id: device.id,
           Tag: device.deviceTag || "",
@@ -977,7 +1162,21 @@ const UnitSpecs = () => {
           cpuModel: extractCpuModel(device.cpuGen || device.cpu || ""),
           CPU: device.cpuGen || device.cpu || "",
           RAM: extractRAM(device.ram || ""),
-          Drive: extractStorage(device.storage || ""),
+          ...(() => {
+            // Check if device has separate drive1/drive2 fields first
+            if (device.drive1 || device.drive2) {
+              return {
+                Drive1: normalizeDrive(device.drive1 || device.Drive1 || ""),
+                Drive2: normalizeDrive(device.drive2 || device.Drive2 || ""),
+              };
+            }
+            // Otherwise split from storage field
+            const { d1, d2 } = splitStorage(
+              device.storage || device.Drive1 || device.Drive2 || ""
+            );
+            return { Drive1: d1, Drive2: d2 };
+          })(),
+          model: device.model || "",
           GPU: device.gpu || "",
           Condition: device.condition || "",
           OS: device.os || device.operatingSystem || "",
@@ -1018,20 +1217,32 @@ const UnitSpecs = () => {
     const unsubscribe = onSnapshot(
       collection(db, "devices"),
       (snapshot) => {
-        console.log("Devices collection updated, refreshing UnitSpecs data...");
-        fetchData();
+        // Don't refresh if we're currently importing to prevent flicker
+        // Check both state and sessionStorage to handle navigation during import
+        const isCurrentlyImporting =
+          importing || sessionStorage.getItem("unitSpecsImporting") === "true";
+        if (!isCurrentlyImporting) {
+          console.log(
+            "Devices collection updated, refreshing UnitSpecs data..."
+          );
+          fetchData();
+        }
       },
       (error) => {
         console.error("Error listening to devices collection:", error);
       }
     );
 
-    // Initial data fetch
-    fetchData();
+    // Initial data fetch (skip if import is in progress)
+    const isCurrentlyImporting =
+      sessionStorage.getItem("unitSpecsImporting") === "true";
+    if (!isCurrentlyImporting) {
+      fetchData();
+    }
 
     // Cleanup listener on unmount
     return () => unsubscribe();
-  }, []);
+  }, [importing]);
 
   // Note: Sync function removed - UnitSpecs now reads directly from devices collection
 
@@ -1113,10 +1324,44 @@ const UnitSpecs = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    toast.error(
-      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to add or modify devices."
-    );
-    return;
+  console.log("UnitSpecs.handleSubmit called", { editId, editCollection });
+    try {
+      // If editing an existing unit, allow update
+      if (editId && editCollection) {
+        // Build payload from form (avoid including empty fields unnecessarily)
+        const payload = {
+          ...form,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Remove internal-only fields that shouldn't be stored
+        delete payload.id;
+        delete payload.Tag; // Tag might be managed elsewhere
+
+        const docRef = doc(db, editCollection, editId);
+        await updateDoc(docRef, payload);
+
+        toast.success("Unit updated successfully.");
+        // Refresh local state: refetch units or update in-place
+        // Simple approach: close modal and reload page data via existing fetch functions
+        setShowModal(false);
+        setEditId(null);
+        setEditCollection("");
+        setForm(emptyUnit);
+        // Trigger a refresh by calling the existing data load if available
+        // (Assumes the component's data load uses effects on mount or external trigger)
+        return;
+      }
+
+      // Creating new units is disallowed in UnitSpecs - guide user to Company Assets
+      toast.error(
+        "Creating new units is disabled here. Use Company Assets (Inventory/Assets) to add devices."
+      );
+      return;
+    } catch (err) {
+      console.error("Failed to save unit:", err);
+      toast.error(`Failed to save unit: ${err.message || "Unknown error"}`);
+    }
   };
 
   const handleMove = async (unit, from, to) => {
@@ -1127,10 +1372,26 @@ const UnitSpecs = () => {
   };
 
   const handleEdit = (unit, collectionName) => {
-    toast.error(
-      "UnitSpecs is now read-only. Please use Company Assets (Inventory/Assets) to edit devices."
-    );
-    return;
+    // Allow editing - removed read-only restriction
+    setEditId(unit.id);
+    setEditCollection(collectionName);
+  // Normalize OS to option value so the select control matches
+  const normalizedOS = normalizeOsToValue(unit.OS || unit.os || "");
+  const normalizedRAM = normalizeRamToValue(unit.RAM || unit.ram || "");
+  // Prefer the full CPU string (unit.CPU or unit.cpu) when opening edit modal so users see e.g. "i3-12100"
+  const fullCpu = (unit.CPU || unit.cpu || unit.cpuGen || "").toString();
+  // ramOptions holds numbers (4,8,16...). Ensure form.RAM matches those values
+  setForm({
+    ...unit,
+    OS: normalizedOS,
+    RAM: normalizedRAM || "",
+    // Put full CPU into cpuGen input and also keep CPU field in sync
+    cpuGen: fullCpu,
+    CPU: fullCpu,
+  });
+  // Close any open filter/popover that may be sitting above the modal
+  setFilterPopup({ open: false, column: null, table: null, anchor: null });
+  setShowModal(true);
   };
 
   const handleCancelEdit = () => {
@@ -1213,8 +1474,12 @@ const UnitSpecs = () => {
       )
         .filter(Boolean)
         .sort((a, b) => a - b);
-    if (key === "Drive")
-      return Array.from(new Set(data.map((u) => u.Drive))).filter(Boolean);
+    if (key === "Drive 1")
+      return Array.from(new Set(data.map((u) => u.Drive1))).filter(Boolean);
+    if (key === "Drive 2")
+      return Array.from(new Set(data.map((u) => u.Drive2))).filter(Boolean);
+    if (key === "Models")
+      return Array.from(new Set(data.map((u) => u.model))).filter(Boolean);
     if (key === "GPU")
       return Array.from(new Set(data.map((u) => u.GPU))).filter(Boolean);
     if (key === "Status")
@@ -1238,7 +1503,7 @@ const UnitSpecs = () => {
               u.category,
               u.cpuGen,
               u.RAM,
-              u.Drive,
+              u.Drive1,
               u.GPU
             );
           })
@@ -1283,7 +1548,7 @@ const UnitSpecs = () => {
                   unit.category,
                   unit.cpuGen,
                   unit.RAM,
-                  unit.Drive,
+                  unit.Drive1,
                   unit.GPU
                 )
               : "";
@@ -2067,42 +2332,52 @@ const UnitSpecs = () => {
             {/* Export Button */}
             <button
               onClick={handleExportExcel}
+              disabled={importing}
               style={{
-                background: "#2563eb", // retain original blue
+                background: importing ? "#9ca3af" : "#f97316", // Orange
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
                 padding: "9px 16px",
                 fontWeight: 500,
                 fontSize: "14px",
-                cursor: "pointer",
+                cursor: importing ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
                 whiteSpace: "nowrap",
+                opacity: importing ? 0.6 : 1,
               }}
               title="Export current filtered & sorted data to Excel"
             >
-              Export (.xlsx)
+              Export
             </button>
             {/* Import Button triggers hidden file input */}
             <button
               onClick={() =>
-                importInputRef.current && importInputRef.current.click()
+                !importing &&
+                importInputRef.current &&
+                importInputRef.current.click()
               }
+              disabled={importing}
               style={{
-                background: isDarkMode ? "#1f2937" : "#374151", // retain original dark gray
+                background: importing ? "#9ca3af" : "#10b981", // Green
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
                 padding: "9px 16px",
                 fontWeight: 500,
                 fontSize: "14px",
-                cursor: "pointer",
+                cursor: importing ? "not-allowed" : "pointer",
                 transition: "all 0.2s",
                 whiteSpace: "nowrap",
+                opacity: importing ? 0.6 : 1,
               }}
               title="Import & upsert devices from Excel by Tag"
             >
-              Import (.xlsx)
+              {importing
+                ? importProgress.total > 0
+                  ? `Importing ${importProgress.current}/${importProgress.total}...`
+                  : "Importing..."
+                : "Import"}
             </button>
             <input
               ref={importInputRef}
@@ -2138,11 +2413,11 @@ const UnitSpecs = () => {
 
         {/* Scrollable Table Container */}
         <div
+          className="unitspecs-main-scroll"
           style={{
             flex: 1,
             overflow: "auto",
             maxHeight: "calc(100vh - 300px)", // Increased from 280px to give more space
-            paddingBottom: "20px", // Add padding at bottom for last row visibility
           }}
         >
           <table
@@ -2234,9 +2509,10 @@ const UnitSpecs = () => {
                   "Device Type",
                   "CPU",
                   "RAM",
-                  "Drive",
+                  "Drive 1",
+                  "Drive 2",
+                  "Models",
                   "GPU",
-                  "Condition",
                   "OS",
                   "Client",
                 ].map((col) => (
@@ -2256,8 +2532,6 @@ const UnitSpecs = () => {
                           ? "15%"
                           : col === "GPU"
                           ? "12%"
-                          : col === "Condition"
-                          ? "10%"
                           : col === "OS"
                           ? "8%"
                           : "13%", // Client
@@ -2296,8 +2570,12 @@ const UnitSpecs = () => {
                     >
                       {col === "CPU"
                         ? "CPU GEN"
-                        : col === "Drive"
-                        ? "MAIN DRIVE"
+                        : col === "Drive 1"
+                        ? "DRIVE 1"
+                        : col === "Drive 2"
+                        ? "DRIVE 2"
+                        : col === "Models"
+                        ? "MODELS"
                         : col.toUpperCase()}
                     </span>
                     <span
@@ -2542,7 +2820,7 @@ const UnitSpecs = () => {
                     </td>
                     <td
                       style={{
-                        width: "15%",
+                        width: "12%",
                         padding: "8px 6px",
                         fontSize: "14px",
                         color: isDarkMode ? "#f3f4f6" : "#374151",
@@ -2554,7 +2832,38 @@ const UnitSpecs = () => {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {unit.Drive}
+                      {unit.Drive1 || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "12%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {unit.Drive2 || ""}
+                    </td>
+                    <td
+                      style={{
+                        width: "14%",
+                        padding: "8px 6px",
+                        fontSize: "14px",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        border: isDarkMode
+                          ? "1px solid #374151"
+                          : "1px solid #d1d5db",
+                        wordBreak: "break-word",
+                        whiteSpace: "normal",
+                      }}
+                    >
+                      {unit.model || ""}
                     </td>
                     <td
                       style={{
@@ -2571,45 +2880,6 @@ const UnitSpecs = () => {
                       }}
                     >
                       {unit.GPU}
-                    </td>
-                    <td
-                      style={{
-                        width: "10%",
-                        padding: "8px 6px",
-                        fontSize: "14px",
-                        color: isDarkMode ? "#f3f4f6" : "#374151",
-                        border: isDarkMode
-                          ? "1px solid #374151"
-                          : "1px solid #d1d5db",
-                        textAlign: "center",
-                      }}
-                    >
-                      {unit.Condition || unit.Status ? (
-                        <div
-                          style={{
-                            display: "inline-block",
-                            background: getConditionColor(
-                              unit.Condition || unit.Status
-                            ),
-                            color: getConditionTextColor(
-                              unit.Condition || unit.Status
-                            ),
-                            padding: "4px 8px",
-                            borderRadius: "4px",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            textAlign: "center",
-                            minWidth: "70px",
-                            lineHeight: "1.2",
-                            whiteSpace: "nowrap",
-                            boxShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          {unit.Condition || unit.Status}
-                        </div>
-                      ) : (
-                        ""
-                      )}
                     </td>
                     <td
                       style={{
@@ -2662,87 +2932,6 @@ const UnitSpecs = () => {
                             minWidth: "fit-content",
                           }}
                         >
-                          <button
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "none",
-                              outline: "none",
-                              borderRadius: 4,
-                              background: "transparent",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              padding: "3px",
-                              minWidth: "24px",
-                              minHeight: "24px",
-                            }}
-                            onClick={() =>
-                              collectionName === "InventoryUnits"
-                                ? handleMove(
-                                    unit,
-                                    "InventoryUnits",
-                                    "DeployedUnits"
-                                  )
-                                : handleMove(
-                                    unit,
-                                    "DeployedUnits",
-                                    "InventoryUnits"
-                                  )
-                            }
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = "#10b981";
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.boxShadow =
-                                "0 4px 12px rgba(16, 185, 129, 0.3)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "transparent";
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.boxShadow = "none";
-                            }}
-                            title={
-                              collectionName === "InventoryUnits"
-                                ? "Deploy"
-                                : "Return"
-                            }
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              fill="none"
-                              stroke="#6b7280"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              viewBox="0 0 24 24"
-                              style={{
-                                transition: "stroke 0.2s ease",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.stroke = "#ffffff")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.stroke = "#6b7280")
-                              }
-                            >
-                              {collectionName === "InventoryUnits" ? (
-                                // Deploy icon (upload arrow)
-                                <>
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="7 10 12 15 17 10" />
-                                  <line x1="12" y1="15" x2="12" y2="3" />
-                                </>
-                              ) : (
-                                // Return icon (download arrow)
-                                <>
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                  <polyline points="17 8 12 3 7 8" />
-                                  <line x1="12" y1="3" x2="12" y2="15" />
-                                </>
-                              )}
-                            </svg>
-                          </button>
                           <button
                             style={{
                               display: "flex",
@@ -2857,6 +3046,8 @@ const UnitSpecs = () => {
               )}
             </tbody>
           </table>
+          {/* Spacer to prevent pagination overlap */}
+          <div style={{ height: "10px" }}></div>
         </div>
       </div>
     );
@@ -2874,7 +3065,8 @@ const UnitSpecs = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 2000,
+  zIndex: 99999,
+  pointerEvents: "auto",
       }}
     >
       <div
@@ -2912,6 +3104,8 @@ const UnitSpecs = () => {
           fontFamily:
             "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           animation: "modalFadeIn 0.2s ease-out",
+          // Ensure the modal content is interactive
+          pointerEvents: "auto",
         }}
         role="dialog"
         aria-modal="true"
@@ -3193,7 +3387,391 @@ const UnitSpecs = () => {
             />
           </div>
 
-          {/* Row 4: CPU Generation and Model */}
+          {/* PC/Laptop Specifications Section - Bordered Box */}
+          <div
+            style={{
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: "6px",
+              padding: "12px",
+              marginBottom: 12,
+              background: isDarkMode ? "#374151" : "#f9fafb",
+              width: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            <h4
+              style={{
+                margin: "0 0 10px 0",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+              </svg>
+              {form.deviceType} Specifications
+            </h4>
+
+            {/* Row 1: CPU Gen and RAM */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  CPU - System Unit:
+                </label>
+                <input
+                  name="cpuGen"
+                  value={form.cpuGen}
+                  onChange={handleChange}
+                  placeholder="e.g., i5 - 10400"
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  RAM:
+                </label>
+                <select
+                  name="RAM"
+                  value={form.RAM}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                >
+                  <option value="">Select RAM</option>
+                  {ramOptions.map((ram) => (
+                    <option key={ram} value={ram}>
+                      {ram}GB
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 2: Drive 1 and Drive 2 */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  Drive 1:
+                </label>
+                <input
+                  name="Drive1"
+                  placeholder="e.g., 256GB SSD"
+                  value={form.Drive1}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  Drive 2 (Optional):
+                </label>
+                <input
+                  name="Drive2"
+                  placeholder="e.g., 1TB HDD"
+                  value={form.Drive2}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Row 3: GPU and OS */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                width: "100%",
+                marginBottom: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  GPU:
+                </label>
+                <input
+                  name="GPU"
+                  placeholder="e.g., Integrated / GTX 1650"
+                  value={form.GPU}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  marginBottom: 0,
+                  width: "100%",
+                  minWidth: 140,
+                  flex: 1,
+                }}
+              >
+                <label
+                  style={{
+                    alignSelf: "flex-start",
+                    fontWeight: 500,
+                    color: isDarkMode ? "#f3f4f6" : "#222e3a",
+                    marginBottom: 3,
+                    fontSize: 13,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                  }}
+                >
+                  OS:
+                </label>
+                <select
+                  name="OS"
+                  value={form.OS}
+                  onChange={handleChange}
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    borderRadius: 5,
+                    border: isDarkMode
+                      ? "1.2px solid #4b5563"
+                      : "1.2px solid #cbd5e1",
+                    background: isDarkMode ? "#374151" : "#f1f5f9",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    height: "30px",
+                    boxSizing: "border-box",
+                    marginBottom: 0,
+                    fontFamily:
+                      "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    outline: "none",
+                    transition: "border-color 0.2s, box-shadow 0.2s",
+                  }}
+                  required
+                >
+                  <option value="">Select OS</option>
+                  {osOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 5: Model and Condition */}
           <div
             style={{
               display: "flex",
@@ -3224,70 +3802,12 @@ const UnitSpecs = () => {
                     "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
-                CPU - System Unit:
-              </label>
-              <select
-                name="cpuGen"
-                value={form.cpuGen}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                required
-              >
-                <option value="">Select CPU System Unit</option>
-                {cpuGenOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                CPU Model:
+                Model:
               </label>
               <input
-                name="cpuModel"
-                placeholder="Model"
-                value={form.cpuModel}
+                name="model"
+                placeholder="Model (e.g. ThinkPad T480)"
+                value={form.model}
                 onChange={handleChange}
                 style={{
                   width: "100%",
@@ -3310,9 +3830,11 @@ const UnitSpecs = () => {
                 }}
               />
             </div>
+
+            {/* Condition field removed from edit modal per request */}
           </div>
 
-          {/* Row 5: RAM and Drive */}
+          {/* Row 6: Client and Remarks */}
           <div
             style={{
               display: "flex",
@@ -3343,302 +3865,7 @@ const UnitSpecs = () => {
                     "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                 }}
               >
-                RAM (GB):
-              </label>
-              <select
-                name="RAM"
-                value={form.RAM}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-              >
-                <option value="">Select RAM</option>
-                {ramOptions.map((ram) => (
-                  <option key={ram} value={ram}>
-                    {ram} GB
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                Drive:
-              </label>
-              <input
-                name="Drive"
-                placeholder="MAIN DRIVE"
-                value={form.Drive}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Row 6: GPU and Status */}
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              width: "100%",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                GPU:
-              </label>
-              <input
-                name="GPU"
-                placeholder="GPU"
-                value={form.GPU}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                Condition:
-              </label>
-              <select
-                name="Condition"
-                value={form.Condition}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                required
-              >
-                <option value="">Select Condition</option>
-                {conditionOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Row 7: OS and Remarks */}
-          <div
-            style={{
-              display: "flex",
-              gap: 16,
-              width: "100%",
-              marginBottom: 12,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                OS:
-              </label>
-              <select
-                name="OS"
-                value={form.OS}
-                onChange={handleChange}
-                style={{
-                  width: "100%",
-                  minWidth: 0,
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  borderRadius: 5,
-                  border: isDarkMode
-                    ? "1.2px solid #4b5563"
-                    : "1.2px solid #cbd5e1",
-                  background: isDarkMode ? "#374151" : "#f1f5f9",
-                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                  height: "30px",
-                  boxSizing: "border-box",
-                  marginBottom: 0,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                  outline: "none",
-                  transition: "border-color 0.2s, box-shadow 0.2s",
-                }}
-                required
-              >
-                <option value="">Select OS</option>
-                {osOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                marginBottom: 0,
-                width: "100%",
-                minWidth: 140,
-                flex: 1,
-              }}
-            >
-              <label
-                style={{
-                  alignSelf: "flex-start",
-                  fontWeight: 500,
-                  color: isDarkMode ? "#f3f4f6" : "#222e3a",
-                  marginBottom: 3,
-                  fontSize: 13,
-                  fontFamily:
-                    "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-                }}
-              >
-                Client:
+                Client Owned:
               </label>
               <select
                 name="client"
@@ -3815,6 +4042,37 @@ const UnitSpecs = () => {
         boxSizing: "border-box",
       }}
     >
+      <style>{`
+        /* Custom scrollbar with transparent background */
+        .unitspecs-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .unitspecs-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .unitspecs-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
+        }
+      `}</style>
       {/* Header outside card */}
       <div
         style={{

@@ -78,6 +78,35 @@ const formatTimeToAMPM = (dateValue) => {
   });
 };
 
+// Utility function to format dates consistently as DD/MM/YYYY
+const formatDateToDDMMYYYY = (dateValue) => {
+  if (!dateValue) return "";
+
+  let date;
+  if (typeof dateValue === "number") {
+    date = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
+  } else if (typeof dateValue === "string") {
+    date = new Date(dateValue);
+  } else if (typeof dateValue === "object" && dateValue.seconds) {
+    // Handle Firestore timestamp
+    date = new Date(dateValue.seconds * 1000);
+  } else if (dateValue instanceof Date) {
+    date = dateValue;
+  } else {
+    return "";
+  }
+
+  if (isNaN(date)) return "";
+
+  return (
+    date.getDate().toString().padStart(2, "0") +
+    "/" +
+    (date.getMonth() + 1).toString().padStart(2, "0") +
+    "/" +
+    date.getFullYear()
+  );
+};
+
 const DeviceHistory = ({ deviceTag, deviceId, onClose }) => {
   const { isDarkMode } = useTheme();
   const [history, setHistory] = useState([]);
@@ -521,7 +550,7 @@ const DeviceHistory = ({ deviceTag, deviceId, onClose }) => {
                       )}
                     </div>
                     <div style={styles.dateTime}>
-                      {formatDateToMMDDYYYY(item.date)} at{" "}
+                      {formatDateToDDMMYYYY(item.date)} at{" "}
                       {formatTimeToAMPM(item.date)}
                     </div>
                     {(item.reason || item.condition) && (

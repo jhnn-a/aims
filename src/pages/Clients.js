@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getAllEmployees } from "../services/employeeService";
+import { getAllDevices } from "../services/deviceService";
 import * as XLSX from "xlsx";
 import {
   addClient,
@@ -10,6 +11,107 @@ import {
 import { useSnackbar } from "../components/Snackbar";
 import { TableLoadingSpinner } from "../components/LoadingSpinner";
 import { useTheme } from "../context/ThemeContext";
+import { useCurrentUser } from "../CurrentUserContext"; // Current user context
+import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
+
+// Defensive wrapper for createUserLog to prevent undefined actionType errors
+const safeCreateUserLog = async (
+  userId,
+  userName,
+  userEmail,
+  actionType,
+  description,
+  affectedData = {}
+) => {
+  try {
+    // Debug: Log ACTION_TYPES object to check if it's properly imported (only log once per component)
+    if (!window.CLIENTS_ACTION_TYPES_LOGGED) {
+      console.log("Clients.js - ACTION_TYPES object:", ACTION_TYPES);
+      window.CLIENTS_ACTION_TYPES_LOGGED = true;
+    }
+
+    // Validate all required parameters
+    if (!actionType || actionType === undefined || actionType === null) {
+      console.error(
+        "CRITICAL ERROR: actionType is invalid in Clients.js safeCreateUserLog",
+        {
+          actionType,
+          typeOfActionType: typeof actionType,
+          userId,
+          userName,
+          userEmail,
+          description,
+          affectedData,
+          stack: new Error().stack,
+        }
+      );
+
+      // Try to determine which action type should be used based on description
+      let fallbackActionType = ACTION_TYPES.SYSTEM_ERROR;
+      if (description && description.toLowerCase().includes("delete")) {
+        fallbackActionType = ACTION_TYPES.CLIENT_DELETE;
+      } else if (description && description.toLowerCase().includes("export")) {
+        fallbackActionType = ACTION_TYPES.CLIENT_EXPORT;
+      } else if (description && description.toLowerCase().includes("update")) {
+        fallbackActionType = ACTION_TYPES.CLIENT_UPDATE;
+      } else if (
+        description &&
+        (description.toLowerCase().includes("add") ||
+          description.toLowerCase().includes("create"))
+      ) {
+        fallbackActionType = ACTION_TYPES.CLIENT_CREATE;
+      }
+
+      console.warn(`Using fallback actionType: ${fallbackActionType}`);
+      actionType = fallbackActionType;
+    }
+
+    // Ensure all parameters are valid
+    const safeUserId = userId || "system";
+    const safeUserName = userName || "System User";
+    const safeUserEmail = userEmail || "system@aims.local";
+    const safeDescription = description || "No description provided";
+    const safeAffectedData = affectedData || {};
+
+    console.log(
+      "Clients.js - Calling createUserLog with validated parameters:",
+      {
+        userId: safeUserId,
+        userName: safeUserName,
+        userEmail: safeUserEmail,
+        actionType,
+        description: safeDescription,
+      }
+    );
+
+    return await createUserLog(
+      safeUserId,
+      safeUserName,
+      safeUserEmail,
+      actionType,
+      safeDescription,
+      safeAffectedData
+    );
+  } catch (error) {
+    console.error("Error in Clients.js safeCreateUserLog:", error);
+    console.error("Full error details:", {
+      error: error.message,
+      stack: error.stack,
+      userId,
+      userName,
+      userEmail,
+      actionType,
+      description,
+      affectedData,
+    });
+
+    // Don't re-throw the error to prevent breaking the main functionality
+    console.warn(
+      "User logging failed in Clients.js, but continuing with main operation"
+    );
+    return null;
+  }
+};
 
 function ClientFormModal({
   data,
@@ -616,10 +718,16 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
 }
 
 function Clients() {
+  // Debug: Check if ACTION_TYPES is properly imported in Clients component
+  console.log("Clients component loaded. ACTION_TYPES:", ACTION_TYPES);
+
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
   const { isDarkMode } = useTheme();
+  const currentUser = useCurrentUser(); // Get current user for logging
 
   const [clients, setClients] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showEmployeesModal, setShowEmployeesModal] = useState(false);
@@ -661,6 +769,20 @@ function Clients() {
     setIsDeleting(true);
     try {
       await deleteClient(clientToDelete.id);
+
+      // Log to User Logs
+      await safeCreateUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.CLIENT_DELETE,
+        `Deleted client ${clientToDelete.clientName}`,
+        {
+          clientId: clientToDelete.id,
+          clientName: clientToDelete.clientName,
+        }
+      );
+
       setClients((prev) => prev.filter((c) => c.id !== clientToDelete.id));
       setShowDeleteDialog(false);
       setClientToDelete(null);
@@ -669,7 +791,7 @@ function Clients() {
       showError("Failed to delete client. Please try again.");
     }
     setIsDeleting(false);
-  }, [clientToDelete, showSuccess, showError]);
+  }, [clientToDelete, showSuccess, showError, currentUser]);
 
   const handleShowEmployees = async (clientId = "CLI0001") => {
     setEmployeesModalClientId(clientId);
@@ -688,10 +810,50 @@ function Clients() {
   }, []);
   const fetchClients = useCallback(async () => {
     setLoading(true);
-    const [clientData] = await Promise.all([getAllClients()]);
+    const [clientData, deviceData, employeeData] = await Promise.all([
+      getAllClients(),
+      getAllDevices(),
+      getAllEmployees(),
+    ]);
     setClients(clientData);
+    setDevices(deviceData);
+    setEmployees(employeeData);
     setLoading(false);
   }, []);
+
+  // Calculate owned assets count for a client
+  const getOwnedAssetsCount = useCallback(
+    (clientName) => {
+      if (!devices || !clientName) return 0;
+      // Count only devices where client field explicitly matches the client name (case-insensitive)
+      const normalizedClientName = clientName.trim().toLowerCase();
+
+      const matchedDevices = devices.filter((device) => {
+        // Only count devices with explicit client field set
+        if (!device.client || device.client.trim() === "") return false;
+        return device.client.trim().toLowerCase() === normalizedClientName;
+      });
+
+      // Debug logging for Joii Philippines
+      if (normalizedClientName === "joii philippines") {
+        console.log(
+          "=== Joii Philippines Asset Count Debug (Explicit Only) ==="
+        );
+        console.log("Total devices:", devices.length);
+        console.log(
+          "Devices with explicit client='Joii Philippines':",
+          matchedDevices.length
+        );
+        console.log(
+          "Devices with no client field:",
+          devices.filter((d) => !d.client || d.client.trim() === "").length
+        );
+      }
+
+      return matchedDevices.length;
+    },
+    [devices, employees, clients]
+  );
 
   // Export clients to Excel using SheetJS
   const handleExportClients = useCallback(() => {
@@ -706,6 +868,7 @@ function Clients() {
         "Client ID": c.id || "",
         "Client Name": c.clientName || "",
         Employees: c.employeeCount != null ? c.employeeCount : "",
+        "Owned Assets": getOwnedAssetsCount(c.clientName),
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
@@ -715,12 +878,25 @@ function Clients() {
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `clients_export_${ts}.xlsx`;
       XLSX.writeFile(wb, filename);
+
+      // Log to User Logs
+      safeCreateUserLog(
+        currentUser?.uid,
+        currentUser?.username || currentUser?.email,
+        currentUser?.email,
+        ACTION_TYPES.CLIENT_EXPORT,
+        `Exported ${clients.length} client(s) to Excel`,
+        {
+          clientCount: clients.length,
+        }
+      );
+
       showSuccess("Clients exported successfully");
     } catch (err) {
       console.error(err);
       showError("Failed to export clients");
     }
-  }, [clients, showError, showSuccess]);
+  }, [clients, showError, showSuccess, currentUser]);
 
   const handleInputChange = useCallback(
     ({ target: { name, value } }) => {
@@ -748,9 +924,36 @@ function Clients() {
 
       if (form.id) {
         await updateClient(form.id, payload);
+
+        // Log to User Logs
+        await safeCreateUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.CLIENT_UPDATE,
+          `Updated client ${payload.clientName}`,
+          {
+            clientId: form.id,
+            clientName: payload.clientName,
+          }
+        );
+
         showSuccess("Client updated successfully");
       } else {
         await addClient(payload);
+
+        // Log to User Logs
+        await safeCreateUserLog(
+          currentUser?.uid,
+          currentUser?.username || currentUser?.email,
+          currentUser?.email,
+          ACTION_TYPES.CLIENT_CREATE,
+          `Added new client ${payload.clientName}`,
+          {
+            clientName: payload.clientName,
+          }
+        );
+
         showSuccess("Client added successfully");
       }
 
@@ -944,6 +1147,36 @@ function Clients() {
         .search-input-dark::placeholder {
           color: #9ca3af;
           opacity: 1;
+        }
+
+        /* Custom scrollbar with transparent background */
+        .clients-main-scroll::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .clients-main-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .clients-main-scroll::-webkit-scrollbar-thumb {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          };
+          border-radius: 5px;
+        }
+
+        .clients-main-scroll::-webkit-scrollbar-thumb:hover {
+          background: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+          };
+        }
+
+        /* Firefox scrollbar */
+        .clients-main-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: ${
+            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+          } transparent;
         }
       `}</style>
 
@@ -1204,6 +1437,7 @@ function Clients() {
 
         {!loading && (
           <div
+            className="clients-main-scroll"
             style={{
               flex: 1,
               overflow: "auto",
@@ -1337,6 +1571,25 @@ function Clients() {
                   <th
                     style={{
                       width: "15%",
+                      padding: "8px 6px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      textAlign: "center",
+                      border: isDarkMode
+                        ? "1px solid #4b5563"
+                        : "1px solid #d1d5db",
+                      position: "sticky",
+                      top: 0,
+                      background: isDarkMode ? "#374151" : "#f9fafb",
+                      zIndex: 10,
+                    }}
+                  >
+                    OWNED ASSETS
+                  </th>
+                  <th
+                    style={{
+                      width: "15%",
                       padding: "8px 4px",
                       fontSize: "12px",
                       fontWeight: "600",
@@ -1359,7 +1612,7 @@ function Clients() {
                 {filteredClients.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       style={{
                         padding: "40px 20px",
                         textAlign: "center",
@@ -1527,6 +1780,20 @@ function Clients() {
                           }}
                         >
                           {client.employeeCount ?? 0}
+                        </td>
+                        <td
+                          style={{
+                            width: "15%",
+                            padding: "8px 6px",
+                            fontSize: "14px",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                            border: isDarkMode
+                              ? "1px solid #4b5563"
+                              : "1px solid #d1d5db",
+                            textAlign: "center",
+                          }}
+                        >
+                          {getOwnedAssetsCount(client.clientName)}
                         </td>
                         <td
                           style={{
