@@ -6520,11 +6520,7 @@ function Inventory() {
                       onChange={(value) =>
                         updateHeaderFilter("deviceType", value)
                       }
-                      options={[
-                        ...new Set(
-                          devices.map((d) => d.deviceType).filter(Boolean)
-                        ),
-                      ]}
+                      options={deviceTypes.map((type) => type.label)}
                       placeholder="All Types"
                     />
                   </th>

@@ -55,8 +55,34 @@ const normalizeDeviceType = (deviceType) => {
   return deviceType.trim().toUpperCase(); // Normalize to uppercase for consistency
 };
 
+// Helper function to get proper display name for device types with special capitalization rules
+const getDeviceTypeDisplayName = (deviceType) => {
+  if (!deviceType || typeof deviceType !== "string") return "Unknown";
+
+  const cleanType = deviceType.trim().toLowerCase();
+
+  // Special cases that should be fully capitalized
+  const specialCases = {
+    ups: "UPS",
+    pc: "PC",
+    ram: "RAM",
+    psu: "PSU",
+    ssd: "SSD",
+    hdd: "HDD",
+    cpu: "CPU",
+    gpu: "GPU",
+  };
+
+  if (specialCases[cleanType]) {
+    return specialCases[cleanType];
+  }
+
+  // For other types, use proper case (first letter uppercase, rest lowercase)
+  return cleanType.charAt(0).toUpperCase() + cleanType.slice(1);
+};
+
 // Helper function to get display name for device type (preserves original casing for display)
-const getDeviceTypeDisplayName = (normalizedType, originalDevices) => {
+const getDeviceTypeDisplayNameOld = (normalizedType, originalDevices) => {
   if (normalizedType === "UNKNOWN") return "Unknown";
 
   // Find the first occurrence of this device type and use its original casing for display
@@ -432,6 +458,17 @@ function Dashboard() {
   const [systemHistory, setSystemHistory] = useState([]);
   const [allDevices, setAllDevices] = useState([]);
   const [clientAssetCounts, setClientAssetCounts] = useState([]);
+  const [clientAssetsData, setClientAssetsData] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [allClients, setAllClients] = useState([]);
+
+  // Modal state for client assets
+  const [clientAssetsModalOpen, setClientAssetsModalOpen] = useState(false);
+  const [clientAssetsModalData, setClientAssetsModalData] = useState({
+    type: "",
+    client: "",
+    items: [],
+  });
 
   // Extract fetchData as a standalone function for reuse
   const fetchData = async () => {
@@ -640,6 +677,97 @@ function Dashboard() {
         .sort((a, b) => b.count - a.count);
       setClientAssetCounts(clientAssetCountData);
 
+      // Store all data for modal functionality
+      setAllDevices(devices);
+      setAllEmployees(employees);
+      setAllClients(clients);
+
+      // Enhanced Client Assets Table calculation
+      const clientAssetsMap = {};
+
+      // Get all unique clients from the clients list
+      clients.forEach((client) => {
+        const clientName = client.clientName || client.name || client.id;
+        if (!clientAssetsMap[clientName]) {
+          clientAssetsMap[clientName] = {
+            clientName: clientName,
+            setsOfAssets: 0,
+            totalPeripherals: 0,
+            availablePeripherals: 0,
+          };
+        }
+      });
+
+      // Calculate employee sets per client (SETS OF ASSETS)
+      // For every Employee that has assets (1 or more), count as 1 set of assets per client
+      const employeesWithAssetsByClient = {};
+
+      // First, find all employees who have assigned devices
+      devices.forEach((device) => {
+        if (device.assignedTo && device.assignedTo.trim() !== "") {
+          const deviceClient = device.client || device.deviceOwner;
+          if (deviceClient) {
+            if (!employeesWithAssetsByClient[deviceClient]) {
+              employeesWithAssetsByClient[deviceClient] = new Set();
+            }
+            // Add employee to the set (Set automatically handles duplicates)
+            employeesWithAssetsByClient[deviceClient].add(device.assignedTo);
+          }
+        }
+      });
+
+      // Now count the sets of assets (unique employees with assets per client)
+      Object.entries(employeesWithAssetsByClient).forEach(
+        ([clientName, employeeSet]) => {
+          if (!clientAssetsMap[clientName]) {
+            clientAssetsMap[clientName] = {
+              clientName: clientName,
+              setsOfAssets: 0,
+              totalPeripherals: 0,
+              availablePeripherals: 0,
+            };
+          }
+          // Each unique employee with assets counts as 1 set
+          clientAssetsMap[clientName].setsOfAssets = employeeSet.size;
+        }
+      );
+
+      // Calculate peripheral counts per client using devices with client field
+      devices.forEach((device) => {
+        const deviceClient = device.client || device.deviceOwner;
+        if (deviceClient) {
+          if (!clientAssetsMap[deviceClient]) {
+            clientAssetsMap[deviceClient] = {
+              clientName: deviceClient,
+              setsOfAssets: 0,
+              totalPeripherals: 0,
+              availablePeripherals: 0,
+            };
+          }
+
+          // Total peripherals owned by client
+          clientAssetsMap[deviceClient].totalPeripherals++;
+
+          // Available peripherals - following Inventory.js logic: unassigned devices with GOOD/BRANDNEW condition
+          const isUnassigned =
+            !device.assignedTo || device.assignedTo.trim() === "";
+          const isUsableCondition =
+            device.condition === "GOOD" || device.condition === "BRANDNEW";
+
+          if (isUnassigned && isUsableCondition) {
+            clientAssetsMap[deviceClient].availablePeripherals++;
+          }
+        }
+      });
+
+      const clientAssetsArray = Object.values(clientAssetsMap)
+        .filter(
+          (client) => client.totalPeripherals > 0 || client.setsOfAssets > 0
+        )
+        .sort((a, b) => b.totalPeripherals - a.totalPeripherals);
+
+      setClientAssetsData(clientAssetsArray);
+
       // Utilization rate calculation
       const totalDevices = devices.length;
       const devicesInUse = devices.filter((d) => d.status === "In Use").length;
@@ -765,6 +893,88 @@ function Dashboard() {
       top: 0,
       behavior: "smooth",
     });
+  };
+
+  // Client Assets Modal Handlers
+  const handleClientAssetsClick = (type, clientName) => {
+    // Don't handle employees type - Sets of Assets is view-only
+    if (type === "employees") {
+      return;
+    }
+
+    let items = [];
+
+    if (type === "totalDevices") {
+      // Get count of device types for the specific client (case-insensitive grouping)
+      const deviceTypeCounts = {};
+
+      allDevices.forEach((device) => {
+        const deviceClient = device.client || device.deviceOwner;
+        if (deviceClient === clientName) {
+          // Normalize and get proper display name for device type
+          const rawDeviceType = device.deviceType || "Unknown";
+          const deviceType = getDeviceTypeDisplayName(rawDeviceType);
+
+          if (!deviceTypeCounts[deviceType]) {
+            deviceTypeCounts[deviceType] = {
+              deviceType: deviceType,
+              total: 0,
+              usableDevices: 0,
+              deployedAssets: 0,
+            };
+          }
+
+          deviceTypeCounts[deviceType].total++;
+
+          // Count usable devices - following Inventory.js logic: unassigned devices with GOOD + BRANDNEW
+          const isUnassigned =
+            !device.assignedTo || device.assignedTo.trim() === "";
+          const isUsableCondition =
+            device.condition === "GOOD" || device.condition === "BRANDNEW";
+          if (isUnassigned && isUsableCondition) {
+            deviceTypeCounts[deviceType].usableDevices++;
+          }
+
+          // Count deployed assets - following Assets.js logic: devices with assignedTo field
+          if (device.assignedTo && device.assignedTo.trim() !== "") {
+            deviceTypeCounts[deviceType].deployedAssets++;
+          }
+        }
+      });
+
+      items = Object.values(deviceTypeCounts).sort((a, b) => b.total - a.total);
+    } else if (type === "availableDevices") {
+      // Get count of available device types for the specific client
+      // Following Inventory.js logic: unassigned devices with GOOD/BRANDNEW condition
+      const availableDeviceTypeCounts = {};
+
+      allDevices.forEach((device) => {
+        const deviceClient = device.client || device.deviceOwner;
+        const isUnassigned =
+          !device.assignedTo || device.assignedTo.trim() === "";
+        const isUsableCondition =
+          device.condition === "GOOD" || device.condition === "BRANDNEW";
+
+        if (deviceClient === clientName && isUnassigned && isUsableCondition) {
+          const rawDeviceType = device.deviceType || "Unknown";
+          const deviceType = getDeviceTypeDisplayName(rawDeviceType);
+          availableDeviceTypeCounts[deviceType] =
+            (availableDeviceTypeCounts[deviceType] || 0) + 1;
+        }
+      });
+
+      items = Object.entries(availableDeviceTypeCounts)
+        .map(([deviceType, count]) => ({ deviceType, count }))
+        .sort((a, b) => b.count - a.count);
+    }
+
+    setClientAssetsModalData({
+      type: type,
+      client: clientName,
+      items: items,
+    });
+
+    setClientAssetsModalOpen(true);
   };
 
   useEffect(() => {
@@ -1261,10 +1471,38 @@ function Dashboard() {
                       borderBottom: `2px solid ${
                         isDarkMode ? "#4b5563" : "#e5e7eb"
                       }`,
-                      minWidth: "110px",
+                      minWidth: "90px",
                     }}
                   >
-                    TOTAL STOCKROOM
+                    BRANDNEW
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 8px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "80px",
+                    }}
+                  >
+                    GOOD
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 8px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "80px",
+                    }}
+                  >
+                    USABLE
                   </th>
                   <th
                     style={{
@@ -1289,38 +1527,10 @@ function Dashboard() {
                       borderBottom: `2px solid ${
                         isDarkMode ? "#4b5563" : "#e5e7eb"
                       }`,
-                      minWidth: "90px",
+                      minWidth: "110px",
                     }}
                   >
-                    BRANDNEW
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 8px",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
-                      minWidth: "80px",
-                    }}
-                  >
-                    GOODS
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 8px",
-                      textAlign: "center",
-                      fontWeight: 600,
-                      color: isDarkMode ? "#f3f4f6" : "#374151",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#e5e7eb"
-                      }`,
-                      minWidth: "80px",
-                    }}
-                  >
-                    USABLE
+                    TOTAL STOCKROOM
                   </th>
                   <th
                     style={{
@@ -1487,26 +1697,6 @@ function Dashboard() {
                             style={{
                               padding: "12px 8px",
                               textAlign: "center",
-                              color: "#8b5cf6",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {stats.totalStockroom}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 8px",
-                              textAlign: "center",
-                              color: "#ef4444",
-                              fontWeight: 600,
-                            }}
-                          >
-                            {stats.defective}
-                          </td>
-                          <td
-                            style={{
-                              padding: "12px 8px",
-                              textAlign: "center",
                               color: "#06b6d4",
                               fontWeight: 600,
                             }}
@@ -1541,6 +1731,26 @@ function Dashboard() {
                             }}
                           >
                             {usable}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 8px",
+                              textAlign: "center",
+                              color: "#ef4444",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.defective}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 8px",
+                              textAlign: "center",
+                              color: "#8b5cf6",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.totalStockroom}
                           </td>
                           <td
                             style={{ padding: "12px 8px", textAlign: "center" }}
@@ -2534,8 +2744,8 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Total Assets Count Owned by Client */}
-        {clientAssetCounts.length > 0 && (
+        {/* Total Assets Owned by Client */}
+        {clientAssetsData.length > 0 && (
           <div
             style={{
               background: isDarkMode ? "#1f2937" : "#fff",
@@ -2556,7 +2766,7 @@ function Dashboard() {
                 gap: 8,
               }}
             >
-              🏢 Total Assets Count Owned by Client
+              👥 Total Assets Owned by Client
             </h3>
             <div style={{ overflowX: "auto" }}>
               <table
@@ -2582,7 +2792,7 @@ function Dashboard() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      Client Name
+                      CLIENT NAME
                     </th>
                     <th
                       style={{
@@ -2598,14 +2808,46 @@ function Dashboard() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      Total Assets
+                      SETS OF ASSETS
+                    </th>
+                    <th
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: isDarkMode
+                          ? "2px solid #374151"
+                          : "2px solid #e5e7eb",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      TOTAL PERIPHERALS
+                    </th>
+                    <th
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        borderBottom: isDarkMode
+                          ? "2px solid #374151"
+                          : "2px solid #e5e7eb",
+                        color: isDarkMode ? "#9ca3af" : "#6b7280",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      AVAILABLE PERIPHERALS
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {clientAssetCounts.map((item, index) => (
+                  {clientAssetsData.map((client, index) => (
                     <tr
-                      key={index}
+                      key={client.clientName}
                       style={{
                         borderBottom: isDarkMode
                           ? "1px solid #374151"
@@ -2628,18 +2870,107 @@ function Dashboard() {
                           fontWeight: 500,
                         }}
                       >
-                        {item.client}
+                        {client.clientName}
                       </td>
                       <td
                         style={{
                           padding: "12px 16px",
                           textAlign: "center",
-                          color: isDarkMode ? "#60a5fa" : "#3b82f6",
-                          fontWeight: 700,
+                          color: isDarkMode ? "#e5e7eb" : "#374151",
+                          fontWeight: 500,
                           fontSize: "16px",
                         }}
                       >
-                        {item.count}
+                        {client.setsOfAssets}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color:
+                            client.totalPeripherals > 0
+                              ? isDarkMode
+                                ? "#60a5fa"
+                                : "#3b82f6"
+                              : isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af",
+                          fontWeight: client.totalPeripherals > 0 ? 700 : 400,
+                          fontSize: "16px",
+                          cursor:
+                            client.totalPeripherals > 0 ? "pointer" : "default",
+                        }}
+                        onClick={() =>
+                          client.totalPeripherals > 0 &&
+                          handleClientAssetsClick(
+                            "totalDevices",
+                            client.clientName
+                          )
+                        }
+                        onMouseEnter={(e) => {
+                          if (client.totalPeripherals > 0) {
+                            e.target.style.color = isDarkMode
+                              ? "#93c5fd"
+                              : "#1d4ed8";
+                            e.target.style.textDecoration = "underline";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (client.totalPeripherals > 0) {
+                            e.target.style.color = isDarkMode
+                              ? "#60a5fa"
+                              : "#3b82f6";
+                            e.target.style.textDecoration = "none";
+                          }
+                        }}
+                      >
+                        {client.totalPeripherals}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color:
+                            client.availablePeripherals > 0
+                              ? isDarkMode
+                                ? "#60a5fa"
+                                : "#3b82f6"
+                              : isDarkMode
+                              ? "#6b7280"
+                              : "#9ca3af",
+                          fontWeight:
+                            client.availablePeripherals > 0 ? 700 : 400,
+                          fontSize: "16px",
+                          cursor:
+                            client.availablePeripherals > 0
+                              ? "pointer"
+                              : "default",
+                        }}
+                        onClick={() =>
+                          client.availablePeripherals > 0 &&
+                          handleClientAssetsClick(
+                            "availableDevices",
+                            client.clientName
+                          )
+                        }
+                        onMouseEnter={(e) => {
+                          if (client.availablePeripherals > 0) {
+                            e.target.style.color = isDarkMode
+                              ? "#93c5fd"
+                              : "#1d4ed8";
+                            e.target.style.textDecoration = "underline";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (client.availablePeripherals > 0) {
+                            e.target.style.color = isDarkMode
+                              ? "#60a5fa"
+                              : "#3b82f6";
+                            e.target.style.textDecoration = "none";
+                          }
+                        }}
+                      >
+                        {client.availablePeripherals}
                       </td>
                     </tr>
                   ))}
@@ -2670,8 +3001,36 @@ function Dashboard() {
                         fontSize: "17px",
                       }}
                     >
-                      {clientAssetCounts.reduce(
-                        (sum, item) => sum + item.count,
+                      {clientAssetsData.reduce(
+                        (sum, client) => sum + client.setsOfAssets,
+                        0
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color: isDarkMode ? "#34d399" : "#10b981",
+                        fontWeight: 700,
+                        fontSize: "17px",
+                      }}
+                    >
+                      {clientAssetsData.reduce(
+                        (sum, client) => sum + client.totalPeripherals,
+                        0
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color: isDarkMode ? "#34d399" : "#10b981",
+                        fontWeight: 700,
+                        fontSize: "17px",
+                      }}
+                    >
+                      {clientAssetsData.reduce(
+                        (sum, client) => sum + client.availablePeripherals,
                         0
                       )}
                     </td>
@@ -2925,6 +3284,379 @@ function Dashboard() {
             ⬆
           </button>
         </div>
+
+        {/* Client Assets Modal */}
+        {clientAssetsModalOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+            }}
+            onClick={() => setClientAssetsModalOpen(false)}
+          >
+            <div
+              style={{
+                backgroundColor: isDarkMode ? "#1f2937" : "#fff",
+                borderRadius: 12,
+                padding: 24,
+                maxWidth: "80%",
+                maxHeight: "80%",
+                overflow: "auto",
+                boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+                border: isDarkMode ? "1px solid #374151" : "1px solid #e5e7eb",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 20,
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                    fontSize: 20,
+                    fontWeight: 600,
+                  }}
+                >
+                  {clientAssetsModalData.type === "totalDevices" &&
+                    `${clientAssetsModalData.client} - Device Breakdown`}
+                  {clientAssetsModalData.type === "availableDevices" &&
+                    `${clientAssetsModalData.client} - Available Devices`}
+                </h3>
+                <button
+                  onClick={() => setClientAssetsModalOpen(false)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontSize: 24,
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {clientAssetsModalData.items.length === 0 ? (
+                <p
+                  style={{
+                    color: isDarkMode ? "#9ca3af" : "#6b7280",
+                    textAlign: "center",
+                    padding: 20,
+                  }}
+                >
+                  No items found for this category.
+                </p>
+              ) : (
+                <div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table
+                      style={{ width: "100%", borderCollapse: "collapse" }}
+                    >
+                      <thead>
+                        <tr
+                          style={{
+                            backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                          }}
+                        >
+                          {clientAssetsModalData.type === "totalDevices" && (
+                            <>
+                              <th
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "left",
+                                  fontWeight: 600,
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  borderBottom: isDarkMode
+                                    ? "2px solid #4b5563"
+                                    : "2px solid #e5e7eb",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                ASSETS
+                              </th>
+                              <th
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  fontWeight: 600,
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  borderBottom: isDarkMode
+                                    ? "2px solid #4b5563"
+                                    : "2px solid #e5e7eb",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                USABLE DEVICES
+                              </th>
+                              <th
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  fontWeight: 600,
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  borderBottom: isDarkMode
+                                    ? "2px solid #4b5563"
+                                    : "2px solid #e5e7eb",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                DEPLOYED ASSETS
+                              </th>
+                            </>
+                          )}
+                          {clientAssetsModalData.type ===
+                            "availableDevices" && (
+                            <>
+                              <th
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "left",
+                                  fontWeight: 600,
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  borderBottom: isDarkMode
+                                    ? "2px solid #4b5563"
+                                    : "2px solid #e5e7eb",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                DEVICE TYPE
+                              </th>
+                              <th
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  fontWeight: 600,
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  borderBottom: isDarkMode
+                                    ? "2px solid #4b5563"
+                                    : "2px solid #e5e7eb",
+                                  fontSize: "13px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                AVAILABLE COUNT
+                              </th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientAssetsModalData.type === "totalDevices" &&
+                          clientAssetsModalData.items.map((item, index) => (
+                            <tr
+                              key={item.deviceType}
+                              style={{
+                                borderBottom: isDarkMode
+                                  ? "1px solid #374151"
+                                  : "1px solid #f3f4f6",
+                                backgroundColor:
+                                  index % 2 === 0
+                                    ? "transparent"
+                                    : isDarkMode
+                                    ? "#374151"
+                                    : "#f8fafc",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  isDarkMode ? "#4b5563" : "#f1f5f9";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  index % 2 === 0
+                                    ? "transparent"
+                                    : isDarkMode
+                                    ? "#374151"
+                                    : "#f8fafc";
+                              }}
+                            >
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {item.deviceType}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#60a5fa" : "#3b82f6",
+                                  fontWeight: 700,
+                                  fontSize: "16px",
+                                }}
+                              >
+                                {item.usableDevices}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#34d399" : "#10b981",
+                                  fontWeight: 700,
+                                  fontSize: "16px",
+                                }}
+                              >
+                                {item.deployedAssets}
+                              </td>
+                            </tr>
+                          ))}
+
+                        {clientAssetsModalData.type === "availableDevices" &&
+                          clientAssetsModalData.items.map((item, index) => (
+                            <tr
+                              key={item.deviceType}
+                              style={{
+                                borderBottom: isDarkMode
+                                  ? "1px solid #374151"
+                                  : "1px solid #f3f4f6",
+                                backgroundColor:
+                                  index % 2 === 0
+                                    ? "transparent"
+                                    : isDarkMode
+                                    ? "#374151"
+                                    : "#f8fafc",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  isDarkMode ? "#4b5563" : "#f1f5f9";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor =
+                                  index % 2 === 0
+                                    ? "transparent"
+                                    : isDarkMode
+                                    ? "#374151"
+                                    : "#f8fafc";
+                              }}
+                            >
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {item.deviceType}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#60a5fa" : "#3b82f6",
+                                  fontWeight: 700,
+                                  fontSize: "16px",
+                                }}
+                              >
+                                {item.count}
+                              </td>
+                            </tr>
+                          ))}
+
+                        {/* Total Row */}
+                        <tr
+                          style={{
+                            borderTop: isDarkMode
+                              ? "2px solid #4b5563"
+                              : "2px solid #e5e7eb",
+                            backgroundColor: isDarkMode ? "#1f2937" : "#f9fafb",
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              fontWeight: 700,
+                              fontSize: "15px",
+                            }}
+                          >
+                            Total
+                          </td>
+                          {clientAssetsModalData.type === "totalDevices" && (
+                            <>
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#34d399" : "#10b981",
+                                  fontWeight: 700,
+                                  fontSize: "17px",
+                                }}
+                              >
+                                {clientAssetsModalData.items.reduce(
+                                  (sum, item) => sum + item.usableDevices,
+                                  0
+                                )}
+                              </td>
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#34d399" : "#10b981",
+                                  fontWeight: 700,
+                                  fontSize: "17px",
+                                }}
+                              >
+                                {clientAssetsModalData.items.reduce(
+                                  (sum, item) => sum + item.deployedAssets,
+                                  0
+                                )}
+                              </td>
+                            </>
+                          )}
+                          {clientAssetsModalData.type ===
+                            "availableDevices" && (
+                            <td
+                              style={{
+                                padding: "12px 16px",
+                                textAlign: "center",
+                                color: isDarkMode ? "#34d399" : "#10b981",
+                                fontWeight: 700,
+                                fontSize: "17px",
+                              }}
+                            >
+                              {clientAssetsModalData.items.reduce(
+                                (sum, item) => sum + item.count,
+                                0
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

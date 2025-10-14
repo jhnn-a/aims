@@ -320,6 +320,73 @@ function Dashboard() {
     }
   };
 
+  // Client Assets Modal Handlers
+  const handleClientAssetsClick = (type, clientName) => {
+    let items = [];
+
+    if (type === "employees") {
+      // Get employees for this client
+      items = allEmployees
+        .filter((emp) => {
+          const empClient =
+            allClients.find((c) => c.id === emp.clientAssigned)?.name ||
+            emp.clientAssigned;
+          return empClient === clientName;
+        })
+        .map((emp) => ({
+          id: emp.id,
+          name: emp.fullName || `${emp.firstName} ${emp.lastName}`,
+          email: emp.email,
+          position: emp.position,
+        }));
+    } else if (type === "totalDevices") {
+      // Get all devices owned by this client
+      items = allDevices
+        .filter(
+          (device) =>
+            device.client === clientName || device.deviceOwner === clientName
+        )
+        .map((device) => ({
+          id: device.id,
+          deviceTag: device.deviceTag,
+          deviceType: device.deviceType,
+          brand: device.brand,
+          model: device.model,
+          condition: device.condition,
+          status: device.status,
+          assignedTo: device.assignedTo,
+        }));
+    } else if (type === "availableDevices") {
+      // Get available devices owned by this client
+      items = allDevices
+        .filter((device) => {
+          const isClientOwned =
+            device.client === clientName || device.deviceOwner === clientName;
+          const isAvailable =
+            (device.condition === "GOOD" || device.condition === "BRANDNEW") &&
+            (device.location === "Stockroom" || device.status === "Available");
+          return isClientOwned && isAvailable;
+        })
+        .map((device) => ({
+          id: device.id,
+          deviceTag: device.deviceTag,
+          deviceType: device.deviceType,
+          brand: device.brand,
+          model: device.model,
+          condition: device.condition,
+          status: device.status,
+          location: device.location,
+        }));
+    }
+
+    setClientAssetsModalData({
+      type: type,
+      client: clientName,
+      items: items,
+    });
+    setClientAssetsModalOpen(true);
+  };
+
   let currentUser = undefined;
   try {
     const userContext = useCurrentUser?.();
@@ -346,6 +413,7 @@ function Dashboard() {
 
   // Enhanced dashboard state
   const [clientAllocation, setClientAllocation] = useState([]);
+  const [clientAssetsData, setClientAssetsData] = useState([]);
   const [cpuSpecifications, setCpuSpecifications] = useState([]);
   const [utilizationRate, setUtilizationRate] = useState(0);
   const [timeRange, setTimeRange] = useState("30days");
@@ -355,6 +423,12 @@ function Dashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [modalDevices, setModalDevices] = useState([]);
+  const [clientAssetsModalOpen, setClientAssetsModalOpen] = useState(false);
+  const [clientAssetsModalData, setClientAssetsModalData] = useState({
+    type: "",
+    client: "",
+    items: [],
+  });
   const [systemHistory, setSystemHistory] = useState([]);
   const [employeeMap, setEmployeeMap] = useState({});
   const [hoveredDevice, setHoveredDevice] = useState(null);
@@ -362,6 +436,8 @@ function Dashboard() {
   const [unitSpecs, setUnitSpecs] = useState(null);
   const [loadingSpecs, setLoadingSpecs] = useState(false);
   const [allDevices, setAllDevices] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [allClients, setAllClients] = useState([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -418,6 +494,8 @@ function Dashboard() {
           devices.filter((d) => d.condition === "RETIRED").length
         );
         setAllDevices(devices);
+        setAllEmployees(employees);
+        setAllClients(clients);
 
         // Enhanced metrics calculations
 
@@ -451,6 +529,80 @@ function Dashboard() {
           .map(([client, count]) => ({ client, count }))
           .sort((a, b) => b.count - a.count);
         setClientAllocation(clientAllocationData);
+
+        // Client Assets Table calculation
+        const clientAssetsMap = {};
+
+        // Get all unique clients from the clients list
+        clients.forEach((client) => {
+          const clientName = client.name || client.clientName || client.id;
+          if (!clientAssetsMap[clientName]) {
+            clientAssetsMap[clientName] = {
+              clientName: clientName,
+              setsOfAssets: 0,
+              totalPeripherals: 0,
+              availablePeripherals: 0,
+            };
+          }
+        });
+
+        // Calculate employee sets per client (SETS OF ASSETS)
+        employees.forEach((employee) => {
+          if (employee.clientAssigned) {
+            const clientName =
+              clientMap[employee.clientAssigned] || employee.clientAssigned;
+            if (clientAssetsMap[clientName]) {
+              clientAssetsMap[clientName].setsOfAssets++;
+            } else if (
+              clientName !== "Internal" &&
+              clientName !== "Unassigned"
+            ) {
+              // Add client if not already in map
+              clientAssetsMap[clientName] = {
+                clientName: clientName,
+                setsOfAssets: 1,
+                totalPeripherals: 0,
+                availablePeripherals: 0,
+              };
+            }
+          }
+        });
+
+        // Calculate peripheral counts per client
+        devices.forEach((device) => {
+          const deviceClient = device.client || device.deviceOwner;
+          if (deviceClient) {
+            if (!clientAssetsMap[deviceClient]) {
+              clientAssetsMap[deviceClient] = {
+                clientName: deviceClient,
+                setsOfAssets: 0,
+                totalPeripherals: 0,
+                availablePeripherals: 0,
+              };
+            }
+
+            // Total peripherals owned by client
+            clientAssetsMap[deviceClient].totalPeripherals++;
+
+            // Available peripherals (GOOD/BRANDNEW condition and in stockroom)
+            const isAvailable =
+              (device.condition === "GOOD" ||
+                device.condition === "BRANDNEW") &&
+              (device.location === "Stockroom" ||
+                device.status === "Available");
+            if (isAvailable) {
+              clientAssetsMap[deviceClient].availablePeripherals++;
+            }
+          }
+        });
+
+        const clientAssetsArray = Object.values(clientAssetsMap)
+          .filter(
+            (client) => client.totalPeripherals > 0 || client.setsOfAssets > 0
+          )
+          .sort((a, b) => b.totalPeripherals - a.totalPeripherals);
+
+        setClientAssetsData(clientAssetsArray);
 
         // CPU Specifications calculation - fetch data from UnitSpecs collections
         try {
@@ -1166,6 +1318,199 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Total Assets Owned by Client Table */}
+      {clientAssetsData.length > 0 && (
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 12,
+            padding: 24,
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+            border: "1px solid #e5e7eb",
+            marginTop: 24,
+          }}
+        >
+          <h3
+            style={{
+              margin: "0 0 16px 0",
+              color: "#374151",
+              fontSize: 18,
+              fontWeight: 600,
+            }}
+          >
+            👥 Total Assets Owned by Client
+          </h3>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ backgroundColor: "#f8fafc" }}>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: "#374151",
+                      borderBottom: "2px solid #e5e7eb",
+                    }}
+                  >
+                    CLIENT NAME
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: "#374151",
+                      borderBottom: "2px solid #e5e7eb",
+                    }}
+                  >
+                    SETS OF ASSETS
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: "#374151",
+                      borderBottom: "2px solid #e5e7eb",
+                    }}
+                  >
+                    TOTAL PERIPHERALS
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: "#374151",
+                      borderBottom: "2px solid #e5e7eb",
+                    }}
+                  >
+                    AVAILABLE PERIPHERALS
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientAssetsData.map((client, index) => (
+                  <tr
+                    key={client.clientName}
+                    style={{
+                      borderBottom: "1px solid #f3f4f6",
+                      backgroundColor: index % 2 === 0 ? "#ffffff" : "#f8fafc",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        color: "#374151",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {client.clientName}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color: client.setsOfAssets > 0 ? "#2563eb" : "#6b7280",
+                        fontWeight: client.setsOfAssets > 0 ? 600 : 400,
+                        cursor: client.setsOfAssets > 0 ? "pointer" : "default",
+                      }}
+                      onClick={() =>
+                        client.setsOfAssets > 0 &&
+                        handleClientAssetsClick("employees", client.clientName)
+                      }
+                      onMouseEnter={(e) => {
+                        if (client.setsOfAssets > 0) {
+                          e.target.style.color = "#1d4ed8";
+                          e.target.style.textDecoration = "underline";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (client.setsOfAssets > 0) {
+                          e.target.style.color = "#2563eb";
+                          e.target.style.textDecoration = "none";
+                        }
+                      }}
+                    >
+                      {client.setsOfAssets}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color:
+                          client.totalPeripherals > 0 ? "#2563eb" : "#6b7280",
+                        fontWeight: client.totalPeripherals > 0 ? 600 : 400,
+                        cursor:
+                          client.totalPeripherals > 0 ? "pointer" : "default",
+                      }}
+                      onClick={() =>
+                        client.totalPeripherals > 0 &&
+                        handleClientAssetsClick(
+                          "totalDevices",
+                          client.clientName
+                        )
+                      }
+                      onMouseEnter={(e) => {
+                        if (client.totalPeripherals > 0) {
+                          e.target.style.color = "#1d4ed8";
+                          e.target.style.textDecoration = "underline";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (client.totalPeripherals > 0) {
+                          e.target.style.color = "#2563eb";
+                          e.target.style.textDecoration = "none";
+                        }
+                      }}
+                    >
+                      {client.totalPeripherals}
+                    </td>
+                    <td
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: "center",
+                        color:
+                          client.availablePeripherals > 0
+                            ? "#2563eb"
+                            : "#6b7280",
+                        fontWeight: client.availablePeripherals > 0 ? 600 : 400,
+                        cursor:
+                          client.availablePeripherals > 0
+                            ? "pointer"
+                            : "default",
+                      }}
+                      onClick={() =>
+                        client.availablePeripherals > 0 &&
+                        handleClientAssetsClick(
+                          "availableDevices",
+                          client.clientName
+                        )
+                      }
+                      onMouseEnter={(e) => {
+                        if (client.availablePeripherals > 0) {
+                          e.target.style.color = "#1d4ed8";
+                          e.target.style.textDecoration = "underline";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (client.availablePeripherals > 0) {
+                          e.target.style.color = "#2563eb";
+                          e.target.style.textDecoration = "none";
+                        }
+                      }}
+                    >
+                      {client.availablePeripherals}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Footer with version info */}
       <div
         style={{
@@ -1203,6 +1548,361 @@ function Dashboard() {
         >
           ↑
         </button>
+      )}
+
+      {/* Client Assets Modal */}
+      {clientAssetsModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setClientAssetsModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: "80%",
+              maxHeight: "80%",
+              overflow: "auto",
+              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  color: "#374151",
+                  fontSize: 20,
+                  fontWeight: 600,
+                }}
+              >
+                {clientAssetsModalData.type === "employees" &&
+                  `Employees for ${clientAssetsModalData.client}`}
+                {clientAssetsModalData.type === "totalDevices" &&
+                  `All Devices owned by ${clientAssetsModalData.client}`}
+                {clientAssetsModalData.type === "availableDevices" &&
+                  `Available Devices owned by ${clientAssetsModalData.client}`}
+              </h3>
+              <button
+                onClick={() => setClientAssetsModalOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 24,
+                  color: "#6b7280",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {clientAssetsModalData.items.length === 0 ? (
+              <p style={{ color: "#6b7280", textAlign: "center", padding: 20 }}>
+                No items found for this category.
+              </p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ backgroundColor: "#f8fafc" }}>
+                      {clientAssetsModalData.type === "employees" && (
+                        <>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Employee ID
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Name
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Email
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Position
+                          </th>
+                        </>
+                      )}
+                      {(clientAssetsModalData.type === "totalDevices" ||
+                        clientAssetsModalData.type === "availableDevices") && (
+                        <>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Device Tag
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Type
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Brand
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "left",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Model
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Condition
+                          </th>
+                          <th
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              fontWeight: 600,
+                              color: "#374151",
+                              borderBottom: "2px solid #e5e7eb",
+                            }}
+                          >
+                            Status
+                          </th>
+                          {clientAssetsModalData.type ===
+                            "availableDevices" && (
+                            <th
+                              style={{
+                                padding: "12px 16px",
+                                textAlign: "center",
+                                fontWeight: 600,
+                                color: "#374151",
+                                borderBottom: "2px solid #e5e7eb",
+                              }}
+                            >
+                              Location
+                            </th>
+                          )}
+                        </>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientAssetsModalData.items.map((item, index) => (
+                      <tr
+                        key={item.id}
+                        style={{
+                          borderBottom: "1px solid #f3f4f6",
+                          backgroundColor:
+                            index % 2 === 0 ? "#ffffff" : "#f8fafc",
+                        }}
+                      >
+                        {clientAssetsModalData.type === "employees" && (
+                          <>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.id}
+                            </td>
+                            <td
+                              style={{
+                                padding: "12px 16px",
+                                color: "#374151",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {item.name}
+                            </td>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.email || "N/A"}
+                            </td>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.position || "N/A"}
+                            </td>
+                          </>
+                        )}
+                        {(clientAssetsModalData.type === "totalDevices" ||
+                          clientAssetsModalData.type ===
+                            "availableDevices") && (
+                          <>
+                            <td
+                              style={{
+                                padding: "12px 16px",
+                                color: "#374151",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {item.deviceTag}
+                            </td>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.deviceType}
+                            </td>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.brand}
+                            </td>
+                            <td
+                              style={{ padding: "12px 16px", color: "#374151" }}
+                            >
+                              {item.model}
+                            </td>
+                            <td
+                              style={{
+                                padding: "12px 16px",
+                                textAlign: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color:
+                                    item.condition === "GOOD"
+                                      ? "#22c55e"
+                                      : item.condition === "BRANDNEW"
+                                      ? "#3b82f6"
+                                      : "#ef4444",
+                                  backgroundColor:
+                                    item.condition === "GOOD"
+                                      ? "#f0fdf4"
+                                      : item.condition === "BRANDNEW"
+                                      ? "#eff6ff"
+                                      : "#fef2f2",
+                                }}
+                              >
+                                {item.condition}
+                              </span>
+                            </td>
+                            <td
+                              style={{
+                                padding: "12px 16px",
+                                textAlign: "center",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color:
+                                    item.status === "Available"
+                                      ? "#22c55e"
+                                      : "#6b7280",
+                                  backgroundColor:
+                                    item.status === "Available"
+                                      ? "#f0fdf4"
+                                      : "#f9fafb",
+                                }}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                            {clientAssetsModalData.type ===
+                              "availableDevices" && (
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: "#374151",
+                                }}
+                              >
+                                {item.location || "N/A"}
+                              </td>
+                            )}
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
