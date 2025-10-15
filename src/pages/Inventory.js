@@ -3431,6 +3431,61 @@ function Inventory() {
       wfhNew: false,
       wfhStock: false,
     });
+
+    // Auto-select radio button and checkboxes based on device conditions
+    // Get devices to check - either single device or selected devices for bulk assign
+    let devicesToCheck = [];
+    if (selectedIds.length > 0) {
+      // Bulk assignment - get all selected devices
+      devicesToCheck = devices.filter((device) =>
+        selectedIds.includes(device.id)
+      );
+    } else {
+      // Single device assignment
+      devicesToCheck = [device];
+    }
+
+    // Analyze device conditions (case-insensitive and trim whitespace)
+    const hasGoodDevices = devicesToCheck.some(
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "GOOD"
+    );
+    const hasBrandNewDevices = devicesToCheck.some(
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "BRANDNEW"
+    );
+
+    // Auto-select the most appropriate radio button based on device conditions
+    if (hasGoodDevices && hasBrandNewDevices) {
+      // Mixed conditions: default to "newIssue" and select both checkboxes
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: true,
+        newIssueStock: true,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    } else if (hasBrandNewDevices) {
+      // Only BRANDNEW devices: default to "newIssue" and select "Newly Purchased"
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: true,
+        newIssueStock: false,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    } else if (hasGoodDevices) {
+      // Only GOOD devices: default to "newIssue" and select "Stock"
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: false,
+        newIssueStock: true,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    }
     setAssignSearch("");
   };
 
@@ -3469,12 +3524,16 @@ function Inventory() {
       );
     }
 
-    // Analyze device conditions
+    // Analyze device conditions (case-insensitive and trim whitespace)
     const hasGoodDevices = devicesToCheck.some(
-      (device) => device.condition === "GOOD"
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "GOOD"
     );
     const hasBrandNewDevices = devicesToCheck.some(
-      (device) => device.condition === "BRANDNEW"
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "BRANDNEW"
     );
 
     // Determine automatic checkbox selection based on device conditions
