@@ -2808,7 +2808,7 @@ function Dashboard() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      SETS OF ASSETS
+                      TOTAL PERIPHERALS
                     </th>
                     <th
                       style={{
@@ -2824,7 +2824,7 @@ function Dashboard() {
                         letterSpacing: "0.5px",
                       }}
                     >
-                      TOTAL PERIPHERALS
+                      SETS OF ASSETS
                     </th>
                     <th
                       style={{
@@ -2876,17 +2876,6 @@ function Dashboard() {
                         style={{
                           padding: "12px 16px",
                           textAlign: "center",
-                          color: isDarkMode ? "#e5e7eb" : "#374151",
-                          fontWeight: 500,
-                          fontSize: "16px",
-                        }}
-                      >
-                        {client.setsOfAssets}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 16px",
-                          textAlign: "center",
                           color:
                             client.totalPeripherals > 0
                               ? isDarkMode
@@ -2925,6 +2914,17 @@ function Dashboard() {
                         }}
                       >
                         {client.totalPeripherals}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: isDarkMode ? "#e5e7eb" : "#374151",
+                          fontWeight: 500,
+                          fontSize: "16px",
+                        }}
+                      >
+                        {client.setsOfAssets}
                       </td>
                       <td
                         style={{
@@ -3002,7 +3002,7 @@ function Dashboard() {
                       }}
                     >
                       {clientAssetsData.reduce(
-                        (sum, client) => sum + client.setsOfAssets,
+                        (sum, client) => sum + client.totalPeripherals,
                         0
                       )}
                     </td>
@@ -3016,7 +3016,7 @@ function Dashboard() {
                       }}
                     >
                       {clientAssetsData.reduce(
-                        (sum, client) => sum + client.totalPeripherals,
+                        (sum, client) => sum + client.setsOfAssets,
                         0
                       )}
                     </td>

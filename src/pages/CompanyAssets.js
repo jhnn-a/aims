@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import Assets from "./Assets";
 import Inventory from "./Inventory";
+import OtherAssets from "./OtherAssets";
 import { useTheme } from "../context/ThemeContext";
-import LoadingSpinner, {
-  TableLoadingSpinner,
-} from "../components/LoadingSpinner";
 
 const tabStyles = {
   container: (isDarkMode) => ({
@@ -94,9 +92,21 @@ function CompanyAssets() {
         >
           Stockroom Assets
         </button>
+        <button
+          style={tabStyles.tab(activeTab === "other", isDarkMode)}
+          onClick={() => setActiveTab("other")}
+        >
+          Other Assets
+        </button>
       </div>
       <div style={tabStyles.tabContent(isDarkMode)}>
-        {activeTab === "assets" ? <Assets /> : <Inventory />}
+        {activeTab === "assets" ? (
+          <Assets />
+        ) : activeTab === "inventory" ? (
+          <Inventory />
+        ) : (
+          <OtherAssets />
+        )}
       </div>
     </div>
   );
