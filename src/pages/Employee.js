@@ -1909,14 +1909,16 @@ function EmployeeAssetsModal({
   if (!isOpen || !employee) return null;
 
   // Filter devices currently assigned to this employee (deployed)
+  // Split assigned devices into deployed vs work-from-home using assignmentType
   const deployedAssets = devices.filter(
-    (device) => device.assignedTo === employee.id
+    (device) => device.assignedTo === employee.id && device.assignmentType !== "wfh"
   );
 
   // Filter work from home/borrowed assets assigned to this employee
-  // TODO: Currently no field distinguishes WFH from regular assignments
-  // All assigned devices appear in deployed assets until this is implemented
-  const workFromHomeAssets = [];
+  // Devices marked with assignmentType === 'wfh' are considered WFH/borrowed
+  const workFromHomeAssets = devices.filter(
+    (device) => device.assignedTo === employee.id && device.assignmentType === "wfh"
+  );
 
   // Get returned assets from device history
   // Find devices that were assigned to this employee but are no longer assigned
