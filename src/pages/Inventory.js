@@ -3512,16 +3512,16 @@ function Inventory() {
   };
 
   const handleAssignModalRadio = (issueType) => {
-    // Get devices to check - either single device or selected devices for bulk assign
+    // Get devices to check - use the same logic as in openAssignModal
     let devicesToCheck = [];
-    if (assigningDevice) {
-      // Single device assignment
-      devicesToCheck = [assigningDevice];
-    } else if (selectedIds.length > 0) {
-      // Bulk assignment - get selected devices
+    if (selectedIds.length > 0) {
+      // Bulk assignment - get all selected devices (prioritize bulk over single)
       devicesToCheck = devices.filter((device) =>
         selectedIds.includes(device.id)
       );
+    } else if (assigningDevice) {
+      // Single device assignment fallback
+      devicesToCheck = [assigningDevice];
     }
 
     // Analyze device conditions (case-insensitive and trim whitespace)
