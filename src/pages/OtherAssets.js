@@ -119,7 +119,6 @@ function OtherAssets() {
   const [formData, setFormData] = useState({
     category: "",
     deviceType: "",
-    acquisitionDate: new Date().toISOString().split("T")[0],
     location: "",
     ownedBy: "",
     qty: 1,
@@ -185,9 +184,6 @@ function OtherAssets() {
       asset.ownedBy
         ?.toLowerCase()
         .includes(headerFilters.ownedBy.toLowerCase());
-    const matchesAcquisitionDate =
-      !headerFilters.acquisitionDate ||
-      asset.acquisitionDate?.includes(headerFilters.acquisitionDate);
     const matchesQty =
       !headerFilters.qty || asset.qty?.toString().includes(headerFilters.qty);
     const matchesRemarks =
@@ -202,7 +198,6 @@ function OtherAssets() {
       matchesDeviceType &&
       matchesLocation &&
       matchesOwnedBy &&
-      matchesAcquisitionDate &&
       matchesQty &&
       matchesRemarks
     );
@@ -231,7 +226,6 @@ function OtherAssets() {
     setFormData({
       category: "",
       deviceType: "",
-      acquisitionDate: new Date().toISOString().split("T")[0],
       location: "",
       ownedBy: "",
       qty: 1,
@@ -242,23 +236,39 @@ function OtherAssets() {
   // === ADD ASSET ===
   const handleAddAsset = async () => {
     try {
-      if (
-        !formData.category ||
-        !formData.deviceType ||
-        !formData.location ||
-        !formData.ownedBy
-      ) {
-        showError("Please fill in all required fields");
+      if (!formData.category || !formData.deviceType) {
+        showError("Please fill in required fields: Category and Device Type");
         return;
       }
 
-      await addDoc(collection(db, "otherAssets"), {
-        ...formData,
-        qty: parseInt(formData.qty) || 1,
-        createdAt: new Date().toISOString(),
-      });
+      // Check if an asset with the same category and deviceType already exists
+      const existingAsset = assets.find(
+        (asset) =>
+          asset.category === formData.category &&
+          asset.deviceType === formData.deviceType
+      );
 
-      showSuccess("Asset added successfully");
+      if (existingAsset) {
+        // Update the quantity of the existing asset
+        const newQuantity =
+          (existingAsset.qty || 1) + (parseInt(formData.qty) || 1);
+        await updateDoc(doc(db, "otherAssets", existingAsset.id), {
+          qty: newQuantity,
+          updatedAt: new Date().toISOString(),
+        });
+        showSuccess(
+          `Updated quantity for ${formData.category} - ${formData.deviceType}. New quantity: ${newQuantity}`
+        );
+      } else {
+        // Create a new asset entry
+        await addDoc(collection(db, "otherAssets"), {
+          ...formData,
+          qty: parseInt(formData.qty) || 1,
+          createdAt: new Date().toISOString(),
+        });
+        showSuccess("Asset added successfully");
+      }
+
       setShowAddModal(false);
       resetForm();
       loadAssets();
@@ -271,13 +281,8 @@ function OtherAssets() {
   // === EDIT ASSET ===
   const handleEditAsset = async () => {
     try {
-      if (
-        !formData.category ||
-        !formData.deviceType ||
-        !formData.location ||
-        !formData.ownedBy
-      ) {
-        showError("Please fill in all required fields");
+      if (!formData.category || !formData.deviceType) {
+        showError("Please fill in required fields: Category and Device Type");
         return;
       }
 
@@ -318,7 +323,6 @@ function OtherAssets() {
     setFormData({
       category: asset.category || "",
       deviceType: asset.deviceType || "",
-      acquisitionDate: asset.acquisitionDate || "",
       location: asset.location || "",
       ownedBy: asset.ownedBy || "",
       qty: asset.qty || 1,
@@ -340,7 +344,6 @@ function OtherAssets() {
         "No.": index + 1,
         Category: asset.category,
         "Device Type": asset.deviceType,
-        "Acquisition Date": asset.acquisitionDate,
         Location: asset.location,
         "Owned By": asset.ownedBy,
         Qty: asset.qty,
@@ -390,7 +393,6 @@ function OtherAssets() {
             const assetData = {
               category: row["Category"] || "",
               deviceType: row["Device Type"] || "",
-              acquisitionDate: row["Acquisition Date"] || "",
               location: row["Location"] || "",
               ownedBy: row["Owned By"] || "",
               qty: parseInt(row["Qty"]) || 1,
@@ -399,12 +401,7 @@ function OtherAssets() {
             };
 
             // Check if required fields are present
-            if (
-              !assetData.category ||
-              !assetData.deviceType ||
-              !assetData.location ||
-              !assetData.ownedBy
-            ) {
+            if (!assetData.category || !assetData.deviceType) {
               skippedCount++;
               continue;
             }
@@ -615,37 +612,6 @@ function OtherAssets() {
             </div>
           )}
 
-          {/* Acquisition Date */}
-          <div>
-            <label
-              style={{
-                display: "block",
-                marginBottom: "4px",
-                fontSize: "14px",
-                fontWeight: "500",
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-              }}
-            >
-              Acquisition Date
-            </label>
-            <input
-              type="date"
-              name="acquisitionDate"
-              value={formData.acquisitionDate}
-              onChange={handleInputChange}
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"}`,
-                borderRadius: "4px",
-                background: isDarkMode ? "#374151" : "#ffffff",
-                color: isDarkMode ? "#f3f4f6" : "#374151",
-                fontSize: "14px",
-                boxSizing: "border-box",
-              }}
-            />
-          </div>
-
           {/* Location */}
           <div>
             <label
@@ -657,7 +623,7 @@ function OtherAssets() {
                 color: isDarkMode ? "#f3f4f6" : "#374151",
               }}
             >
-              Location *
+              Location
             </label>
             <input
               type="text"
@@ -689,7 +655,7 @@ function OtherAssets() {
                 color: isDarkMode ? "#f3f4f6" : "#374151",
               }}
             >
-              Owned By *
+              Owned By
             </label>
             <input
               type="text"
@@ -1178,6 +1144,32 @@ function OtherAssets() {
                 <tr style={{ background: isDarkMode ? "#374151" : "#f9fafb" }}>
                   <th
                     style={{
+                      padding: "8px 4px",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
+                      fontWeight: 500,
+                      fontSize: 12,
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+                      textAlign: "center",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10,
+                      width: "40px",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      style={{
+                        width: 16,
+                        height: 16,
+                        margin: 0,
+                        accentColor: "#6b7280",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                      }}
+                    />
+                  </th>
+                  <th
+                    style={{
                       padding: "12px 16px",
                       background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
@@ -1239,27 +1231,6 @@ function OtherAssets() {
                     }}
                   >
                     DEVICE TYPE
-                  </th>
-                  <th
-                    style={{
-                      padding: "12px 16px",
-                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
-                      color: isDarkMode ? "#f3f4f6" : "rgb(55, 65, 81)",
-                      fontWeight: 500,
-                      fontSize: 12,
-                      border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
-                      textAlign: "left",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 10,
-                    }}
-                  >
-                    ACQUISITION DATE
                   </th>
                   <th
                     style={{
@@ -1381,6 +1352,19 @@ function OtherAssets() {
                 >
                   <th
                     style={{
+                      padding: "8px 4px",
+                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
+                      border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
+                      position: "sticky",
+                      top: "46px",
+                      zIndex: 9,
+                      textAlign: "center",
+                    }}
+                  >
+                    {/* Empty cell for checkbox column */}
+                  </th>
+                  <th
+                    style={{
                       padding: "8px 16px",
                       background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
                       border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
@@ -1437,24 +1421,6 @@ function OtherAssets() {
                         ),
                       ]}
                       placeholder="All Device Types"
-                    />
-                  </th>
-                  <th
-                    style={{
-                      padding: "8px 16px",
-                      background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
-                      border: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"}`,
-                      position: "sticky",
-                      top: "46px",
-                      zIndex: 9,
-                    }}
-                  >
-                    <DateFilter
-                      value={headerFilters.acquisitionDate || ""}
-                      onChange={(value) =>
-                        updateHeaderFilter("acquisitionDate", value)
-                      }
-                      placeholder="Filter by date..."
                     />
                   </th>
                   <th
@@ -1541,7 +1507,7 @@ function OtherAssets() {
                 {filteredAssets.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="8"
                       style={{
                         padding: "40px",
                         textAlign: "center",
@@ -1569,6 +1535,31 @@ function OtherAssets() {
                           : "1px solid #e5e7eb",
                       }}
                     >
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "center",
+                          borderBottom: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #e5e7eb",
+                          borderRight: isDarkMode
+                            ? "1px solid #374151"
+                            : "1px solid #e5e7eb",
+                          background: isDarkMode ? "#1f2937" : "#fff",
+                          verticalAlign: "middle",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          style={{
+                            width: 16,
+                            height: 16,
+                            margin: 0,
+                            accentColor: "#6b7280",
+                            colorScheme: isDarkMode ? "dark" : "light",
+                          }}
+                        />
+                      </td>
                       <td
                         style={{
                           padding: "12px 16px",
@@ -1621,24 +1612,6 @@ function OtherAssets() {
                         }}
                       >
                         {asset.deviceType}
-                      </td>
-                      <td
-                        style={{
-                          padding: "12px 16px",
-                          color: isDarkMode ? "#f3f4f6" : "#374151",
-                          fontSize: 14,
-                          borderBottom: isDarkMode
-                            ? "1px solid #374151"
-                            : "1px solid #e5e7eb",
-                          borderRight: isDarkMode
-                            ? "1px solid #374151"
-                            : "1px solid #e5e7eb",
-                          background: isDarkMode ? "#1f2937" : "#fff",
-                          verticalAlign: "middle",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {asset.acquisitionDate}
                       </td>
                       <td
                         style={{
