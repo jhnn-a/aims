@@ -1687,8 +1687,9 @@ function Inventory() {
       });
       doc.render();
       const out = doc.getZip().generate({ type: "blob" });
+      // Get first and last name, then clean and format for filename
       const employeeName = emp?.fullName
-        ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+        ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
         : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
@@ -3713,8 +3714,9 @@ function Inventory() {
   const handleDownloadAndAssign = async () => {
     if (!assignModalDocxBlob) return;
     const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
+    // Get first and last name, then clean and format for filename
     const employeeName = emp?.fullName
-      ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+      ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
       : "Employee";
     const fileName = `${employeeName} - NEW ISSUE.docx`;
     saveAs(assignModalDocxBlob, fileName);
