@@ -115,13 +115,13 @@ function Sidebar({ user }) {
                 border: isDarkMode ? "1px solid #4b5563" : undefined,
               }}
             >
-              <div className="sidebar-credits-title"><b>Developed by:</b></div>
+              <div className="sidebar-credits-title"><b>Developed by:L</b></div>
               <div className="sidebar-credits-names">
-                Ryan Bumalic
+                Albert Lago
                 <br />
                 John Mungcal
                 <br />
-                Albert Lago
+                Ryan Bumalic
                 <br />
                 Derek Pallasigue
               </div>
