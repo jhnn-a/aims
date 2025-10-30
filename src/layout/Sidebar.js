@@ -115,7 +115,7 @@ function Sidebar({ user }) {
                 border: isDarkMode ? "1px solid #4b5563" : undefined,
               }}
             >
-              <div className="sidebar-credits-title"><b>Developed by:L</b></div>
+              <div className="sidebar-credits-title"><b>Developed by:</b></div>
               <div className="sidebar-credits-names">
                 Albert Lago
                 <br />
