@@ -1881,7 +1881,7 @@ function Inventory() {
 
   // --- HANDLERS ---
 
-  // Local TAG validation function (enhanced with error handling)
+  // Local TAG validation function (using cached devices to avoid redundant fetches)
   const validateLocalTagUniqueness = async (tag, editingDeviceId = null) => {
     if (!tag || tag.trim() === "") {
       return { isValid: false, message: "TAG is required" };
@@ -1890,8 +1890,8 @@ function Inventory() {
     const trimmedTag = tag.trim();
 
     try {
-      const allDevices = await getAllDevices();
-      const existingDevice = allDevices.find(
+      // First check against cached devices (instant)
+      const existingDevice = devices.find(
         (device) =>
           device.deviceTag &&
           String(device.deviceTag).toLowerCase() === trimmedTag.toLowerCase() &&
@@ -1903,6 +1903,25 @@ function Inventory() {
           isValid: false,
           message: `TAG "${trimmedTag}" already exists for device ID: ${existingDevice.id}`,
         };
+      }
+
+      // If not in cache and cache might be stale, fetch fresh data as fallback
+      // (only on save, not on every keystroke)
+      if (!devices || devices.length === 0) {
+        const allDevices = await getAllDevices();
+        const freshDevice = allDevices.find(
+          (device) =>
+            device.deviceTag &&
+            String(device.deviceTag).toLowerCase() === trimmedTag.toLowerCase() &&
+            device.id !== editingDeviceId
+        );
+
+        if (freshDevice) {
+          return {
+            isValid: false,
+            message: `TAG "${trimmedTag}" already exists for device ID: ${freshDevice.id}`,
+          };
+        }
       }
 
       return { isValid: true, message: "" };
@@ -2003,6 +2022,35 @@ function Inventory() {
       });
   };
 
+  // Generate next tag using already-loaded device data (avoids redundant fetches)
+  const generateTagFromDevices = useCallback(
+    (prefix, targetType = null) => {
+      const tags = devices.map((d) => d.deviceTag).filter(Boolean);
+      const isHeadset = targetType === "H";
+      const legacyHeadsetPrefix = "JOIIHS";
+
+      const numbers = tags
+        .filter((tag) =>
+          isHeadset
+            ? String(tag).startsWith(prefix) ||
+              String(tag).startsWith(legacyHeadsetPrefix)
+            : String(tag).startsWith(prefix)
+        )
+        .map((tag) => {
+          const t = String(tag);
+          if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
+            return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
+          }
+          return parseInt(t.replace(prefix, ""), 10);
+        })
+        .filter((num) => !isNaN(num));
+
+      const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+      return `${prefix}${String(max + 1).padStart(4, "0")}`;
+    },
+    [devices]
+  );
+
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
       // When device type changes
@@ -2017,57 +2065,26 @@ function Inventory() {
           ramSize: "", // Reset RAM size when device type changes
         }));
       } else if (value === "PC") {
-        // For PC, generate tag immediately when PC is selected
+        // For PC, generate tag immediately using cached device data
         const prefix = "JOIIPC";
-        getAllDevices().then((allDevices) => {
-          const ids = allDevices
-            .map((d) => d.deviceTag)
-            .filter((tag) => tag && String(tag).startsWith(prefix))
-            .map((tag) => parseInt(String(tag).replace(prefix, "")))
-            .filter((num) => !isNaN(num));
-          const max = ids.length > 0 ? Math.max(...ids) : 0;
-          const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+        const newTag = generateTagFromDevices(prefix);
+        setForm((prev) => ({
+          ...prev,
+          deviceType: value,
+          deviceTag: newTag,
+          cpuGen: "", // Reset CPU System Unit when device type changes
+          brand: "", // Reset brand for PC devices
+        }));
+      } else {
+        // For non-RAM and non-PC devices, generate tag immediately
+        if (typeObj) {
+          const prefix = `JOII${typeObj.code}`;
+          const newTag = generateTagFromDevices(prefix, typeObj.code);
           setForm((prev) => ({
             ...prev,
             deviceType: value,
             deviceTag: newTag,
-            cpuGen: "", // Reset CPU System Unit when device type changes
-            brand: "", // Reset brand for PC devices
           }));
-        });
-      } else {
-        // For non-RAM and non-PC devices, generate tag immediately
-        let newTag = "";
-        if (typeObj) {
-          const prefix = `JOII${typeObj.code}`;
-          const isHeadset = typeObj.code === "H";
-          const legacyHeadsetPrefix = "JOIIHS"; // backward compatibility
-          // Find max existing tag for this type (include legacy headset prefix if applicable)
-          getAllDevices().then((allDevices) => {
-            const tags = allDevices.map((d) => d.deviceTag).filter(Boolean);
-            const numbers = tags
-              .filter((tag) =>
-                isHeadset
-                  ? String(tag).startsWith(prefix) ||
-                    String(tag).startsWith(legacyHeadsetPrefix)
-                  : String(tag).startsWith(prefix)
-              )
-              .map((tag) => {
-                const t = String(tag);
-                if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
-                  return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
-                }
-                return parseInt(t.replace(prefix, ""), 10);
-              })
-              .filter((num) => !isNaN(num));
-            const max = numbers.length > 0 ? Math.max(...numbers) : 0;
-            newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-            setForm((prev) => ({
-              ...prev,
-              deviceType: value,
-              deviceTag: newTag,
-            }));
-          });
         } else {
           setForm((prev) => ({ ...prev, deviceType: value, deviceTag: "" }));
         }
@@ -2097,21 +2114,12 @@ function Inventory() {
         const sizeCode = sizeMap[value];
         if (sizeCode) {
           const prefix = `JOIIRAM${sizeCode}`;
-          // Find max existing tag for this RAM size
-          getAllDevices().then((allDevices) => {
-            const ids = allDevices
-              .map((d) => d.deviceTag)
-              .filter((tag) => tag && String(tag).startsWith(prefix))
-              .map((tag) => parseInt(String(tag).replace(prefix, "")))
-              .filter((num) => !isNaN(num));
-            const max = ids.length > 0 ? Math.max(...ids) : 0;
-            const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
-            setForm((prev) => ({
-              ...prev,
-              ramSize: value,
-              deviceTag: newTag,
-            }));
-          });
+          const newTag = generateTagFromDevices(prefix);
+          setForm((prev) => ({
+            ...prev,
+            ramSize: value,
+            deviceTag: newTag,
+          }));
         } else {
           setForm((prev) => ({ ...prev, ramSize: value, deviceTag: "" }));
         }
@@ -2125,15 +2133,22 @@ function Inventory() {
       if (useSerial) {
         setTagError("");
         setForm((prev) => ({ ...prev, [name]: value }));
-        // Real-time validation for manual serial input
+        // Real-time validation for manual serial input (debounced via useEffect to avoid repeated calls)
         if (value.trim()) {
-          validateLocalTagUniqueness(value.trim(), form._editDeviceId).then(
-            (validation) => {
-              if (!validation.isValid) {
-                setTagError(validation.message);
-              }
-            }
+          // Check against cached devices array first (instant), then log any error
+          const existingDevice = devices.find(
+            (device) =>
+              device.deviceTag &&
+              String(device.deviceTag).toLowerCase() === value.toLowerCase().trim() &&
+              device.id !== form._editDeviceId
           );
+          if (existingDevice) {
+            setTagError(
+              `TAG "${value.trim()}" already exists for device ID: ${existingDevice.id}`
+            );
+          } else {
+            setTagError("");
+          }
         }
         return;
       }
@@ -2167,29 +2182,7 @@ function Inventory() {
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
-    const isHeadset = typeObj.code === "H";
-    const legacyHeadsetPrefix = "JOIIHS";
-    const allDevices = await getAllDevices();
-    const ids = allDevices
-      .map((d) => d.deviceTag)
-      .filter(
-        (tag) =>
-          tag &&
-          (isHeadset
-            ? String(tag).startsWith(prefix) ||
-              String(tag).startsWith(legacyHeadsetPrefix)
-            : String(tag).startsWith(prefix))
-      )
-      .map((tag) => {
-        const t = String(tag);
-        if (isHeadset && t.startsWith(legacyHeadsetPrefix)) {
-          return parseInt(t.replace(legacyHeadsetPrefix, ""), 10);
-        }
-        return parseInt(t.replace(prefix, ""), 10);
-      })
-      .filter((num) => !isNaN(num));
-    const max = ids.length > 0 ? Math.max(...ids) : 0;
-    const newTag = `${prefix}${String(max + 1).padStart(4, "0")}`;
+    const newTag = generateTagFromDevices(prefix, typeObj.code);
     setForm((prev) => ({ ...prev, deviceTag: newTag }));
   };
 

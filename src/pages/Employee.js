@@ -135,10 +135,19 @@ const safeCreateUserLog = async (
 
 const isValidName = (value) => /^[A-Za-zÑñ\s.'\-(),]+$/.test(value.trim());
 
-// Helper function to get current date in YYYY-MM-DD format
-const getCurrentDate = () => {
-  return new Date().toISOString().slice(0, 10);
+// Helper: produce a YYYY-MM-DD string based on the local date (avoids UTC shift)
+const toLocalISODate = (input) => {
+  // Accept Date object or parsable value
+  const date = input ? new Date(input) : new Date();
+  if (isNaN(date.getTime())) return "";
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 };
+
+// Helper function to get current date in YYYY-MM-DD format (local)
+const getCurrentDate = () => toLocalISODate(new Date());
 
 // Helper function to convert MM/DD/YYYY to YYYY-MM-DD for date input
 const convertToInputFormat = (dateStr) => {
@@ -824,6 +833,7 @@ function EmployeeFormModal({
                         target: { name: "dateHired", value: convertedDate },
                       });
                     }}
+                    lang="en-US"
                     style={{
                       width: "100%",
                       padding: "clamp(6px, 0.8vw, 10px)",
@@ -1429,7 +1439,7 @@ function EmployeeAssetsModal({
 
           await updateDevice(device.id, {
             assignedTo: newEmployee.id,
-            assignmentDate: new Date().toISOString().slice(0, 10),
+            assignmentDate: toLocalISODate(new Date()),
             status: "DEPLOYED",
             condition: newCondition,
           });
@@ -3607,7 +3617,7 @@ function formatAssignmentDate(dateValue) {
   // Handle Firestore timestamp object
   if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
     const date = new Date(dateValue.seconds * 1000);
-    return formatDisplayDate(date.toISOString().slice(0, 10));
+    return formatDisplayDate(toLocalISODate(date));
   }
 
   // Handle regular date string or Date object
@@ -5180,10 +5190,10 @@ export default function Employee() {
             // Store ISO (yyyy-mm-dd) version for model persistence while keeping MDY for display/history fallback
             const assignmentDateISO = (() => {
               const parts = assignmentDateMDY.split("/"); // mm/dd/yyyy
-              if (parts.length === 3) {
-                return `${parts[2]}-${parts[0]}-${parts[1]}`; // yyyy-mm-dd
-              }
-              return new Date().toISOString().slice(0, 10);
+                if (parts.length === 3) {
+                  return `${parts[2]}-${parts[0]}-${parts[1]}`; // yyyy-mm-dd
+                }
+                return toLocalISODate(new Date());
             })();
 
             // Create device data
@@ -5461,19 +5471,19 @@ export default function Employee() {
     showSuccess(message);
   };
 
-  // Helper to format date for input field (YYYY-MM-DD format)
+  // Helper to format a value into YYYY-MM-DD for input fields, using local date
   const formatDateForInput = (dateValue) => {
     if (!dateValue) return "";
 
     // Handle Firestore timestamp object
     if (dateValue && typeof dateValue === "object" && dateValue.seconds) {
       const date = new Date(dateValue.seconds * 1000);
-      return date.toISOString().slice(0, 10);
+      return toLocalISODate(date);
     }
 
     // Handle Date object
     if (dateValue instanceof Date) {
-      return dateValue.toISOString().slice(0, 10);
+      return toLocalISODate(dateValue);
     }
 
     // Handle date string
@@ -5482,10 +5492,10 @@ export default function Employee() {
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
         return dateValue;
       }
-      // Try to parse other formats
+      // Try to parse other formats and return local date representation
       const date = new Date(dateValue);
       if (!isNaN(date.getTime())) {
-        return date.toISOString().slice(0, 10);
+        return toLocalISODate(date);
       }
     }
 
