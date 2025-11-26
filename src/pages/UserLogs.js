@@ -263,7 +263,15 @@ function UserLogs() {
         }}
       >
         {/* Search */}
-        <div style={{ position: "relative", width: "1282px", flexShrink: 0 }}>
+        <div
+          style={{
+            position: "relative",
+            flex: "1",
+            minWidth: "200px",
+            maxWidth: "320px",
+            marginRight: "50px",
+          }}
+        >
           <input
             type="text"
             placeholder="Search logs..."
@@ -316,7 +324,6 @@ function UserLogs() {
             cursor: "pointer",
             flexShrink: 0,
             minWidth: "fit-content",
-            marginLeft: "52px",
           }}
         >
           <option value="all">All Categories</option>

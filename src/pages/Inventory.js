@@ -1687,8 +1687,9 @@ function Inventory() {
       });
       doc.render();
       const out = doc.getZip().generate({ type: "blob" });
+      // Get first and last name, then clean and format for filename
       const employeeName = emp?.fullName
-        ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+        ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
         : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
@@ -3431,6 +3432,61 @@ function Inventory() {
       wfhNew: false,
       wfhStock: false,
     });
+
+    // Auto-select radio button and checkboxes based on device conditions
+    // Get devices to check - either single device or selected devices for bulk assign
+    let devicesToCheck = [];
+    if (selectedIds.length > 0) {
+      // Bulk assignment - get all selected devices
+      devicesToCheck = devices.filter((device) =>
+        selectedIds.includes(device.id)
+      );
+    } else {
+      // Single device assignment
+      devicesToCheck = [device];
+    }
+
+    // Analyze device conditions (case-insensitive and trim whitespace)
+    const hasGoodDevices = devicesToCheck.some(
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "GOOD"
+    );
+    const hasBrandNewDevices = devicesToCheck.some(
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "BRANDNEW"
+    );
+
+    // Auto-select the most appropriate radio button based on device conditions
+    if (hasGoodDevices && hasBrandNewDevices) {
+      // Mixed conditions: default to "newIssue" and select both checkboxes
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: true,
+        newIssueStock: true,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    } else if (hasBrandNewDevices) {
+      // Only BRANDNEW devices: default to "newIssue" and select "Newly Purchased"
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: true,
+        newIssueStock: false,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    } else if (hasGoodDevices) {
+      // Only GOOD devices: default to "newIssue" and select "Stock"
+      setAssignModalChecks({
+        issueTypeSelected: "newIssue",
+        newIssueNew: false,
+        newIssueStock: true,
+        wfhNew: false,
+        wfhStock: false,
+      });
+    }
     setAssignSearch("");
   };
 
@@ -3457,24 +3513,28 @@ function Inventory() {
   };
 
   const handleAssignModalRadio = (issueType) => {
-    // Get devices to check - either single device or selected devices for bulk assign
+    // Get devices to check - use the same logic as in openAssignModal
     let devicesToCheck = [];
-    if (assigningDevice) {
-      // Single device assignment
-      devicesToCheck = [assigningDevice];
-    } else if (selectedIds.length > 0) {
-      // Bulk assignment - get selected devices
+    if (selectedIds.length > 0) {
+      // Bulk assignment - get all selected devices (prioritize bulk over single)
       devicesToCheck = devices.filter((device) =>
         selectedIds.includes(device.id)
       );
+    } else if (assigningDevice) {
+      // Single device assignment fallback
+      devicesToCheck = [assigningDevice];
     }
 
-    // Analyze device conditions
+    // Analyze device conditions (case-insensitive and trim whitespace)
     const hasGoodDevices = devicesToCheck.some(
-      (device) => device.condition === "GOOD"
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "GOOD"
     );
     const hasBrandNewDevices = devicesToCheck.some(
-      (device) => device.condition === "BRANDNEW"
+      (device) =>
+        device.condition &&
+        device.condition.toString().trim().toUpperCase() === "BRANDNEW"
     );
 
     // Determine automatic checkbox selection based on device conditions
@@ -3654,8 +3714,9 @@ function Inventory() {
   const handleDownloadAndAssign = async () => {
     if (!assignModalDocxBlob) return;
     const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
+    // Get first and last name, then clean and format for filename
     const employeeName = emp?.fullName
-      ? emp.fullName.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+      ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
       : "Employee";
     const fileName = `${employeeName} - NEW ISSUE.docx`;
     saveAs(assignModalDocxBlob, fileName);
@@ -6520,11 +6581,7 @@ function Inventory() {
                       onChange={(value) =>
                         updateHeaderFilter("deviceType", value)
                       }
-                      options={[
-                        ...new Set(
-                          devices.map((d) => d.deviceType).filter(Boolean)
-                        ),
-                      ]}
+                      options={deviceTypes.map((type) => type.label)}
                       placeholder="All Types"
                     />
                   </th>

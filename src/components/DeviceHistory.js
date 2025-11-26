@@ -106,7 +106,6 @@ const formatDateToDDMMYYYY = (dateValue) => {
     date.getFullYear()
   );
 };
-
 const DeviceHistory = ({ deviceTag, deviceId, onClose }) => {
   const { isDarkMode } = useTheme();
   const [history, setHistory] = useState([]);

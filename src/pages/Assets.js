@@ -35,6 +35,7 @@ import { db } from "../utils/firebase"; // Firebase configuration
 import { exportInventoryToExcel } from "../utils/exportInventoryToExcel"; // Excel export utility
 import { useCurrentUser } from "../CurrentUserContext"; // Current user context
 import { createUserLog, ACTION_TYPES } from "../services/userLogService"; // User logging service
+import { deviceTypes } from "./InventoryConstants"; // Device types configuration
 
 // === CONDITION STYLING FUNCTIONS ===
 // Function to get background color based on device condition
@@ -1582,22 +1583,6 @@ function Assets() {
     hasActiveFilters: hasActiveHeaderFilters, // Boolean indicating if any filters are active
   } = useTableFilters();
   const [showTransferPrompt, setShowTransferPrompt] = useState(false); // Transfer confirmation dialog
-
-  // === DEVICE TYPE CONFIGURATION ===
-  // Available device types with display labels and asset tag codes
-  const deviceTypes = [
-    { label: "Headset", code: "HS" }, // Audio equipment
-    { label: "Keyboard", code: "KB" }, // Input devices
-    { label: "Laptop", code: "LPT" }, // Portable computers
-    { label: "Monitor", code: "MN" }, // Display devices
-    { label: "Mouse", code: "M" }, // Pointing devices
-    { label: "PC", code: "PC" }, // Desktop computers
-    { label: "PSU", code: "PSU" }, // Power supply units
-    { label: "RAM", code: "RAM" }, // Memory modules
-    { label: "SSD", code: "SSD" }, // Storage devices
-    { label: "UPS", code: "UPS" }, // Uninterruptible power supplies
-    { label: "Webcam", code: "W" }, // Camera devices
-  ];
 
   // === DEVICE CONDITION OPTIONS ===
   // Available condition states for asset tracking
