@@ -1569,16 +1569,12 @@ function Inventory() {
   };
 
   // === UTILITY FUNCTIONS ===
-  // Helper function to extract first and last name only for document forms
-  const getFirstLastName = (fullName) => {
-    if (!fullName) return "";
-    const parts = fullName.trim().split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0]; // Only first name
-    } else if (parts.length >= 2) {
-      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
-    }
-    return "";
+  // Helper function to combine first and last name only for document forms
+  const getFirstLastName = (firstName, lastName) => {
+    if (!firstName && !lastName) return "";
+    if (!firstName) return lastName || "";
+    if (!lastName) return firstName || "";
+    return `${firstName} ${lastName}`;
   };
 
   // === GLOBAL STYLING EFFECTS ===
@@ -1645,7 +1641,7 @@ function Inventory() {
         "-" +
         String(phTime.getDate()).padStart(2, "0");
       doc.setData({
-        name: getFirstLastName(emp?.fullName) || "",
+        name: getFirstLastName(emp?.firstName, emp?.lastName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
         department: getDepartmentForForm(emp),
         position: emp?.position || "",
@@ -1688,8 +1684,8 @@ function Inventory() {
       doc.render();
       const out = doc.getZip().generate({ type: "blob" });
       // Get first and last name, then clean and format for filename
-      const employeeName = emp?.fullName
-        ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+      const employeeName = emp?.firstName && emp?.lastName
+        ? getFirstLastName(emp.firstName, emp.lastName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
         : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
@@ -3650,7 +3646,7 @@ function Inventory() {
         String(phTime.getDate()).padStart(2, "0");
 
       doc.setData({
-        name: getFirstLastName(emp?.fullName) || "",
+        name: getFirstLastName(emp?.firstName, emp?.lastName) || "",
         dateHired: formatDateToFullWord(emp?.dateHired) || "",
         department: getDepartmentForForm(emp),
         position: emp?.position || "",
@@ -3708,8 +3704,8 @@ function Inventory() {
     if (!assignModalDocxBlob) return;
     const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
     // Get first and last name, then clean and format for filename
-    const employeeName = emp?.fullName
-      ? getFirstLastName(emp.fullName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
+    const employeeName = emp?.firstName && emp?.lastName
+      ? getFirstLastName(emp.firstName, emp.lastName).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
       : "Employee";
     const fileName = `${employeeName} - NEW ISSUE.docx`;
     saveAs(assignModalDocxBlob, fileName);

@@ -1607,7 +1607,7 @@ function EmployeeAssetsModal({
         const isDefective = selectedCondition === "DEFECTIVE";
 
         templateData = {
-          name: getFirstLastName(fromEmployee.fullName) || "",
+          name: getFirstLastName(fromEmployee.firstName, fromEmployee.lastName) || "",
           department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
@@ -1635,13 +1635,13 @@ function EmployeeAssetsModal({
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
-          transferor_name: getFirstLastName(fromEmployee.fullName) || "",
+          transferor_name: getFirstLastName(fromEmployee.firstName, fromEmployee.lastName) || "",
           transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee
-            ? getFirstLastName(toEmployee.fullName) || ""
+            ? getFirstLastName(toEmployee.firstName, toEmployee.lastName) || ""
             : "",
           transferee_department: toEmployee
             ? getDepartmentForForm(toEmployee)
@@ -1776,7 +1776,7 @@ function EmployeeAssetsModal({
         const isDefective = overallCondition === "DEFECTIVE";
 
         templateData = {
-          name: getFirstLastName(fromEmployee.fullName) || "",
+          name: getFirstLastName(fromEmployee.firstName, fromEmployee.lastName) || "",
           department: getDepartmentForForm(fromEmployee),
           position: fromEmployee.position || "",
           dateHired: formatTransferDate(fromEmployee.dateHired) || "",
@@ -1803,13 +1803,13 @@ function EmployeeAssetsModal({
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
-          transferor_name: getFirstLastName(fromEmployee.fullName) || "",
+          transferor_name: getFirstLastName(fromEmployee.firstName, fromEmployee.lastName) || "",
           transferor_department: getDepartmentForForm(fromEmployee),
           transferor_date_hired:
             formatTransferDate(fromEmployee.dateHired) || "",
           transferor_position: fromEmployee.position || "",
           transferee_name: toEmployee
-            ? getFirstLastName(toEmployee.fullName) || ""
+            ? getFirstLastName(toEmployee.firstName, toEmployee.lastName) || ""
             : "",
           transferee_department: toEmployee
             ? getDepartmentForForm(toEmployee)
@@ -1858,19 +1858,15 @@ function EmployeeAssetsModal({
     if (!actionModal.docxBlob) return;
 
     // Helper function to get first and last name only
-    const getFirstLastName = (fullName) => {
-      if (!fullName) return "Employee";
-      const parts = fullName.trim().split(/\s+/);
-      if (parts.length === 1) {
-        return parts[0]; // Only first name
-      } else if (parts.length >= 2) {
-        return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
-      }
-      return "Employee";
+    const getFirstLastName = (firstName, lastName) => {
+      if (!firstName && !lastName) return "Employee";
+      if (!firstName) return lastName || "Employee";
+      if (!lastName) return firstName || "Employee";
+      return `${firstName} ${lastName}`;
     };
 
     const { type, device, devices, isBulk } = actionModal;
-    const employeeName = getFirstLastName(employee.fullName)
+    const employeeName = getFirstLastName(employee.firstName, employee.lastName)
       .replace(/[^a-zA-Z0-9\s-]/g, "")
       .replace(/\s+/g, "_");
 
