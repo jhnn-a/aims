@@ -2592,13 +2592,13 @@ function Assets() {
 
       // Data object: must match template placeholders exactly
       const data = {
-        transferor_name: getFirstLastName(transferor.fullName) || "",
+        transferor_name: getFirstLastName(transferor.firstName, transferor.lastName) || "",
         transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
-        transferee_name: getFirstLastName(transferee.fullName) || "",
+        transferee_name: getFirstLastName(transferee.firstName, transferee.lastName) || "",
         transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
@@ -2688,7 +2688,7 @@ function Assets() {
       // Use current date for return document (not original assignment date)
       const currentDate = formatTransferDate(new Date());
       const data = {
-        name: getFirstLastName(employee.fullName) || "",
+        name: getFirstLastName(employee.firstName, employee.lastName) || "",
         department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
@@ -2717,7 +2717,7 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.fullName)
+      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
@@ -2761,7 +2761,7 @@ function Assets() {
       // Use current date for return document (not original assignment date)
       const currentDate = formatTransferDate(new Date());
       const data = {
-        name: getFirstLastName(employee.fullName) || "",
+        name: getFirstLastName(employee.firstName, employee.lastName) || "",
         department: getDepartmentForForm(employee),
         position: employee.position || "",
         dateHired: employee.dateHired
@@ -2788,7 +2788,7 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.fullName)
+      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
