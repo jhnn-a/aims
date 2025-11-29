@@ -1532,15 +1532,11 @@ function Assets() {
 
   // === UTILITY FUNCTIONS ===
   // Helper function to extract first and last name only for document forms
-  const getFirstLastName = (fullName) => {
-    if (!fullName) return "Employee";
-    const parts = fullName.trim().split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0]; // Only first name
-    } else if (parts.length >= 2) {
-      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
-    }
-    return "Employee";
+  const getFirstLastName = (firstName, lastName) => {
+    if (!firstName && !lastName) return "Employee";
+    if (!firstName) return lastName || "Employee";
+    if (!lastName) return firstName || "Employee";
+    return `${firstName} ${lastName}`;
   };
 
   // === DEVICE FORM STATE ===
@@ -4718,13 +4714,32 @@ function Assets() {
                       marginBottom: 16,
                     }}
                   >
-                    {employees
-                      .filter((emp) =>
+                    {(() => {
+                      const filteredEmployees = employees.filter((emp) =>
                         emp.fullName
                           .toLowerCase()
-                          .includes(bulkAssignSearch.toLowerCase())
-                      )
-                      .map((emp) => (
+                          .includes(bulkAssignSearch.toLowerCase()) &&
+                        !emp.isResigned
+                      );
+
+                      if (filteredEmployees.length === 0) {
+                        return (
+                          <div
+                            style={{
+                              width: "100%",
+                              padding: "20px 16px",
+                              textAlign: "center",
+                              color: isDarkMode ? "#9ca3af" : "#6b7280",
+                              fontSize: 14,
+                              fontWeight: 500,
+                            }}
+                          >
+                            No employee found
+                          </div>
+                        );
+                      }
+
+                      return filteredEmployees.map((emp) => (
                         <div key={emp.id} style={{ width: "100%" }}>
                           <button
                             style={{
@@ -4765,7 +4780,8 @@ function Assets() {
                             {emp.fullName}
                           </button>
                         </div>
-                      ))}
+                      ));
+                    })()}
                   </div>
                   <button
                     onClick={() => setBulkReassignModalOpen(false)}

@@ -1160,15 +1160,11 @@ function EmployeeAssetsModal({
 
   // === UTILITY FUNCTIONS ===
   // Helper function to extract first and last name only for document forms
-  const getFirstLastName = (fullName) => {
-    if (!fullName) return "";
-    const parts = fullName.trim().split(/\s+/);
-    if (parts.length === 1) {
-      return parts[0]; // Only first name
-    } else if (parts.length >= 2) {
-      return `${parts[0]} ${parts[parts.length - 1]}`; // First and last name only
-    }
-    return "";
+  const getFirstLastName = (firstName, lastName) => {
+    if (!firstName && !lastName) return "";
+    if (!firstName) return lastName || "";
+    if (!lastName) return firstName || "";
+    return `${firstName} ${lastName}`;
   };
 
   // Bulk selection state - separate for deployed and work from home assets
@@ -1856,14 +1852,6 @@ function EmployeeAssetsModal({
 
   const handleDownloadDocx = () => {
     if (!actionModal.docxBlob) return;
-
-    // Helper function to get first and last name only
-    const getFirstLastName = (firstName, lastName) => {
-      if (!firstName && !lastName) return "Employee";
-      if (!firstName) return lastName || "Employee";
-      if (!lastName) return firstName || "Employee";
-      return `${firstName} ${lastName}`;
-    };
 
     const { type, device, devices, isBulk } = actionModal;
     const employeeName = getFirstLastName(employee.firstName, employee.lastName)
