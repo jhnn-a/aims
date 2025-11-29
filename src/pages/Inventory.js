@@ -7622,13 +7622,32 @@ function Inventory() {
                     WebkitScrollbar: { display: "none" },
                   }}
                 >
-                  {employees
-                    .filter((emp) =>
+                  {(() => {
+                    const filteredEmployees = employees.filter((emp) =>
                       emp.fullName
                         .toLowerCase()
-                        .includes(assignSearch.toLowerCase())
-                    )
-                    .map((emp) => (
+                        .includes(assignSearch.toLowerCase()) &&
+                      !emp.isResigned
+                    );
+
+                    if (filteredEmployees.length === 0) {
+                      return (
+                        <div
+                          style={{
+                            width: "100%",
+                            padding: "20px 16px",
+                            textAlign: "center",
+                            color: isDarkMode ? "#9ca3af" : "#6b7280",
+                            fontSize: 14,
+                            fontWeight: 500,
+                          }}
+                        >
+                          No employee found
+                        </div>
+                      );
+                    }
+
+                    return filteredEmployees.map((emp) => (
                       <div key={emp.id} style={{ width: "100%" }}>
                         <button
                           style={{
@@ -7670,7 +7689,8 @@ function Inventory() {
                           {emp.fullName}
                         </button>
                       </div>
-                    ))}
+                    ));
+                  })()}
                 </div>
                 <div
                   style={{
