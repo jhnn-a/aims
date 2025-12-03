@@ -1,6 +1,5 @@
 import React, { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-// ...existing code...
 import { FiLogOut } from "react-icons/fi";
 import { useTheme } from "../context/ThemeContext";
 import ThemeToggle from "../components/ThemeToggle";
@@ -11,7 +10,6 @@ function Header({ user, onLogout }) {
   const [showConfirm, setShowConfirm] = React.useState(false);
   const { isDarkMode, toggleDarkMode } = useTheme();
 
-  // Show confirmation modal before logout
   const handleLogoutClick = useCallback(() => {
     setShowConfirm(true);
   }, []);
@@ -30,34 +28,26 @@ function Header({ user, onLogout }) {
   }, []);
 
   return (
-    <header
-      className="header"
-      style={{
-        backgroundColor: isDarkMode ? "#1f2937" : undefined,
-        borderBottom: isDarkMode ? "1px solid #374151" : undefined,
-      }}
-    >
+    <header className={`header ${isDarkMode ? "dark" : ""}`}>
       <div className="header-left">
         <img
           src={require("./joii.png")}
           alt="JOII Logo"
           className="header-logo"
         />
-        <span style={{ color: isDarkMode ? "#f3f4f6" : undefined }}>
+        <span className={`header-title ${isDarkMode ? "dark" : ""}`}>
           Assets & Inventory Management System
         </span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+
+      <div className="header-right">
         <ThemeToggle isDarkMode={isDarkMode} onToggle={toggleDarkMode} />
+
         <button
           onClick={handleLogoutClick}
-          className="header-logout"
+          className={`header-logout ${isDarkMode ? "dark" : ""}`}
           title="Logout"
           aria-label="Logout"
-          style={{
-            color: isDarkMode ? "#f3f4f6" : undefined,
-            backgroundColor: isDarkMode ? "#374151" : undefined,
-          }}
         >
           <FiLogOut size={20} />
         </button>
@@ -65,83 +55,18 @@ function Header({ user, onLogout }) {
 
       {/* Logout Confirmation Modal */}
       {showConfirm && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(34,46,58,0.18)",
-            zIndex: 4000,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              background: isDarkMode ? "#1f2937" : "#fff",
-              borderRadius: 16,
-              boxShadow: "0 4px 24px #2563eb18, 0 1.5px 6px #2563eb0a",
-              border: `1.5px solid ${isDarkMode ? "#374151" : "#e0e7ef"}`,
-              padding: 32,
-              minWidth: 320,
-              maxWidth: 400,
-              width: "100%",
-              textAlign: "center",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: 20,
-                color: isDarkMode ? "#f3f4f6" : "#233037",
-                marginBottom: 18,
-              }}
-            >
-              Are you sure you want to logout?
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 18,
-                justifyContent: "center",
-                marginTop: 18,
-              }}
-            >
-              <button
-                onClick={confirmLogout}
-                style={{
-                  background: "#e11d48",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                }}
-              >
+        <div className="logout-overlay">
+          <div className={`logout-modal ${isDarkMode ? "dark" : ""}`}>
+            <div className="logout-title">Are you sure you want to logout?</div>
+
+            <div className="logout-actions">
+              <button className="logout-confirm" onClick={confirmLogout}>
                 Yes, Logout
               </button>
+
               <button
+                className={`logout-cancel ${isDarkMode ? "dark" : ""}`}
                 onClick={cancelLogout}
-                style={{
-                  background: isDarkMode ? "#374151" : "#e0e7ef",
-                  color: isDarkMode ? "#f3f4f6" : "#233037",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "10px 22px",
-                  fontWeight: 700,
-                  fontSize: 16,
-                  cursor: "pointer",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                  transition: "background 0.2s, box-shadow 0.2s",
-                }}
               >
                 Cancel
               </button>

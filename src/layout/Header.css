@@ -1,10 +1,12 @@
-
+/* -------------------------------------------------
+   MAIN HEADER
+--------------------------------------------------- */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 56px;
-  background: #1D2536;
+  background: #1d2536;
   color: #fff;
   padding: 0 32px;
   position: fixed;
@@ -15,20 +17,39 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* DARK MODE */
+.header.dark {
+  background: #1f2937;
+  border-bottom: 1px solid #374151;
+}
 
 .header-left {
   display: flex;
   align-items: center;
 }
 
+.header-title {
+  color: #fff;
+}
+
+.header-title.dark {
+  color: #f3f4f6;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
 .header-logo {
   height: 20px;
-  width: auto;
   margin-right: 12px;
 }
 
-
+/* -------------------------------------------------
+   LOGOUT BUTTON
+--------------------------------------------------- */
 .header-logout {
   background: transparent;
   border: none;
@@ -37,14 +58,114 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-
 .header-logout:hover {
   background: #fff;
-  color: #1D2536;
+  color: #1d2536;
+}
+
+/* DARK MODE */
+.header-logout.dark {
+  color: #f3f4f6;
+  background: #374151;
+}
+
+.header-logout.dark:hover {
+  background: #4b5563;
+  color: #fff;
+}
+
+/* -------------------------------------------------
+   LOGOUT MODAL & OVERLAY
+--------------------------------------------------- */
+.logout-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(34,46,58,0.18);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px #2563eb18, 0 1.5px 6px #2563eb0a;
+  border: 1.5px solid #e0e7ef;
+  padding: 32px;
+  min-width: 320px;
+  max-width: 400px;
+  text-align: center;
+  position: relative;
+}
+
+/* DARK MODE */
+.logout-modal.dark {
+  background: #1f2937;
+  border: 1.5px solid #374151;
+}
+
+.logout-title {
+  font-weight: 700;
+  font-size: 20px;
+  color: #233037;
+  margin-bottom: 18px;
+}
+
+.logout-modal.dark .logout-title {
+  color: #f3f4f6;
+}
+
+.logout-actions {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+/* Buttons */
+.logout-confirm {
+  background: #e11d48;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: background 0.2s;
+}
+
+.logout-confirm:hover {
+  background: #be123c;
+}
+
+.logout-cancel {
+  background: #e0e7ef;
+  color: #233037;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: background 0.2s;
+}
+
+/* DARK MODE */
+.logout-cancel.dark {
+  background: #374151;
+  color: #f3f4f6;
+}
+
+.logout-cancel.dark:hover {
+  background: #4b5563;
 }
