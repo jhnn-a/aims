@@ -31,17 +31,6 @@ import {
   LabelList,
 } from "recharts";
 
-// Enhanced Chart Components
-const COLORS = [
-  "#2563eb",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#f97316",
-];
-
 // Maintenance Status Colors for Specifications Report
 const MAINTENANCE_COLORS = {
   Healthy: "#16a34a", // Green
