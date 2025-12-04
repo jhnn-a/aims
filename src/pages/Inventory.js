@@ -6774,11 +6774,9 @@ function Inventory() {
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(device.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleSelectOne(device.id);
-                          }}
+                          readOnly
                           style={{
+                            pointerEvents: "none",
                             width: 16,
                             height: 16,
                             margin: 0,
