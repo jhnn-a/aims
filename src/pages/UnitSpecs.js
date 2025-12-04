@@ -4125,6 +4125,7 @@ const UnitSpecs = () => {
                 : "none",
             outline: "none",
             transition: "all 0.2s",
+            minWidth: 180,
           }}
         >
           Inventory Units
@@ -4160,6 +4161,7 @@ const UnitSpecs = () => {
                 : "none",
             outline: "none",
             transition: "all 0.2s",
+            minWidth: 180,
           }}
         >
           Deployed Units
