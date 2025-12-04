@@ -1,3 +1,5 @@
+/* ----- SIDEBAR BASE STYLING ----- */
+
 .sidebar-nav {
   background: #fff;
   height: calc(100vh - 56px);
@@ -11,6 +13,12 @@
   box-shadow: 2px 0 16px rgba(68, 95, 109, 0.1);
   z-index: 10;
   padding: 0;
+}
+
+/* DARK MODE */
+.sidebar-nav.dark {
+  background: #1f2937;
+  border-right: 1px solid #374151;
 }
 
 .sidebar-list {
@@ -27,6 +35,7 @@
   width: 100%;
 }
 
+/* Link */
 .sidebar-link {
   display: flex;
   align-items: center;
@@ -36,18 +45,35 @@
   text-decoration: none;
   font-weight: 500;
   font-size: 16px;
-  border-radius: 0;
   transition: background 0.18s, color 0.18s;
   background: none;
   box-sizing: border-box;
 }
 
+.sidebar-icon {
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+}
+
+/* Active Link */
 .sidebar-link.active {
   background: #e0e7ef;
   color: #2563eb;
   font-weight: 700;
 }
 
+/* Dark Mode Link */
+.sidebar-link.dark {
+  color: #d1d5db;
+}
+
+.sidebar-link.active.dark {
+  background: #374151;
+  color: #60a5fa;
+}
+
+/* Divider */
 .sidebar-divider {
   width: 80%;
   height: 1px;
@@ -55,6 +81,13 @@
   margin: 8px auto;
   border: none;
 }
+
+/* Dark Mode Divider */
+.sidebar-divider.dark {
+  background: #374151;
+}
+
+/* ----- BOTTOM FOOTER ----- */
 
 .sidebar-bottom {
   margin-top: auto;
@@ -67,10 +100,30 @@
   font-family: Maax, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* Footer clickable */
+.sidebar-footer-clickable {
+  color: #64748b;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  transition: color 0.15s;
+}
+
+.sidebar-footer-clickable.dark {
+  color: #9ca3af;
+}
+
+.sidebar-footer-active {
+  color: #2563eb;
+}
+
 .sidebar-brand {
   font-weight: 700;
   color: inherit;
 }
+
+/* ----- TOOLTIP ----- */
 
 .sidebar-credits-tooltip {
   position: absolute;
@@ -91,6 +144,7 @@
   align-items: center;
 }
 
+/* Tooltip pointer */
 .sidebar-credits-pointer {
   width: 0;
   height: 0;
@@ -102,6 +156,18 @@
   align-self: center;
 }
 
+/* Tooltip dark mode */
+.sidebar-credits-tooltip.dark {
+  background: #374151;
+  color: #f3f4f6;
+  border: 1px solid #4b5563;
+}
+
+.sidebar-credits-pointer.dark {
+  border-top-color: #374151;
+}
+
+/* Tooltip text */
 .sidebar-credits-title {
   font-weight: 400;
   color: #233037;
@@ -118,6 +184,13 @@
   margin-bottom: 4px;
 }
 
+/* Dark Mode text inside tooltip */
+.sidebar-credits-tooltip.dark .sidebar-credits-title,
+.sidebar-credits-tooltip.dark .sidebar-credits-names {
+  color: #f3f4f6;
+}
+
+/* Animation */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -129,15 +202,7 @@
   }
 }
 
-.sidebar-footer-clickable {
-  color: #64748b;
-  font-weight: 700;
-  transition: color 0.15s;
-}
-
-.sidebar-footer-active {
-  color: #2563eb;
-}
+/* ----- RESPONSIVE ----- */
 
 @media (max-width: 768px) {
   .sidebar-nav {

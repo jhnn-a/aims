@@ -32,90 +32,46 @@ function Sidebar({ user }) {
       label: "User Management",
       icon: <MdAdminPanelSettings size={22} />,
     },
-    {
-      to: "/user-logs",
-      label: "User Logs",
-      icon: <MdHistory size={22} />,
-    },
+    { to: "/user-logs", label: "User Logs", icon: <MdHistory size={22} /> },
   ];
 
   return (
-    <nav
-      className="sidebar-nav"
-      style={{
-        backgroundColor: isDarkMode ? "#1f2937" : undefined,
-        borderRight: isDarkMode ? "1px solid #374151" : undefined,
-      }}
-    >
+    <nav className={`sidebar-nav ${isDarkMode ? "dark" : ""}`}>
       <ul className="sidebar-list">
         {links.map((link) => (
           <li key={link.to} className="sidebar-list-item">
             <Link
               to={link.to}
-              className={
-                location.pathname === link.to
-                  ? "sidebar-link active"
-                  : "sidebar-link"
-              }
-              style={{
-                color: isDarkMode ? "#d1d5db" : undefined,
-                ...(location.pathname === link.to && isDarkMode
-                  ? {
-                      backgroundColor: "#374151",
-                      color: "#60a5fa",
-                    }
-                  : {}),
-              }}
+              className={`sidebar-link ${
+                location.pathname === link.to ? "active" : ""
+              } ${isDarkMode ? "dark" : ""}`}
             >
-              <span
-                style={{
-                  marginRight: 12,
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                {link.icon}
-              </span>
+              <span className="sidebar-icon">{link.icon}</span>
               {link.label}
             </Link>
           </li>
         ))}
       </ul>
-      <hr
-        className="sidebar-divider"
-        style={{
-          borderColor: isDarkMode ? "#374151" : undefined,
-        }}
-      />
+
+      <hr className={`sidebar-divider ${isDarkMode ? "dark" : ""}`} />
+
       <div className="sidebar-bottom">
         <span
-          className={`sidebar-footer-clickable${
-            showCredits ? " sidebar-footer-active" : ""
-          }`}
-          style={{
-            cursor: "pointer",
-            display: "inline-block",
-            position: "relative",
-            fontWeight: 700,
-            color: isDarkMode ? "#9ca3af" : undefined,
-          }}
+          className={`sidebar-footer-clickable ${
+            showCredits ? "sidebar-footer-active" : ""
+          } ${isDarkMode ? "dark" : ""}`}
           onMouseEnter={() => setShowCredits(true)}
           onMouseLeave={() => setShowCredits(false)}
         >
-          <span className="sidebar-brand" style={{ color: "inherit" }}>
-            AIMS
-          </span>{" "}
-          &copy; {new Date().getFullYear()}
+          <span className="sidebar-brand">AIMS</span> ©{" "}
+          {new Date().getFullYear()}
           {showCredits && (
             <div
-              className="sidebar-credits-tooltip"
-              style={{
-                backgroundColor: isDarkMode ? "#374151" : undefined,
-                color: isDarkMode ? "#f3f4f6" : undefined,
-                border: isDarkMode ? "1px solid #4b5563" : undefined,
-              }}
+              className={`sidebar-credits-tooltip ${isDarkMode ? "dark" : ""}`}
             >
-              <div className="sidebar-credits-title"><b>Developed by:</b></div>
+              <div className="sidebar-credits-title">
+                <b>Developed by:</b>
+              </div>
               <div className="sidebar-credits-names">
                 Albert Lago
                 <br />

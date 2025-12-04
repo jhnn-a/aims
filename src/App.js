@@ -22,7 +22,6 @@ import LastTagsFloatingWindow from "./components/LastTagsFloatingWindow";
 // ...existing code...
 import LoginPage from "./pages/LoginPage";
 import "./App.css";
-import "./styles/theme.css";
 
 function App() {
   const navigate = useNavigate();
