@@ -57,6 +57,7 @@ const tabStyles = {
     boxShadow: active ? "0 -2px 8px rgba(68,95,109,0.08)" : "none",
     outline: "none",
     transition: "all 0.2s",
+    minWidth: 210,
   }),
   tabContent: (isDarkMode) => ({
     background: isDarkMode ? "#1f2937" : "#fff",
