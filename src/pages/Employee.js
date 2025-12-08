@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   addEmployee,
   getAllEmployees,
@@ -4509,10 +4509,27 @@ export default function Employee() {
 
     reader.onload = async (event) => {
       try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(worksheet);
+        const arrayBuffer = event.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+
+        // Get headers from first row
+        const headerRow = worksheet.getRow(1);
+        const headers = headerRow.values.slice(1); // ExcelJS row.values is 1-based
+        
+        // Parse rows as objects
+        const rows = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // skip header
+          const rowVals = row.values;
+          const obj = {};
+          for (let i = 1; i <= headers.length; i++) {
+            const key = headers[i - 1] || `col${i}`;
+            obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+          }
+          rows.push(obj);
+        });
 
         console.log("Parsed Excel rows:", rows); // Debug log
 
@@ -4711,10 +4728,27 @@ export default function Employee() {
 
     reader.onload = async (event) => {
       try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rawRows = XLSX.utils.sheet_to_json(worksheet);
+        const arrayBuffer = event.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+
+        // Get headers from first row
+        const headerRow = worksheet.getRow(1);
+        const headers = headerRow.values.slice(1);
+        
+        // Parse rows as objects
+        const rawRows = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // skip header
+          const rowVals = row.values;
+          const obj = {};
+          for (let i = 1; i <= headers.length; i++) {
+            const key = headers[i - 1] || `col${i}`;
+            obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+          }
+          rawRows.push(obj);
+        });
 
         console.log("Raw Asset Excel rows:", rawRows); // Debug log
 
@@ -5401,7 +5435,7 @@ export default function Employee() {
   };
 
   // Excel export
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     // Use allEmployees (filtered/searched data) instead of currentEmployees (paginated data)
     // This ensures we export all data that matches current filters, not just the visible page
     const exportData = allEmployees.map((emp, index) => {
@@ -5419,20 +5453,47 @@ export default function Employee() {
       };
     });
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Employees");
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Employees");
+
+    // Set columns
+    worksheet.columns = [
+      { header: "Employee ID", key: "Employee ID", width: 15 },
+      { header: "DATE HIRED", key: "DATE HIRED", width: 15 },
+      { header: "CLIENT", key: "CLIENT", width: 20 },
+      { header: "LAST NAME", key: "LAST NAME", width: 15 },
+      { header: "FIRST NAME", key: "FIRST NAME", width: 15 },
+      { header: "MIDDLE NAME", key: "MIDDLE NAME", width: 15 },
+      { header: "POSITION", key: "POSITION", width: 20 },
+      { header: "CORPORATE EMAIL", key: "CORPORATE EMAIL", width: 25 },
+      { header: "PERSONAL EMAIL", key: "PERSONAL EMAIL", width: 25 },
+    ];
+
+    // Add rows
+    worksheet.addRows(exportData);
 
     // Update filename and success message to reflect what was actually exported
     const filterInfo = searchTerm
       ? `filtered_${searchTerm.replace(/[^\w]/g, "_")}_`
       : "";
-    XLSX.writeFile(
-      wb,
-      `employees_${activeTab}_${filterInfo}${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`
-    );
+    const filename = `employees_${activeTab}_${filterInfo}${
+      new Date().toISOString().split("T")[0]
+    }.xlsx`;
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }, 0);
 
     const message = searchTerm
       ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")`

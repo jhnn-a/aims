@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getAllEmployees } from "../services/employeeService";
 import { getAllDevices } from "../services/deviceService";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   addClient,
   getAllClients,
@@ -855,8 +855,8 @@ function Clients() {
     [devices, employees, clients]
   );
 
-  // Export clients to Excel using SheetJS
-  const handleExportClients = useCallback(() => {
+  // Export clients to Excel using ExcelJS
+  const handleExportClients = useCallback(async () => {
     try {
       if (!clients || clients.length === 0) {
         showError("No clients to export");
@@ -871,13 +871,37 @@ function Clients() {
         "Owned Assets": getOwnedAssetsCount(c.clientName),
       }));
 
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Clients");
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Clients");
+
+      // Set columns - IMPORTANT: keys must match the data object property names
+      worksheet.columns = [
+        { header: "Client ID", key: "Client ID", width: 15 },
+        { header: "Client Name", key: "Client Name", width: 20 },
+        { header: "Employees", key: "Employees", width: 12 },
+        { header: "Owned Assets", key: "Owned Assets", width: 15 },
+      ];
+
+      // Add rows
+      worksheet.addRows(rows);
 
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `clients_export_${ts}.xlsx`;
-      XLSX.writeFile(wb, filename);
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 0);
 
       // Log to User Logs
       safeCreateUserLog(

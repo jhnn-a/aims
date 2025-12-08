@@ -15,7 +15,7 @@ import {
 } from "../services/userLogService";
 import { TableLoadingSpinner } from "../components/LoadingSpinner";
 import { useSnackbar } from "../components/Snackbar";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 function UserLogs() {
   const { isDarkMode } = useTheme();
@@ -136,7 +136,7 @@ function UserLogs() {
   );
 
   // === EXPORT TO EXCEL ===
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const exportData = filteredLogs.map((log) => ({
         Timestamp: log.timestamp
@@ -151,13 +151,39 @@ function UserLogs() {
         "Resource ID": log.affectedData?.resourceId || "N/A",
       }));
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "User Logs");
-      XLSX.writeFile(
-        wb,
-        `user_logs_${new Date().toISOString().split("T")[0]}.xlsx`
-      );
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("User Logs");
+
+      // Set columns
+      worksheet.columns = [
+        { header: "Timestamp", key: "Timestamp", width: 20 },
+        { header: "User", key: "User", width: 15 },
+        { header: "Email", key: "Email", width: 20 },
+        { header: "Action", key: "Action", width: 20 },
+        { header: "Category", key: "Category", width: 15 },
+        { header: "Description", key: "Description", width: 30 },
+        { header: "Affected Resource", key: "Affected Resource", width: 20 },
+        { header: "Resource ID", key: "Resource ID", width: 15 },
+      ];
+
+      // Add rows
+      worksheet.addRows(exportData);
+
+      const fileName = `user_logs_${new Date().toISOString().split("T")[0]}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 0);
       showSuccess("Logs exported successfully");
     } catch (error) {
       console.error("Error exporting logs:", error);

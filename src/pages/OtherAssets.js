@@ -22,7 +22,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../utils/firebase";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // === ASSET CATEGORIES CONFIGURATION ===
 const ASSET_CATEGORIES = [
@@ -338,7 +338,7 @@ function OtherAssets() {
   };
 
   // === EXPORT TO EXCEL ===
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const exportData = filteredAssets.map((asset, index) => ({
         "No.": index + 1,
@@ -350,13 +350,38 @@ function OtherAssets() {
         Remarks: asset.remarks || "",
       }));
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Other Assets");
-      XLSX.writeFile(
-        wb,
-        `Other_Assets_${new Date().toISOString().split("T")[0]}.xlsx`
-      );
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Other Assets");
+
+      // Set columns
+      worksheet.columns = [
+        { header: "Asset ID", key: "Asset ID", width: 15 },
+        { header: "Category", key: "Category", width: 20 },
+        { header: "Device Type", key: "Device Type", width: 15 },
+        { header: "Description", key: "Description", width: 25 },
+        { header: "Location", key: "Location", width: 20 },
+        { header: "Condition", key: "Condition", width: 12 },
+        { header: "Remarks", key: "Remarks", width: 25 },
+      ];
+
+      // Add rows
+      worksheet.addRows(exportData);
+
+      const filename = `Other_Assets_${new Date().toISOString().split("T")[0]}.xlsx`;
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 0);
 
       showSuccess("Other assets exported successfully");
     } catch (error) {
@@ -374,11 +399,27 @@ function OtherAssets() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = e.target.result;
-        const workbook = XLSX.read(data, { type: "binary" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
+        const arrayBuffer = e.target.result;
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(arrayBuffer);
+        const worksheet = workbook.worksheets[0];
+
+        // Get headers from first row
+        const headerRow = worksheet.getRow(1);
+        const headers = headerRow.values.slice(1);
+
+        // Parse rows as objects
+        const jsonData = [];
+        worksheet.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return; // skip header
+          const rowVals = row.values;
+          const obj = {};
+          for (let i = 1; i <= headers.length; i++) {
+            const key = headers[i - 1] || `col${i}`;
+            obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+          }
+          jsonData.push(obj);
+        });
 
         let successCount = 0;
         let errorCount = 0;

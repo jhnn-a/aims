@@ -4,7 +4,7 @@
 
 // === IMPORTS ===
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import * as XLSX from "xlsx"; // Excel file processing for data import/export
+import ExcelJS from "exceljs"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
 import { TableLoadingSpinner } from "../components/LoadingSpinner"; // Loading indicators
@@ -3176,10 +3176,28 @@ function Inventory() {
     setImporting(true);
     setImportProgress({ current: 0, total: 0 });
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1);
+      const headers = headerRow.values.slice(1);
+
+      // Parse rows as objects
+      let rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const rowVals = row.values;
+        const obj = {};
+        for (let i = 1; i <= headers.length; i++) {
+          const key = headers[i - 1] || `col${i}`;
+          obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+        }
+        rows.push(obj);
+      });
+
       rows = rows.map((row) => {
         const cleaned = {};
         Object.keys(row).forEach((key) => {
