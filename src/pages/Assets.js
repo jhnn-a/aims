@@ -2588,13 +2588,15 @@ function Assets() {
 
       // Data object: must match template placeholders exactly
       const data = {
-        transferor_name: getFirstLastName(transferor.firstName, transferor.lastName) || "",
+        transferor_name:
+          getFirstLastName(transferor.firstName, transferor.lastName) || "",
         transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
-        transferee_name: getFirstLastName(transferee.firstName, transferee.lastName) || "",
+        transferee_name:
+          getFirstLastName(transferee.firstName, transferee.lastName) || "",
         transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
@@ -2713,7 +2715,10 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
+      const employeeName = getFirstLastName(
+        employee.firstName,
+        employee.lastName
+      )
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
@@ -2784,7 +2789,10 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
+      const employeeName = getFirstLastName(
+        employee.firstName,
+        employee.lastName
+      )
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
@@ -3247,7 +3255,6 @@ function Assets() {
               border: `1px solid ${isDarkMode ? "#475569" : "#0ea5e9"}`,
               borderRadius: "6px",
               padding: "12px 16px",
-              margin: "0 24px 16px 24px",
               display: "flex",
               alignItems: "center",
               gap: "12px",
@@ -4715,11 +4722,12 @@ function Assets() {
                     }}
                   >
                     {(() => {
-                      const filteredEmployees = employees.filter((emp) =>
-                        emp.fullName
-                          .toLowerCase()
-                          .includes(bulkAssignSearch.toLowerCase()) &&
-                        !emp.isResigned
+                      const filteredEmployees = employees.filter(
+                        (emp) =>
+                          emp.fullName
+                            .toLowerCase()
+                            .includes(bulkAssignSearch.toLowerCase()) &&
+                          !emp.isResigned
                       );
 
                       if (filteredEmployees.length === 0) {
