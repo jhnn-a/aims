@@ -6008,8 +6008,7 @@ function Inventory() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          gap: "16px", // Space between sections
-          margin: "16px 0",
+          gap: "16px",
         }}
       >
         {hasActiveHeaderFilters && (
