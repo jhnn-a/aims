@@ -595,6 +595,7 @@ function DeviceFormModal({
             : "#ffffff",
           maxWidth: deviceForHistory ? "1400px" : "600px", // Wider modal when showing history
           display: "flex",
+          minHeight: "850px",
           flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
           gap: deviceForHistory ? "24px" : "0",
           padding: deviceForHistory ? "32px" : "24px",
