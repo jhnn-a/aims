@@ -777,7 +777,7 @@ function DeviceFormModal({
                   readOnly={!useSerial}
                 />
               </div>
-              <label
+              {/* <label
                 style={{
                   marginTop: 8,
                   display: "flex",
@@ -803,7 +803,7 @@ function DeviceFormModal({
                   disabled={editingDevice}
                 />
                 Use Serial Number Instead
-              </label>
+              </label> */}
               {tagError && (
                 <span
                   style={{
@@ -3193,7 +3193,7 @@ function Inventory() {
         const obj = {};
         for (let i = 1; i <= headers.length; i++) {
           const key = headers[i - 1] || `col${i}`;
-          obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+          obj[key] = rowVals[i] !== undefined ? rowVals[i] : "";
         }
         rows.push(obj);
       });
