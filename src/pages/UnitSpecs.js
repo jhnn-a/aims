@@ -15,8 +15,8 @@ import {
 import LoadingSpinner, {
   TableLoadingSpinner,
 } from "../components/LoadingSpinner";
-// Import XLSX for Excel import
-import * as XLSX from "xlsx";
+// Import ExcelJS for Excel import
+import ExcelJS from "exceljs";
 // Import react-hot-toast for error messages
 import toast from "react-hot-toast";
 // Import device types and tag generation utility
@@ -684,11 +684,27 @@ const UnitSpecs = () => {
     setImportProgress({ current: 0, total: 0 });
 
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
-      const sheetName = wb.SheetNames[0];
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1);
+      const headers = headerRow.values.slice(1);
+
+      // Parse rows as objects
+      const rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const rowVals = row.values;
+        const obj = {};
+        for (let i = 1; i <= headers.length; i++) {
+          const key = headers[i - 1] || `col${i}`;
+          obj[key] = rowVals[i] !== undefined ? rowVals[i] : '';
+        }
+        rows.push(obj);
+      });
 
       if (!rows.length) {
         toast.error("Import file is empty");
@@ -933,7 +949,7 @@ const UnitSpecs = () => {
   };
 
   // Export current (filtered + sorted) data for active tab
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
       const isInventory = activeTab === "InventoryUnits";
       const baseData = isInventory ? inventory : deployed;
@@ -964,17 +980,51 @@ const UnitSpecs = () => {
         LastMaintenanceDate: u.lastMaintenanceDate || "",
       }));
 
-      const worksheet = XLSX.utils.json_to_sheet(exportRows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(
-        workbook,
-        worksheet,
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet(
         isInventory ? "Inventory" : "Deployed"
       );
+
+      // Set columns
+      worksheet.columns = [
+        { header: "Tag", key: "Tag", width: 12 },
+        { header: "DeviceType", key: "DeviceType", width: 15 },
+        { header: "CPU", key: "CPU", width: 15 },
+        { header: "RAM", key: "RAM", width: 10 },
+        { header: "Drive1", key: "Drive1", width: 15 },
+        { header: "Drive2", key: "Drive2", width: 15 },
+        { header: "Model", key: "Model", width: 20 },
+        { header: "GPU", key: "GPU", width: 15 },
+        { header: "Condition", key: "Condition", width: 12 },
+        { header: "OS", key: "OS", width: 10 },
+        { header: "Client", key: "Client", width: 20 },
+        { header: "Category", key: "Category", width: 15 },
+        { header: "DateAdded", key: "DateAdded", width: 15 },
+        { header: "Lifespan", key: "Lifespan", width: 12 },
+        { header: "LastMaintenanceDate", key: "LastMaintenanceDate", width: 18 },
+      ];
+
+      // Add rows
+      worksheet.addRows(exportRows);
+
       const fileName = `UnitSpecs_${
         isInventory ? "Inventory" : "Deployed"
       }_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      XLSX.writeFile(workbook, fileName);
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 0);
 
       // Log to User Logs
       createUserLog(
@@ -4125,6 +4175,7 @@ const UnitSpecs = () => {
                 : "none",
             outline: "none",
             transition: "all 0.2s",
+            minWidth: 180,
           }}
         >
           Inventory Units
@@ -4160,6 +4211,7 @@ const UnitSpecs = () => {
                 : "none",
             outline: "none",
             transition: "all 0.2s",
+            minWidth: 180,
           }}
         >
           Deployed Units

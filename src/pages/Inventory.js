@@ -4,7 +4,7 @@
 
 // === IMPORTS ===
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import * as XLSX from "xlsx"; // Excel file processing for data import/export
+import ExcelJS from "exceljs"; // Excel file processing for data import/export
 import { getAllEmployees } from "../services/employeeService"; // Employee data operations
 import { getAllClients } from "../services/clientService"; // Client data operations
 import { TableLoadingSpinner } from "../components/LoadingSpinner"; // Loading indicators
@@ -777,7 +777,7 @@ function DeviceFormModal({
                   readOnly={!useSerial}
                 />
               </div>
-              <label
+              {/* <label
                 style={{
                   marginTop: 8,
                   display: "flex",
@@ -803,7 +803,7 @@ function DeviceFormModal({
                   disabled={editingDevice}
                 />
                 Use Serial Number Instead
-              </label>
+              </label> */}
               {tagError && (
                 <span
                   style={{
@@ -3176,10 +3176,28 @@ function Inventory() {
     setImporting(true);
     setImportProgress({ current: 0, total: 0 });
     try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      // Get headers from first row
+      const headerRow = worksheet.getRow(1);
+      const headers = headerRow.values.slice(1);
+
+      // Parse rows as objects
+      let rows = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // skip header
+        const rowVals = row.values;
+        const obj = {};
+        for (let i = 1; i <= headers.length; i++) {
+          const key = headers[i - 1] || `col${i}`;
+          obj[key] = rowVals[i] !== undefined ? rowVals[i] : "";
+        }
+        rows.push(obj);
+      });
+
       rows = rows.map((row) => {
         const cleaned = {};
         Object.keys(row).forEach((key) => {
@@ -6003,200 +6021,209 @@ function Inventory() {
         />
       )}
 
-      {/* Filter Status Display */}
-      {hasActiveHeaderFilters && (
-        <div
-          style={{
-            background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
-            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
-            borderRadius: "6px",
-            padding: "12px 16px",
-            margin: "0 24px 16px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            fontSize: "14px",
-            fontFamily:
-              "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-          }}
-        >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "16px",
+        }}
+      >
+        {hasActiveHeaderFilters && (
           <div
             style={{
+              background: isDarkMode ? "#1e3a8a" : "#f0f9ff",
+              border: isDarkMode ? "1px solid #3b82f6" : "1px solid #0ea5e9",
+              borderRadius: "6px",
+              padding: "12px 16px",
               display: "flex",
+              flex: 1,
               alignItems: "center",
-              gap: "8px",
-              color: isDarkMode ? "#dbeafe" : "#0369a1",
-            }}
-          >
-            <svg
-              width="16"
-              height="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
-            </svg>
-            <span style={{ fontWeight: 500 }}>
-              {Object.values(headerFilters).filter(Boolean).length} active
-              filter(s)
-            </span>
-          </div>
-
-          <div style={{ flex: 1 }}>
-            {Object.entries(headerFilters)
-              .filter(([key, value]) => value)
-              .map(([key, value]) => (
-                <span
-                  key={key}
-                  style={{
-                    display: "inline-block",
-                    background: isDarkMode ? "#1e3a8a" : "#ffffff",
-                    border: isDarkMode
-                      ? "1px solid #3b82f6"
-                      : "1px solid #0ea5e9",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    margin: "0 4px 4px 0",
-                    fontSize: "12px",
-                    color: isDarkMode ? "#dbeafe" : "#0369a1",
-                  }}
-                >
-                  {key}: {value}
-                </span>
-              ))}
-          </div>
-
-          <button
-            onClick={clearAllHeaderFilters}
-            style={{
-              padding: "6px 12px",
-              fontSize: "12px",
-              border: "1px solid #0ea5e9",
-              borderRadius: "4px",
-              background: isDarkMode ? "#374151" : "#ffffff",
-              color: "#0369a1",
+              gap: "12px",
+              fontSize: "14px",
               fontFamily:
                 "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              fontWeight: 500,
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "#0ea5e9";
-              e.target.style.color = "#ffffff";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
-              e.target.style.color = "#0369a1";
             }}
           >
-            <svg
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: isDarkMode ? "#dbeafe" : "#0369a1",
+              }}
             >
-              <path d="M18 6L6 18" />
-              <path d="M6 6l12 12" />
-            </svg>
-            Clear All Filters
-          </button>
-        </div>
-      )}
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2.586a1 1 0 0 1-.293.707l-6.414 6.414a1 1 0 0 0-.293.707V17l-4 4v-6.586a1 1 0 0 0-.293-.707L3.293 7.293A1 1 0 0 1 3 6.586V4z" />
+              </svg>
+              <span style={{ fontWeight: 500 }}>
+                {Object.values(headerFilters).filter(Boolean).length} active
+                filter(s)
+              </span>
+            </div>
 
-      {/* Selection Counter */}
-      {selectedIds.length > 0 && (
-        <div
-          style={{
-            padding: "12px 16px",
-            background: isDarkMode ? "#1e40af" : "#dbeafe",
-            borderRadius: "6px",
-            border: isDarkMode ? "1px solid #3b82f6" : "1px solid #3b82f6",
-            marginBottom: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+            <div style={{ flex: 1 }}>
+              {Object.entries(headerFilters)
+                .filter(([key, value]) => value)
+                .map(([key, value]) => (
+                  <span
+                    key={key}
+                    style={{
+                      display: "inline-block",
+                      background: isDarkMode ? "#1e3a8a" : "#ffffff",
+                      border: isDarkMode
+                        ? "1px solid #3b82f6"
+                        : "1px solid #0ea5e9",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      margin: "0 4px 4px 0",
+                      fontSize: "12px",
+                      color: isDarkMode ? "#dbeafe" : "#0369a1",
+                    }}
+                  >
+                    {key}: {value}
+                  </span>
+                ))}
+            </div>
+
+            <button
+              onClick={clearAllHeaderFilters}
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px",
+                border: "1px solid #0ea5e9",
+                borderRadius: "4px",
+                background: isDarkMode ? "#374151" : "#ffffff",
+                color: "#0369a1",
+                fontFamily:
+                  "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#0ea5e9";
+                e.target.style.color = "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = isDarkMode ? "#374151" : "#ffffff";
+                e.target.style.color = "#0369a1";
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
+        {selectedIds.length > 0 && (
           <div
             style={{
+              padding: "14px 16px",
+              background: isDarkMode ? "#1e40af" : "#dbeafe",
+              borderRadius: "6px",
+              border: isDarkMode ? "1px solid #3b82f6" : "1px solid #3b82f6",
               display: "flex",
+              flex: 1,
               alignItems: "center",
-              gap: "8px",
-              fontSize: "14px",
-              fontWeight: 500,
-              color: isDarkMode ? "#60a5fa" : "#1e40af",
+              gap: "12px",
             }}
           >
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontSize: "14px",
+                fontWeight: 500,
+                color: isDarkMode ? "#60a5fa" : "#1e40af",
+                flex: 1, // ← THIS pushes Clear Selection to the right
+              }}
             >
-              <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"></path>
-            </svg>
-            <span>
-              {selectedIds.length} asset{selectedIds.length !== 1 ? "s" : ""}{" "}
-              selected
-            </span>
+              <svg
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="M9 12l2 2 4-4M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"></path>
+              </svg>
+              <span>
+                {selectedIds.length} asset{selectedIds.length !== 1 ? "s" : ""}{" "}
+                selected
+              </span>
+            </div>
+
+            <button
+              onClick={() => {
+                setSelectedIds([]);
+                setSelectAll(false);
+              }}
+              style={{
+                background: "transparent",
+                border: `1px solid ${isDarkMode ? "#60a5fa" : "#1e40af"}`,
+                color: isDarkMode ? "#60a5fa" : "#1e40af",
+                cursor: "pointer",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: 500,
+                transition: "all 0.15s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = isDarkMode ? "#60a5fa" : "#1e40af";
+                e.target.style.color = isDarkMode ? "#1e40af" : "#ffffff";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "transparent";
+                e.target.style.color = isDarkMode ? "#60a5fa" : "#1e40af";
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Clear Selection
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setSelectedIds([]);
-              setSelectAll(false);
-            }}
-            style={{
-              background: "transparent",
-              border: `1px solid ${isDarkMode ? "#60a5fa" : "#1e40af"}`,
-              color: isDarkMode ? "#60a5fa" : "#1e40af",
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: "4px",
-              fontSize: "12px",
-              fontWeight: 500,
-              transition: "all 0.15s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = isDarkMode ? "#60a5fa" : "#1e40af";
-              e.target.style.color = isDarkMode ? "#1e40af" : "#ffffff";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "transparent";
-              e.target.style.color = isDarkMode ? "#60a5fa" : "#1e40af";
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-            Clear Selection
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <TableLoadingSpinner text="Loading inventory..." />
@@ -6774,11 +6801,9 @@ function Inventory() {
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(device.id)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleSelectOne(device.id);
-                          }}
+                          readOnly
                           style={{
+                            pointerEvents: "none",
                             width: 16,
                             height: 16,
                             margin: 0,

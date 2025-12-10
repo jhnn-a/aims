@@ -595,6 +595,7 @@ function DeviceFormModal({
             : "#ffffff",
           maxWidth: deviceForHistory ? "1400px" : "600px", // Wider modal when showing history
           display: "flex",
+          minHeight: "850px",
           flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
           gap: deviceForHistory ? "24px" : "0",
           padding: deviceForHistory ? "32px" : "24px",
@@ -2162,22 +2163,19 @@ function Assets() {
       selectedDeviceIds.includes(device.id)
     ) && !isAllSelected;
 
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      // Unselect all devices on current page
-      setSelectedDeviceIds((prev) =>
-        prev.filter(
-          (id) => !currentPageDevices.some((device) => device.id === id)
-        )
-      );
-    } else {
-      // Select all devices on current page
-      const currentPageIds = currentPageDevices.map((d) => d.id);
-      setSelectedDeviceIds((prev) => [
-        ...new Set([...prev, ...currentPageIds]),
-      ]);
-    }
+  const toggleDeselectAll = () => {
+    // Always unselect all devices on current page
+    setSelectedDeviceIds((prev) =>
+      prev.filter(
+        (id) => !currentPageDevices.some((device) => device.id === id)
+      )
+    );
   };
+
+  const isAnySelectedOnPage = currentPageDevices.some((device) =>
+    selectedDeviceIds.includes(device.id)
+  );
+
   const toggleSelectDevice = (id) => {
     const device = devices.find((d) => d.id === id);
     if (!device) return;
@@ -2588,13 +2586,15 @@ function Assets() {
 
       // Data object: must match template placeholders exactly
       const data = {
-        transferor_name: getFirstLastName(transferor.firstName, transferor.lastName) || "",
+        transferor_name:
+          getFirstLastName(transferor.firstName, transferor.lastName) || "",
         transferor_department: getDepartmentForForm(transferor),
         transferor_date_hired: transferor.dateHired
           ? formatTransferDate(transferor.dateHired)
           : "",
         transferor_position: transferor.position || "",
-        transferee_name: getFirstLastName(transferee.firstName, transferee.lastName) || "",
+        transferee_name:
+          getFirstLastName(transferee.firstName, transferee.lastName) || "",
         transferee_department: getDepartmentForForm(transferee),
         transferee_date_hired: transferee.dateHired
           ? formatTransferDate(transferee.dateHired)
@@ -2713,7 +2713,10 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
+      const employeeName = getFirstLastName(
+        employee.firstName,
+        employee.lastName
+      )
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
@@ -2784,7 +2787,10 @@ function Assets() {
       doc.render(data);
       setUnassignProgress(90);
       const out = doc.getZip().generate({ type: "blob" });
-      const employeeName = getFirstLastName(employee.firstName, employee.lastName)
+      const employeeName = getFirstLastName(
+        employee.firstName,
+        employee.lastName
+      )
         .replace(/[^a-zA-Z0-9\s-]/g, "")
         .replace(/\s+/g, "_");
       const fileName = `${employeeName} - Return.docx`;
@@ -3247,7 +3253,6 @@ function Assets() {
               border: `1px solid ${isDarkMode ? "#475569" : "#0ea5e9"}`,
               borderRadius: "6px",
               padding: "12px 16px",
-              margin: "0 24px 16px 24px",
               display: "flex",
               alignItems: "center",
               gap: "12px",
@@ -3402,11 +3407,13 @@ function Assets() {
                   >
                     <input
                       type="checkbox"
-                      checked={isAllSelected}
+                      checked={false} // never show a checkmark
                       ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
+                        if (!el) return;
+                        // show "-" only when something is selected
+                        el.indeterminate = isAnySelectedOnPage;
                       }}
-                      onChange={toggleSelectAll}
+                      onChange={toggleDeselectAll}
                       style={{
                         width: 16,
                         height: 16,
@@ -3417,7 +3424,7 @@ function Assets() {
                         borderRadius: "3px",
                         colorScheme: isDarkMode ? "dark" : "light",
                       }}
-                      title="Select all"
+                      title="Deselect all"
                     />
                   </th>
                   <th
@@ -4715,11 +4722,12 @@ function Assets() {
                     }}
                   >
                     {(() => {
-                      const filteredEmployees = employees.filter((emp) =>
-                        emp.fullName
-                          .toLowerCase()
-                          .includes(bulkAssignSearch.toLowerCase()) &&
-                        !emp.isResigned
+                      const filteredEmployees = employees.filter(
+                        (emp) =>
+                          emp.fullName
+                            .toLowerCase()
+                            .includes(bulkAssignSearch.toLowerCase()) &&
+                          !emp.isResigned
                       );
 
                       if (filteredEmployees.length === 0) {
