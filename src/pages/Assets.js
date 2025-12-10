@@ -2163,22 +2163,19 @@ function Assets() {
       selectedDeviceIds.includes(device.id)
     ) && !isAllSelected;
 
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      // Unselect all devices on current page
-      setSelectedDeviceIds((prev) =>
-        prev.filter(
-          (id) => !currentPageDevices.some((device) => device.id === id)
-        )
-      );
-    } else {
-      // Select all devices on current page
-      const currentPageIds = currentPageDevices.map((d) => d.id);
-      setSelectedDeviceIds((prev) => [
-        ...new Set([...prev, ...currentPageIds]),
-      ]);
-    }
+  const toggleDeselectAll = () => {
+    // Always unselect all devices on current page
+    setSelectedDeviceIds((prev) =>
+      prev.filter(
+        (id) => !currentPageDevices.some((device) => device.id === id)
+      )
+    );
   };
+
+  const isAnySelectedOnPage = currentPageDevices.some((device) =>
+    selectedDeviceIds.includes(device.id)
+  );
+
   const toggleSelectDevice = (id) => {
     const device = devices.find((d) => d.id === id);
     if (!device) return;
@@ -3410,11 +3407,13 @@ function Assets() {
                   >
                     <input
                       type="checkbox"
-                      checked={isAllSelected}
+                      checked={false} // never show a checkmark
                       ref={(el) => {
-                        if (el) el.indeterminate = isIndeterminate;
+                        if (!el) return;
+                        // show "-" only when something is selected
+                        el.indeterminate = isAnySelectedOnPage;
                       }}
-                      onChange={toggleSelectAll}
+                      onChange={toggleDeselectAll}
                       style={{
                         width: 16,
                         height: 16,
@@ -3425,7 +3424,7 @@ function Assets() {
                         borderRadius: "3px",
                         colorScheme: isDarkMode ? "dark" : "light",
                       }}
-                      title="Select all"
+                      title="Deselect all"
                     />
                   </th>
                   <th
