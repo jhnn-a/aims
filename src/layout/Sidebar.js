@@ -80,6 +80,8 @@ function Sidebar({ user }) {
                 Ryan Bumalic
                 <br />
                 Derek Pallasigue
+                <br />
+                Liam Manese
               </div>
               <div className="sidebar-credits-pointer" />
             </div>
