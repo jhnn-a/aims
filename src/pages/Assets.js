@@ -595,7 +595,6 @@ function DeviceFormModal({
             : "#ffffff",
           maxWidth: deviceForHistory ? "1400px" : "600px", // Wider modal when showing history
           display: "flex",
-          minHeight: "850px",
           flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
           gap: deviceForHistory ? "24px" : "0",
           padding: deviceForHistory ? "32px" : "24px",
@@ -607,7 +606,7 @@ function DeviceFormModal({
             : "auto",
           maxHeight: deviceForHistory
             ? data.deviceType === "PC" || data.deviceType === "Laptop"
-              ? "85vh"
+              ? "125vh"
               : "75vh"
             : "85vh",
         }}
@@ -616,7 +615,7 @@ function DeviceFormModal({
           .new-acquisitions-modal input:focus,
           .new-acquisitions-modal select:focus {
             border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 3px rgba(71, 33, 39, 0.1);
           }
           
           .new-acquisitions-modal input:hover,
