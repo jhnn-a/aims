@@ -1179,9 +1179,10 @@ function EmployeeAssetsModal({
       const loadEmployees = async () => {
         try {
           const employeeList = await getAllEmployees();
-          const filteredEmployees = employeeList.filter(
-            (emp) => !emp.isResigned && emp.id !== employee?.id
-          );
+          // Include current employee in the list so user can search/select the currently assigned user
+          const filteredEmployees = employeeList.filter((emp) => {
+            return !emp.isResigned || emp.id === employee?.id;
+          });
           console.log("Loaded employees for reassignment:", filteredEmployees);
           console.log(
             "reassignEmployees will be set to:",
@@ -1274,6 +1275,7 @@ function EmployeeAssetsModal({
       device: null,
       devices: selectedDevices,
       newEmployee: null,
+      assignmentType: "newIssue", // default to New Issue for deployed bulk reassign
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1313,6 +1315,7 @@ function EmployeeAssetsModal({
       device: null,
       devices: selectedDevices,
       newEmployee: null,
+      assignmentType: "wfh", // default to WFH when reassigning WFH assets
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1346,6 +1349,7 @@ function EmployeeAssetsModal({
       device,
       devices: [device],
       newEmployee: null,
+      assignmentType: "newIssue", // default to New Issue for single reassign
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1438,6 +1442,8 @@ function EmployeeAssetsModal({
             assignmentDate: toLocalISODate(new Date()),
             status: "DEPLOYED",
             condition: newCondition,
+            // Persist assignment type selected in the modal (e.g. 'newIssue' or 'wfh')
+            assignmentType: actionModal.assignmentType || null,
           });
 
           // Log device history for unassignment from current employee
@@ -3400,6 +3406,12 @@ function EmployeeAssetsModal({
                       setActionModal((prev) => ({
                         ...prev,
                         newEmployee: selectedEmployee,
+                        // If selected employee is the same as the current employee,
+                        // force assignmentType to 'wfh' (Work From Home/Borrowed).
+                        assignmentType:
+                          selectedEmployee && selectedEmployee.id === employee?.id
+                            ? "wfh"
+                            : prev.assignmentType || "newIssue",
                       }));
                     }}
                     options={reassignEmployees}
@@ -3408,6 +3420,81 @@ function EmployeeAssetsModal({
                     valueKey="id"
                     formatDisplay={(emp) => `${emp.fullName} - ${emp.position}`}
                   />
+                  {/* Assignment Type Options */}
+                  <div style={{ marginTop: 12, fontSize: 13 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: 6,
+                        fontWeight: 600,
+                        color: isDarkMode ? "#dcfce7" : "#374151",
+                      }}
+                    >
+                      Assignment Type
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor:
+                            actionModal.newEmployee?.id === employee?.id
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            actionModal.newEmployee?.id === employee?.id
+                              ? 0.5
+                              : 1,
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="assignmentType"
+                          value="newIssue"
+                          checked={actionModal.assignmentType === "newIssue"}
+                          onChange={() =>
+                            setActionModal((prev) => ({
+                              ...prev,
+                              assignmentType: "newIssue",
+                            }))
+                          }
+                          disabled={
+                            actionModal.newEmployee?.id === employee?.id
+                          }
+                        />
+                        <span>New Issue</span>
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="assignmentType"
+                          value="wfh"
+                          checked={actionModal.assignmentType === "wfh"}
+                          onChange={() =>
+                            setActionModal((prev) => ({
+                              ...prev,
+                              assignmentType: "wfh",
+                            }))
+                          }
+                        />
+                        <span>Work From Home / Borrowed Assets</span>
+                      </label>
+                    </div>
+                    {actionModal.newEmployee?.id === employee?.id && (
+                      <div style={{ marginTop: 8, color: isDarkMode ? "#fef3c7" : "#6b7280", fontSize: 12 }}>
+                        Selected employee is the currently assigned user — only "Work From Home / Borrowed Assets" is available.
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
