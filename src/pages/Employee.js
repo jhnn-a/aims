@@ -1548,10 +1548,19 @@ function EmployeeAssetsModal({
     try {
       setActionModal((prev) => ({ ...prev, progress: 40 }));
 
-      const templatePath =
-        actionType === "unassign"
-          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      // Choose template: use RETURN for unassign, NEW ISSUE when reassign and
+      // either assignmentType is 'newIssue' or the transferee is the same as the current owner.
+      const useNewIssueTemplate =
+        actionType !== "unassign" &&
+        (actionModal.assignmentType === "newIssue" ||
+          (actionModal.newEmployee &&
+            actionModal.newEmployee.id === fromEmployee.id));
+
+      const templatePath = actionType === "unassign"
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : useNewIssueTemplate
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
 
       const response = await fetch(templatePath);
       setActionModal((prev) => ({ ...prev, progress: 50 }));
@@ -1701,10 +1710,19 @@ function EmployeeAssetsModal({
     try {
       setActionModal((prev) => ({ ...prev, progress: 85 }));
 
-      const templatePath =
-        actionType === "unassign"
-          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      // Choose template: use RETURN for unassign, NEW ISSUE when reassign and
+      // either assignmentType is 'newIssue' or the transferee is the same as the current owner.
+      const useNewIssueTemplate =
+        actionType !== "unassign" &&
+        (actionModal.assignmentType === "newIssue" ||
+          (actionModal.newEmployee &&
+            actionModal.newEmployee.id === fromEmployee.id));
+
+      const templatePath = actionType === "unassign"
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : useNewIssueTemplate
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
 
       const response = await fetch(templatePath);
       setActionModal((prev) => ({ ...prev, progress: 87 }));
@@ -1802,6 +1820,34 @@ function EmployeeAssetsModal({
           checkBox4Unchecked: isDefective ? "" : "☐",
           remarks: devices[0]?.remarks || "",
         };
+      } else if (useNewIssueTemplate) {
+        // Use NEW ISSUE template when requested. Build template data similar to Inventory.js
+        const transferee = toEmployee || actionModal.newEmployee || fromEmployee;
+        templateData = {
+          name: getFirstLastName(transferee.firstName, transferee.lastName) || "",
+          dateHired: formatTransferDate(transferee.dateHired) || "",
+          department: getDepartmentForForm(transferee),
+          position: transferee.position || "",
+          devices: devices.map((device) => ({
+            assignmentDate: formatTransferDate(new Date()),
+            deviceType: device.deviceType || "",
+            brand: device.brand || "",
+            model: device.model || "",
+            deviceTag: device.deviceTag || "",
+            condition:
+              device.condition === "BRANDNEW" ? "GOOD" : device.condition || "",
+            remarks: device.remarks || "",
+          })),
+          // Checkbox flags: mark New Issue or WFH based on assignmentType
+          newIssueNewBoxRed: actionModal.assignmentType === "newIssue" ? "◼" : "",
+          newIssueNewBoxBlack: actionModal.assignmentType === "newIssue" ? "" : "☐",
+          newIssueStockBoxRed: "",
+          newIssueStockBoxBlack: "☐",
+          wfhNewBoxRed: actionModal.assignmentType === "wfh" ? "◼" : "",
+          wfhNewBoxBlack: actionModal.assignmentType === "wfh" ? "" : "☐",
+          wfhStockBoxRed: "",
+          wfhStockBoxBlack: "☐",
+        };
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
@@ -1867,10 +1913,22 @@ function EmployeeAssetsModal({
     let fileName;
     if (isBulk) {
       const deviceCount = devices.length;
-      const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
+      const actionText =
+        type === "unassign"
+          ? "RETURN"
+          : actionModal.assignmentType === "newIssue" ||
+            (actionModal.newEmployee?.id === employee.id && type === "reassign")
+          ? "NEW_ISSUE"
+          : "TRANSFER";
       fileName = `${employeeName}_BULK_${deviceCount}_DEVICES_${actionText}.docx`;
     } else {
-      const actionText = type === "unassign" ? "Return" : "Transfer";
+      const actionText =
+        type === "unassign"
+          ? "Return"
+          : actionModal.assignmentType === "newIssue" ||
+            (actionModal.newEmployee?.id === employee.id && type === "reassign")
+          ? "New Issue"
+          : "Transfer";
       fileName = `${employeeName} - ${actionText}.docx`;
     }
 
@@ -3407,10 +3465,12 @@ function EmployeeAssetsModal({
                         ...prev,
                         newEmployee: selectedEmployee,
                         // If selected employee is the same as the current employee,
-                        // force assignmentType to 'wfh' (Work From Home/Borrowed).
+                        // default assignmentType to 'newIssue' so DOCX generation
+                        // will use the New Issue form (per request). The user can
+                        // still change to 'wfh' if desired.
                         assignmentType:
                           selectedEmployee && selectedEmployee.id === employee?.id
-                            ? "wfh"
+                            ? "newIssue"
                             : prev.assignmentType || "newIssue",
                       }));
                     }}
@@ -3438,14 +3498,7 @@ function EmployeeAssetsModal({
                           display: "flex",
                           alignItems: "center",
                           gap: 8,
-                          cursor:
-                            actionModal.newEmployee?.id === employee?.id
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity:
-                            actionModal.newEmployee?.id === employee?.id
-                              ? 0.5
-                              : 1,
+                          cursor: "pointer",
                         }}
                       >
                         <input
@@ -3458,9 +3511,6 @@ function EmployeeAssetsModal({
                               ...prev,
                               assignmentType: "newIssue",
                             }))
-                          }
-                          disabled={
-                            actionModal.newEmployee?.id === employee?.id
                           }
                         />
                         <span>New Issue</span>
@@ -3491,7 +3541,7 @@ function EmployeeAssetsModal({
                     </div>
                     {actionModal.newEmployee?.id === employee?.id && (
                       <div style={{ marginTop: 8, color: isDarkMode ? "#fef3c7" : "#6b7280", fontSize: 12 }}>
-                        Selected employee is the currently assigned user — only "Work From Home / Borrowed Assets" is available.
+                        Selected employee is the current owner — the New Issue form will be used for document generation. You may still choose "Work From Home / Borrowed Assets" if appropriate.
                       </div>
                     )}
                   </div>
