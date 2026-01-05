@@ -752,43 +752,50 @@ function DeviceFormModal({
                       ? isDarkMode
                         ? "#374151"
                         : "#f5f5f5"
+                      : useSerial
+                      ? isDarkMode
+                        ? "#374151"
+                        : "#f1f5f9"
                       : isDarkMode
                       ? "#374151"
                       : "#f1f5f9",
                     color: editingDevice
                       ? isDarkMode
                         ? "#9ca3af"
-                        : "#666"
+                        : "#999"
                       : isDarkMode
                       ? "#f3f4f6"
                       : "#000",
                     fontSize: 14,
                     height: "36px",
                     boxSizing: "border-box",
-                    cursor: editingDevice ? "not-allowed" : "text",
+                    cursor: editingDevice ? "not-allowed" : useSerial ? "text" : "default",
+                    transition: "background-color 0.2s, border-color 0.2s",
                   }}
                   maxLength={64}
                   placeholder={
                     useSerial
-                      ? "Enter Serial Number"
+                      ? "Enter Device Tag or Serial Number"
                       : "Auto-generated device tag"
                   }
                   disabled={editingDevice}
                   readOnly={!useSerial}
+                  title={editingDevice ? "Cannot edit device tags for existing devices" : useSerial ? "Enter custom device tag or serial number" : "Device tag will be auto-generated"}
                 />
               </div>
-              {/* <label
+              <label
                 style={{
                   marginTop: 8,
                   display: "flex",
                   alignItems: "center",
-                  fontWeight: 400,
+                  fontWeight: 500,
                   fontSize: 13,
                   color: editingDevice
                     ? "#999"
                     : isDarkMode
                     ? "#f3f4f6"
                     : "#222e3a",
+                  cursor: editingDevice ? "not-allowed" : "pointer",
                 }}
               >
                 <input
@@ -796,14 +803,19 @@ function DeviceFormModal({
                   checked={useSerial}
                   onChange={handleSerialToggle}
                   style={{
-                    marginRight: 6,
-                    accentColor: "#6b7280",
+                    marginRight: 8,
+                    accentColor: "#2563eb",
                     cursor: editingDevice ? "not-allowed" : "pointer",
+                    width: 16,
+                    height: 16,
                   }}
                   disabled={editingDevice}
+                  title={editingDevice ? "Cannot edit device tags for existing devices" : "Enable to manually enter or edit the Device Tag"}
                 />
-                Use Serial Number Instead
-              </label> */}
+                <span>
+                  {useSerial ? "Enter Device Tag or Serial Manually" : "Auto-generate Device Tag"}
+                </span>
+              </label>
               {tagError && (
                 <span
                   style={{
@@ -893,7 +905,20 @@ function DeviceFormModal({
             />
           </div>
 
-          {/* Row 5: Remarks only (removed Assigned To and Assignment Date) */}
+          {/* Row 5: Supplier */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Supplier:</label>
+            <input
+              name="supplier"
+              value={data.supplier || ""}
+              onChange={onChange}
+              style={styles.inventoryInput}
+              placeholder="Enter supplier name"
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Row 6: Remarks only (removed Assigned To and Assignment Date) */}
           <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
             <label style={styles.inventoryLabel}>Remarks:</label>
             <input
@@ -2349,6 +2374,7 @@ function Inventory() {
       brand: "Brand",
       model: "Model",
       client: "Client",
+      supplier: "Supplier",
       condition: "Condition",
       remarks: "Remarks",
       acquisitionDate: "Acquisition Date",
@@ -2943,6 +2969,7 @@ function Inventory() {
       brand: deviceData.brand || "", // Keep the actual brand field separate from CPU System Unit
       model: deviceData.model || "",
       client: deviceData.client || "",
+      supplier: deviceData.supplier || "",
       condition: deviceData.condition || "",
       remarks: deviceData.remarks || "",
       acquisitionDate: formatDateToMMDDYYYY(deviceData.acquisitionDate) || "",
@@ -3911,6 +3938,7 @@ function Inventory() {
     acquisitionDate,
     quantity,
     client,
+    supplier,
     ramSize,
   }) => {
     // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
@@ -3992,6 +4020,7 @@ function Inventory() {
         condition,
         remarks: remarks || "",
         client: client || "",
+        supplier: supplier || "",
         assignedTo: "",
         assignmentDate: "",
         acquisitionDate:
@@ -4448,6 +4477,7 @@ function Inventory() {
             condition: tabData.condition,
             remarks: tabData.remarks || "",
             client: tabData.client || "",
+            supplier: tabData.supplier || "",
             assignedTo: "",
             assignmentDate: "",
             acquisitionDate:

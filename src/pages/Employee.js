@@ -1179,9 +1179,10 @@ function EmployeeAssetsModal({
       const loadEmployees = async () => {
         try {
           const employeeList = await getAllEmployees();
-          const filteredEmployees = employeeList.filter(
-            (emp) => !emp.isResigned && emp.id !== employee?.id
-          );
+          // Include current employee in the list so user can search/select the currently assigned user
+          const filteredEmployees = employeeList.filter((emp) => {
+            return !emp.isResigned || emp.id === employee?.id;
+          });
           console.log("Loaded employees for reassignment:", filteredEmployees);
           console.log(
             "reassignEmployees will be set to:",
@@ -1274,6 +1275,7 @@ function EmployeeAssetsModal({
       device: null,
       devices: selectedDevices,
       newEmployee: null,
+      assignmentType: "newIssue", // default to New Issue for deployed bulk reassign
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1313,6 +1315,7 @@ function EmployeeAssetsModal({
       device: null,
       devices: selectedDevices,
       newEmployee: null,
+      assignmentType: "wfh", // default to WFH when reassigning WFH assets
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1346,6 +1349,7 @@ function EmployeeAssetsModal({
       device,
       devices: [device],
       newEmployee: null,
+      assignmentType: "newIssue", // default to New Issue for single reassign
       isGenerating: false,
       progress: 0,
       docxBlob: null,
@@ -1438,6 +1442,8 @@ function EmployeeAssetsModal({
             assignmentDate: toLocalISODate(new Date()),
             status: "DEPLOYED",
             condition: newCondition,
+            // Persist assignment type selected in the modal (e.g. 'newIssue' or 'wfh')
+            assignmentType: actionModal.assignmentType || null,
           });
 
           // Log device history for unassignment from current employee
@@ -1542,10 +1548,19 @@ function EmployeeAssetsModal({
     try {
       setActionModal((prev) => ({ ...prev, progress: 40 }));
 
-      const templatePath =
-        actionType === "unassign"
-          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      // Choose template: use RETURN for unassign, NEW ISSUE when reassign and
+      // either assignmentType is 'newIssue' or the transferee is the same as the current owner.
+      const useNewIssueTemplate =
+        actionType !== "unassign" &&
+        (actionModal.assignmentType === "newIssue" ||
+          (actionModal.newEmployee &&
+            actionModal.newEmployee.id === fromEmployee.id));
+
+      const templatePath = actionType === "unassign"
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : useNewIssueTemplate
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
 
       const response = await fetch(templatePath);
       setActionModal((prev) => ({ ...prev, progress: 50 }));
@@ -1695,10 +1710,19 @@ function EmployeeAssetsModal({
     try {
       setActionModal((prev) => ({ ...prev, progress: 85 }));
 
-      const templatePath =
-        actionType === "unassign"
-          ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
-          : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
+      // Choose template: use RETURN for unassign, NEW ISSUE when reassign and
+      // either assignmentType is 'newIssue' or the transferee is the same as the current owner.
+      const useNewIssueTemplate =
+        actionType !== "unassign" &&
+        (actionModal.assignmentType === "newIssue" ||
+          (actionModal.newEmployee &&
+            actionModal.newEmployee.id === fromEmployee.id));
+
+      const templatePath = actionType === "unassign"
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - RETURN.docx"
+        : useNewIssueTemplate
+        ? "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+        : "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - TRANSFER.docx";
 
       const response = await fetch(templatePath);
       setActionModal((prev) => ({ ...prev, progress: 87 }));
@@ -1796,6 +1820,34 @@ function EmployeeAssetsModal({
           checkBox4Unchecked: isDefective ? "" : "☐",
           remarks: devices[0]?.remarks || "",
         };
+      } else if (useNewIssueTemplate) {
+        // Use NEW ISSUE template when requested. Build template data similar to Inventory.js
+        const transferee = toEmployee || actionModal.newEmployee || fromEmployee;
+        templateData = {
+          name: getFirstLastName(transferee.firstName, transferee.lastName) || "",
+          dateHired: formatTransferDate(transferee.dateHired) || "",
+          department: getDepartmentForForm(transferee),
+          position: transferee.position || "",
+          devices: devices.map((device) => ({
+            assignmentDate: formatTransferDate(new Date()),
+            deviceType: device.deviceType || "",
+            brand: device.brand || "",
+            model: device.model || "",
+            deviceTag: device.deviceTag || "",
+            condition:
+              device.condition === "BRANDNEW" ? "GOOD" : device.condition || "",
+            remarks: device.remarks || "",
+          })),
+          // Checkbox flags: mark New Issue or WFH based on assignmentType
+          newIssueNewBoxRed: actionModal.assignmentType === "newIssue" ? "◼" : "",
+          newIssueNewBoxBlack: actionModal.assignmentType === "newIssue" ? "" : "☐",
+          newIssueStockBoxRed: "",
+          newIssueStockBoxBlack: "☐",
+          wfhNewBoxRed: actionModal.assignmentType === "wfh" ? "◼" : "",
+          wfhNewBoxBlack: actionModal.assignmentType === "wfh" ? "" : "☐",
+          wfhStockBoxRed: "",
+          wfhStockBoxBlack: "☐",
+        };
       } else {
         // For transfer forms - match Assets.js structure
         templateData = {
@@ -1861,10 +1913,22 @@ function EmployeeAssetsModal({
     let fileName;
     if (isBulk) {
       const deviceCount = devices.length;
-      const actionText = type === "unassign" ? "RETURN" : "TRANSFER";
+      const actionText =
+        type === "unassign"
+          ? "RETURN"
+          : actionModal.assignmentType === "newIssue" ||
+            (actionModal.newEmployee?.id === employee.id && type === "reassign")
+          ? "NEW_ISSUE"
+          : "TRANSFER";
       fileName = `${employeeName}_BULK_${deviceCount}_DEVICES_${actionText}.docx`;
     } else {
-      const actionText = type === "unassign" ? "Return" : "Transfer";
+      const actionText =
+        type === "unassign"
+          ? "Return"
+          : actionModal.assignmentType === "newIssue" ||
+            (actionModal.newEmployee?.id === employee.id && type === "reassign")
+          ? "New Issue"
+          : "Transfer";
       fileName = `${employeeName} - ${actionText}.docx`;
     }
 
@@ -3400,6 +3464,14 @@ function EmployeeAssetsModal({
                       setActionModal((prev) => ({
                         ...prev,
                         newEmployee: selectedEmployee,
+                        // If selected employee is the same as the current employee,
+                        // default assignmentType to 'newIssue' so DOCX generation
+                        // will use the New Issue form (per request). The user can
+                        // still change to 'wfh' if desired.
+                        assignmentType:
+                          selectedEmployee && selectedEmployee.id === employee?.id
+                            ? "newIssue"
+                            : prev.assignmentType || "newIssue",
                       }));
                     }}
                     options={reassignEmployees}
@@ -3408,6 +3480,71 @@ function EmployeeAssetsModal({
                     valueKey="id"
                     formatDisplay={(emp) => `${emp.fullName} - ${emp.position}`}
                   />
+                  {/* Assignment Type Options */}
+                  <div style={{ marginTop: 12, fontSize: 13 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        marginBottom: 6,
+                        fontWeight: 600,
+                        color: isDarkMode ? "#dcfce7" : "#374151",
+                      }}
+                    >
+                      Assignment Type
+                    </label>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="assignmentType"
+                          value="newIssue"
+                          checked={actionModal.assignmentType === "newIssue"}
+                          onChange={() =>
+                            setActionModal((prev) => ({
+                              ...prev,
+                              assignmentType: "newIssue",
+                            }))
+                          }
+                        />
+                        <span>New Issue</span>
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="assignmentType"
+                          value="wfh"
+                          checked={actionModal.assignmentType === "wfh"}
+                          onChange={() =>
+                            setActionModal((prev) => ({
+                              ...prev,
+                              assignmentType: "wfh",
+                            }))
+                          }
+                        />
+                        <span>Work From Home / Borrowed Assets</span>
+                      </label>
+                    </div>
+                    {actionModal.newEmployee?.id === employee?.id && (
+                      <div style={{ marginTop: 8, color: isDarkMode ? "#fef3c7" : "#6b7280", fontSize: 12 }}>
+                        Selected employee is the current owner — the New Issue form will be used for document generation. You may still choose "Work From Home / Borrowed Assets" if appropriate.
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
