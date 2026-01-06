@@ -8,7 +8,7 @@ app.use(express.json());
 
 // Initialize Firebase Admin SDK
 admin.initializeApp({
-  credential: admin.credential.cert(require("./serviceAccountKey.json")),
+  credential: admin.credential.applicationDefault(),
 });
 
 app.post("/api/create-user", async (req, res) => {
