@@ -2083,6 +2083,14 @@ function Inventory() {
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
       // When device type changes
+      // **BUG FIX:** avoid regenerating the device tag while editing an
+      // existing record. The tag should only auto-generate for new devices.
+      if (form._editDeviceId) {
+        setForm((prev) => ({ ...prev, deviceType: value }));
+        setTagError("");
+        return; // skip any auto-tag logic entirely
+      }
+
       const typeObj = deviceTypes.find((t) => t.label === value);
 
       if (value === "RAM") {
@@ -2211,6 +2219,9 @@ function Inventory() {
   };
 
   const handleGenerateTag = async () => {
+    // Only allow manual generation when creating a new device
+    if (form._editDeviceId) return;
+
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
