@@ -1,0 +1,35 @@
+{
+  "files": {
+    "main.css": "/static/css/main.348e68af.css",
+    "main.js": "/static/js/main.8326eef7.js",
+    "static/media/Joii_Background.png": "/static/media/Joii_Background.1765e091f49872a6facf.png",
+    "static/media/Maax-Mediumitalic.eot": "/static/media/Maax-Mediumitalic.81157cabedc06ff0c6e6.eot",
+    "static/media/Maax-Mediumitalic.ttf": "/static/media/Maax-Mediumitalic.7f37fbbe8337c726be15.ttf",
+    "static/media/Maax.eot": "/static/media/Maax.b63431a91f190233ab07.eot",
+    "static/media/Maax.ttf": "/static/media/Maax.388c4ac3063d93a7645b.ttf",
+    "static/media/Maax-Medium.eot": "/static/media/Maax-Medium.81087d0a2f278507eec9.eot",
+    "static/media/Maax-BoldItalic.eot": "/static/media/Maax-BoldItalic.c1c1637664b855ec602f.eot",
+    "static/media/Maax-Medium.ttf": "/static/media/Maax-Medium.7ad0a2df32f712bb4165.ttf",
+    "static/media/Maax-BoldItalic.ttf": "/static/media/Maax-BoldItalic.8396a7adc8f3f6fe1e7d.ttf",
+    "static/media/Maax-Bold.eot": "/static/media/Maax-Bold.a2c2798e0739ac0b70c4.eot",
+    "static/media/Maax-Bold.ttf": "/static/media/Maax-Bold.11d6f12f2495900b0aad.ttf",
+    "static/media/Maax-Italic.eot": "/static/media/Maax-Italic.84069f4a5260c0ba93bf.eot",
+    "static/media/Maax-Italic.ttf": "/static/media/Maax-Italic.011b5caffc2d5b94e0f8.ttf",
+    "static/media/Maax-Black.eot": "/static/media/Maax-Black.d088551c952fe017de4a.eot",
+    "static/media/Maax-Black.ttf": "/static/media/Maax-Black.c438146cd1fc35c1b8c9.ttf",
+    "static/media/Maax-Mediumitalic.woff": "/static/media/Maax-Mediumitalic.342ed9a4a7c75917d571.woff",
+    "static/media/Maax-BoldItalic.woff": "/static/media/Maax-BoldItalic.a5672caef4944cad19ee.woff",
+    "static/media/Maax.woff": "/static/media/Maax.1c51d7d50b5cb30c530a.woff",
+    "static/media/Maax-Medium.woff": "/static/media/Maax-Medium.058c7b493d90022c361b.woff",
+    "static/media/Maax-Italic.woff": "/static/media/Maax-Italic.fd11647263dbff3bbaaa.woff",
+    "static/media/Maax-Bold.woff": "/static/media/Maax-Bold.a7f17194d207d4aa6c86.woff",
+    "static/media/Maax-Black.woff": "/static/media/Maax-Black.8c1c6177a8e3aa816330.woff",
+    "index.html": "/index.html",
+    "main.348e68af.css.map": "/static/css/main.348e68af.css.map",
+    "main.8326eef7.js.map": "/static/js/main.8326eef7.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.348e68af.css",
+    "static/js/main.8326eef7.js"
+  ]
+}
