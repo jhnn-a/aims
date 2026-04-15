@@ -750,6 +750,11 @@ function DeviceFormModal({
                   disabled
                   style={{
                     ...styles.inventoryInput,
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "8px",
+                    backgroundImage: "none",
                     backgroundColor: isDarkMode ? "#374151" : "#f5f5f5",
                     color: isDarkMode ? "#9ca3af" : "#666",
                     cursor: "not-allowed",

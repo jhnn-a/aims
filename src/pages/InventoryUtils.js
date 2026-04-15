@@ -193,9 +193,13 @@ export const generateNextDeviceTag = (deviceType, existingDevices) => {
 
   const prefix = `JOII${typeObj.code}`;
 
+  // Use regex to ensure exact prefix boundary (next char must be a digit).
+  // This prevents "JOIIM" (Mouse) from matching "JOIIMN" (Monitor) tags.
+  const prefixRegex = new RegExp(`^${prefix}\\d`);
+
   // Find existing tags with this prefix
   const existingTags = existingDevices
-    .filter((device) => device.Tag && String(device.Tag).startsWith(prefix))
+    .filter((device) => device.Tag && prefixRegex.test(String(device.Tag)))
     .map((device) => {
       const tagNumber = String(device.Tag).replace(prefix, "");
       return parseInt(tagNumber, 10);
