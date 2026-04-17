@@ -2211,25 +2211,20 @@ function Dashboard() {
                 }
               });
 
-              // Build full sorted list: all items sorted by count desc
-              // i5 PC and i7 PC are ALWAYS included even if count is 0
-              const allEntries = Object.entries(deviceTypeMap)
+              // Always guarantee i5 PC and i7 PC appear in the list
+              const i5Entry = { name: "i5 PC", count: deviceTypeMap["i5 PC"] || 0 };
+              const i7Entry = { name: "i7 PC", count: deviceTypeMap["i7 PC"] || 0 };
+
+              // Other device types (non-PC), sorted by count desc, fill up to 8 remaining slots
+              const otherEntries = Object.entries(deviceTypeMap)
+                .filter(([name]) => name !== "i5 PC" && name !== "i7 PC")
                 .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => {
-                  // PC rows always forced into list; sort by count desc
-                  return b.count - a.count;
-                });
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 8);
 
-              // Ensure i5 PC and i7 PC are always present
-              const hasi5 = allEntries.some(e => e.name === "i5 PC");
-              const hasi7 = allEntries.some(e => e.name === "i7 PC");
-              if (!hasi5) allEntries.push({ name: "i5 PC", count: 0 });
-              if (!hasi7) allEntries.push({ name: "i7 PC", count: 0 });
-
-              // Re-sort after guaranteeing i5/i7 presence
-              allEntries.sort((a, b) => b.count - a.count);
-
-              const sortedData = allEntries.slice(0, 10);
+              // Merge: i5 and i7 pinned, then sort all by count so highest are at top
+              const sortedData = [i5Entry, i7Entry, ...otherEntries]
+                .sort((a, b) => b.count - a.count);
 
               const maxCount = Math.max(...sortedData.map(d => d.count), 1);
 
