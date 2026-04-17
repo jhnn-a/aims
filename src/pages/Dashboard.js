@@ -2166,26 +2166,34 @@ function Dashboard() {
               });
 
               const deviceTypeMap = {};
-              const typeDisplayNames = {};
+
+              // Helper: classify a device type name into its display bucket
+              const classifyPCType = (deviceType) => {
+                if (!deviceType) return null;
+                const dt = deviceType.trim().toLowerCase();
+                // Check if it's a PC/System Unit type
+                const isPC =
+                  dt === "pc" ||
+                  dt.includes("system unit") ||
+                  dt.includes("desktop") ||
+                  (dt.includes("pc") && !dt.includes("laptop"));
+                if (!isPC) return null;
+                if (dt.includes("i7") || dt.includes("i9")) return "i7 PC";
+                if (dt.includes("i5")) return "i5 PC";
+                if (dt.includes("i3")) return "i3 PC";
+                return "PC"; // generic PC without CPU spec
+              };
 
               stockroomDevices.forEach((device) => {
-                const normalizedType = normalizeDeviceType(
-                  device.deviceType
+                const pcBucket = classifyPCType(device.deviceType);
+                const key = pcBucket || getDeviceTypeDisplayName(
+                  normalizeDeviceType(device.deviceType)
                 );
-                deviceTypeMap[normalizedType] =
-                  (deviceTypeMap[normalizedType] || 0) + 1;
-
-                if (!typeDisplayNames[normalizedType]) {
-                  typeDisplayNames[normalizedType] =
-                    getDeviceTypeDisplayName(normalizedType, allDevices);
-                }
+                deviceTypeMap[key] = (deviceTypeMap[key] || 0) + 1;
               });
 
               const sortedData = Object.entries(deviceTypeMap)
-                .map(([normalizedType, count]) => ({
-                  name: typeDisplayNames[normalizedType],
-                  count: count,
-                }))
+                .map(([name, count]) => ({ name, count }))
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 10);
 
