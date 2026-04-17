@@ -2165,52 +2165,90 @@ function Dashboard() {
                 return isWorkstreamPH;
               });
 
-              const deviceTypeMap = {};
+              const deviceTypeMap = {
+                "i5 PC": 0,
+                "i7 PC": 0,
+              };
 
-              // Helper: classify a device type name into its display bucket
-              const classifyPCType = (deviceType) => {
-                if (!deviceType) return null;
-                const dt = deviceType.trim().toLowerCase();
-                // Check if it's a PC/System Unit type
+              // Helper: classify a PC device into i5 PC or i7 PC
+              // Checks: deviceType name, cpuGen field, model field, brand field
+              const classifyPCType = (device) => {
+                const dt = (device.deviceType || "").trim().toLowerCase();
+                const cpuGen = (device.cpuGen || device.CPU || "").trim().toLowerCase();
+                const model = (device.model || "").trim().toLowerCase();
+                const brand = (device.brand || "").trim().toLowerCase();
+                const combined = `${dt} ${cpuGen} ${model} ${brand}`;
+
                 const isPC =
                   dt === "pc" ||
                   dt.includes("system unit") ||
                   dt.includes("desktop") ||
                   (dt.includes("pc") && !dt.includes("laptop"));
+
                 if (!isPC) return null;
-                if (dt.includes("i7") || dt.includes("i9")) return "i7 PC";
-                if (dt.includes("i5")) return "i5 PC";
-                if (dt.includes("i3")) return "i3 PC";
-                return "PC"; // generic PC without CPU spec
+
+                if (combined.includes("i7") || combined.includes("i9")) return "i7 PC";
+                if (combined.includes("i5")) return "i5 PC";
+
+                return null; // PC but unclassifiable — skip
               };
 
               stockroomDevices.forEach((device) => {
-                const pcBucket = classifyPCType(device.deviceType);
-                const key = pcBucket || getDeviceTypeDisplayName(
-                  normalizeDeviceType(device.deviceType)
-                );
-                deviceTypeMap[key] = (deviceTypeMap[key] || 0) + 1;
+                const pcBucket = classifyPCType(device);
+                if (pcBucket) {
+                  deviceTypeMap[pcBucket]++;
+                } else {
+                  const dt = (device.deviceType || "").trim().toLowerCase();
+                  const isAnyPC =
+                    dt === "pc" ||
+                    dt.includes("system unit") ||
+                    dt.includes("desktop") ||
+                    (dt.includes("pc") && !dt.includes("laptop"));
+                  if (!isAnyPC) {
+                    const key = getDeviceTypeDisplayName(normalizeDeviceType(device.deviceType));
+                    if (key) deviceTypeMap[key] = (deviceTypeMap[key] || 0) + 1;
+                  }
+                }
               });
 
-              const sortedData = Object.entries(deviceTypeMap)
+              // Build full sorted list: all items sorted by count desc
+              // i5 PC and i7 PC are ALWAYS included even if count is 0
+              const allEntries = Object.entries(deviceTypeMap)
                 .map(([name, count]) => ({ name, count }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 10);
+                .sort((a, b) => {
+                  // PC rows always forced into list; sort by count desc
+                  return b.count - a.count;
+                });
+
+              // Ensure i5 PC and i7 PC are always present
+              const hasi5 = allEntries.some(e => e.name === "i5 PC");
+              const hasi7 = allEntries.some(e => e.name === "i7 PC");
+              if (!hasi5) allEntries.push({ name: "i5 PC", count: 0 });
+              if (!hasi7) allEntries.push({ name: "i7 PC", count: 0 });
+
+              // Re-sort after guaranteeing i5/i7 presence
+              allEntries.sort((a, b) => b.count - a.count);
+
+              const sortedData = allEntries.slice(0, 10);
 
               const maxCount = Math.max(...sortedData.map(d => d.count), 1);
-              const avgCount = sortedData.reduce((sum, d) => sum + d.count, 0) / sortedData.length;
 
               return sortedData.map((item, idx) => {
                 const percentage = (item.count / maxCount) * 100;
-                let barColor = "#059669"; // Green for high
-                let bgColor = "rgba(16, 185, 129, 0.1)";
-
-                if (item.count < avgCount * 0.5) {
-                  barColor = "#ef4444"; // Red for low
+                // Color based on count relative to max: green = high, yellow = mid, red = low/zero
+                let barColor, bgColor;
+                if (item.count === 0) {
+                  barColor = "#ef4444"; // Red = no stock
                   bgColor = "rgba(239, 68, 68, 0.1)";
-                } else if (item.count < avgCount) {
-                  barColor = "#f59e0b"; // Orange for medium
+                } else if (percentage >= 66) {
+                  barColor = "#059669"; // Green = high stock
+                  bgColor = "rgba(16, 185, 129, 0.1)";
+                } else if (percentage >= 33) {
+                  barColor = "#f59e0b"; // Yellow = medium stock
                   bgColor = "rgba(245, 158, 11, 0.1)";
+                } else {
+                  barColor = "#ef4444"; // Red = low stock
+                  bgColor = "rgba(239, 68, 68, 0.1)";
                 }
 
                 return (
@@ -2295,11 +2333,13 @@ function Dashboard() {
                           marginTop: 2,
                         }}
                       >
-                        {item.count > avgCount
-                          ? "HIGH"
-                          : item.count > avgCount * 0.5
-                            ? "MED"
-                            : "LOW"}
+                        {item.count === 0
+                          ? "NONE"
+                          : percentage >= 66
+                            ? "HIGH"
+                            : percentage >= 33
+                              ? "MED"
+                              : "LOW"}
                       </div>
                     </div>
                   </div>
