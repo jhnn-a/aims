@@ -111,7 +111,7 @@ function SearchableDropdown({
   options,
   placeholder = "Search and select client...",
   displayKey = "clientName",
-  valueKey = "clientName",
+  valueKey = "id",
   style = {},
 }) {
   const { isDarkMode } = useTheme();
@@ -240,12 +240,18 @@ function SearchableDropdown({
     },
   };
 
+  // Find display label for the currently selected value (ID or name)
+  const selectedOption = options.find(
+    (opt) => opt[valueKey] === value || opt[displayKey] === value
+  );
+  const displayValue = selectedOption ? selectedOption[displayKey] : value || "";
+
   return (
     <div ref={dropdownRef} style={dropdownStyles.container}>
       <div style={dropdownStyles.inputContainer}>
         <input
           type="text"
-          value={value || ""}
+          value={displayValue}
           onClick={handleInputClick}
           placeholder={placeholder}
           style={dropdownStyles.input}
@@ -881,7 +887,7 @@ function DeviceFormModal({
                 })}
                 placeholder="Search and select device owner..."
                 displayKey="clientName"
-                valueKey="clientName"
+                valueKey="id"
               />
             </div>
 

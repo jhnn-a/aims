@@ -427,7 +427,7 @@ export const NewAcquisitionsModal = ({
                           options={clients}
                           placeholder="Search and select client..."
                           displayKey="clientName"
-                          valueKey="clientName"
+                          valueKey="id"
                         />
                       </div>
 
