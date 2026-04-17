@@ -132,16 +132,41 @@ export async function addMultipleDevices(deviceData, quantity, tagPrefix) {
 
 export const getAllDevices = async () => {
   const snapshot = await getDocs(collection(db, "devices"));
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  return snapshot.docs.map((doc) => {
+    let data = doc.data();
+    if (data.client) {
+      const norm = data.client.trim().toLowerCase();
+      if (norm === "joii philippines" || norm === "joii philiipines") data.client = "Workstream PH";
+      else if (norm === "joii ph - other services") data.client = "WPH - Other Services";
+    }
+    if (data.deviceOwner) {
+      const normDO = data.deviceOwner.trim().toLowerCase();
+      if (normDO === "joii philippines" || normDO === "joii philiipines") data.deviceOwner = "Workstream PH";
+      else if (normDO === "joii ph - other services") data.deviceOwner = "WPH - Other Services";
+    }
+    return {
+      id: doc.id,
+      ...data,
+    };
+  });
 };
 
 export const getDevice = async (id) => {
   const docRef = doc(db, "devices", id);
   const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+  if (!docSnap.exists()) return null;
+  let data = docSnap.data();
+  if (data.client) {
+    const norm = data.client.trim().toLowerCase();
+    if (norm === "joii philippines" || norm === "joii philiipines") data.client = "Workstream PH";
+    else if (norm === "joii ph - other services") data.client = "WPH - Other Services";
+  }
+  if (data.deviceOwner) {
+    const normDO = data.deviceOwner.trim().toLowerCase();
+    if (normDO === "joii philippines" || normDO === "joii philiipines") data.deviceOwner = "Workstream PH";
+    else if (normDO === "joii ph - other services") data.deviceOwner = "WPH - Other Services";
+  }
+  return { id: docSnap.id, ...data };
 };
 
 export const updateDevice = async (id, updatedData) => {
