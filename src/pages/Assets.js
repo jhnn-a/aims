@@ -181,9 +181,8 @@ function SearchableDropdown({
       position: "absolute",
       right: "12px",
       top: "50%",
-      transform: `translateY(-50%) ${
-        isOpen ? "rotate(180deg)" : "rotate(0deg)"
-      }`,
+      transform: `translateY(-50%) ${isOpen ? "rotate(180deg)" : "rotate(0deg)"
+        }`,
       transition: "transform 0.2s",
       pointerEvents: "none",
       fontSize: "12px",
@@ -591,8 +590,8 @@ function DeviceFormModal({
               ? "#1e293b"
               : "#fefbff"
             : isDarkMode
-            ? "#1f2937"
-            : "#ffffff",
+              ? "#1f2937"
+              : "#ffffff",
           maxWidth: deviceForHistory ? "1400px" : "600px", // Wider modal when showing history
           display: "flex",
           flexDirection: deviceForHistory ? "row" : "column", // Side-by-side when history is shown
@@ -664,8 +663,8 @@ function DeviceFormModal({
                 color: isEditMode
                   ? "#2563eb"
                   : isDarkMode
-                  ? "#3b82f6"
-                  : "#2563eb",
+                    ? "#3b82f6"
+                    : "#2563eb",
               }}
             >
               {isEditMode ? "Edit Device" : "Add Device"}
@@ -876,7 +875,7 @@ function DeviceFormModal({
                 options={(clients || []).map(c => {
                   const norm = (c.clientName || "").trim().toLowerCase();
                   let newName = c.clientName;
-                  if (norm === "joii philippines" || norm === "joii philiipines") newName = "Workstream PH";
+                  if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") newName = "Workstream PH";
                   if (norm === "joii ph - other services") newName = "WPH - Other Services";
                   return { ...c, clientName: newName };
                 })}
@@ -1705,10 +1704,13 @@ function Assets() {
   // Get device owner (client field from device, or empty if not set)
   const getDeviceOwner = (device) => {
     if (!device) return "";
-    const owner = device.client || device.deviceOwner;
-    if (!owner) return "";
+    let owner = device.client || device.deviceOwner || "";
+    if (owner && owner.startsWith("CLI")) {
+      const resolved = getClientName(owner);
+      if (resolved) owner = resolved;
+    }
     const norm = owner.trim().toLowerCase();
-    if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
+    if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") return "Workstream PH";
     if (norm === "joii ph - other services") return "WPH - Other Services";
     return owner;
   };
@@ -2135,18 +2137,18 @@ function Assets() {
       // First, try to sort by assignment date
       const dateA = a.assignmentDate
         ? new Date(
-            a.assignmentDate.seconds
-              ? a.assignmentDate.seconds * 1000
-              : a.assignmentDate
-          )
+          a.assignmentDate.seconds
+            ? a.assignmentDate.seconds * 1000
+            : a.assignmentDate
+        )
         : new Date(0);
 
       const dateB = b.assignmentDate
         ? new Date(
-            b.assignmentDate.seconds
-              ? b.assignmentDate.seconds * 1000
-              : b.assignmentDate
-          )
+          b.assignmentDate.seconds
+            ? b.assignmentDate.seconds * 1000
+            : b.assignmentDate
+        )
         : new Date(0);
 
       // If assignment dates are different, sort by date (newest first)
@@ -2201,8 +2203,7 @@ function Assets() {
       const firstName = getEmployeeName(firstDevice.assignedTo);
       const thisName = getEmployeeName(device.assignedTo);
       setSelectionWarningMessage(
-        `You can only select devices assigned to the same employee for bulk operations.\n\nFirst selected: ${
-          firstName || "Unassigned"
+        `You can only select devices assigned to the same employee for bulk operations.\n\nFirst selected: ${firstName || "Unassigned"
         }\nTried to select: ${thisName || "Unassigned"}`
       );
       setShowSelectionWarning(true);
@@ -2520,8 +2521,7 @@ function Assets() {
         currentUser?.username || currentUser?.email,
         currentUser?.email,
         ACTION_TYPES.DEVICE_UNASSIGN,
-        `Bulk unassigned ${selected.length} device(s) from ${
-          emp.fullName || "employee"
+        `Bulk unassigned ${selected.length} device(s) from ${emp.fullName || "employee"
         }`,
         {
           deviceCount: selected.length,
@@ -2538,8 +2538,7 @@ function Assets() {
 
     setSelectedDeviceIds([]);
     showSuccess(
-      `Successfully unassigned ${selected.length} device(s) from ${
-        emp.fullName || "employee"
+      `Successfully unassigned ${selected.length} device(s) from ${emp.fullName || "employee"
       }`
     );
     loadDevicesAndEmployees();
@@ -2651,11 +2650,10 @@ function Assets() {
         // Docxtemplater multi error (template issues)
         errorMsg += "\nTemplate errors:";
         error.properties.errors.forEach(function (e, i) {
-          errorMsg += `\n${i + 1}. ${
-            e.properties && e.properties.explanation
+          errorMsg += `\n${i + 1}. ${e.properties && e.properties.explanation
               ? e.properties.explanation
               : e.message
-          }`;
+            }`;
         });
       } else if (error && error.message) {
         errorMsg += `\n${error.message}`;
@@ -2949,30 +2947,27 @@ function Assets() {
           }
 
           .assets-main-scroll::-webkit-scrollbar-thumb {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          };
             border-radius: 5px;
           }
 
           .assets-main-scroll::-webkit-scrollbar-thumb:hover {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.5)"
-                : "rgba(209, 213, 219, 0.8)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.5)"
+            : "rgba(209, 213, 219, 0.8)"
+          };
           }
 
           /* Firefox scrollbar */
           .assets-main-scroll {
             scrollbar-width: thin;
-            scrollbar-color: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            } transparent;
+            scrollbar-color: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          } transparent;
           }
         `}
       </style>
@@ -3084,14 +3079,14 @@ function Assets() {
                     selectedDeviceIds.length && bulkDeleteProgress.total === 0
                       ? "#dc2626"
                       : isDarkMode
-                      ? "#374151"
-                      : "#f3f4f6",
+                        ? "#374151"
+                        : "#f3f4f6",
                   color:
                     selectedDeviceIds.length && bulkDeleteProgress.total === 0
                       ? "#fff"
                       : isDarkMode
-                      ? "#6b7280"
-                      : "#9ca3af",
+                        ? "#6b7280"
+                        : "#9ca3af",
                   cursor:
                     selectedDeviceIds.length && bulkDeleteProgress.total === 0
                       ? "pointer"
@@ -3137,13 +3132,13 @@ function Assets() {
                   background: selectedDeviceIds.length
                     ? "#3b82f6"
                     : isDarkMode
-                    ? "#374151"
-                    : "#f3f4f6",
+                      ? "#374151"
+                      : "#f3f4f6",
                   color: selectedDeviceIds.length
                     ? "#fff"
                     : isDarkMode
-                    ? "#6b7280"
-                    : "#9ca3af",
+                      ? "#6b7280"
+                      : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -3180,13 +3175,13 @@ function Assets() {
                   background: selectedDeviceIds.length
                     ? "#ef4444"
                     : isDarkMode
-                    ? "#374151"
-                    : "#f3f4f6",
+                      ? "#374151"
+                      : "#f3f4f6",
                   color: selectedDeviceIds.length
                     ? "#fff"
                     : isDarkMode
-                    ? "#6b7280"
-                    : "#9ca3af",
+                      ? "#6b7280"
+                      : "#9ca3af",
                   cursor: selectedDeviceIds.length ? "pointer" : "not-allowed",
                   fontSize: "14px",
                   fontWeight: 500,
@@ -3393,9 +3388,8 @@ function Assets() {
                 <tr
                   style={{
                     background: isDarkMode ? "#374151" : "rgb(255, 255, 255)",
-                    borderBottom: `1px solid ${
-                      isDarkMode ? "#4b5563" : "#e5e7eb"
-                    }`,
+                    borderBottom: `1px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                   }}
                 >
                   <th
@@ -3428,9 +3422,8 @@ function Assets() {
                         width: 16,
                         height: 16,
                         accentColor: "#6b7280",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#d1d5db"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                          }`,
                         borderRadius: "3px",
                         colorScheme: isDarkMode ? "dark" : "light",
                       }}
@@ -3669,9 +3662,8 @@ function Assets() {
                 <tr
                   style={{
                     background: isDarkMode ? "#374151" : "#f8fafc",
-                    borderBottom: `2px solid ${
-                      isDarkMode ? "#4b5563" : "#e5e7eb"
-                    }`,
+                    borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
                   }}
                 >
                   <th
@@ -3692,9 +3684,8 @@ function Assets() {
                         style={{
                           padding: "2px 4px",
                           fontSize: "10px",
-                          border: `1px solid ${
-                            isDarkMode ? "#ef4444" : "#dc2626"
-                          }`,
+                          border: `1px solid ${isDarkMode ? "#ef4444" : "#dc2626"
+                            }`,
                           borderRadius: "3px",
                           background: isDarkMode ? "#374151" : "#ffffff",
                           color: isDarkMode ? "#ef4444" : "#dc2626",
@@ -3860,12 +3851,12 @@ function Assets() {
                     <DropdownFilter
                       value={headerFilters.client || ""}
                       onChange={(value) => updateHeaderFilter("client", value)}
-                      options={clients.map((client) => {
+                      options={[...new Set(clients.map((client) => {
                         const norm = (client.clientName || "").trim().toLowerCase();
-                        if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
+                        if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") return "Workstream PH";
                         if (norm === "joii ph - other services") return "WPH - Other Services";
                         return client.clientName;
-                      })}
+                      }))].filter(Boolean)}
                       placeholder="All Owners"
                     />
                   </th>
@@ -3967,9 +3958,8 @@ function Assets() {
                         color: isDarkMode ? "#6b7280" : "#9ca3af",
                         fontSize: "14px",
                         fontWeight: "400",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#d1d5db"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                          }`,
                       }}
                     >
                       {search
@@ -3992,13 +3982,12 @@ function Assets() {
                                 ? "#1f2937"
                                 : "rgb(250, 250, 252)"
                               : isDarkMode
-                              ? "#111827"
-                              : "rgb(240, 240, 243)",
+                                ? "#111827"
+                                : "rgb(240, 240, 243)",
                           cursor: "pointer",
                           transition: "background 0.15s",
-                          borderBottom: `1px solid ${
-                            isDarkMode ? "#374151" : "#f3f4f6"
-                          }`,
+                          borderBottom: `1px solid ${isDarkMode ? "#374151" : "#f3f4f6"
+                            }`,
                         }}
                         onClick={(e) => {
                           if (e.target.type !== "checkbox") {
@@ -4023,17 +4012,16 @@ function Assets() {
                                 ? "#1f2937"
                                 : "rgb(250, 250, 252)"
                               : isDarkMode
-                              ? "#111827"
-                              : "rgb(240, 240, 243)";
+                                ? "#111827"
+                                : "rgb(240, 240, 243)";
                         }}
                       >
                         <td
                           style={{
                             padding: "12px 16px",
                             textAlign: "center",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                           }}
                         >
                           <input
@@ -4045,9 +4033,8 @@ function Assets() {
                               width: 16,
                               height: 16,
                               accentColor: "#6b7280",
-                              border: `1px solid ${
-                                isDarkMode ? "#6b7280" : "#d1d5db"
-                              }`,
+                              border: `1px solid ${isDarkMode ? "#6b7280" : "#d1d5db"
+                                }`,
                               borderRadius: "3px",
                               colorScheme: isDarkMode ? "dark" : "light",
                             }}
@@ -4060,9 +4047,8 @@ function Assets() {
                             color: isDarkMode ? "#9ca3af" : "#6b7280",
                             fontSize: "14px",
                             fontWeight: "500",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             textAlign: "center",
                           }}
                         >
@@ -4076,9 +4062,8 @@ function Assets() {
                               ? "#d1d5db"
                               : "rgb(107, 114, 128)",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -4094,9 +4079,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -4109,9 +4093,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -4124,9 +4107,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -4139,9 +4121,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             textAlign: "center",
                           }}
@@ -4157,9 +4138,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             width: "130px",
                             maxWidth: "130px",
@@ -4178,9 +4158,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             maxWidth: "110px",
                             minWidth: "90px",
@@ -4190,10 +4169,10 @@ function Assets() {
                           <span style={{ display: "block", lineHeight: "1.4" }}>
                             {device.assignmentDate
                               ? new Date(
-                                  device.assignmentDate.seconds
-                                    ? device.assignmentDate.seconds * 1000
-                                    : device.assignmentDate
-                                ).toLocaleDateString()
+                                device.assignmentDate.seconds
+                                  ? device.assignmentDate.seconds * 1000
+                                  : device.assignmentDate
+                              ).toLocaleDateString()
                               : ""}
                           </span>
                         </td>
@@ -4202,9 +4181,8 @@ function Assets() {
                           style={{
                             padding: "8px 12px",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             maxWidth: "110px",
                             minWidth: "65px",
@@ -4237,9 +4215,8 @@ function Assets() {
                             padding: "8px 12px",
                             color: isDarkMode ? "#d1d5db" : "#6b7280",
                             fontSize: "14px",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                             verticalAlign: "top",
                             maxWidth: "110px",
                             minWidth: "90px",
@@ -4252,9 +4229,8 @@ function Assets() {
                           style={{
                             padding: "8px 12px",
                             textAlign: "center",
-                            border: `1px solid ${
-                              isDarkMode ? "#4b5563" : "#d1d5db"
-                            }`,
+                            border: `1px solid ${isDarkMode ? "#4b5563" : "#d1d5db"
+                              }`,
                           }}
                         >
                           <div
@@ -4420,16 +4396,16 @@ function Assets() {
                             ? "#374151"
                             : "#f5f7fa"
                           : isDarkMode
-                          ? "#1f2937"
-                          : "#fff",
+                            ? "#1f2937"
+                            : "#fff",
                       color:
                         currentPage === 1
                           ? isDarkMode
                             ? "#6b7280"
                             : "#9ca3af"
                           : isDarkMode
-                          ? "#f3f4f6"
-                          : "#445F6D",
+                            ? "#f3f4f6"
+                            : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -4469,16 +4445,16 @@ function Assets() {
                             ? "#374151"
                             : "#f5f7fa"
                           : isDarkMode
-                          ? "#1f2937"
-                          : "#fff",
+                            ? "#1f2937"
+                            : "#fff",
                       color:
                         currentPage === 1
                           ? isDarkMode
                             ? "#6b7280"
                             : "#9ca3af"
                           : isDarkMode
-                          ? "#f3f4f6"
-                          : "#445F6D",
+                            ? "#f3f4f6"
+                            : "#445F6D",
                       cursor: currentPage === 1 ? "not-allowed" : "pointer",
                       fontSize: "14px",
                       fontWeight: "500",
@@ -4534,14 +4510,14 @@ function Assets() {
                               i === currentPage
                                 ? "#2563eb"
                                 : isDarkMode
-                                ? "#1f2937"
-                                : "#fff",
+                                  ? "#1f2937"
+                                  : "#fff",
                             color:
                               i === currentPage
                                 ? "#fff"
                                 : isDarkMode
-                                ? "#f3f4f6"
-                                : "#445F6D",
+                                  ? "#f3f4f6"
+                                  : "#445F6D",
                             cursor: "pointer",
                             fontSize: "14px",
                             fontWeight: "500",
@@ -4571,16 +4547,16 @@ function Assets() {
                             ? "#374151"
                             : "#f5f7fa"
                           : isDarkMode
-                          ? "#1f2937"
-                          : "#fff",
+                            ? "#1f2937"
+                            : "#fff",
                       color:
                         currentPage === totalPages
                           ? isDarkMode
                             ? "#6b7280"
                             : "#9ca3af"
                           : isDarkMode
-                          ? "#f3f4f6"
-                          : "#445F6D",
+                            ? "#f3f4f6"
+                            : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -4620,16 +4596,16 @@ function Assets() {
                             ? "#374151"
                             : "#f5f7fa"
                           : isDarkMode
-                          ? "#1f2937"
-                          : "#fff",
+                            ? "#1f2937"
+                            : "#fff",
                       color:
                         currentPage === totalPages
                           ? isDarkMode
                             ? "#6b7280"
                             : "#9ca3af"
                           : isDarkMode
-                          ? "#f3f4f6"
-                          : "#445F6D",
+                            ? "#f3f4f6"
+                            : "#445F6D",
                       cursor:
                         currentPage === totalPages ? "not-allowed" : "pointer",
                       fontSize: "14px",
@@ -5102,7 +5078,7 @@ function Assets() {
               setForm({});
               setSelectedDeviceForHistory(null); // Clear history device when closing
             }}
-            onGenerateTag={() => {}}
+            onGenerateTag={() => { }}
             employees={employees}
             clients={clients}
             tagError={tagError}
@@ -5287,9 +5263,8 @@ function Assets() {
                         transferee,
                         devices: [assigningDevice],
                         // Pass custom filename
-                        docxFileName: `${
-                          transferee.fullName || "Employee"
-                        } - Transfer.docx`,
+                        docxFileName: `${transferee.fullName || "Employee"
+                          } - Transfer.docx`,
                       });
                     }}
                     style={{

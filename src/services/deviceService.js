@@ -136,12 +136,12 @@ export const getAllDevices = async () => {
     let data = doc.data();
     if (data.client) {
       const norm = data.client.trim().toLowerCase();
-      if (norm === "joii philippines" || norm === "joii philiipines") data.client = "Workstream PH";
+      if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") data.client = "Workstream PH";
       else if (norm === "joii ph - other services") data.client = "WPH - Other Services";
     }
     if (data.deviceOwner) {
       const normDO = data.deviceOwner.trim().toLowerCase();
-      if (normDO === "joii philippines" || normDO === "joii philiipines") data.deviceOwner = "Workstream PH";
+      if (normDO === "joii philippines" || normDO === "joii philiipines" || normDO === "joii phillipines" || normDO === "joii philipines") data.deviceOwner = "Workstream PH";
       else if (normDO === "joii ph - other services") data.deviceOwner = "WPH - Other Services";
     }
     return {
@@ -158,12 +158,12 @@ export const getDevice = async (id) => {
   let data = docSnap.data();
   if (data.client) {
     const norm = data.client.trim().toLowerCase();
-    if (norm === "joii philippines" || norm === "joii philiipines") data.client = "Workstream PH";
+    if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") data.client = "Workstream PH";
     else if (norm === "joii ph - other services") data.client = "WPH - Other Services";
   }
   if (data.deviceOwner) {
     const normDO = data.deviceOwner.trim().toLowerCase();
-    if (normDO === "joii philippines" || normDO === "joii philiipines") data.deviceOwner = "Workstream PH";
+    if (normDO === "joii philippines" || normDO === "joii philiipines" || normDO === "joii phillipines" || normDO === "joii philipines") data.deviceOwner = "Workstream PH";
     else if (normDO === "joii ph - other services") data.deviceOwner = "WPH - Other Services";
   }
   return { id: docSnap.id, ...data };

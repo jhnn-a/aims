@@ -38,7 +38,7 @@ export const getAllClients = async () => {
     let data = doc.data();
     if (data.clientName) {
       const norm = data.clientName.trim().toLowerCase();
-      if (norm === "joii philippines" || norm === "joii philiipines") data.clientName = "Workstream PH";
+      if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") data.clientName = "Workstream PH";
       else if (norm === "joii ph - other services") data.clientName = "WPH - Other Services";
     }
     return {
@@ -55,7 +55,7 @@ export const getClient = async (id) => {
   let data = docSnap.data();
   if (data.clientName) {
     const norm = data.clientName.trim().toLowerCase();
-    if (norm === "joii philippines" || norm === "joii philiipines") data.clientName = "Workstream PH";
+    if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") data.clientName = "Workstream PH";
     else if (norm === "joii ph - other services") data.clientName = "WPH - Other Services";
   }
   return { id: docSnap.id, ...data };
