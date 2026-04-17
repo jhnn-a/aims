@@ -2150,16 +2150,20 @@ function Dashboard() {
             }}
           >
             {(() => {
-              const stockroomDevices = allDevices.filter(
-                (device) =>
-                  (!device.assignedTo || device.assignedTo === "") &&
-                  (device.client === "Workstream Philippines" ||
-                    device.client === "Joii Philippines" ||
-                    device.deviceOwner === "Workstream Philippines" ||
-                    device.deviceOwner === "Joii Philippines" ||
-                    !device.client) &&
-                  device.condition?.toUpperCase() !== "DEFECTIVE"
-              );
+              const stockroomDevices = allDevices.filter((device) => {
+                if (device.assignedTo && device.assignedTo !== "") return false;
+                if (device.condition?.toUpperCase() === "DEFECTIVE") return false;
+
+                const owner = (device.client || device.deviceOwner || "").trim().toLowerCase();
+                const isWorkstreamPH =
+                  owner === "joii philippines" ||
+                  owner === "joii philiipines" ||
+                  owner === "joii phillipines" ||
+                  owner === "joii philipines" ||
+                  owner === "workstream ph" ||
+                  owner === "workstream philippines";
+                return isWorkstreamPH;
+              });
 
               const deviceTypeMap = {};
               const typeDisplayNames = {};
