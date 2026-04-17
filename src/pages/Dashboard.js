@@ -141,10 +141,10 @@ const calculateMaintenanceStatus = (device) => {
   const now = new Date();
   const lastMaintenance = device.lastMaintenanceDate
     ? new Date(
-        device.lastMaintenanceDate.seconds
-          ? device.lastMaintenanceDate.seconds * 1000
-          : device.lastMaintenanceDate
-      )
+      device.lastMaintenanceDate.seconds
+        ? device.lastMaintenanceDate.seconds * 1000
+        : device.lastMaintenanceDate
+    )
     : null;
   const maintenanceChecklist = device.maintenanceChecklist || {};
 
@@ -1228,30 +1228,27 @@ function Dashboard() {
           }
 
           .recent-activity-scroll::-webkit-scrollbar-thumb {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          };
             border-radius: 4px;
           }
 
           .recent-activity-scroll::-webkit-scrollbar-thumb:hover {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.5)"
-                : "rgba(209, 213, 219, 0.8)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.5)"
+            : "rgba(209, 213, 219, 0.8)"
+          };
           }
 
           /* Firefox scrollbar */
           .recent-activity-scroll {
             scrollbar-width: thin;
-            scrollbar-color: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            } transparent;
+            scrollbar-color: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          } transparent;
           }
 
           /* Custom scrollbar for Main Dashboard */
@@ -1264,30 +1261,27 @@ function Dashboard() {
           }
 
           .dashboard-main-scroll::-webkit-scrollbar-thumb {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          };
             border-radius: 5px;
           }
 
           .dashboard-main-scroll::-webkit-scrollbar-thumb:hover {
-            background: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.5)"
-                : "rgba(209, 213, 219, 0.8)"
-            };
+            background: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.5)"
+            : "rgba(209, 213, 219, 0.8)"
+          };
           }
 
           /* Firefox scrollbar for main dashboard */
           .dashboard-main-scroll {
             scrollbar-width: thin;
-            scrollbar-color: ${
-              isDarkMode
-                ? "rgba(156, 163, 175, 0.3)"
-                : "rgba(209, 213, 219, 0.5)"
-            } transparent;
+            scrollbar-color: ${isDarkMode
+            ? "rgba(156, 163, 175, 0.3)"
+            : "rgba(209, 213, 219, 0.5)"
+          } transparent;
           }
         `}
       </style>
@@ -1686,9 +1680,8 @@ function Dashboard() {
                       textAlign: "left",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "140px",
                       letterSpacing: "0.5px",
                     }}
@@ -1701,9 +1694,8 @@ function Dashboard() {
                       textAlign: "center",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "90px",
                       letterSpacing: "0.5px",
                     }}
@@ -1716,9 +1708,8 @@ function Dashboard() {
                       textAlign: "center",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "100px",
                       letterSpacing: "0.5px",
                     }}
@@ -1731,9 +1722,8 @@ function Dashboard() {
                       textAlign: "center",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "100px",
                       letterSpacing: "0.5px",
                     }}
@@ -1746,9 +1736,8 @@ function Dashboard() {
                       textAlign: "center",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "100px",
                       letterSpacing: "0.5px",
                     }}
@@ -1761,9 +1750,8 @@ function Dashboard() {
                       textAlign: "center",
                       fontWeight: 700,
                       color: isDarkMode ? "#cbd5e1" : "#334155",
-                      borderBottom: `2px solid ${
-                        isDarkMode ? "#4b5563" : "#cbd5e1"
-                      }`,
+                      borderBottom: `2px solid ${isDarkMode ? "#4b5563" : "#cbd5e1"
+                        }`,
                       minWidth: "130px",
                       letterSpacing: "0.5px",
                     }}
@@ -1862,15 +1850,14 @@ function Dashboard() {
                         <tr
                           key={normalizedType}
                           style={{
-                            borderBottom: `1px solid ${
-                              isDarkMode ? "#374151" : "#e2e8f0"
-                            }`,
+                            borderBottom: `1px solid ${isDarkMode ? "#374151" : "#e2e8f0"
+                              }`,
                             backgroundColor:
                               index % 2 === 0
                                 ? "transparent"
                                 : isDarkMode
-                                ? "rgba(148, 163, 184, 0.05)"
-                                : "rgba(2, 13, 46, 0.02)",
+                                  ? "rgba(148, 163, 184, 0.05)"
+                                  : "rgba(2, 13, 46, 0.02)",
                             transition: "background-color 0.2s",
                           }}
                           onMouseEnter={(e) => {
@@ -1883,8 +1870,8 @@ function Dashboard() {
                               index % 2 === 0
                                 ? "transparent"
                                 : isDarkMode
-                                ? "rgba(148, 163, 184, 0.05)"
-                                : "rgba(2, 13, 46, 0.02)";
+                                  ? "rgba(148, 163, 184, 0.05)"
+                                  : "rgba(2, 13, 46, 0.02)";
                           }}
                         >
                           <td
@@ -1932,8 +1919,8 @@ function Dashboard() {
                                     ? "rgba(16, 185, 129, 0.1)"
                                     : "rgba(16, 185, 129, 0.08)"
                                   : isDarkMode
-                                  ? "rgba(239, 68, 68, 0.1)"
-                                  : "rgba(239, 68, 68, 0.08)",
+                                    ? "rgba(239, 68, 68, 0.1)"
+                                    : "rgba(239, 68, 68, 0.08)",
                               borderRadius: 6,
                             }}
                           >
@@ -1964,8 +1951,8 @@ function Dashboard() {
                                       ? "#34d399"
                                       : "#059669"
                                     : isDarkMode
-                                    ? "#fca5a5"
-                                    : "#dc2626",
+                                      ? "#fca5a5"
+                                      : "#dc2626",
                                 fontWeight: 700,
                                 fontSize: 13,
                                 padding: "6px 12px",
@@ -1975,21 +1962,19 @@ function Dashboard() {
                                       ? "rgba(16, 185, 129, 0.15)"
                                       : "rgba(16, 185, 129, 0.1)"
                                     : isDarkMode
-                                    ? "rgba(239, 68, 68, 0.15)"
-                                    : "rgba(239, 68, 68, 0.1)",
+                                      ? "rgba(239, 68, 68, 0.15)"
+                                      : "rgba(239, 68, 68, 0.1)",
                                 borderRadius: 6,
                                 border:
                                   reorderStatus.includes("✅")
-                                    ? `1px solid ${
-                                        isDarkMode
-                                          ? "rgba(52, 211, 153, 0.3)"
-                                          : "rgba(16, 185, 129, 0.3)"
-                                      }`
-                                    : `1px solid ${
-                                        isDarkMode
-                                          ? "rgba(239, 68, 68, 0.3)"
-                                          : "rgba(239, 68, 68, 0.3)"
-                                      }`,
+                                    ? `1px solid ${isDarkMode
+                                      ? "rgba(52, 211, 153, 0.3)"
+                                      : "rgba(16, 185, 129, 0.3)"
+                                    }`
+                                    : `1px solid ${isDarkMode
+                                      ? "rgba(239, 68, 68, 0.3)"
+                                      : "rgba(239, 68, 68, 0.3)"
+                                    }`,
                                 display: "inline-block",
                               }}
                             >
@@ -2148,7 +2133,7 @@ function Dashboard() {
             style={{
               margin: "0 0 16px 0",
               color: isDarkMode ? "#94a3b8" : "#64748b",
-              fontSize: 12,
+              fontSize: 15,
               position: "relative",
               zIndex: 1,
             }}
@@ -2223,8 +2208,9 @@ function Dashboard() {
                       background: isDarkMode
                         ? `linear-gradient(90deg, ${bgColor} 0%, transparent 100%)`
                         : `linear-gradient(90deg, ${bgColor} 0%, transparent 100%)`,
-                      border: `1px solid ${barColor}40`,
-                      borderRadius: 8,
+                      borderLeft: `4px solid ${barColor}`,
+                      borderTopRightRadius: 8,
+                      borderBottomRightRadius: 8,
                       padding: "10px 14px",
                       display: "flex",
                       alignItems: "center",
@@ -2233,7 +2219,7 @@ function Dashboard() {
                       cursor: "pointer",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = `0 8px 20px ${barColor}25`;
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${barColor}15`;
                       e.currentTarget.style.transform = "translateX(4px)";
                     }}
                     onMouseLeave={(e) => {
@@ -2300,8 +2286,8 @@ function Dashboard() {
                         {item.count > avgCount
                           ? "HIGH"
                           : item.count > avgCount * 0.5
-                          ? "MED"
-                          : "LOW"}
+                            ? "MED"
+                            : "LOW"}
                       </div>
                     </div>
                   </div>
@@ -2488,8 +2474,8 @@ function Dashboard() {
                                 ? "#60a5fa"
                                 : "#3b82f6"
                               : isDarkMode
-                              ? "#6b7280"
-                              : "#9ca3af",
+                                ? "#6b7280"
+                                : "#9ca3af",
                           fontWeight: client.totalPeripherals > 0 ? 700 : 400,
                           fontSize: "16px",
                           cursor:
@@ -2542,8 +2528,8 @@ function Dashboard() {
                                 ? "#60a5fa"
                                 : "#3b82f6"
                               : isDarkMode
-                              ? "#6b7280"
-                              : "#9ca3af",
+                                ? "#6b7280"
+                                : "#9ca3af",
                           fontWeight:
                             client.availablePeripherals > 0 ? 700 : 400,
                           fontSize: "16px",
@@ -3033,41 +3019,41 @@ function Dashboard() {
                           )}
                           {clientAssetsModalData.type ===
                             "availableDevices" && (
-                            <>
-                              <th
-                                style={{
-                                  padding: "12px 16px",
-                                  textAlign: "left",
-                                  fontWeight: 600,
-                                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                                  borderBottom: isDarkMode
-                                    ? "2px solid #4b5563"
-                                    : "2px solid #e5e7eb",
-                                  fontSize: "13px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
-                                }}
-                              >
-                                DEVICE TYPE
-                              </th>
-                              <th
-                                style={{
-                                  padding: "12px 16px",
-                                  textAlign: "center",
-                                  fontWeight: 600,
-                                  color: isDarkMode ? "#f3f4f6" : "#374151",
-                                  borderBottom: isDarkMode
-                                    ? "2px solid #4b5563"
-                                    : "2px solid #e5e7eb",
-                                  fontSize: "13px",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.5px",
-                                }}
-                              >
-                                AVAILABLE COUNT
-                              </th>
-                            </>
-                          )}
+                              <>
+                                <th
+                                  style={{
+                                    padding: "12px 16px",
+                                    textAlign: "left",
+                                    fontWeight: 600,
+                                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                                    borderBottom: isDarkMode
+                                      ? "2px solid #4b5563"
+                                      : "2px solid #e5e7eb",
+                                    fontSize: "13px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  DEVICE TYPE
+                                </th>
+                                <th
+                                  style={{
+                                    padding: "12px 16px",
+                                    textAlign: "center",
+                                    fontWeight: 600,
+                                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                                    borderBottom: isDarkMode
+                                      ? "2px solid #4b5563"
+                                      : "2px solid #e5e7eb",
+                                    fontSize: "13px",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  AVAILABLE COUNT
+                                </th>
+                              </>
+                            )}
                         </tr>
                       </thead>
                       <tbody>
@@ -3083,8 +3069,8 @@ function Dashboard() {
                                   index % 2 === 0
                                     ? "transparent"
                                     : isDarkMode
-                                    ? "#374151"
-                                    : "#f8fafc",
+                                      ? "#374151"
+                                      : "#f8fafc",
                                 transition: "background-color 0.2s",
                               }}
                               onMouseEnter={(e) => {
@@ -3096,8 +3082,8 @@ function Dashboard() {
                                   index % 2 === 0
                                     ? "transparent"
                                     : isDarkMode
-                                    ? "#374151"
-                                    : "#f8fafc";
+                                      ? "#374151"
+                                      : "#f8fafc";
                               }}
                             >
                               <td
@@ -3146,8 +3132,8 @@ function Dashboard() {
                                   index % 2 === 0
                                     ? "transparent"
                                     : isDarkMode
-                                    ? "#374151"
-                                    : "#f8fafc",
+                                      ? "#374151"
+                                      : "#f8fafc",
                                 transition: "background-color 0.2s",
                               }}
                               onMouseEnter={(e) => {
@@ -3159,8 +3145,8 @@ function Dashboard() {
                                   index % 2 === 0
                                     ? "transparent"
                                     : isDarkMode
-                                    ? "#374151"
-                                    : "#f8fafc";
+                                      ? "#374151"
+                                      : "#f8fafc";
                               }}
                             >
                               <td
@@ -3239,21 +3225,21 @@ function Dashboard() {
                           )}
                           {clientAssetsModalData.type ===
                             "availableDevices" && (
-                            <td
-                              style={{
-                                padding: "12px 16px",
-                                textAlign: "center",
-                                color: isDarkMode ? "#34d399" : "#10b981",
-                                fontWeight: 700,
-                                fontSize: "17px",
-                              }}
-                            >
-                              {clientAssetsModalData.items.reduce(
-                                (sum, item) => sum + item.count,
-                                0
-                              )}
-                            </td>
-                          )}
+                              <td
+                                style={{
+                                  padding: "12px 16px",
+                                  textAlign: "center",
+                                  color: isDarkMode ? "#34d399" : "#10b981",
+                                  fontWeight: 700,
+                                  fontSize: "17px",
+                                }}
+                              >
+                                {clientAssetsModalData.items.reduce(
+                                  (sum, item) => sum + item.count,
+                                  0
+                                )}
+                              </td>
+                            )}
                         </tr>
                       </tbody>
                     </table>
@@ -3292,12 +3278,12 @@ function formatHistoryEvent(entry, employeeMap = {}) {
   const deviceInfo = entry.deviceTag
     ? `${entry.deviceTag}`
     : entry.deviceId
-    ? `Device ${entry.deviceId}`
-    : "Unknown device";
+      ? `Device ${entry.deviceId}`
+      : "Unknown device";
 
   const employeeName =
     entry.employeeId &&
-    employeeMap[String(entry.employeeId).trim().toUpperCase()]
+      employeeMap[String(entry.employeeId).trim().toUpperCase()]
       ? employeeMap[String(entry.employeeId).trim().toUpperCase()]
       : entry.employeeId || "Unknown employee";
 

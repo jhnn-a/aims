@@ -636,8 +636,8 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
           ? "#475569"
           : "#475569"
         : isDarkMode
-        ? "#64748b"
-        : "#64748b",
+          ? "#64748b"
+          : "#64748b",
       color: "#fff",
       border: "none",
       borderRadius: 8,
@@ -687,8 +687,8 @@ function EmployeesModal({ open, onClose, employees, clientId }) {
                             ? "#1f2937"
                             : "#ffffff"
                           : isDarkMode
-                          ? "#374151"
-                          : "#f9fafb",
+                            ? "#374151"
+                            : "#f9fafb",
                     }}
                   >
                     <td style={styles.td}>
@@ -887,7 +887,7 @@ function Clients() {
 
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
       const filename = `clients_export_${ts}.xlsx`;
-      
+
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1183,24 +1183,21 @@ function Clients() {
         }
 
         .clients-main-scroll::-webkit-scrollbar-thumb {
-          background: ${
-            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
-          };
+          background: ${isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+        };
           border-radius: 5px;
         }
 
         .clients-main-scroll::-webkit-scrollbar-thumb:hover {
-          background: ${
-            isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
-          };
+          background: ${isDarkMode ? "rgba(156, 163, 175, 0.5)" : "rgba(209, 213, 219, 0.8)"
+        };
         }
 
         /* Firefox scrollbar */
         .clients-main-scroll {
           scrollbar-width: thin;
-          scrollbar-color: ${
-            isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
-          } transparent;
+          scrollbar-color: ${isDarkMode ? "rgba(156, 163, 175, 0.3)" : "rgba(209, 213, 219, 0.5)"
+        } transparent;
         }
       `}</style>
 
@@ -1664,8 +1661,8 @@ function Clients() {
                               ? "#374151"
                               : "#1f2937"
                             : index % 2 === 0
-                            ? "rgb(250, 250, 252)"
-                            : "rgb(240, 240, 243)",
+                              ? "rgb(250, 250, 252)"
+                              : "rgb(240, 240, 243)",
                           cursor: "pointer",
                           transition: "background 0.15s",
                         }}
@@ -1959,16 +1956,16 @@ function Clients() {
                       ? "#374151"
                       : "#f9fafb"
                     : isDarkMode
-                    ? "#1f2937"
-                    : "#fff",
+                      ? "#1f2937"
+                      : "#fff",
                 color:
                   currentPage === 1
                     ? isDarkMode
                       ? "#6b7280"
                       : "#9ca3af"
                     : isDarkMode
-                    ? "#f3f4f6"
-                    : "#374151",
+                      ? "#f3f4f6"
+                      : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -1989,16 +1986,16 @@ function Clients() {
                       ? "#374151"
                       : "#f9fafb"
                     : isDarkMode
-                    ? "#1f2937"
-                    : "#fff",
+                      ? "#1f2937"
+                      : "#fff",
                 color:
                   currentPage === 1
                     ? isDarkMode
                       ? "#6b7280"
                       : "#9ca3af"
                     : isDarkMode
-                    ? "#f3f4f6"
-                    : "#374151",
+                      ? "#f3f4f6"
+                      : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === 1 ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -2022,14 +2019,14 @@ function Clients() {
                     page === currentPage
                       ? "#2563eb"
                       : isDarkMode
-                      ? "#1f2937"
-                      : "#fff",
+                        ? "#1f2937"
+                        : "#fff",
                   color:
                     page === currentPage
                       ? "#fff"
                       : isDarkMode
-                      ? "#f3f4f6"
-                      : "#374151",
+                        ? "#f3f4f6"
+                        : "#374151",
                   borderRadius: "6px",
                   cursor: page === currentPage ? "default" : "pointer",
                   fontSize: "14px",
@@ -2065,16 +2062,16 @@ function Clients() {
                       ? "#374151"
                       : "#f9fafb"
                     : isDarkMode
-                    ? "#1f2937"
-                    : "#fff",
+                      ? "#1f2937"
+                      : "#fff",
                 color:
                   currentPage === totalPages
                     ? isDarkMode
                       ? "#6b7280"
                       : "#9ca3af"
                     : isDarkMode
-                    ? "#f3f4f6"
-                    : "#374151",
+                      ? "#f3f4f6"
+                      : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
@@ -2095,16 +2092,16 @@ function Clients() {
                       ? "#374151"
                       : "#f9fafb"
                     : isDarkMode
-                    ? "#1f2937"
-                    : "#fff",
+                      ? "#1f2937"
+                      : "#fff",
                 color:
                   currentPage === totalPages
                     ? isDarkMode
                       ? "#6b7280"
                       : "#9ca3af"
                     : isDarkMode
-                    ? "#f3f4f6"
-                    : "#374151",
+                      ? "#f3f4f6"
+                      : "#374151",
                 borderRadius: "6px",
                 cursor: currentPage === totalPages ? "not-allowed" : "pointer",
                 fontSize: "14px",
