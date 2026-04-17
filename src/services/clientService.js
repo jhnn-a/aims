@@ -34,31 +34,16 @@ export const addClient = async (clientData) => {
 
 export const getAllClients = async () => {
   const snapshot = await getDocs(clientsRef);
-  return snapshot.docs.map((doc) => {
-    let data = doc.data();
-    if (data.clientName) {
-      const norm = data.clientName.trim().toLowerCase();
-      if (norm === "joii philippines" || norm === "joii philiipines") data.clientName = "Workstream PH";
-      else if (norm === "joii ph - other services") data.clientName = "WPH - Other Services";
-    }
-    return {
-      id: doc.id,
-      ...data,
-    };
-  });
+  return snapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
 };
 
 export const getClient = async (id) => {
   const docRef = doc(db, "clients", id);
   const docSnap = await getDoc(docRef);
-  if (!docSnap.exists()) return null;
-  let data = docSnap.data();
-  if (data.clientName) {
-    const norm = data.clientName.trim().toLowerCase();
-    if (norm === "joii philippines" || norm === "joii philiipines") data.clientName = "Workstream PH";
-    else if (norm === "joii ph - other services") data.clientName = "WPH - Other Services";
-  }
-  return { id: docSnap.id, ...data };
+  return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
 };
 
 export const updateClient = async (id, updatedData) => {

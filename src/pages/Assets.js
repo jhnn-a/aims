@@ -873,13 +873,7 @@ function DeviceFormModal({
               <SearchableDropdown
                 value={data.client}
                 onChange={onChange}
-                options={(clients || []).map(c => {
-                  const norm = (c.clientName || "").trim().toLowerCase();
-                  let newName = c.clientName;
-                  if (norm === "joii philippines" || norm === "joii philiipines") newName = "Workstream PH";
-                  if (norm === "joii ph - other services") newName = "WPH - Other Services";
-                  return { ...c, clientName: newName };
-                })}
+                options={clients || []}
                 placeholder="Search and select device owner..."
                 displayKey="clientName"
                 valueKey="clientName"
@@ -1705,12 +1699,7 @@ function Assets() {
   // Get device owner (client field from device, or empty if not set)
   const getDeviceOwner = (device) => {
     if (!device) return "";
-    const owner = device.client || device.deviceOwner;
-    if (!owner) return "";
-    const norm = owner.trim().toLowerCase();
-    if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
-    if (norm === "joii ph - other services") return "WPH - Other Services";
-    return owner;
+    return device.client || "";
   };
 
   // Get client name for assigned employee
@@ -3860,12 +3849,7 @@ function Assets() {
                     <DropdownFilter
                       value={headerFilters.client || ""}
                       onChange={(value) => updateHeaderFilter("client", value)}
-                      options={clients.map((client) => {
-                        const norm = (client.clientName || "").trim().toLowerCase();
-                        if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
-                        if (norm === "joii ph - other services") return "WPH - Other Services";
-                        return client.clientName;
-                      })}
+                      options={clients.map((client) => client.clientName)}
                       placeholder="All Owners"
                     />
                   </th>

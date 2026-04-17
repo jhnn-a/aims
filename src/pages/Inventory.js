@@ -1999,14 +1999,7 @@ function Inventory() {
             String(device.remarks || "")
               .toLowerCase()
               .includes(q) ||
-            String((() => {
-              const owner = device.client || device.deviceOwner;
-              if (!owner) return "";
-              const norm = owner.trim().toLowerCase();
-              if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
-              if (norm === "joii ph - other services") return "WPH - Other Services";
-              return owner;
-            })())
+            String(device.client || "")
               .toLowerCase()
               .includes(q);
 
@@ -2019,20 +2012,7 @@ function Inventory() {
             ([key, filterValue]) => {
               if (!filterValue) return true;
 
-              let itemValue = device[key];
-
-              if (key === "client") {
-                const owner = device.client || device.deviceOwner;
-                if (owner) {
-                  const norm = owner.trim().toLowerCase();
-                  if (norm === "joii philippines" || norm === "joii philiipines") itemValue = "Workstream PH";
-                  else if (norm === "joii ph - other services") itemValue = "WPH - Other Services";
-                  else itemValue = owner;
-                } else {
-                  itemValue = "";
-                }
-              }
-
+              const itemValue = device[key];
               if (itemValue === undefined || itemValue === null) return false;
 
               // For date filtering on acquisitionDate
@@ -6664,22 +6644,16 @@ function Inventory() {
                       zIndex: 10,
                     }}
                   >
-                      <DropdownFilter
-                        value={headerFilters.client || ""}
-                        onChange={(value) => updateHeaderFilter("client", value)}
-                        options={[
-                          ...new Set(
-                            devices.map((d) => {
-                              const owner = d.client || d.deviceOwner;
-                              if (!owner) return null;
-                              const norm = owner.trim().toLowerCase();
-                              if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
-                              return owner;
-                            }).filter(Boolean)
-                          ),
-                        ]}
-                        placeholder="All Owners"
-                      />
+                    <DropdownFilter
+                      value={headerFilters.client || ""}
+                      onChange={(value) => updateHeaderFilter("client", value)}
+                      options={[
+                        ...new Set(
+                          devices.map((d) => d.client).filter(Boolean)
+                        ),
+                      ]}
+                      placeholder="All Owners"
+                    />
                   </th>
                   <th
                     style={{
@@ -7007,13 +6981,7 @@ function Inventory() {
                           overflow: "hidden",
                         }}
                       >
-                        {(() => {
-                          const owner = device.client || device.deviceOwner;
-                          if (!owner) return "-";
-                          const norm = owner.trim().toLowerCase();
-                          if (norm === "joii philippines" || norm === "joii philiipines") return "Workstream PH";
-                          return owner;
-                        })()}
+                        {device.client || "-"}
                       </td>
                       <td
                         style={{
