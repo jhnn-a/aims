@@ -28,6 +28,13 @@ const testScenarios = [
     implementation: "CPU Gen becomes CPU - System Unit dropdown",
   },
   {
+    scenario: "Inventory - Editing existing device's type",
+    expected:
+      "Device Tag remains unchanged when Device Type is modified during edit",
+    implementation:
+      "Tag generation logic skips execution whenever the form is in edit mode",
+  },
+  {
     scenario: "Tag Format Consistency",
     expected: "All PC devices use simple JOIIPC0001 format",
     implementation: "No more CPU-specific prefixes like JOIIPCI30001",
@@ -41,6 +48,14 @@ testScenarios.forEach((test, index) => {
   console.log(`   Implementation: ${test.implementation}`);
   console.log("");
 });
+
+// Additional verification steps for the new editing scenario
+console.log("\n🧪 Editing Scenario Test:");
+console.log(
+  "• Open Inventory.js and edit an existing device\n" +
+    "• Change the Device Type but do not touch the Device Tag field\n" +
+    "• Verify that the tag remains untouched after saving"
+);
 
 console.log("🎯 Key Benefits:");
 console.log(
