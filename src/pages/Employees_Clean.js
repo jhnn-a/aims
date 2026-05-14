@@ -797,7 +797,7 @@ function Employees() {
             justifyContent: "space-between",
             marginBottom: "16px",
           }}>
-            {/* Search and Filter Container */}
+            {/* Search and Sort Container */}
             <div style={{
               display: "flex",
               alignItems: "center",
@@ -844,7 +844,16 @@ function Employees() {
                   }}
                 />
               </div>
+            </div>
 
+            {/* Action Buttons */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginLeft: "auto",
+              flexWrap: "wrap",
+            }}>
               {/* Client Filter Dropdown */}
               <div style={{ position: "relative", display: "inline-block" }} className="dropdown-container">
                 <button
@@ -890,7 +899,7 @@ function Employees() {
                   <div style={{
                     position: "absolute",
                     top: "100%",
-                    left: "0",
+                    right: "0",
                     backgroundColor: "#fff",
                     border: "1px solid #d1d5db",
                     borderRadius: "6px",
@@ -960,16 +969,7 @@ function Employees() {
                   </div>
                 )}
               </div>
-            </div>
 
-            {/* Action Buttons */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              marginLeft: "auto",
-              flexWrap: "wrap",
-            }}>
               {employeeSection === "active" && (
                 <button
                   disabled={!selectedIds.length}
