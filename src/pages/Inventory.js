@@ -2126,6 +2126,14 @@ function Inventory() {
   const handleInput = ({ target: { name, value, type } }) => {
     if (name === "deviceType") {
       // When device type changes
+      // **BUG FIX:** avoid regenerating the device tag while editing an
+      // existing record. The tag should only auto-generate for new devices.
+      if (form._editDeviceId) {
+        setForm((prev) => ({ ...prev, deviceType: value }));
+        setTagError("");
+        return; // skip any auto-tag logic entirely
+      }
+
       const typeObj = deviceTypes.find((t) => t.label === value);
 
       if (value === "RAM") {
@@ -2254,6 +2262,9 @@ function Inventory() {
   };
 
   const handleGenerateTag = async () => {
+    // Only allow manual generation when creating a new device
+    if (form._editDeviceId) return;
+
     const typeObj = deviceTypes.find((t) => t.label === form.deviceType);
     if (!typeObj) return;
     const prefix = `JOII${typeObj.code}`;
@@ -4707,14 +4718,13 @@ function Inventory() {
           tabData.quantity &&
           parseInt(tabData.quantity) > 0
         ) {
-          const rangeAdded = await addDevicesInBulk(tabData);
-          totalAdded += rangeAdded;
-
-          // Add to document generation list - get the devices that were just added
-          const allDevices = await getAllDevices();
-          const typeObj = deviceTypes.find(
-            (t) => t.label === tabData.deviceType
-          );
+          // Generate device list for this tab (same logic as in handleNewAcqSubmit)
+          const typeObj = deviceTypes.find((t) => t.label === tabData.deviceType);
+          if (!typeObj) {
+            setNewAcqError(`Invalid device type in ${tab.label}.`);
+            setNewAcqLoading(false);
+            return;
+          }
           const prefix = `JOII${typeObj.code}`;
           const isHeadset = typeObj.code === "H";
           const legacyHeadsetPrefix = "JOIIHS";
@@ -4724,6 +4734,8 @@ function Inventory() {
           const docPrefixRegex = new RegExp(`^${prefix}\\d`);
           const docLegacyRegex = new RegExp(`^${legacyHeadsetPrefix}\\d`);
 
+          // Find the next available TAG number for this device type
+          const allDevices = await getAllDevices();
           const deviceTags = allDevices
             .filter((device) => {
               const tag = device.deviceTag && String(device.deviceTag);
@@ -4732,13 +4744,43 @@ function Inventory() {
                 ? docPrefixRegex.test(tag) || docLegacyRegex.test(tag)
                 : docPrefixRegex.test(tag);
             })
-            .map((device) => String(device.deviceTag))
-            .sort();
+            .map((device) => {
+              const tag = String(device.deviceTag);
+              const tagNumber =
+                isHeadset && tag.startsWith(legacyHeadsetPrefix)
+                  ? tag.replace(legacyHeadsetPrefix, "")
+                  : tag.replace(prefix, "");
+              return parseInt(tagNumber, 10);
+            })
+            .filter((num) => !isNaN(num))
+            .sort((a, b) => b - a);
 
-          // Get the last N devices added (where N = quantity)
-          const recentDevices = deviceTags.slice(-parseInt(tabData.quantity));
-          for (const deviceTag of recentDevices) {
-            allDeviceList.push({
+          const lastUsedNumber = deviceTags.length > 0 ? deviceTags[0] : 0;
+          const startNum = lastUsedNumber + 1;
+          const quantity = parseInt(tabData.quantity, 10);
+
+          // Enhanced TAG validation: Check all TAGs in range before proceeding
+          const tagsToValidate = [];
+          for (let j = 0; j < quantity; j++) {
+            const deviceTag = `${prefix}${String(startNum + j).padStart(4, "0")}`;
+            tagsToValidate.push(deviceTag);
+          }
+
+          // Validate all TAGs for uniqueness
+          for (const tag of tagsToValidate) {
+            const tagValidation = await validateLocalTagUniqueness(tag);
+            if (!tagValidation.isValid) {
+              setNewAcqError(`${tagValidation.message} in ${tab.label}`);
+              setNewAcqLoading(false);
+              return;
+            }
+          }
+
+          // Generate device list for this tab
+          const tabDeviceList = [];
+          for (let j = 0; j < quantity; j++) {
+            const deviceTag = `${prefix}${String(startNum + j).padStart(4, "0")}`;
+            tabDeviceList.push({
               deviceTag,
               deviceType: tabData.deviceType,
               brand: tabData.brand,
@@ -4747,6 +4789,12 @@ function Inventory() {
               remarks: tabData.remarks || "",
             });
           }
+
+          allDeviceList = [...allDeviceList, ...tabDeviceList];
+
+          // Add devices to database for this tab
+          const rangeAdded = await addDevicesInBulk(tabData);
+          totalAdded += rangeAdded;
         }
       }
 

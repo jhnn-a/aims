@@ -450,6 +450,7 @@ function Dashboard() {
   const [clientAssetsData, setClientAssetsData] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
   const [allClients, setAllClients] = useState([]);
+  const [selectedStockroomClient, setSelectedStockroomClient] = useState("All Owners");
 
   // Modal state for client assets
   const [clientAssetsModalOpen, setClientAssetsModalOpen] = useState(false);
@@ -1395,6 +1396,8 @@ function Dashboard() {
           >
             📊 Actual Count Monitoring Assets
           </h3>
+          {/* Deployed table has no owner filter */}
+          {/* (Filter moved to individual tables) */}
           <div style={{ overflowX: "auto" }}>
             <table
               style={{
@@ -1987,16 +1990,47 @@ function Dashboard() {
             marginBottom: 32,
           }}
         >
-          <h3
-            style={{
-              margin: "0 0 16px 0",
-              color: isDarkMode ? "#f3f4f6" : "#374151",
-              fontSize: 18,
-              fontWeight: 600,
-            }}
-          >
-            🖥️ Stockroom Total Counts for System Units
-          </h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3
+              style={{
+                margin: 0,
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 18,
+                fontWeight: 600,
+              }}
+            >
+              🖥️ Stockroom Total Counts for System Units
+            </h3>
+
+            {/* Owner filter for stockroom table */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: isDarkMode ? "#9ca3af" : "#6b7280" }}>
+                <span style={{ fontWeight: 600, color: isDarkMode ? "#f3f4f6" : "#374151" }}>Filter by Owner:</span>
+                <select
+                  value={selectedStockroomClient}
+                  onChange={(e) => setSelectedStockroomClient(e.target.value)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                    background: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                  }}
+                >
+                  <option value="All Owners">All Owners</option>
+                  {clientAssetCounts && clientAssetCounts.length > 0 &&
+                    clientAssetCounts.map((c) => {
+                      const name = c.client;
+                      return (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
+                </select>
+              </label>
+            </div>
+          </div>
           <div style={{ overflowX: "auto" }}>
             <table
               style={{
@@ -2086,9 +2120,21 @@ function Dashboard() {
               <tbody>
                 {(() => {
                   // Filter stockroom devices (unassigned devices only - like Inventory.js)
-                  const stockroomDevices = allDevices.filter(
-                    (device) => !device.assignedTo || device.assignedTo === ""
-                  );
+                  // If a specific owner is selected, further filter devices by client/deviceOwner
+                  const stockroomDevices = allDevices.filter((device) => {
+                    const isUnassigned = !device.assignedTo || device.assignedTo === "";
+                    if (!isUnassigned) return false;
+
+                    if (!selectedStockroomClient || selectedStockroomClient === "All Owners") {
+                      return true;
+                    }
+
+                    const deviceClient = (device.client || device.deviceOwner || "").toString().trim();
+                    return (
+                      deviceClient.toLowerCase() ===
+                      selectedStockroomClient.toString().trim().toLowerCase()
+                    );
+                  });
 
                   // Process System Unit data by CPU type
                   const systemUnitStats = {
@@ -2464,8 +2510,7 @@ function Dashboard() {
                 {(() => {
                   // Filter deployed devices (assigned devices only - like Assets.js)
                   const deployedDevices = allDevices.filter(
-                    (device) =>
-                      device.assignedTo && device.assignedTo.trim() !== ""
+                    (device) => device.assignedTo && device.assignedTo.trim() !== ""
                   );
 
                   // Process System Unit data by CPU type for deployed devices
