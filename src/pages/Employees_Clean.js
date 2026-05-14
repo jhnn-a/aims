@@ -428,6 +428,8 @@ function Employees() {
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [showBulkResignModal, setShowBulkResignModal] = useState(false);
   const [bulkResignReason, setBulkResignReason] = useState("");
+  const [selectedClientFilter, setSelectedClientFilter] = useState("");
+  const [showClientFilterDropdown, setShowClientFilterDropdown] = useState(false);
   
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
 
@@ -644,7 +646,8 @@ function Employees() {
     const matchesSearch = emp.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          emp.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          emp.client?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSection && matchesSearch;
+    const matchesClientFilter = !selectedClientFilter || emp.clientId === selectedClientFilter;
+    return matchesSection && matchesSearch && matchesClientFilter;
   });
 
   // Pagination
@@ -794,46 +797,169 @@ function Employees() {
             justifyContent: "space-between",
             marginBottom: "16px",
           }}>
-            {/* Search */}
+            {/* Search and Filter Container */}
             <div style={{
               display: "flex",
               alignItems: "center",
-              background: "#f9fafb",
-              border: "1px solid #d1d5db",
-              borderRadius: "8px",
-              padding: "0 12px",
-              width: "320px",
-              height: "40px",
+              gap: "12px",
             }}>
-              <svg
-                width="16"
-                height="16"
-                fill="none"
-                stroke="#6b7280"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  fontSize: "14px",
-                  color: "#374151",
-                  padding: "0 0 0 10px",
-                  width: "100%",
-                  fontWeight: 400,
-                }}
-              />
+              {/* Search */}
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                background: "#f9fafb",
+                border: "1px solid #d1d5db",
+                borderRadius: "8px",
+                padding: "0 12px",
+                width: "320px",
+                height: "40px",
+              }}>
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="#6b7280"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    background: "transparent",
+                    fontSize: "14px",
+                    color: "#374151",
+                    padding: "0 0 0 10px",
+                    width: "100%",
+                    fontWeight: 400,
+                  }}
+                />
+              </div>
+
+              {/* Client Filter Dropdown */}
+              <div style={{ position: "relative", display: "inline-block" }} className="dropdown-container">
+                <button
+                  onClick={() => setShowClientFilterDropdown(!showClientFilterDropdown)}
+                  style={{
+                    padding: "9px 16px",
+                    border: selectedClientFilter ? "1px solid #70C1B3" : "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    background: selectedClientFilter ? "#f0fdf9" : "#f3f4f6",
+                    color: selectedClientFilter ? "#0d9488" : "#374151",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    transition: "all 0.2s",
+                    whiteSpace: "nowrap",
+                    minWidth: "140px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span style={{ flex: 1, textAlign: "left" }}>
+                    {selectedClientFilter
+                      ? clients.find((c) => c.id === selectedClientFilter)?.clientName || "Client"
+                      : "All Clients"}
+                  </span>
+                  <svg
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {showClientFilterDropdown && (
+                  <div style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: "0",
+                    backgroundColor: "#fff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "6px",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                    zIndex: 1000,
+                    minWidth: "160px",
+                    overflow: "hidden",
+                  }}>
+                    <button
+                      onClick={() => {
+                        setSelectedClientFilter("");
+                        setShowClientFilterDropdown(false);
+                      }}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: "10px 15px",
+                        border: "none",
+                        backgroundColor: !selectedClientFilter ? "#f0fdf9" : "transparent",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        color: !selectedClientFilter ? "#0d9488" : "#374151",
+                        textAlign: "left",
+                        transition: "background-color 0.2s",
+                        fontWeight: !selectedClientFilter ? 600 : 400,
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedClientFilter) e.target.style.backgroundColor = "#f9fafb";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = !selectedClientFilter ? "#f0fdf9" : "transparent";
+                      }}
+                    >
+                      All Clients
+                    </button>
+                    {clients.map((client) => (
+                      <button
+                        key={client.id}
+                        onClick={() => {
+                          setSelectedClientFilter(client.id);
+                          setShowClientFilterDropdown(false);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "10px 15px",
+                          border: "none",
+                          backgroundColor: selectedClientFilter === client.id ? "#f0fdf9" : "transparent",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          color: selectedClientFilter === client.id ? "#0d9488" : "#374151",
+                          textAlign: "left",
+                          transition: "background-color 0.2s",
+                          fontWeight: selectedClientFilter === client.id ? 600 : 400,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (selectedClientFilter !== client.id) e.target.style.backgroundColor = "#f9fafb";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = selectedClientFilter === client.id ? "#f0fdf9" : "transparent";
+                        }}
+                      >
+                        {client.clientName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Action Buttons */}
