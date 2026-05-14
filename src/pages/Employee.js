@@ -3838,6 +3838,7 @@ export default function Employee() {
   });
   const [sortBy, setSortBy] = useState("default");
   const [activeTab, setActiveTab] = useState("active");
+  const [filterClient, setFilterClient] = useState("");
   const { showSuccess, showError, showUndoNotification } = useSnackbar();
 
   // === DATE UTILITIES (Excel + Fallback Normalization) ===
@@ -4029,6 +4030,7 @@ export default function Employee() {
   // Reset pagination when tab changes
   useEffect(() => {
     setCurrentPage(1);
+    setFilterClient("");
   }, [activeTab]);
 
   // Reset pagination when search term changes
@@ -5572,9 +5574,21 @@ export default function Employee() {
     return [...employeeList].sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return a.fullName.localeCompare(b.fullName);
+          return (a.fullName || a.description || "").localeCompare(b.fullName || b.description || "");
         case "position":
-          return a.position.localeCompare(b.position);
+          return (a.position || "").localeCompare(b.position || "");
+        case "recent": {
+          const parseDate = (emp) => {
+            const raw = emp.dateHired || emp.resignedDate || emp.dateCreated || "";
+            if (!raw) return 0;
+            if (typeof raw === "object" && raw.seconds) return raw.seconds * 1000;
+            const str = String(raw).trim();
+            const mdy = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (mdy) return new Date(`${mdy[3]}-${mdy[1].padStart(2,"0")}-${mdy[2].padStart(2,"0")}`).getTime();
+            return new Date(str).getTime() || 0;
+          };
+          return parseDate(b) - parseDate(a);
+        }
         default:
           return 0;
       }
@@ -5633,8 +5647,19 @@ export default function Employee() {
       : activeTab === "resigned"
       ? resignedEmployees
       : entities;
-  const searchedEmployees = searchEmployees(baseEmployees, searchTerm);
+
+  // Client filter (active/resigned tabs only)
+  const clientFilteredEmployees = filterClient
+    ? baseEmployees.filter((emp) => emp.clientId === filterClient)
+    : baseEmployees;
+
+  const searchedEmployees = searchEmployees(clientFilteredEmployees, searchTerm);
   const allEmployees = sortEmployees(searchedEmployees);
+
+  // Clients in current tab (for inline filter dropdown)
+  const clientsInCurrentTab = clients.filter((c) =>
+    baseEmployees.some((emp) => emp.clientId === c.id)
+  );
 
   // Calculate pagination
   const totalPages = Math.ceil(allEmployees.length / employeesPerPage);
@@ -5907,6 +5932,7 @@ export default function Employee() {
             <option value="default">Sort: Default</option>
             <option value="name">Sort: Name A-Z</option>
             <option value="position">Sort: Position</option>
+            <option value="recent">Recently Hired</option>
           </select>
 
           {/* Show bulk resign only for active employees */}
@@ -6267,7 +6293,7 @@ export default function Employee() {
                 {activeTab !== "others" && (
                   <th
                     style={{
-                      padding: "clamp(8px, 1vw, 16px)",
+                      padding: "4px 8px",
                       textAlign: "left",
                       fontWeight: 600,
                       color: isDarkMode ? "#f3f4f6" : "#374151",
@@ -6275,14 +6301,40 @@ export default function Employee() {
                       fontSize: "clamp(11px, 0.9vw, 14px)",
                       border: isDarkMode
                         ? "1px solid #6b7280"
-                        : "1px solid #e5e7eb", // Add cell borders
+                        : "1px solid #e5e7eb",
                       position: "sticky",
                       top: "0",
                       background: isDarkMode ? "#4b5563" : "#f9fafb",
                       zIndex: 10,
                     }}
                   >
-                    Client
+                    <select
+                      value={filterClient}
+                      onChange={(e) => { setFilterClient(e.target.value); setCurrentPage(1); }}
+                      style={{
+                        width: "100%",
+                        padding: "4px",
+                        border: isDarkMode ? "1px solid #6b7280" : "1px solid #d1d5db",
+                        borderRadius: 4,
+                        fontSize: "clamp(10px, 0.85vw, 12px)",
+                        fontFamily: "inherit",
+                        fontWeight: 600,
+                        outline: "none",
+                        backgroundColor: isDarkMode ? "#4b5563" : "#f9fafb",
+                        color: isDarkMode ? "#f3f4f6" : "#374151",
+                        colorScheme: isDarkMode ? "dark" : "light",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="">Client</option>
+                      {clientsInCurrentTab
+                        .slice()
+                        .sort((a, b) => a.clientName.localeCompare(b.clientName))
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>{c.clientName}</option>
+                        ))
+                      }
+                    </select>
                   </th>
                 )}
                 {activeTab !== "others" && (
