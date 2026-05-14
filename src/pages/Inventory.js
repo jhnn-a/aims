@@ -4372,7 +4372,7 @@ function Inventory() {
   const addNewTab = () => {
     const newTab = {
       id: nextTabId,
-      label: `Device Type ${newAcqTabs.length + 1}`,
+      label: "", // Will be set after renumbering
       data: {
         deviceType: "",
         brand: "",
@@ -4389,7 +4389,14 @@ function Inventory() {
         manualSerials: [],
       },
     };
-    setNewAcqTabs((prev) => [...prev, newTab]);
+    setNewAcqTabs((prev) => {
+      const updatedTabs = [...prev, newTab];
+      // Renumber all tabs based on their position in the array
+      return updatedTabs.map((tab, index) => ({
+        ...tab,
+        label: `Device Type ${index + 1}`,
+      }));
+    });
     setActiveTabId(nextTabId);
     setNextTabId((prev) => prev + 1);
   };
@@ -4397,12 +4404,21 @@ function Inventory() {
   const removeTab = (tabId) => {
     if (newAcqTabs.length <= 1) return; // Don't allow removing the last tab
 
-    setNewAcqTabs((prev) => prev.filter((tab) => tab.id !== tabId));
+    setNewAcqTabs((prev) => {
+      const filtered = prev.filter((tab) => tab.id !== tabId);
+      // Renumber all remaining tabs based on their position in the array
+      return filtered.map((tab, index) => ({
+        ...tab,
+        label: `Device Type ${index + 1}`,
+      }));
+    });
 
     // If we're removing the active tab, switch to another tab
     if (tabId === activeTabId) {
       const remainingTabs = newAcqTabs.filter((tab) => tab.id !== tabId);
-      setActiveTabId(remainingTabs[0].id);
+      if (remainingTabs.length > 0) {
+        setActiveTabId(remainingTabs[0].id);
+      }
     }
   };
 
