@@ -118,6 +118,8 @@ setSelectedDeviceForHistory(null);
 
 - Modal automatically adjusts width based on whether history is shown
 - Side-by-side layout (row) when editing, single column when creating new device
+- **Preserves existing Device Tag when editing device type** – auto‑tag
+  logic is disabled during edit mode
 - Independent scrolling for form and history sections
 
 ### Conditional History Display

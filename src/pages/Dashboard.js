@@ -549,6 +549,7 @@ function Dashboard() {
   const [clientAssetsData, setClientAssetsData] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
   const [allClients, setAllClients] = useState([]);
+  const [selectedStockroomClient, setSelectedStockroomClient] = useState("All Owners");
 
   // Modal state for client assets
   const [clientAssetsModalOpen, setClientAssetsModalOpen] = useState(false);
@@ -1660,6 +1661,8 @@ function Dashboard() {
           >
             📊 Asset Inventory Overview
           </h3>
+          {/* Deployed table has no owner filter */}
+          {/* (Filter moved to individual tables) */}
           <div style={{ overflowX: "auto" }}>
             <table
               style={{
@@ -2249,6 +2252,90 @@ function Dashboard() {
                 return (
                   <div
                     key={item.name}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3
+              style={{
+                margin: 0,
+                color: isDarkMode ? "#f3f4f6" : "#374151",
+                fontSize: 18,
+                fontWeight: 600,
+              }}
+            >
+              🖥️ Stockroom Total Counts for System Units
+            </h3>
+
+            {/* Owner filter for stockroom table */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: isDarkMode ? "#9ca3af" : "#6b7280" }}>
+                <span style={{ fontWeight: 600, color: isDarkMode ? "#f3f4f6" : "#374151" }}>Filter by Owner:</span>
+                <select
+                  value={selectedStockroomClient}
+                  onChange={(e) => setSelectedStockroomClient(e.target.value)}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                    background: isDarkMode ? "#374151" : "white",
+                    color: isDarkMode ? "#f3f4f6" : "#374151",
+                  }}
+                >
+                  <option value="All Owners">All Owners</option>
+                  {clientAssetCounts && clientAssetCounts.length > 0 &&
+                    clientAssetCounts.map((c) => {
+                      const name = c.client;
+                      return (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      );
+                    })}
+                </select>
+              </label>
+            </div>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 14,
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "180px",
+                    }}
+                  >
+                    MODEL
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "100px",
+                    }}
+                  >
+                    BRANDNEW
+                  </th>
+                  <th
                     style={{
                       background: isDarkMode
                         ? `linear-gradient(90deg, ${bgColor} 0%, transparent 100%)`
@@ -2274,6 +2361,231 @@ function Dashboard() {
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
+                    USABLE
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  // Filter stockroom devices (unassigned devices only - like Inventory.js)
+                  // If a specific owner is selected, further filter devices by client/deviceOwner
+                  const stockroomDevices = allDevices.filter((device) => {
+                    const isUnassigned = !device.assignedTo || device.assignedTo === "";
+                    if (!isUnassigned) return false;
+
+                    if (!selectedStockroomClient || selectedStockroomClient === "All Owners") {
+                      return true;
+                    }
+
+                    const deviceClient = (device.client || device.deviceOwner || "").toString().trim();
+                    return (
+                      deviceClient.toLowerCase() ===
+                      selectedStockroomClient.toString().trim().toLowerCase()
+                    );
+                  });
+
+                  // Process System Unit data by CPU type
+                  const systemUnitStats = {
+                    "SYSTEM UNIT - i7": { brandnew: 0, good: 0, defective: 0 },
+                    "SYSTEM UNIT - i5": { brandnew: 0, good: 0, defective: 0 },
+                    "SYSTEM UNIT - i3": { brandnew: 0, good: 0, defective: 0 },
+                  };
+
+                  stockroomDevices.forEach((device) => {
+                    // Count all PC devices (System Units) from stockroom
+                    const deviceTypeUpper = (
+                      device.deviceType || ""
+                    ).toUpperCase();
+
+                    // Include all PC-related device types
+                    if (
+                      deviceTypeUpper === "PC" ||
+                      deviceTypeUpper.includes("PC") ||
+                      deviceTypeUpper.includes("JOIIPC") ||
+                      deviceTypeUpper.includes("SYSTEM UNIT") ||
+                      deviceTypeUpper.includes("DESKTOP") ||
+                      deviceTypeUpper.includes("COMPUTER")
+                    ) {
+                      let category = "";
+
+                      // Categorize by CPU type - check multiple fields
+                      const specifications = (
+                        device.specifications || ""
+                      ).toUpperCase();
+                      const model = (device.model || "").toUpperCase();
+                      const description = (
+                        device.description || ""
+                      ).toUpperCase();
+                      const combinedInfo = `${deviceTypeUpper} ${specifications} ${model} ${description}`;
+
+                      // More flexible CPU detection
+                      if (
+                        combinedInfo.includes("I7") ||
+                        combinedInfo.includes("CORE I7")
+                      ) {
+                        category = "SYSTEM UNIT - i7";
+                      } else if (
+                        combinedInfo.includes("I5") ||
+                        combinedInfo.includes("CORE I5")
+                      ) {
+                        category = "SYSTEM UNIT - i5";
+                      } else if (
+                        combinedInfo.includes("I3") ||
+                        combinedInfo.includes("CORE I3")
+                      ) {
+                        category = "SYSTEM UNIT - i3";
+                      } else {
+                        // If no CPU type detected, default to i5 for PC devices
+                        category = "SYSTEM UNIT - i5";
+                      }
+
+                      if (category && systemUnitStats[category]) {
+                        const condition = (
+                          device.condition || ""
+                        ).toUpperCase();
+                        if (condition === "DEFECTIVE") {
+                          systemUnitStats[category].defective++;
+                        } else if (
+                          condition === "BRANDNEW" ||
+                          condition === "BRAND NEW"
+                        ) {
+                          systemUnitStats[category].brandnew++;
+                        } else if (condition === "GOOD") {
+                          systemUnitStats[category].good++;
+                        } else {
+                          // If no condition specified, default to GOOD
+                          systemUnitStats[category].good++;
+                        }
+                      }
+                    }
+                  });
+
+                  // Calculate totals
+                  const totals = {
+                    brandnew: Object.values(systemUnitStats).reduce(
+                      (sum, stats) => sum + stats.brandnew,
+                      0
+                    ),
+                    good: Object.values(systemUnitStats).reduce(
+                      (sum, stats) => sum + stats.good,
+                      0
+                    ),
+                    defective: Object.values(systemUnitStats).reduce(
+                      (sum, stats) => sum + stats.defective,
+                      0
+                    ),
+                  };
+                  totals.usable = totals.brandnew + totals.good;
+
+                  const rows = [];
+
+                  // Add individual model rows
+                  Object.entries(systemUnitStats).forEach(
+                    ([model, stats], index) => {
+                      const usable = stats.brandnew + stats.good;
+                      rows.push(
+                        <tr
+                          key={model}
+                          style={{
+                            borderBottom: `1px solid ${
+                              isDarkMode ? "#374151" : "#f3f4f6"
+                            }`,
+                            backgroundColor:
+                              index % 2 === 0
+                                ? isDarkMode
+                                  ? "#1f2937"
+                                  : "#ffffff"
+                                : isDarkMode
+                                ? "#374151"
+                                : "#f8fafc",
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {model}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#06b6d4",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.brandnew}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#22c55e",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.good}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#ef4444",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.defective}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#10b981",
+                              fontWeight: 700,
+                              backgroundColor:
+                                usable > 0
+                                  ? isDarkMode
+                                    ? "#064e3b"
+                                    : "#f0fdf4"
+                                  : isDarkMode
+                                  ? "#7f1d1d"
+                                  : "#fef2f2",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {usable}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  );
+
+                  // Add totals row
+                  rows.push(
+                    <tr
+                      key="totals"
+                      style={{
+                        borderTop: `2px solid ${
+                          isDarkMode ? "#4b5563" : "#e5e7eb"
+                        }`,
+                        backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                        }}
+                      >
+                        TOTALS
+                      </td>
+                      <td
                         style={{
                           fontSize: 12,
                           fontWeight: 600,
@@ -2362,6 +2674,366 @@ function Dashboard() {
               isDarkMode={isDarkMode}
             />
           </div>
+          <h3
+            style={{
+              margin: "0 0 16px 0",
+              color: isDarkMode ? "#f3f4f6" : "#374151",
+              fontSize: 18,
+              fontWeight: 600,
+            }}
+          >
+            🚀 Deployed Assets Total Counts for System Units
+          </h3>
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 14,
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                  }}
+                >
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "180px",
+                    }}
+                  >
+                    MODEL
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "100px",
+                    }}
+                  >
+                    BRANDNEW
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "100px",
+                    }}
+                  >
+                    GOOD
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "100px",
+                    }}
+                  >
+                    DEFECTIVE
+                  </th>
+                  <th
+                    style={{
+                      padding: "12px 16px",
+                      textAlign: "center",
+                      fontWeight: 600,
+                      color: isDarkMode ? "#f3f4f6" : "#374151",
+                      borderBottom: `2px solid ${
+                        isDarkMode ? "#4b5563" : "#e5e7eb"
+                      }`,
+                      minWidth: "100px",
+                    }}
+                  >
+                    USABLE
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  // Filter deployed devices (assigned devices only - like Assets.js)
+                  const deployedDevices = allDevices.filter(
+                    (device) => device.assignedTo && device.assignedTo.trim() !== ""
+                  );
+
+                  // Process System Unit data by CPU type for deployed devices
+                  const deployedSystemUnitStats = {
+                    "SYSTEM UNIT - i7": { brandnew: 0, good: 0, defective: 0 },
+                    "SYSTEM UNIT - i5": { brandnew: 0, good: 0, defective: 0 },
+                    "SYSTEM UNIT - i3": { brandnew: 0, good: 0, defective: 0 },
+                  };
+
+                  deployedDevices.forEach((device) => {
+                    // Count all PC devices (System Units) from deployed assets
+                    const deviceTypeUpper = (
+                      device.deviceType || ""
+                    ).toUpperCase();
+
+                    // Include all PC-related device types
+                    if (
+                      deviceTypeUpper === "PC" ||
+                      deviceTypeUpper.includes("PC") ||
+                      deviceTypeUpper.includes("JOIIPC") ||
+                      deviceTypeUpper.includes("SYSTEM UNIT") ||
+                      deviceTypeUpper.includes("DESKTOP") ||
+                      deviceTypeUpper.includes("COMPUTER")
+                    ) {
+                      let category = "";
+
+                      // Categorize by CPU type - check multiple fields
+                      const specifications = (
+                        device.specifications || ""
+                      ).toUpperCase();
+                      const model = (device.model || "").toUpperCase();
+                      const description = (
+                        device.description || ""
+                      ).toUpperCase();
+                      const combinedInfo = `${deviceTypeUpper} ${specifications} ${model} ${description}`;
+
+                      // More flexible CPU detection
+                      if (
+                        combinedInfo.includes("I7") ||
+                        combinedInfo.includes("CORE I7")
+                      ) {
+                        category = "SYSTEM UNIT - i7";
+                      } else if (
+                        combinedInfo.includes("I5") ||
+                        combinedInfo.includes("CORE I5")
+                      ) {
+                        category = "SYSTEM UNIT - i5";
+                      } else if (
+                        combinedInfo.includes("I3") ||
+                        combinedInfo.includes("CORE I3")
+                      ) {
+                        category = "SYSTEM UNIT - i3";
+                      } else {
+                        // If no CPU type detected, default to i5 for PC devices
+                        category = "SYSTEM UNIT - i5";
+                      }
+
+                      if (category && deployedSystemUnitStats[category]) {
+                        const condition = (
+                          device.condition || ""
+                        ).toUpperCase();
+                        if (condition === "DEFECTIVE") {
+                          deployedSystemUnitStats[category].defective++;
+                        } else if (
+                          condition === "BRANDNEW" ||
+                          condition === "BRAND NEW"
+                        ) {
+                          deployedSystemUnitStats[category].brandnew++;
+                        } else if (condition === "GOOD") {
+                          deployedSystemUnitStats[category].good++;
+                        } else {
+                          // If no condition specified, default to GOOD
+                          deployedSystemUnitStats[category].good++;
+                        }
+                      }
+                    }
+                  });
+
+                  // Calculate totals for deployed devices
+                  const deployedTotals = {
+                    brandnew: Object.values(deployedSystemUnitStats).reduce(
+                      (sum, stats) => sum + stats.brandnew,
+                      0
+                    ),
+                    good: Object.values(deployedSystemUnitStats).reduce(
+                      (sum, stats) => sum + stats.good,
+                      0
+                    ),
+                    defective: Object.values(deployedSystemUnitStats).reduce(
+                      (sum, stats) => sum + stats.defective,
+                      0
+                    ),
+                  };
+                  deployedTotals.usable =
+                    deployedTotals.brandnew + deployedTotals.good;
+
+                  const deployedRows = [];
+
+                  // Add individual model rows for deployed devices
+                  Object.entries(deployedSystemUnitStats).forEach(
+                    ([model, stats], index) => {
+                      const usable = stats.brandnew + stats.good;
+                      deployedRows.push(
+                        <tr
+                          key={model}
+                          style={{
+                            borderBottom: `1px solid ${
+                              isDarkMode ? "#374151" : "#f3f4f6"
+                            }`,
+                            backgroundColor:
+                              index % 2 === 0
+                                ? isDarkMode
+                                  ? "#1f2937"
+                                  : "#ffffff"
+                                : isDarkMode
+                                ? "#374151"
+                                : "#f8fafc",
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              color: isDarkMode ? "#f3f4f6" : "#374151",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {model}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#06b6d4",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.brandnew}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#22c55e",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.good}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#ef4444",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {stats.defective}
+                          </td>
+                          <td
+                            style={{
+                              padding: "12px 16px",
+                              textAlign: "center",
+                              color: "#10b981",
+                              fontWeight: 700,
+                              backgroundColor:
+                                usable > 0
+                                  ? isDarkMode
+                                    ? "#064e3b"
+                                    : "#f0fdf4"
+                                  : isDarkMode
+                                  ? "#7f1d1d"
+                                  : "#fef2f2",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {usable}
+                          </td>
+                        </tr>
+                      );
+                    }
+                  );
+
+                  // Add totals row for deployed devices
+                  deployedRows.push(
+                    <tr
+                      key="deployed-totals"
+                      style={{
+                        borderTop: `2px solid ${
+                          isDarkMode ? "#4b5563" : "#e5e7eb"
+                        }`,
+                        backgroundColor: isDarkMode ? "#374151" : "#f8fafc",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          color: isDarkMode ? "#f3f4f6" : "#374151",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                        }}
+                      >
+                        TOTALS
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: "#06b6d4",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                        }}
+                      >
+                        {deployedTotals.brandnew}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: "#22c55e",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                        }}
+                      >
+                        {deployedTotals.good}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: "#ef4444",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                        }}
+                      >
+                        {deployedTotals.defective}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 16px",
+                          textAlign: "center",
+                          color: "#10b981",
+                          fontWeight: 700,
+                          fontSize: "15px",
+                          backgroundColor:
+                            deployedTotals.usable > 0
+                              ? isDarkMode
+                                ? "#064e3b"
+                                : "#f0fdf4"
+                              : isDarkMode
+                              ? "#7f1d1d"
+                              : "#fef2f2",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        {deployedTotals.usable}
+                      </td>
+                    </tr>
+                  );
 
           {/* Device Type Distribution - Deployed Assets - Full Width */}
           <div style={{ gridColumn: "span 2", minWidth: "0" }}>
