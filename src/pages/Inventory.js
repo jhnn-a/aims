@@ -58,7 +58,7 @@ function SearchableDropdown({
   options,
   placeholder = "Search and select client...",
   displayKey = "clientName",
-  valueKey = "clientName",
+  valueKey = "id",
   style = {},
 }) {
   const { isDarkMode } = useTheme();
@@ -128,9 +128,8 @@ function SearchableDropdown({
       position: "absolute",
       right: "12px",
       top: "50%",
-      transform: `translateY(-50%) ${
-        isOpen ? "rotate(180deg)" : "rotate(0deg)"
-      }`,
+      transform: `translateY(-50%) ${isOpen ? "rotate(180deg)" : "rotate(0deg)"
+        }`,
       transition: "transform 0.2s",
       pointerEvents: "none",
       fontSize: "12px",
@@ -189,12 +188,18 @@ function SearchableDropdown({
     },
   };
 
+  // Find display label for the currently selected value (ID or name)
+  const selectedOption = options.find(
+    (opt) => opt[valueKey] === value || opt[displayKey] === value
+  );
+  const displayValue = selectedOption ? selectedOption[displayKey] : value || "";
+
   return (
     <div ref={dropdownRef} style={dropdownStyles.container}>
       <div style={dropdownStyles.inputContainer}>
         <input
           type="text"
-          value={value || ""}
+          value={displayValue}
           onClick={handleInputClick}
           placeholder={placeholder}
           style={dropdownStyles.input}
@@ -516,8 +521,8 @@ function DeviceFormModal({
               ? "#374151"
               : "#fefbff"
             : isDarkMode
-            ? "#1f2937"
-            : "#ffffff",
+              ? "#1f2937"
+              : "#ffffff",
           animation: "modalFadeIn 0.2s ease-out",
         }}
         role="dialog"
@@ -599,8 +604,8 @@ function DeviceFormModal({
                 color: isEditMode
                   ? "#2563eb"
                   : isDarkMode
-                  ? "#3b82f6"
-                  : "#2563eb",
+                    ? "#3b82f6"
+                    : "#2563eb",
               }}
             >
               {isEditMode ? "Edit Device" : "Add Device"}
@@ -753,19 +758,19 @@ function DeviceFormModal({
                         ? "#374151"
                         : "#f5f5f5"
                       : useSerial
-                      ? isDarkMode
-                        ? "#374151"
-                        : "#f1f5f9"
-                      : isDarkMode
-                      ? "#374151"
-                      : "#f1f5f9",
+                        ? isDarkMode
+                          ? "#374151"
+                          : "#f1f5f9"
+                        : isDarkMode
+                          ? "#374151"
+                          : "#f1f5f9",
                     color: editingDevice
                       ? isDarkMode
                         ? "#9ca3af"
                         : "#999"
                       : isDarkMode
-                      ? "#f3f4f6"
-                      : "#000",
+                        ? "#f3f4f6"
+                        : "#000",
                     fontSize: 14,
                     height: "36px",
                     boxSizing: "border-box",
@@ -793,8 +798,8 @@ function DeviceFormModal({
                   color: editingDevice
                     ? "#999"
                     : isDarkMode
-                    ? "#f3f4f6"
-                    : "#222e3a",
+                      ? "#f3f4f6"
+                      : "#222e3a",
                   cursor: editingDevice ? "not-allowed" : "pointer",
                 }}
               >
@@ -901,7 +906,7 @@ function DeviceFormModal({
               options={clients}
               placeholder="Search and select client..."
               displayKey="clientName"
-              valueKey="clientName"
+              valueKey="id"
             />
           </div>
 
@@ -1713,8 +1718,8 @@ function Inventory() {
       const employeeName =
         emp?.firstName && emp?.lastName
           ? getFirstLastName(emp.firstName, emp.lastName)
-              .replace(/[^a-zA-Z0-9\s-]/g, "")
-              .replace(/\s+/g, "_")
+            .replace(/[^a-zA-Z0-9\s-]/g, "")
+            .replace(/\s+/g, "_")
           : "Employee";
       const fileName = `${employeeName} - TEMPORARY DEPLOY.docx`;
       saveAs(out, fileName);
@@ -1941,7 +1946,7 @@ function Inventory() {
           (device) =>
             device.deviceTag &&
             String(device.deviceTag).toLowerCase() ===
-              trimmedTag.toLowerCase() &&
+            trimmedTag.toLowerCase() &&
             device.id !== editingDeviceId
         );
 
@@ -1999,7 +2004,17 @@ function Inventory() {
             String(device.remarks || "")
               .toLowerCase()
               .includes(q) ||
-            String(device.client || "")
+            String((() => {
+              let owner = device.client || device.deviceOwner || "";
+              if (owner && owner.startsWith("CLI")) {
+                const clientObj = (typeof clients !== "undefined" ? clients : []).find(c => c.id === owner);
+                if (clientObj) owner = clientObj.clientName;
+              }
+              const norm = owner.trim().toLowerCase();
+              if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") return "Workstream PH";
+              if (norm === "joii ph - other services") return "WPH - Other Services";
+              return owner;
+            })())
               .toLowerCase()
               .includes(q);
 
@@ -2012,7 +2027,24 @@ function Inventory() {
             ([key, filterValue]) => {
               if (!filterValue) return true;
 
-              const itemValue = device[key];
+              let itemValue = device[key];
+
+              if (key === "client") {
+                let owner = device.client || device.deviceOwner;
+                if (owner) {
+                  if (owner.startsWith("CLI")) {
+                    const clientObj = (typeof clients !== "undefined" ? clients : []).find(c => c.id === owner);
+                    if (clientObj) owner = clientObj.clientName;
+                  }
+                  const norm = owner.trim().toLowerCase();
+                  if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") itemValue = "Workstream PH";
+                  else if (norm === "joii ph - other services") itemValue = "WPH - Other Services";
+                  else itemValue = owner;
+                } else {
+                  itemValue = "";
+                }
+              }
+
               if (itemValue === undefined || itemValue === null) return false;
 
               // For date filtering on acquisitionDate
@@ -2062,7 +2094,7 @@ function Inventory() {
         .filter((tag) =>
           isHeadset
             ? String(tag).startsWith(prefix) ||
-              String(tag).startsWith(legacyHeadsetPrefix)
+            String(tag).startsWith(legacyHeadsetPrefix)
             : String(tag).startsWith(prefix)
         )
         .map((tag) => {
@@ -2177,13 +2209,12 @@ function Inventory() {
             (device) =>
               device.deviceTag &&
               String(device.deviceTag).toLowerCase() ===
-                value.toLowerCase().trim() &&
+              value.toLowerCase().trim() &&
               device.id !== form._editDeviceId
           );
           if (existingDevice) {
             setTagError(
-              `TAG "${value.trim()}" already exists for device ID: ${
-                existingDevice.id
+              `TAG "${value.trim()}" already exists for device ID: ${existingDevice.id
               }`
             );
           } else {
@@ -2771,11 +2802,11 @@ function Inventory() {
             // Create readable change description for user logs
             const changeDescription = changes
               ? Object.entries(changes)
-                  .map(
-                    ([field, change]) =>
-                      `${field}: ${change.old} → ${change.new}`
-                  )
-                  .join(", ")
+                .map(
+                  ([field, change]) =>
+                    `${field}: ${change.old} → ${change.new}`
+                )
+                .join(", ")
               : "No changes detected";
 
             await createUserLog(
@@ -2876,11 +2907,11 @@ function Inventory() {
             // Create readable change description for user logs
             const changeDescription = changes
               ? Object.entries(changes)
-                  .map(
-                    ([field, change]) =>
-                      `${field}: ${change.old} → ${change.new}`
-                  )
-                  .join(", ")
+                .map(
+                  ([field, change]) =>
+                    `${field}: ${change.old} → ${change.new}`
+                )
+                .join(", ")
               : "No changes detected";
 
             await createUserLog(
@@ -3187,7 +3218,7 @@ function Inventory() {
               .filter((tag) =>
                 isHeadset
                   ? String(tag).startsWith(prefix) ||
-                    String(tag).startsWith(legacyHeadsetPrefix)
+                  String(tag).startsWith(legacyHeadsetPrefix)
                   : String(tag).startsWith(prefix)
               )
               .map((tag) => {
@@ -3298,7 +3329,7 @@ function Inventory() {
               await syncToUnitSpecs(devicePayload);
             }
             importedCount++;
-          } catch (err) {}
+          } catch (err) { }
         }
       }
       await loadDevicesAndEmployees();
@@ -3774,8 +3805,8 @@ function Inventory() {
     const employeeName =
       emp?.firstName && emp?.lastName
         ? getFirstLastName(emp.firstName, emp.lastName)
-            .replace(/[^a-zA-Z0-9\s-]/g, "")
-            .replace(/\s+/g, "_")
+          .replace(/[^a-zA-Z0-9\s-]/g, "")
+          .replace(/\s+/g, "_")
         : "Employee";
     const fileName = `${employeeName} - NEW ISSUE.docx`;
     saveAs(assignModalDocxBlob, fileName);
@@ -4101,15 +4132,15 @@ function Inventory() {
       prevTabs.map((tab) =>
         tab.id === activeTabId
           ? {
-              ...tab,
-              data: {
-                ...tab.data,
-                [name]:
-                  name === "acquisitionDate"
-                    ? formatDateToMMDDYYYY(value)
-                    : value,
-              },
-            }
+            ...tab,
+            data: {
+              ...tab.data,
+              [name]:
+                name === "acquisitionDate"
+                  ? formatDateToMMDDYYYY(value)
+                  : value,
+            },
+          }
           : tab
       )
     );
@@ -4184,13 +4215,13 @@ function Inventory() {
         prevTabs.map((tab) =>
           tab.id === activeTabId
             ? {
-                ...tab,
-                data: {
-                  ...tab.data,
-                  quantity: 1,
-                  nextAvailableTag: nextStartTag, // For display purposes
-                },
-              }
+              ...tab,
+              data: {
+                ...tab.data,
+                quantity: 1,
+                nextAvailableTag: nextStartTag, // For display purposes
+              },
+            }
             : tab
         )
       );
@@ -4264,13 +4295,13 @@ function Inventory() {
         prevTabs.map((tab) =>
           tab.id === activeTabId
             ? {
-                ...tab,
-                data: {
-                  ...tab.data,
-                  manualQuantity: 1,
-                  manualSerials: [],
-                },
-              }
+              ...tab,
+              data: {
+                ...tab.data,
+                manualQuantity: 1,
+                manualSerials: [],
+              },
+            }
             : tab
         )
       );
@@ -4366,14 +4397,14 @@ function Inventory() {
       prevTabs.map((tab) =>
         tab.id === tabId
           ? {
-              ...tab,
-              data: {
-                ...tab.data,
-                manualSerials: tab.data.manualSerials.map((item, i) =>
-                  i === index ? { ...item, serial: value } : item
-                ),
-              },
-            }
+            ...tab,
+            data: {
+              ...tab.data,
+              manualSerials: tab.data.manualSerials.map((item, i) =>
+                i === index ? { ...item, serial: value } : item
+              ),
+            },
+          }
           : tab
       )
     );
@@ -4927,8 +4958,8 @@ function Inventory() {
         uniqueClients.length === 1
           ? uniqueClients[0]
           : uniqueClients.length > 1
-          ? "Multiple Clients"
-          : acquisitionData.client || "Not specified";
+            ? "Multiple Clients"
+            : acquisitionData.client || "Not specified";
 
       // console.log("Unique clients found:", uniqueClients);
       // console.log("Global client for document:", globalClient);
@@ -5787,8 +5818,8 @@ function Inventory() {
                   background: importing
                     ? "#9ca3af"
                     : isDarkMode
-                    ? "#10b981"
-                    : "#10b981",
+                      ? "#10b981"
+                      : "#10b981",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
@@ -6697,7 +6728,13 @@ function Inventory() {
                       onChange={(value) => updateHeaderFilter("client", value)}
                       options={[
                         ...new Set(
-                          devices.map((d) => d.client).filter(Boolean)
+                          devices.map((d) => {
+                            const owner = d.client || d.deviceOwner;
+                            const norm = owner.trim().toLowerCase();
+                            if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") return "Workstream PH";
+                            if (norm === "joii ph - other services") return "WPH - Other Services";
+                            return owner;
+                          }).filter(Boolean)
                         ),
                       ]}
                       placeholder="All Owners"
@@ -6838,8 +6875,8 @@ function Inventory() {
                               ? "#1f2937"
                               : "rgb(250, 250, 252)"
                             : isDarkMode
-                            ? "#111827"
-                            : "rgb(240, 240, 243)",
+                              ? "#111827"
+                              : "rgb(240, 240, 243)",
                         cursor: "pointer",
                         transition: "background 0.15s",
                       }}
@@ -6862,8 +6899,8 @@ function Inventory() {
                               ? "#1f2937"
                               : "rgb(250, 250, 252)"
                             : isDarkMode
-                            ? "#111827"
-                            : "rgb(240, 240, 243)";
+                              ? "#111827"
+                              : "rgb(240, 240, 243)";
                       }}
                     >
                       <td
@@ -7029,7 +7066,13 @@ function Inventory() {
                           overflow: "hidden",
                         }}
                       >
-                        {device.client || "-"}
+                        {(() => {
+                          const owner = device.client || device.deviceOwner;
+                          if (!owner) return "-";
+                          const norm = owner.trim().toLowerCase();
+                          if (norm === "joii philippines" || norm === "joii philiipines" || norm === "joii phillipines" || norm === "joii philipines") return "Workstream PH";
+                          return owner;
+                        })()}
                       </td>
                       <td
                         style={{
@@ -7329,9 +7372,8 @@ function Inventory() {
                       style={{
                         padding: "4px 8px",
                         borderRadius: "4px",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#e0e7ef"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                          }`,
                         fontSize: "13px",
                         background: isDarkMode ? "#374151" : "#fff",
                         color: isDarkMode ? "#f3f4f6" : "#445F6D",
@@ -7361,25 +7403,24 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#e0e7ef"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                          }`,
                         background:
                           currentPage === 1
                             ? isDarkMode
                               ? "#374151"
                               : "#f5f7fa"
                             : isDarkMode
-                            ? "#1f2937"
-                            : "#fff",
+                              ? "#1f2937"
+                              : "#fff",
                         color:
                           currentPage === 1
                             ? isDarkMode
                               ? "#6b7280"
                               : "#9ca3af"
                             : isDarkMode
-                            ? "#f3f4f6"
-                            : "#445F6D",
+                              ? "#f3f4f6"
+                              : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -7410,25 +7451,24 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#e0e7ef"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                          }`,
                         background:
                           currentPage === 1
                             ? isDarkMode
                               ? "#374151"
                               : "#f5f7fa"
                             : isDarkMode
-                            ? "#1f2937"
-                            : "#fff",
+                              ? "#1f2937"
+                              : "#fff",
                         color:
                           currentPage === 1
                             ? isDarkMode
                               ? "#6b7280"
                               : "#9ca3af"
                             : isDarkMode
-                            ? "#f3f4f6"
-                            : "#445F6D",
+                              ? "#f3f4f6"
+                              : "#445F6D",
                         cursor: currentPage === 1 ? "not-allowed" : "pointer",
                         fontSize: "14px",
                         fontWeight: "500",
@@ -7477,21 +7517,20 @@ function Inventory() {
                             style={{
                               padding: "8px 12px",
                               borderRadius: "6px",
-                              border: `1px solid ${
-                                isDarkMode ? "#4b5563" : "#e0e7ef"
-                              }`,
+                              border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                                }`,
                               background:
                                 i === currentPage
                                   ? "#2563eb"
                                   : isDarkMode
-                                  ? "#1f2937"
-                                  : "#fff",
+                                    ? "#1f2937"
+                                    : "#fff",
                               color:
                                 i === currentPage
                                   ? "#fff"
                                   : isDarkMode
-                                  ? "#f3f4f6"
-                                  : "#445F6D",
+                                    ? "#f3f4f6"
+                                    : "#445F6D",
                               cursor: "pointer",
                               fontSize: "14px",
                               fontWeight: "500",
@@ -7512,25 +7551,24 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#e0e7ef"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                          }`,
                         background:
                           currentPage === totalPages
                             ? isDarkMode
                               ? "#374151"
                               : "#f5f7fa"
                             : isDarkMode
-                            ? "#1f2937"
-                            : "#fff",
+                              ? "#1f2937"
+                              : "#fff",
                         color:
                           currentPage === totalPages
                             ? isDarkMode
                               ? "#6b7280"
                               : "#9ca3af"
                             : isDarkMode
-                            ? "#f3f4f6"
-                            : "#445F6D",
+                              ? "#f3f4f6"
+                              : "#445F6D",
                         cursor:
                           currentPage === totalPages
                             ? "not-allowed"
@@ -7563,25 +7601,24 @@ function Inventory() {
                       style={{
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: `1px solid ${
-                          isDarkMode ? "#4b5563" : "#e0e7ef"
-                        }`,
+                        border: `1px solid ${isDarkMode ? "#4b5563" : "#e0e7ef"
+                          }`,
                         background:
                           currentPage === totalPages
                             ? isDarkMode
                               ? "#374151"
                               : "#f5f7fa"
                             : isDarkMode
-                            ? "#1f2937"
-                            : "#fff",
+                              ? "#1f2937"
+                              : "#fff",
                         color:
                           currentPage === totalPages
                             ? isDarkMode
                               ? "#6b7280"
                               : "#9ca3af"
                             : isDarkMode
-                            ? "#f3f4f6"
-                            : "#445F6D",
+                              ? "#f3f4f6"
+                              : "#445F6D",
                         cursor:
                           currentPage === totalPages
                             ? "not-allowed"

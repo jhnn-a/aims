@@ -427,7 +427,7 @@ export const NewAcquisitionsModal = ({
                           options={clients}
                           placeholder="Search and select client..."
                           displayKey="clientName"
-                          valueKey="clientName"
+                          valueKey="id"
                         />
                       </div>
 
@@ -648,10 +648,10 @@ export const NewAcquisitionsModal = ({
                       {progress < 40
                         ? "Preparing devices..."
                         : progress < 70
-                        ? "Adding to database..."
-                        : progress < 100
-                        ? "Generating document..."
-                        : "Complete!"}
+                          ? "Adding to database..."
+                          : progress < 100
+                            ? "Generating document..."
+                            : "Complete!"}
                     </span>
                   </div>
                 )}
@@ -676,8 +676,8 @@ export const NewAcquisitionsModal = ({
                     {newAcqLoading
                       ? "Adding..."
                       : newAcqTabs.some((tab) => tab.data.useManualSerial)
-                      ? "Proceed to Serial Entry"
-                      : "Add Devices"}
+                        ? "Proceed to Serial Entry"
+                        : "Add Devices"}
                   </button>
                   <button
                     onClick={() => {
@@ -1040,7 +1040,7 @@ export const NewAcquisitionsModal = ({
                                   "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
                                 opacity:
                                   importTexts[currentManualTab.id] &&
-                                  importTexts[currentManualTab.id].trim()
+                                    importTexts[currentManualTab.id].trim()
                                     ? 1
                                     : 0.6,
                               }}
@@ -1054,10 +1054,9 @@ export const NewAcquisitionsModal = ({
                               Import Serials
                               {importTexts[currentManualTab.id] &&
                                 importTexts[currentManualTab.id].trim() &&
-                                ` (${
-                                  importTexts[currentManualTab.id]
-                                    .split("\n")
-                                    .filter((line) => line.trim()).length
+                                ` (${importTexts[currentManualTab.id]
+                                  .split("\n")
+                                  .filter((line) => line.trim()).length
                                 })`}
                             </button>
                             <button
