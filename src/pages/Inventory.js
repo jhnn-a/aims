@@ -26,6 +26,7 @@ import { db } from "../utils/firebase"; // Firebase configuration
 import PizZip from "pizzip"; // For DOCX file generation
 import Docxtemplater from "docxtemplater"; // For DOCX template processing
 import { saveAs } from "file-saver"; // File download functionality
+import jsPDF from "jspdf"; // PDF generation
 import { useSnackbar } from "../components/Snackbar"; // Success/error notifications
 import { useTheme } from "../context/ThemeContext"; // Dark mode theme context
 import { useLastTagsGlobalState } from "../hooks/useLastTagsGlobalState"; // Global Last Tags state
@@ -653,19 +654,54 @@ function DeviceFormModal({
               }}
             >
               <label style={styles.inventoryLabel}>Device Type:</label>
-              <select
-                name="deviceType"
-                value={data.deviceType}
-                onChange={onChange}
-                style={styles.inventoryInput}
-              >
-                <option value="">Select Device Type</option>
-                {deviceTypes.map((type) => (
-                  <option key={type.label} value={type.label}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              {isEditMode ? (
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                  }}
+                >
+                  <select
+                    name="deviceType"
+                    value={data.deviceType}
+                    onChange={onChange}
+                    disabled
+                    style={{
+                      ...styles.inventoryInput,
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
+                      paddingRight: "8px",
+                      backgroundImage: "none",
+                      backgroundColor: isDarkMode ? "#4b5563" : "#f5f5f5",
+                      color: isDarkMode ? "#9ca3af" : "#666",
+                      cursor: "not-allowed",
+                      opacity: 0.7,
+                    }}
+                  >
+                    <option value="">Select Device Type</option>
+                    {deviceTypes.map((type) => (
+                      <option key={type.label} value={type.label}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <select
+                  name="deviceType"
+                  value={data.deviceType}
+                  onChange={onChange}
+                  style={styles.inventoryInput}
+                >
+                  <option value="">Select Device Type</option>
+                  {deviceTypes.map((type) => (
+                    <option key={type.label} value={type.label}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {data.deviceType === "RAM" ? (
@@ -1877,7 +1913,7 @@ function Inventory() {
         deviceType: "",
         brand: "",
         model: "",
-        condition: "",
+        condition: "BRANDNEW",
         remarks: "",
         acquisitionDate: getTodaysDate(),
         quantity: 1,
@@ -1900,6 +1936,8 @@ function Inventory() {
   const [manualSerials, setManualSerials] = useState([]);
   const [activeManualTabId, setActiveManualTabId] = useState(1);
   const [importTexts, setImportTexts] = useState({}); // Track import text per tab
+  const [docFormat, setDocFormat] = useState("word"); // assignment form format
+  const [acquisitionDocFormat, setAcquisitionDocFormat] = useState("word");
 
   // --- HOOKS ---
   const { showSnackbar } = useSnackbar(); // For notifications
@@ -2058,12 +2096,17 @@ function Inventory() {
       const isHeadset = targetType === "H";
       const legacyHeadsetPrefix = "JOIIHS";
 
+      // Use regex to ensure exact prefix boundary (next char must be a digit).
+      // This prevents "JOIIM" (Mouse) from matching "JOIIMN" (Monitor) tags.
+      const prefixRegex = new RegExp(`^${prefix}\\d`);
+      const legacyHeadsetRegex = new RegExp(`^${legacyHeadsetPrefix}\\d`);
+
       const numbers = tags
         .filter((tag) =>
           isHeadset
-            ? String(tag).startsWith(prefix) ||
-              String(tag).startsWith(legacyHeadsetPrefix)
-            : String(tag).startsWith(prefix)
+            ? prefixRegex.test(String(tag)) ||
+              legacyHeadsetRegex.test(String(tag))
+            : prefixRegex.test(String(tag))
         )
         .map((tag) => {
           const t = String(tag);
@@ -3467,7 +3510,8 @@ function Inventory() {
   const [assignModalShowGenerate, setAssignModalShowGenerate] = useState(false);
   const [assignModalGenerating, setAssignModalGenerating] = useState(false);
   const [assignModalProgress, setAssignModalProgress] = useState(0);
-  const [assignModalDocxBlob, setAssignModalDocxBlob] = useState(null);
+  const [assignModalGeneratedFile, setAssignModalGeneratedFile] =
+    useState(null);
 
   // Assign Modal Flow
   const openAssignModal = (device) => {
@@ -3475,11 +3519,12 @@ function Inventory() {
     setAssignModalOpen(true);
     setAssignModalStep(1);
     setDocxBlob(null);
-    setAssignModalDocxBlob(null); // Reset any previous document
+    setAssignModalGeneratedFile(null); // Reset any previous document
     setAssignModalProgress(0); // Reset progress
     setAssignModalGenerating(false); // Reset generating state
     setAssignModalShowGenerate(false); // Reset show generate button
     setSelectedAssignEmployee(null); // Reset selected employee
+    setDocFormat("word");
     setAssignModalChecks({
       // Reset all radio buttons and checkboxes
       issueTypeSelected: "",
@@ -3562,10 +3607,11 @@ function Inventory() {
     setProgress(0);
     setGenerating(false);
     setDocxBlob(null);
-    setAssignModalDocxBlob(null); // Reset the assign modal blob
+    setAssignModalGeneratedFile(null); // Reset the assign modal file
     setAssignModalProgress(0); // Reset progress
     setAssignModalGenerating(false); // Reset generating state
     setAssignSearch("");
+    setDocFormat("word");
   };
 
   const handleAssignModalRadio = (issueType) => {
@@ -3678,111 +3724,57 @@ function Inventory() {
     setAssignModalShowGenerate(true);
   };
 
-  const handleAssignModalGenerateDocx = async () => {
-    setAssignModalGenerating(true);
-    setAssignModalProgress(10);
-    try {
-      const response = await fetch(
-        "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
-      );
-      setAssignModalProgress(20);
-      const content = await response.arrayBuffer();
-      setAssignModalProgress(30);
-      const zip = new PizZip(content);
-      setAssignModalProgress(40);
-      const doc = new Docxtemplater(zip, {
-        paragraphLoop: true,
-        linebreaks: true,
-      });
-      setAssignModalProgress(50);
-
-      const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
-      // Get all selected devices for assignment
-      const selectedDeviceObjects = devices.filter((d) =>
-        selectedIds.includes(d.id)
-      );
-      // Philippine date logic
-      const now = new Date();
-      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-      const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
-      const assignmentDate =
-        phTime.getFullYear() +
-        "-" +
-        String(phTime.getMonth() + 1).padStart(2, "0") +
-        "-" +
-        String(phTime.getDate()).padStart(2, "0");
-
-      doc.setData({
-        name: getFirstLastName(emp?.firstName, emp?.lastName) || "",
-        dateHired: formatDateToFullWord(emp?.dateHired) || "",
-        department: getDepartmentForForm(emp),
-        position: emp?.position || "",
-        devices: selectedDeviceObjects.map((dev) => {
-          // Format assignmentDate as 'June 06, 2025'
-          let dateToFormat = dev.assignmentDate || assignmentDate;
-          let formattedDate = "";
-          if (dateToFormat) {
-            const dateObj = new Date(dateToFormat);
-            if (!isNaN(dateObj)) {
-              formattedDate = dateObj.toLocaleString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "2-digit",
-              });
-            } else {
-              formattedDate = dateToFormat;
-            }
-          }
-          return {
-            assignmentDate: formattedDate,
-            deviceType: dev.deviceType,
-            brand: dev.brand,
-            deviceTag: dev.deviceTag,
-            condition: dev.condition,
-            remarks: dev.remarks,
-          };
-        }),
-        // Dual placeholders for colored checkboxes
-        newIssueNewBoxRed: assignModalChecks.newIssueNew ? "◼" : "",
-        newIssueNewBoxBlack: assignModalChecks.newIssueNew ? "" : "☐",
-        newIssueStockBoxRed: assignModalChecks.newIssueStock ? "◼" : "",
-        newIssueStockBoxBlack: assignModalChecks.newIssueStock ? "" : "☐",
-        wfhNewBoxRed: assignModalChecks.wfhNew ? "◼" : "",
-        wfhNewBoxBlack: assignModalChecks.wfhNew ? "" : "☐",
-        wfhStockBoxRed: assignModalChecks.wfhStock ? "◼" : "",
-        wfhStockBoxBlack: assignModalChecks.wfhStock ? "" : "☐",
-      });
-
-      setAssignModalProgress(60);
-      doc.render();
-      setAssignModalProgress(70);
-      const out = doc.getZip().generate({ type: "blob" });
-      setAssignModalDocxBlob(out);
-      setAssignModalProgress(100);
-      setAssignModalGenerating(false);
-    } catch (e) {
-      setAssignModalGenerating(false);
-      alert("Failed to generate document. Please check the template and data.");
+  const getDevicesForAssignment = () => {
+    if (selectedIds.length > 0) {
+      return devices.filter((device) => selectedIds.includes(device.id));
     }
+
+    return assigningDevice ? [assigningDevice] : [];
   };
 
-  // Download and assign devices when user clicks Download DOCX
-  const handleDownloadAndAssign = async () => {
-    if (!assignModalDocxBlob) return;
-    const emp = employees.find((e) => e.id === selectedAssignEmployee.id);
-    // Get first and last name, then clean and format for filename
+  const formatDocumentDateValue = (dateValue, fallbackDate = "") => {
+    const finalValue = dateValue || fallbackDate;
+    if (!finalValue) return "";
+
+    const dateObj = new Date(finalValue);
+    if (isNaN(dateObj.getTime())) {
+      return finalValue;
+    }
+
+    return dateObj.toLocaleString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "2-digit",
+    });
+  };
+
+  const getAssignmentFileBaseName = (employee) => {
     const employeeName =
-      emp?.firstName && emp?.lastName
-        ? getFirstLastName(emp.firstName, emp.lastName)
+      employee?.firstName && employee?.lastName
+        ? getFirstLastName(employee.firstName, employee.lastName)
             .replace(/[^a-zA-Z0-9\s-]/g, "")
             .replace(/\s+/g, "_")
         : "Employee";
-    const fileName = `${employeeName} - NEW ISSUE.docx`;
-    saveAs(assignModalDocxBlob, fileName);
-    // Move assigned devices to assets (update their assignedTo, assignmentDate, remarks)
+
+    const formLabel =
+      assignModalChecks.issueTypeSelected === "wfh"
+        ? "WORK_FROM_HOME"
+        : "NEW_ISSUE";
+
+    return `${employeeName} - ${formLabel}`;
+  };
+
+  const buildAssignmentDocumentContext = () => {
+    const employee = employees.find((e) => e.id === selectedAssignEmployee?.id);
+    const devicesToAssign = getDevicesForAssignment();
+
+    if (!employee || devicesToAssign.length === 0) {
+      return null;
+    }
+
     const now = new Date();
     const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-    const phTime = new Date(utc + 8 * 60 * 60000); // GMT+8
+    const phTime = new Date(utc + 8 * 60 * 60000);
     const assignmentDate =
       phTime.getFullYear() +
       "-" +
@@ -3790,8 +3782,192 @@ function Inventory() {
       "-" +
       String(phTime.getDate()).padStart(2, "0");
 
-    // Get the devices to be assigned
-    const devicesToAssign = devices.filter((d) => selectedIds.includes(d.id));
+    const checkboxSummary = {
+      newIssue: [
+        assignModalChecks.newIssueNew ? "Newly Purchased" : null,
+        assignModalChecks.newIssueStock ? "Stock" : null,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      wfh: [
+        assignModalChecks.wfhNew ? "Newly Purchased" : null,
+        assignModalChecks.wfhStock ? "Stock" : null,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    };
+
+    return {
+      employee,
+      devicesToAssign,
+      assignmentDate,
+      fileBaseName: getAssignmentFileBaseName(employee),
+      templateData: {
+        name: getFirstLastName(employee?.firstName, employee?.lastName) || "",
+        dateHired: formatDateToFullWord(employee?.dateHired) || "",
+        department: getDepartmentForForm(employee),
+        position: employee?.position || "",
+        devices: devicesToAssign.map((device) => ({
+          assignmentDate: formatDocumentDateValue(
+            device.assignmentDate,
+            assignmentDate
+          ),
+          deviceType: device.deviceType,
+          brand: device.brand,
+          deviceTag: device.deviceTag,
+          condition: device.condition,
+          remarks: device.remarks,
+        })),
+        newIssueNewBoxRed: assignModalChecks.newIssueNew ? "■" : "",
+        newIssueNewBoxBlack: assignModalChecks.newIssueNew ? "" : "☐",
+        newIssueStockBoxRed: assignModalChecks.newIssueStock ? "■" : "",
+        newIssueStockBoxBlack: assignModalChecks.newIssueStock ? "" : "☐",
+        wfhNewBoxRed: assignModalChecks.wfhNew ? "■" : "",
+        wfhNewBoxBlack: assignModalChecks.wfhNew ? "" : "☐",
+        wfhStockBoxRed: assignModalChecks.wfhStock ? "■" : "",
+        wfhStockBoxBlack: assignModalChecks.wfhStock ? "" : "☐",
+      },
+      checkboxSummary,
+    };
+  };
+
+  const generateAssignmentPdfBlob = (context) => {
+    const pdf = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 40;
+    let y = margin;
+
+    const addLine = (text, x = margin, options = {}) => {
+      const fontSize = options.fontSize || 11;
+      const fontStyle = options.fontStyle || "normal";
+      const maxWidth = options.maxWidth || pageWidth - margin * 2;
+      const lineHeight = options.lineHeight || fontSize + 4;
+
+      pdf.setFont("helvetica", fontStyle);
+      pdf.setFontSize(fontSize);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+
+      if (y + lines.length * lineHeight > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+
+      pdf.text(lines, x, y);
+      y += lines.length * lineHeight;
+    };
+
+    addLine("ASSET ACCOUNTABILITY FORM", margin, {
+      fontSize: 16,
+      fontStyle: "bold",
+      lineHeight: 22,
+    });
+    y += 4;
+    addLine(`Name: ${context.templateData.name}`);
+    addLine(`Date Hired: ${context.templateData.dateHired || "-"}`);
+    addLine(`Department: ${context.templateData.department || "-"}`);
+    addLine(`Position: ${context.templateData.position || "-"}`);
+    y += 6;
+    addLine(
+      `New Issue: ${context.checkboxSummary.newIssue || "None selected"}`,
+      margin,
+      { fontStyle: "bold" }
+    );
+    addLine(
+      `Work From Home/Borrowed: ${
+        context.checkboxSummary.wfh || "None selected"
+      }`,
+      margin,
+      { fontStyle: "bold" }
+    );
+    y += 8;
+    addLine("Assigned Devices", margin, {
+      fontSize: 13,
+      fontStyle: "bold",
+      lineHeight: 18,
+    });
+
+    context.templateData.devices.forEach((device, index) => {
+      y += 4;
+      addLine(`${index + 1}. ${device.deviceType} - ${device.brand}`, margin, {
+        fontStyle: "bold",
+      });
+      addLine(`Tag: ${device.deviceTag || "-"}`);
+      addLine(`Condition: ${device.condition || "-"}`);
+      addLine(`Assignment Date: ${device.assignmentDate || "-"}`);
+      addLine(`Remarks: ${device.remarks || "-"}`);
+      y += 4;
+    });
+
+    return pdf.output("blob");
+  };
+
+  const handleAssignModalGenerateDocument = async () => {
+    setAssignModalGenerating(true);
+    setAssignModalProgress(10);
+    try {
+      const context = buildAssignmentDocumentContext();
+
+      if (!context) {
+        throw new Error("Missing assignment document context.");
+      }
+
+      if (docFormat === "pdf") {
+        setAssignModalProgress(35);
+        const pdfBlob = generateAssignmentPdfBlob(context);
+        setAssignModalProgress(80);
+        setAssignModalGeneratedFile({
+          blob: pdfBlob,
+          extension: "pdf",
+        });
+      } else {
+        const response = await fetch(
+          "/src/AccountabilityForms/ASSET ACCOUNTABILITY FORM - NEW ISSUE.docx"
+        );
+        setAssignModalProgress(20);
+        const content = await response.arrayBuffer();
+        setAssignModalProgress(30);
+        const zip = new PizZip(content);
+        setAssignModalProgress(40);
+        const doc = new Docxtemplater(zip, {
+          paragraphLoop: true,
+          linebreaks: true,
+        });
+        setAssignModalProgress(50);
+        doc.setData(context.templateData);
+        setAssignModalProgress(60);
+        doc.render();
+        setAssignModalProgress(70);
+        const out = doc.getZip().generate({ type: "blob" });
+        setAssignModalGeneratedFile({
+          blob: out,
+          extension: "docx",
+        });
+      }
+
+      setAssignModalProgress(100);
+      setAssignModalGenerating(false);
+    } catch (e) {
+      console.error("Failed to generate assignment document:", e);
+      setAssignModalGenerating(false);
+      showError("Failed to generate document. Please check the template and data.");
+    }
+  };
+
+  // Download and assign devices when user clicks Download
+  const handleDownloadAndAssign = async () => {
+    if (!assignModalGeneratedFile) return;
+
+    const context = buildAssignmentDocumentContext();
+    if (!context) {
+      showError("Missing assignment details. Please regenerate the document.");
+      return;
+    }
+
+    const fileName = `${context.fileBaseName}.${assignModalGeneratedFile.extension}`;
+    saveAs(assignModalGeneratedFile.blob, fileName);
+
+    const devicesToAssign = context.devicesToAssign;
 
     for (const dev of devicesToAssign) {
       const updatedDevice = {
@@ -3954,7 +4130,7 @@ function Inventory() {
   }) => {
     // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
-    if (!deviceType || !brand || !condition || !quantity) {
+    if (!deviceType || !brand || !quantity) {
       throw new Error("Please fill in all required fields.");
     }
 
@@ -3985,11 +4161,15 @@ function Inventory() {
     }
 
     // Find the next available TAG number
+    // Use regex to ensure an exact prefix boundary (next char must be a digit),
+    // which prevents shorter prefixes (e.g. "JOIIM" for Mouse) from
+    // accidentally matching longer-prefix tags (e.g. "JOIIMN" for Monitor).
+    const prefixRegex = new RegExp(`^${prefix}\\d`);
     const allDevices = await getAllDevices();
     const deviceTags = allDevices
       .filter(
         (device) =>
-          device.deviceTag && String(device.deviceTag).startsWith(prefix)
+          device.deviceTag && prefixRegex.test(String(device.deviceTag))
       )
       .map((device) => {
         const tagNumber = String(device.deviceTag).replace(prefix, "");
@@ -4028,7 +4208,7 @@ function Inventory() {
         deviceTag,
         brand,
         model: model || "",
-        condition,
+        condition: "BRANDNEW",
         remarks: remarks || "",
         client: client || "",
         supplier: supplier || "",
@@ -4203,12 +4383,12 @@ function Inventory() {
   const addNewTab = () => {
     const newTab = {
       id: nextTabId,
-      label: `Device Type ${nextTabId}`,
+      label: `Device Type ${newAcqTabs.length + 1}`,
       data: {
         deviceType: "",
         brand: "",
         model: "",
-        condition: "",
+        condition: "BRANDNEW",
         remarks: "",
         acquisitionDate: getTodaysDate(),
         quantity: 1,
@@ -4246,66 +4426,70 @@ function Inventory() {
     return newAcqTabs.find((tab) => tab.id === activeTabId)?.data || {};
   };
 
-  const handleManualSerialToggle = (e) => {
-    const checked = e.target.checked;
-
-    // Update the current tab's manual serial setting
+  const handleManualSerialToggle = () => {
     setNewAcqTabs((prevTabs) =>
-      prevTabs.map((tab) =>
-        tab.id === activeTabId
-          ? { ...tab, data: { ...tab.data, useManualSerial: checked } }
-          : tab
-      )
+      prevTabs.map((tab) => {
+        if (tab.id !== activeTabId) return tab;
+        const newManualSerial = !tab.data.useManualSerial;
+        return {
+          ...tab,
+          data: {
+            ...tab.data,
+            useManualSerial: newManualSerial,
+            // Clear manual serial data when turning off
+            ...(newManualSerial
+              ? {}
+              : { manualQuantity: 1, manualSerials: [] }),
+          },
+        };
+      })
     );
-
-    if (!checked) {
-      // Clear manual serial data for this tab
-      setNewAcqTabs((prevTabs) =>
-        prevTabs.map((tab) =>
-          tab.id === activeTabId
-            ? {
-                ...tab,
-                data: {
-                  ...tab.data,
-                  manualQuantity: 1,
-                  manualSerials: [],
-                },
-              }
-            : tab
-        )
-      );
-    }
   };
 
   const handleQuantityChange = (e) => {
-    const qty = parseInt(e.target.value) || 1;
-    const newQuantity = Math.max(1, Math.min(99, qty));
+    const { value } = e.target;
 
-    // Update the current tab's manual quantity and adjust the serials array
     setNewAcqTabs((prevTabs) =>
       prevTabs.map((tab) => {
-        if (tab.id === activeTabId) {
-          // Create new serials array with the new quantity
-          const currentSerials = tab.data.manualSerials || [];
-          const newSerials = Array(newQuantity)
-            .fill("")
-            .map((_, index) => ({
-              id: index,
-              serial: currentSerials[index]?.serial || "",
-            }));
+        if (tab.id !== activeTabId) {
+          return tab;
+        }
 
+        if (value === "") {
           return {
             ...tab,
             data: {
               ...tab.data,
-              manualQuantity: newQuantity,
-              manualSerials: newSerials,
+              quantity: "",
             },
           };
         }
-        return tab;
+
+        const parsedValue = Number(value);
+        if (Number.isNaN(parsedValue)) {
+          return tab;
+        }
+
+        const newQuantity = Math.max(1, Math.min(99, parsedValue));
+        const currentSerials = tab.data.manualSerials || [];
+        const newSerials = Array.from({ length: newQuantity }, (_, index) => ({
+          id: index,
+          serial: currentSerials[index]?.serial || "",
+        }));
+
+        return {
+          ...tab,
+          data: {
+            ...tab.data,
+            quantity: newQuantity,
+            manualQuantity: newQuantity,
+            manualSerials: newSerials,
+          },
+        };
       })
     );
+
+    setNewAcqError("");
   };
 
   const handleProceedToManualEntry = () => {
@@ -4313,9 +4497,9 @@ function Inventory() {
     const manualTabs = newAcqTabs.filter((tab) => tab.data.useManualSerial);
 
     for (const tab of manualTabs) {
-      if (!tab.data.deviceType || !tab.data.brand || !tab.data.condition) {
+      if (!tab.data.deviceType || !tab.data.brand) {
         setNewAcqError(
-          `Please fill in Device Type, Brand, and Condition for ${tab.label}.`
+          `Please fill in Device Type and Brand for ${tab.label}.`
         );
         return;
       }
@@ -4468,9 +4652,9 @@ function Inventory() {
         const tabData = tab.data;
 
         // Validate required fields
-        if (!tabData.deviceType || !tabData.brand || !tabData.condition) {
+        if (!tabData.deviceType || !tabData.brand) {
           setNewAcqError(
-            `Please fill in Device Type, Brand, and Condition for ${tab.label}.`
+            `Please fill in Device Type and Brand for ${tab.label}.`
           );
           setNewAcqLoading(false);
           return;
@@ -4485,7 +4669,7 @@ function Inventory() {
             deviceTag: serialItem.serial.trim(),
             brand: tabData.brand,
             model: tabData.model || "",
-            condition: tabData.condition,
+            condition: "BRANDNEW",
             remarks: tabData.remarks || "",
             client: tabData.client || "",
             supplier: tabData.supplier || "",
@@ -4545,6 +4729,11 @@ function Inventory() {
           const isHeadset = typeObj.code === "H";
           const legacyHeadsetPrefix = "JOIIHS";
 
+          // Use regex for exact prefix boundary to avoid prefix collisions
+          // (e.g. "JOIIM" for Mouse must not match "JOIIMN" for Monitor)
+          const docPrefixRegex = new RegExp(`^${prefix}\\d`);
+          const docLegacyRegex = new RegExp(`^${legacyHeadsetPrefix}\\d`);
+
           // Find the next available TAG number for this device type
           const allDevices = await getAllDevices();
           const deviceTags = allDevices
@@ -4552,8 +4741,8 @@ function Inventory() {
               const tag = device.deviceTag && String(device.deviceTag);
               if (!tag) return false;
               return isHeadset
-                ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
-                : tag.startsWith(prefix);
+                ? docPrefixRegex.test(tag) || docLegacyRegex.test(tag)
+                : docPrefixRegex.test(tag);
             })
             .map((device) => {
               const tag = String(device.deviceTag);
@@ -4613,7 +4802,11 @@ function Inventory() {
 
       // Generate document for all devices
       try {
-        await generateAcquisitionDocument(allDeviceList, newAcqTabs[0].data);
+        await generateAcquisitionDocument(
+          allDeviceList,
+          newAcqTabs[0].data,
+          acquisitionDocFormat
+        );
       } catch (docError) {
         console.error("Document generation failed:", docError);
         // Continue even if document generation fails
@@ -4631,7 +4824,7 @@ function Inventory() {
             deviceType: "",
             brand: "",
             model: "",
-            condition: "",
+            condition: "BRANDNEW",
             remarks: "",
             acquisitionDate: "",
             quantity: 1,
@@ -4647,6 +4840,7 @@ function Inventory() {
       setNextTabId(2);
       setShowManualSerialPanel(false);
       setImportTexts({});
+      setAcquisitionDocFormat("word");
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
     }
@@ -4675,7 +4869,6 @@ function Inventory() {
         (tab) =>
           !tab.data.deviceType ||
           !tab.data.brand ||
-          !tab.data.condition ||
           !tab.data.quantity ||
           parseInt(tab.data.quantity) < 1
       );
@@ -4725,20 +4918,25 @@ function Inventory() {
         const isHeadset = typeObj.code === "H";
         const legacyHeadsetPrefix = "JOIIHS";
 
-        // Find the next available TAG number for this device type
+        // Find the next available TAG number for this device type.
+        // Use regex to ensure an exact prefix boundary (next char must be a digit),
+        // which prevents shorter prefixes (e.g. "JOIIM" for Mouse) from
+        // accidentally matching longer-prefix tags (e.g. "JOIIMN" for Monitor).
+        const prefixRegex = new RegExp(`^${prefix}\\d`);
+        const legacyHeadsetPrefixRegex = new RegExp(`^${legacyHeadsetPrefix}\\d`);
         const allDevices = await getAllDevices();
         const deviceTags = allDevices
           .filter((device) => {
             const tag = device.deviceTag && String(device.deviceTag);
             if (!tag) return false;
             return isHeadset
-              ? tag.startsWith(prefix) || tag.startsWith(legacyHeadsetPrefix)
-              : tag.startsWith(prefix);
+              ? prefixRegex.test(tag) || legacyHeadsetPrefixRegex.test(tag)
+              : prefixRegex.test(tag);
           })
           .map((device) => {
             const tag = String(device.deviceTag);
             const tagNumber =
-              isHeadset && tag.startsWith(legacyHeadsetPrefix)
+              isHeadset && legacyHeadsetPrefixRegex.test(tag)
                 ? tag.replace(legacyHeadsetPrefix, "")
                 : tag.replace(prefix, "");
             return parseInt(tagNumber, 10);
@@ -4807,7 +5005,11 @@ function Inventory() {
       try {
         // Use the first tab's common data for document metadata
         const firstTabData = newAcqTabs[0].data;
-        await generateAcquisitionDocument(allDeviceList, firstTabData);
+        await generateAcquisitionDocument(
+          allDeviceList,
+          firstTabData,
+          acquisitionDocFormat
+        );
         setProgress(100);
         showSuccess(
           `Successfully added ${totalAdded} device(s) across ${rangeTabs.length} device type(s) and generated acquisition document!`
@@ -4829,7 +5031,7 @@ function Inventory() {
             deviceType: "",
             brand: "",
             model: "",
-            condition: "",
+            condition: "BRANDNEW",
             remarks: "",
             acquisitionDate: "",
             startTag: "",
@@ -4846,6 +5048,7 @@ function Inventory() {
       setManualSerials([]);
       setImportTexts({}); // Clear all import texts
       setManualQuantity(1);
+      setAcquisitionDocFormat("word");
       setProgress(0);
     } catch (err) {
       setNewAcqError("Failed to add devices. Please try again.");
@@ -4854,14 +5057,227 @@ function Inventory() {
   };
 
   // Generate New Asset Acquisition Record Form document with multiple tables
-  const generateAcquisitionDocument = async (devices, acquisitionData) => {
-    try {
-      // console.log("Starting document generation...", {
-      //   devicesCount: devices.length,
-      //   acquisitionData,
-      // });
+  const generateAcquisitionDocument = async (devices, acquisitionData, format = "word") => {
+    const currentDate = new Date();
+    const formattedDate =
+      (currentDate.getMonth() + 1).toString().padStart(2, "0") +
+      "." +
+      currentDate.getDate().toString().padStart(2, "0") +
+      "." +
+      currentDate.getFullYear();
 
-      // Load the template
+    const ROWS_PER_TABLE = 20;
+
+    const formattedDevices = devices.map((device) => ({
+      acquisitionDate:
+        device.acquisitionDate ||
+        acquisitionData.acquisitionDate ||
+        new Date().toISOString().split("T")[0],
+      supplier: device.supplier || acquisitionData.supplier || "Not specified",
+      client: device.client || acquisitionData.client || "Not specified",
+      quantity: "1",
+      deviceType: device.deviceType || acquisitionData.deviceType || "",
+      brand: device.brand || acquisitionData.brand || "",
+      deviceTag: device.deviceTag || device.serial || "",
+      remarks: device.remarks || acquisitionData.remarks || "",
+    }));
+
+    const uniqueClients = [
+      ...new Set(formattedDevices.map((device) => device.client)),
+    ];
+    const globalClient =
+      uniqueClients.length === 1
+        ? uniqueClients[0]
+        : uniqueClients.length > 1
+        ? "Multiple Clients"
+        : acquisitionData.client || "Not specified";
+
+    const normalizedDevices = formattedDevices.map((device) => ({
+      ...device,
+      client: device.client || globalClient,
+    }));
+
+    const toBase64 = (uint8Array) => {
+      let binary = "";
+      const chunkSize = 0x8000;
+
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+
+      return btoa(binary);
+    };
+
+    const getTemplateMediaDataUrl = (zip, internalPath) => {
+      const file = zip.file(internalPath);
+      if (!file) return null;
+
+      const imageBytes = file.asUint8Array();
+      const extension = internalPath.toLowerCase().endsWith(".png")
+        ? "png"
+        : "jpeg";
+
+      return `data:image/${extension};base64,${toBase64(imageBytes)}`;
+    };
+
+    // ── PDF path ─────────────────────────────────────────────────────────────
+    if (format === "pdf") {
+      try {
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const margin = 10;
+        const usableW = pageW - margin * 2;
+        const templatePath =
+          "/src/AccountabilityForms/NEW ASSET ACQUISITION RECORD FORM.docx";
+        const templateResponse = await fetch(templatePath);
+        let headerBackground = null;
+        let headerLogo = null;
+
+        if (templateResponse.ok) {
+          const templateBuffer = await templateResponse.arrayBuffer();
+          const templateZip = new PizZip(templateBuffer);
+          headerBackground = getTemplateMediaDataUrl(
+            templateZip,
+            "word/media/image2.jpg"
+          );
+          headerLogo = getTemplateMediaDataUrl(
+            templateZip,
+            "word/media/image1.png"
+          );
+        }
+
+        const cols = [
+          { header: "DELIVERY DATE", key: "acquisitionDate", w: 24 },
+          { header: "SUPPLIER", key: "supplier", w: 24 },
+          { header: "QTY.", key: "quantity", w: 12 },
+          { header: "DESCRIPTION", key: "deviceType", w: 24 },
+          { header: "BRAND", key: "brand", w: 24 },
+          { header: "SERIAL NO.", key: "deviceTag", w: 24 },
+          { header: "CLIENT", key: "client", w: 24 },
+          {
+            header: "REMARKS",
+            key: "remarks",
+            w: usableW - 24 - 24 - 12 - 24 - 24 - 24 - 24,
+          },
+        ];
+
+        const headerH = 10;
+        const rowH = 11;
+        const titleY = 16;
+        const tableTop = 24;
+        const totalRowsHeight = headerH + rowH * ROWS_PER_TABLE;
+
+        const drawPageFrame = () => {
+          if (headerBackground) {
+            pdf.addImage(headerBackground, "JPEG", -6, 13, 216, 266, undefined, "FAST");
+          }
+
+          if (headerLogo) {
+            pdf.addImage(headerLogo, "PNG", 102, 0, 96, 31, undefined, "FAST");
+          }
+
+          if (!headerBackground && !headerLogo) {
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(12);
+            pdf.text("NEW ASSET ACQUISITION RECORD FORM", pageW / 2, titleY, {
+              align: "center",
+            });
+            const titleWidth = pdf.getTextWidth(
+              "NEW ASSET ACQUISITION RECORD FORM"
+            );
+            pdf.setDrawColor(0, 0, 0);
+            pdf.setLineWidth(0.35);
+            pdf.line(
+              pageW / 2 - titleWidth / 2,
+              titleY + 1.3,
+              pageW / 2 + titleWidth / 2,
+              titleY + 1.3
+            );
+          }
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.setTextColor(0, 0, 0);
+          pdf.setFont("helvetica", "bold");
+          pdf.setFontSize(7.5);
+
+          let x = margin;
+          let y = tableTop;
+
+          cols.forEach((col) => {
+            pdf.rect(x, y, col.w, headerH, "S");
+            pdf.text(col.header, x + col.w / 2, y + 6, { align: "center" });
+            x += col.w;
+          });
+
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(7);
+          for (let rowIndex = 0; rowIndex < ROWS_PER_TABLE; rowIndex++) {
+            const rowY = tableTop + headerH + rowIndex * rowH;
+            let rowX = margin;
+            cols.forEach((col) => {
+              pdf.rect(rowX, rowY, col.w, rowH, "S");
+              rowX += col.w;
+            });
+          }
+
+          pdf.rect(margin, tableTop, usableW, totalRowsHeight, "S");
+        };
+
+        const pages = Math.max(1, Math.ceil(normalizedDevices.length / ROWS_PER_TABLE));
+
+        for (let pageIndex = 0; pageIndex < pages; pageIndex++) {
+          if (pageIndex > 0) {
+            pdf.addPage();
+          }
+
+          drawPageFrame();
+
+          const pageDevices = normalizedDevices.slice(
+            pageIndex * ROWS_PER_TABLE,
+            (pageIndex + 1) * ROWS_PER_TABLE
+          );
+
+          pageDevices.forEach((device, rowIndex) => {
+            const values = [
+              device.acquisitionDate,
+              device.supplier,
+              device.quantity,
+              device.deviceType,
+              device.brand,
+              device.deviceTag,
+              device.client,
+              device.remarks,
+            ];
+
+            let x = margin;
+            const cellY = tableTop + headerH + rowIndex * rowH;
+
+            values.forEach((value, columnIndex) => {
+              const col = cols[columnIndex];
+              const text = String(value || "");
+              const lines = pdf.splitTextToSize(text, col.w - 2);
+              const displayLine = lines[0] || "";
+              pdf.text(displayLine, x + col.w / 2, cellY + 6.8, {
+                align: "center",
+                maxWidth: col.w - 2,
+              });
+              x += col.w;
+            });
+          });
+        }
+
+        const fileName = `${formattedDate} - NEW ASSET ACQUISITION FORM.pdf`;
+        pdf.save(fileName);
+        return true;
+      } catch (pdfError) {
+        console.error("Error generating PDF:", pdfError);
+        throw new Error(`PDF generation failed: ${pdfError.message}`);
+      }
+    }
+
+    // ── Word path (default) ───────────────────────────────────────────────────
+    try {
       const templatePath =
         "/src/AccountabilityForms/NEW ASSET ACQUISITION RECORD FORM.docx";
       const response = await fetch(templatePath);
@@ -4872,15 +5288,11 @@ function Inventory() {
         );
       }
 
-      // console.log("Template loaded successfully");
-
       const arrayBuffer = await response.arrayBuffer();
 
       if (arrayBuffer.byteLength === 0) {
         throw new Error("Template file is empty or corrupted");
       }
-
-      // console.log("Template file size:", arrayBuffer.byteLength, "bytes");
 
       let zip, doc;
       try {
@@ -4896,103 +5308,34 @@ function Inventory() {
         );
       }
 
-      // Configuration: rows per table (20 rows per page as requested)
-      const ROWS_PER_TABLE = 20;
+      const devicesPage1 = normalizedDevices.slice(0, ROWS_PER_TABLE);
+      const devicesPage2 = normalizedDevices.slice(ROWS_PER_TABLE, ROWS_PER_TABLE * 2);
+      const devicesPage3 = normalizedDevices.slice(ROWS_PER_TABLE * 2, ROWS_PER_TABLE * 3);
+      const devicesPage4 = normalizedDevices.slice(ROWS_PER_TABLE * 3);
 
-      // Prepare device data with common format
-      const formattedDevices = devices.map((device) => ({
-        acquisitionDate:
-          acquisitionData.acquisitionDate ||
-          new Date().toISOString().split("T")[0],
-        supplier: acquisitionData.supplier || "Not specified",
-        client: device.client || acquisitionData.client || "Not specified",
-        quantity: "1", // Each device is quantity 1
-        deviceType: device.deviceType || acquisitionData.deviceType,
-        brand: device.brand || acquisitionData.brand,
-        deviceTag: device.deviceTag || device.serial,
-        remarks: device.remarks || acquisitionData.remarks || "",
-      }));
-
-      // console.log("Formatted devices:", formattedDevices.length);
-      // console.log(
-      //   "Device clients:",
-      //   formattedDevices.map((d) => ({ tag: d.deviceTag, client: d.client }))
-      // );
-
-      // Determine the global client for the document
-      const uniqueClients = [
-        ...new Set(formattedDevices.map((device) => device.client)),
-      ];
-      const globalClient =
-        uniqueClients.length === 1
-          ? uniqueClients[0]
-          : uniqueClients.length > 1
-          ? "Multiple Clients"
-          : acquisitionData.client || "Not specified";
-
-      // console.log("Unique clients found:", uniqueClients);
-      // console.log("Global client for document:", globalClient);
-
-      // Split devices across multiple tables (28 rows per page)
-      const devicesPage1 = formattedDevices.slice(0, ROWS_PER_TABLE);
-      const devicesPage2 = formattedDevices.slice(
-        ROWS_PER_TABLE,
-        ROWS_PER_TABLE * 2
-      );
-      const devicesPage3 = formattedDevices.slice(
-        ROWS_PER_TABLE * 2,
-        ROWS_PER_TABLE * 3
-      );
-      const devicesPage4 = formattedDevices.slice(ROWS_PER_TABLE * 3);
-
-      // Prepare template data
       const templateData = {
-        // Original single table (for backward compatibility)
-        devices: formattedDevices,
-
-        // Split tables
-        devicesPage1: devicesPage1,
-        devicesPage2: devicesPage2,
-        devicesPage3: devicesPage3,
-        devicesPage4: devicesPage4,
-
-        // Metadata
-        totalDevices: formattedDevices.length,
-        acquisitionDate:
-          acquisitionData.acquisitionDate ||
-          new Date().toISOString().split("T")[0],
+        devices: normalizedDevices,
+        devicesPage1,
+        devicesPage2,
+        devicesPage3,
+        devicesPage4,
+        totalDevices: normalizedDevices.length,
+        acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split("T")[0],
         supplier: acquisitionData.supplier || "Not specified",
         client: globalClient,
-
-        // Page indicators (for conditional display)
         hasPage2: devicesPage2.length > 0,
         hasPage3: devicesPage3.length > 0,
         hasPage4: devicesPage4.length > 0,
-
-        // Summary counts
         page1Count: devicesPage1.length,
         page2Count: devicesPage2.length,
         page3Count: devicesPage3.length,
         page4Count: devicesPage4.length,
       };
 
-      // console.log("Template data structure:", {
-      //   totalDevices: templateData.totalDevices,
-      //   page1Count: templateData.page1Count,
-      //   page2Count: templateData.page2Count,
-      //   page3Count: templateData.page3Count,
-      //   page4Count: templateData.page4Count,
-      // });
-
-      // Render the document
       try {
         doc.render(templateData);
-        // console.log("Document rendered successfully");
       } catch (renderError) {
         console.error("Error rendering template:", renderError);
-        // console.log("Template data being used:", templateData);
-
-        // If rendering fails, provide helpful error message
         if (renderError.message.includes("tag")) {
           throw new Error(
             "Template rendering failed. The DOCX template may be missing required placeholders. Please check the template structure."
@@ -5002,30 +5345,18 @@ function Inventory() {
         }
       }
 
-      // Generate and download
       const output = doc.getZip().generate({
         type: "blob",
         mimeType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
 
-      const currentDate = new Date();
-      const formattedDate =
-        (currentDate.getMonth() + 1).toString().padStart(2, "0") +
-        "." +
-        currentDate.getDate().toString().padStart(2, "0") +
-        "." +
-        currentDate.getFullYear();
       const fileName = `${formattedDate} - NEW ASSET ACQUISITION FORM.docx`;
-
-      // console.log("Downloading document:", fileName);
       saveAs(output, fileName);
 
       return true;
     } catch (error) {
       console.error("Error generating document:", error);
-
-      // Provide more specific error guidance
       if (error.message.includes("Template file not found")) {
         throw new Error(
           "Template file not found. Please ensure 'NEW ASSET ACQUISITION RECORD FORM.docx' exists in the /public/src/AccountabilityForms/ folder."
@@ -5385,21 +5716,21 @@ function Inventory() {
     },
     inventoryModalContent: {
       background: isDarkMode ? "#1f2937" : "#fff",
-      padding: 20,
-      borderRadius: 12,
-      minWidth: 480,
-      maxWidth: 520,
-      width: "70vw",
+      padding: 28,
+      borderRadius: 14,
+      minWidth: 680,
+      maxWidth: 820,
+      width: "82vw",
       boxShadow: isDarkMode
-        ? "0 6px 24px rgba(0,0,0,0.5)"
-        : "0 6px 24px rgba(34,46,58,0.13)",
+        ? "0 8px 32px rgba(0,0,0,0.55)"
+        : "0 8px 32px rgba(34,46,58,0.16)",
       display: "flex",
       flexDirection: "column",
       alignItems: "flex-start",
       position: "relative",
-      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e5e7eb",
+      border: isDarkMode ? "1.5px solid #374151" : "1.5px solid #e2e8f0",
       transition: "box-shadow 0.2s",
-      maxHeight: "85vh",
+      maxHeight: "90vh",
       overflowY: "auto",
       scrollbarWidth: "none",
       msOverflowStyle: "none",
@@ -5580,22 +5911,27 @@ function Inventory() {
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     },
     addTabButton: {
-      background: isDarkMode ? "#374151" : "#f1f5f9",
-      color: isDarkMode ? "#9ca3af" : "#64748b",
-      border: isDarkMode ? "1px solid #4b5563" : "1px solid #e2e8f0",
+      background: "#2563eb",
+      color: "#ffffff",
+      border: "none",
       borderRadius: 6,
-      width: 32,
-      height: 32,
-      fontSize: 16,
-      fontWeight: 600,
+      padding: "8px 16px",
+      fontSize: 14,
+      fontWeight: 500,
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      gap: 6,
       transition: "all 0.2s",
-      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
       fontFamily:
         "Maax, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      whiteSpace: "nowrap",
+      ":hover": {
+        background: "#1d4ed8",
+        boxShadow: "0 3px 8px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)",
+      },
     },
   };
 
@@ -8046,6 +8382,92 @@ function Inventory() {
                 {assignModalShowGenerate && (
                   <>
                     <div style={{ margin: "18px 0", width: "100%" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          gap: 12,
+                          marginBottom: 16,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            border:
+                              docFormat === "word"
+                                ? "1px solid #2563eb"
+                                : isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #d1d5db",
+                            background:
+                              docFormat === "word"
+                                ? isDarkMode
+                                  ? "rgba(37,99,235,0.15)"
+                                  : "#eff6ff"
+                                : isDarkMode
+                                ? "#374151"
+                                : "#ffffff",
+                            cursor: assignModalGenerating ? "not-allowed" : "pointer",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="docFormat"
+                            checked={docFormat === "word"}
+                            onChange={() => {
+                              setDocFormat("word");
+                              setAssignModalGeneratedFile(null);
+                              setAssignModalProgress(0);
+                            }}
+                            disabled={assignModalGenerating}
+                          />
+                          Save as Word (.docx)
+                        </label>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "10px 14px",
+                            borderRadius: 8,
+                            border:
+                              docFormat === "pdf"
+                                ? "1px solid #2563eb"
+                                : isDarkMode
+                                ? "1px solid #4b5563"
+                                : "1px solid #d1d5db",
+                            background:
+                              docFormat === "pdf"
+                                ? isDarkMode
+                                  ? "rgba(37,99,235,0.15)"
+                                  : "#eff6ff"
+                                : isDarkMode
+                                ? "#374151"
+                                : "#ffffff",
+                            cursor: assignModalGenerating ? "not-allowed" : "pointer",
+                            color: isDarkMode ? "#f3f4f6" : "#374151",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="docFormat"
+                            checked={docFormat === "pdf"}
+                            onChange={() => {
+                              setDocFormat("pdf");
+                              setAssignModalGeneratedFile(null);
+                              setAssignModalProgress(0);
+                            }}
+                            disabled={assignModalGenerating}
+                          />
+                          Save as PDF (.pdf)
+                        </label>
+                      </div>
                       {assignModalGenerating && (
                         <div style={{ marginBottom: 12, width: "100%" }}>
                           <div
@@ -8091,19 +8513,19 @@ function Inventory() {
                           width: "100%",
                         }}
                       >
-                        {!assignModalGenerating && !assignModalDocxBlob && (
+                        {!assignModalGenerating && !assignModalGeneratedFile && (
                           <button
                             style={{
                               ...styles.inventoryModalButton,
                               background: "#22c55e",
                               boxShadow: "0 2px 4px rgba(34, 197, 94, 0.2)",
                             }}
-                            onClick={handleAssignModalGenerateDocx}
+                            onClick={handleAssignModalGenerateDocument}
                           >
-                            Generate Asset Accountability Form
+                            Generate {docFormat === "pdf" ? "PDF" : "Word"} File
                           </button>
                         )}
-                        {assignModalDocxBlob && (
+                        {assignModalGeneratedFile && (
                           <button
                             style={{
                               ...styles.inventoryModalButton,
@@ -8112,7 +8534,7 @@ function Inventory() {
                             }}
                             onClick={handleDownloadAndAssign}
                           >
-                            Download DOCX
+                            Download {assignModalGeneratedFile.extension.toUpperCase()}
                           </button>
                         )}
                         <button
@@ -8174,6 +8596,8 @@ function Inventory() {
         conditions={conditions}
         clients={clients}
         formatDateToYYYYMMDD={formatDateToYYYYMMDD}
+        acquisitionDocFormat={acquisitionDocFormat}
+        setAcquisitionDocFormat={setAcquisitionDocFormat}
         SearchableDropdown={SearchableDropdown}
         handleNewAcqInput={handleNewAcqInput}
         handleManualSerialToggle={handleManualSerialToggle}
