@@ -212,10 +212,69 @@ export const NewAcquisitionsModal = ({
                   alignItems: "center",
                   justifyContent: "center",
                   marginBottom: 20,
+                  position: "relative",
+                  width: "100%",
                 }}>
                   <h3 style={{ ...styles.inventoryModalTitle, margin: 0 }}>
                     New Acquisitions
                   </h3>
+                  <button
+                    onClick={() => {
+                      setShowNewAcqModal(false);
+                      setNewAcqTabs([
+                        {
+                          id: 1,
+                          label: "Device Type 1",
+                          data: {
+                            deviceType: "",
+                            brand: "",
+                            model: "",
+                            condition: "BRANDNEW",
+                            remarks: "",
+                            acquisitionDate: "",
+                            quantity: 1,
+                            supplier: "",
+                            client: "",
+                            useManualSerial: false,
+                            manualQuantity: 1,
+                            manualSerials: [],
+                          },
+                        },
+                      ]);
+                      setActiveTabId(1);
+                      setNextTabId(2);
+                      setShowManualSerialPanel(false);
+                      setImportTexts({});
+                      setAcquisitionDocFormat("word");
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      background: "none",
+                      border: "none",
+                      fontSize: 28,
+                      cursor: "pointer",
+                      color: isDarkMode ? "#9ca3af" : "#6b7280",
+                      padding: "0px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                      transition: "color 0.2s",
+                      width: 32,
+                      height: 32,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = isDarkMode ? "#f3f4f6" : "#1f2937";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = isDarkMode ? "#9ca3af" : "#6b7280";
+                    }}
+                    title="Close"
+                  >
+                    ×
+                  </button>
                 </div>
 
                 {/* Two-Column Layout: Sidebar + Content */}
@@ -849,46 +908,12 @@ export const NewAcquisitionsModal = ({
                   paddingTop: 16,
                   borderTop: isDarkMode ? "1px solid #374151" : "1px solid #e2e8f0",
                   display: "flex",
-                  justifyContent: "space-between",
+                  justifyContent: "flex-end",
                   alignItems: "center",
                   gap: 10,
                   width: "100%",
                 }}>
                   {renderFormatPicker()}
-                  <button
-                    onClick={() => {
-                      setShowNewAcqModal(false);
-                      setNewAcqTabs([
-                        {
-                          id: 1,
-                          label: "Device Type 1",
-                          data: {
-                            deviceType: "",
-                            brand: "",
-                            model: "",
-                            condition: "BRANDNEW",
-                            remarks: "",
-                            acquisitionDate: "",
-                            quantity: 1,
-                            supplier: "",
-                            client: "",
-                            useManualSerial: false,
-                            manualQuantity: 1,
-                            manualSerials: [],
-                          },
-                        },
-                      ]);
-                      setActiveTabId(1);
-                      setNextTabId(2);
-                      setShowManualSerialPanel(false);
-                      setImportTexts({});
-                      setAcquisitionDocFormat("word");
-                    }}
-                    style={styles.inventoryModalButtonSecondary}
-                    disabled={newAcqLoading}
-                  >
-                    Cancel
-                  </button>
                   <button
                     onClick={handleNewAcqSubmit}
                     disabled={newAcqLoading}
