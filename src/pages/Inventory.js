@@ -1159,6 +1159,19 @@ function DeviceFormModal({
             />
           </div>
 
+          {/* Sales Invoice (SI) */}
+          <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+            <label style={styles.inventoryLabel}>Sales Invoice (SI):</label>
+            <input
+              name="salesInvoice"
+              value={data.salesInvoice || ""}
+              onChange={onChange}
+              style={styles.inventoryInput}
+              placeholder="Enter Sales Invoice or reference"
+              autoComplete="off"
+            />
+          </div>
+
           {/* Buttons */}
           <div
             style={{
@@ -1812,6 +1825,7 @@ function Inventory() {
     remarks: "",
     acquisitionDate: getCurrentDate(),
     ramSize: "", // Size dropdown for RAM devices
+    salesInvoice: "", // Sales Invoice (optional)
     // PC/Laptop specific fields
     cpuGen: "", // CPU System Unit for PC devices (i3, i5, i7, i9)
     cpuGen: "",
@@ -1920,6 +1934,7 @@ function Inventory() {
         supplier: "",
         client: "",
         ramSize: "", // For RAM devices: 4GB, 8GB, 16GB, 32GB, 64GB
+        salesInvoice: "",
         useManualSerial: false,
         manualQuantity: 1,
         manualSerials: [],
@@ -2442,6 +2457,7 @@ function Inventory() {
       serialNumber: "Serial Number",
       category: "Category",
       lifespan: "Lifespan",
+      salesInvoice: "Sales Invoice (SI)",
     };
 
     // Compare each field and build structured changes object
@@ -3038,6 +3054,7 @@ function Inventory() {
       drive2: deviceData.drive2 || "",
       gpu: deviceData.gpu || "",
       os: deviceData.os || "",
+      salesInvoice: deviceData.salesInvoice || "",
       _editDeviceId: id,
       id: id, // Keep id for edit mode detection
     };
@@ -4127,6 +4144,7 @@ function Inventory() {
     client,
     supplier,
     ramSize,
+    salesInvoice,
   }) => {
     // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
@@ -4212,6 +4230,7 @@ function Inventory() {
         remarks: remarks || "",
         client: client || "",
         supplier: supplier || "",
+        salesInvoice: salesInvoice || "",
         assignedTo: "",
         assignmentDate: "",
         acquisitionDate:
@@ -4395,6 +4414,7 @@ function Inventory() {
         supplier: "",
         client: "",
         ramSize: "", // For RAM devices: 4GB, 8GB, 16GB, 32GB, 64GB
+        salesInvoice: "",
         useManualSerial: false,
         manualQuantity: 1,
         manualSerials: [],
@@ -4689,6 +4709,7 @@ function Inventory() {
             remarks: tabData.remarks || "",
             client: tabData.client || "",
             supplier: tabData.supplier || "",
+              salesInvoice: tabData.salesInvoice || "",
             assignedTo: "",
             assignmentDate: "",
             acquisitionDate:
@@ -4803,6 +4824,7 @@ function Inventory() {
               model: tabData.model || "",
               condition: tabData.condition,
               remarks: tabData.remarks || "",
+              salesInvoice: tabData.salesInvoice || "",
             });
           }
 
@@ -4843,6 +4865,7 @@ function Inventory() {
             condition: "BRANDNEW",
             remarks: "",
             acquisitionDate: "",
+            salesInvoice: "",
             quantity: 1,
             supplier: "",
             client: "",
@@ -4992,6 +5015,7 @@ function Inventory() {
             model: tabData.model,
             condition: tabData.condition,
             remarks: tabData.remarks,
+            salesInvoice: tabData.salesInvoice || "",
           });
         }
 
@@ -5050,6 +5074,7 @@ function Inventory() {
             condition: "BRANDNEW",
             remarks: "",
             acquisitionDate: "",
+            salesInvoice: "",
             startTag: "",
             endTag: "",
             supplier: "",

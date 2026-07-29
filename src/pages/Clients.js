@@ -796,11 +796,14 @@ function Clients() {
   const handleShowEmployees = async (clientId = "CLI0001") => {
     setEmployeesModalClientId(clientId);
     const allEmployees = await getAllEmployees();
-    const filtered = allEmployees.filter(
-      (e) =>
+    const filtered = allEmployees.filter((e) => {
+      const isAssignedToClient =
         (e.clientId && e.clientId === clientId) ||
-        (e.clientID && e.clientID === clientId)
-    );
+        (e.clientID && e.clientID === clientId);
+      const isResigned = e.isResigned ||
+        String(e.status || "").trim().toLowerCase() === "resigned";
+      return isAssignedToClient && !isResigned;
+    });
     setEmployeesCLI1(filtered);
     setShowEmployeesModal(true);
   };

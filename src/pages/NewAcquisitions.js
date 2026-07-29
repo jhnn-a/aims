@@ -232,6 +232,7 @@ export const NewAcquisitionsModal = ({
                             condition: "BRANDNEW",
                             remarks: "",
                             acquisitionDate: "",
+                            salesInvoice: "",
                             quantity: 1,
                             supplier: "",
                             client: "",
@@ -725,6 +726,17 @@ export const NewAcquisitionsModal = ({
                                 valueKey="clientName"
                               />
                             </div>
+                          </div>
+                          {/* Row 4.1: Sales Invoice (optional) */}
+                          <div style={{ ...styles.inventoryInputGroup, marginBottom: 18 }}>
+                            <label style={styles.inventoryLabel}>Sales Invoice (SI)</label>
+                            <input
+                              name="salesInvoice"
+                              value={currentData.salesInvoice || ""}
+                              onChange={handleNewAcqInput}
+                              style={styles.inventoryInput}
+                              placeholder="Optional SI number/reference"
+                            />
                           </div>
 
                           {/* ── Serial Number Assignment ── */}

@@ -871,6 +871,18 @@ function DeviceFormModal({
                 }}
               />
             </div>
+            {/* Row 4.1: Sales Invoice (SI) */}
+            <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
+              <label style={styles.inventoryLabel}>Sales Invoice (SI):</label>
+              <input
+                name="salesInvoice"
+                value={data.salesInvoice || ""}
+                onChange={onChange}
+                style={styles.inventoryInput}
+                placeholder="Enter Sales Invoice or reference"
+                autoComplete="off"
+              />
+            </div>
 
             {/* Row 5: Device Owner (Client) */}
             <div style={{ ...styles.inventoryInputGroup, marginBottom: 12 }}>
@@ -1761,6 +1773,7 @@ function Assets() {
       serialNumber: "Serial Number",
       category: "Category",
       lifespan: "Lifespan",
+      salesInvoice: "Sales Invoice (SI)",
     };
 
     // Compare each field
