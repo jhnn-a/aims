@@ -4825,6 +4825,8 @@ function Inventory() {
               condition: tabData.condition,
               remarks: tabData.remarks || "",
               salesInvoice: tabData.salesInvoice || "",
+              supplier: tabData.supplier || "",
+              client: tabData.client || "",
             });
           }
 
@@ -5015,7 +5017,9 @@ function Inventory() {
             model: tabData.model,
             condition: tabData.condition,
             remarks: tabData.remarks,
-            salesInvoice: tabData.salesInvoice || "",
+              salesInvoice: tabData.salesInvoice || "",
+              supplier: tabData.supplier || "",
+              client: tabData.client || "",
           });
         }
 
@@ -5121,6 +5125,7 @@ function Inventory() {
       brand: device.brand || acquisitionData.brand || "",
       deviceTag: device.deviceTag || device.serial || "",
       remarks: device.remarks || acquisitionData.remarks || "",
+      salesinvoice: device.salesInvoice || acquisitionData.salesInvoice || "",
     }));
 
     const uniqueClients = [
@@ -5364,6 +5369,7 @@ function Inventory() {
         acquisitionDate: acquisitionData.acquisitionDate || new Date().toISOString().split("T")[0],
         supplier: acquisitionData.supplier || "Not specified",
         client: globalClient,
+        salesinvoice: acquisitionData.salesInvoice || "",
         hasPage2: devicesPage2.length > 0,
         hasPage3: devicesPage3.length > 0,
         hasPage4: devicesPage4.length > 0,
