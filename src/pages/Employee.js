@@ -23,6 +23,7 @@ import {
   normalizeDeviceTypeWithLegacy,
   CANONICAL_DEVICE_TYPES,
 } from "../utils/deviceTypeUtils";
+import { filterEmployeesByClientAndPosition } from "../utils/employeeFilters";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../utils/firebase";
 import { useSnackbar } from "../components/Snackbar";
@@ -3928,6 +3929,8 @@ export default function Employee() {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClientFilter, setSelectedClientFilter] = useState("");
+  const [selectedPositionFilter, setSelectedPositionFilter] = useState("");
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState([]);
@@ -4035,6 +4038,10 @@ export default function Employee() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedClientFilter, selectedPositionFilter]);
 
   // Reset pagination when employeesPerPage changes
   useEffect(() => {
@@ -5473,8 +5480,10 @@ export default function Employee() {
     worksheet.addRows(exportData);
 
     // Update filename and success message to reflect what was actually exported
-    const filterInfo = searchTerm
-      ? `filtered_${searchTerm.replace(/[^\w]/g, "_")}_`
+    const filterInfo = hasActiveFilters
+      ? searchTerm.trim()
+        ? `filtered_${searchTerm.trim().replace(/[^\w]/g, "_")}_`
+        : "filtered_"
       : "";
     const filename = `employees_${activeTab}_${filterInfo}${
       new Date().toISOString().split("T")[0]
@@ -5495,8 +5504,8 @@ export default function Employee() {
       window.URL.revokeObjectURL(url);
     }, 0);
 
-    const message = searchTerm
-      ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching "${searchTerm}")`
+    const message = hasActiveFilters
+      ? `Excel file exported successfully! (${exportData.length} ${activeTab} employees matching the current filters)`
       : `Excel file exported successfully! (${exportData.length} ${activeTab} employees)`;
 
     // Log to User Logs
@@ -5509,7 +5518,7 @@ export default function Employee() {
       {
         employeeCount: exportData.length,
         tabType: activeTab,
-        filtered: !!searchTerm,
+        filtered: hasActiveFilters,
       }
     );
 
@@ -5586,7 +5595,6 @@ export default function Employee() {
     if (!searchTerm.trim()) return employeeList;
 
     const term = searchTerm.toLowerCase().trim();
-    console.log("Searching for term:", term); // Debug log
 
     return employeeList.filter((employee) => {
       const fullName = (employee.fullName || "").toLowerCase();
@@ -5597,20 +5605,6 @@ export default function Employee() {
       const personalEmail = (employee.personalEmail || "").toLowerCase();
       const clientName = getClientName(employee.clientId).toLowerCase();
       const employeeId = (employee.id || "").toLowerCase();
-
-      // Debug logging for employee ID search
-      if (term.length > 0) {
-        console.log(
-          "Employee:",
-          employee.fullName || employee.description,
-          "ID:",
-          employee.id,
-          "Searching for:",
-          term,
-          "Match:",
-          employeeId.includes(term)
-        );
-      }
 
       const matches =
         fullName.includes(term) ||
@@ -5634,7 +5628,28 @@ export default function Employee() {
       ? resignedEmployees
       : entities;
   const searchedEmployees = searchEmployees(baseEmployees, searchTerm);
-  const allEmployees = sortEmployees(searchedEmployees);
+  const filteredEmployees = filterEmployeesByClientAndPosition(
+    searchedEmployees,
+    selectedClientFilter,
+    selectedPositionFilter
+  );
+  const allEmployees = sortEmployees(filteredEmployees);
+  const allEmployeeRecords = [...employees, ...resignedEmployees, ...entities];
+  const positionOptions = [
+    ...new Set(
+      allEmployeeRecords
+        .map((employee) => employee.position?.trim())
+        .filter(Boolean)
+    ),
+  ].sort((a, b) => a.localeCompare(b));
+  const hasActiveFilters = Boolean(
+    searchTerm.trim() || selectedClientFilter || selectedPositionFilter
+  );
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedClientFilter("");
+    setSelectedPositionFilter("");
+  };
 
   // Calculate pagination
   const totalPages = Math.ceil(allEmployees.length / employeesPerPage);
@@ -5809,11 +5824,20 @@ export default function Employee() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
           padding: "16px 24px 16px 24px",
           flexShrink: 0,
         }}
       >
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           {/* Search Bar */}
           <div style={{ position: "relative" }}>
             <input
@@ -5889,6 +5913,80 @@ export default function Employee() {
               </button>
             )}
           </div>
+
+          <select
+            aria-label="Filter employees by client"
+            value={selectedClientFilter}
+            onChange={(e) => setSelectedClientFilter(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: "inherit",
+              outline: "none",
+              backgroundColor: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#000",
+              maxWidth: 220,
+            }}
+          >
+            <option value="">All Clients</option>
+            {[...clients]
+              .sort((a, b) =>
+                (a.clientName || "").localeCompare(b.clientName || "")
+              )
+              .map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.clientName || client.id}
+                </option>
+              ))}
+          </select>
+
+          <select
+            aria-label="Filter employees by position"
+            value={selectedPositionFilter}
+            onChange={(e) => setSelectedPositionFilter(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+              borderRadius: 6,
+              fontSize: 14,
+              fontFamily: "inherit",
+              outline: "none",
+              backgroundColor: isDarkMode ? "#374151" : "white",
+              color: isDarkMode ? "#f3f4f6" : "#000",
+              maxWidth: 220,
+            }}
+          >
+            <option value="">All Positions</option>
+            {positionOptions.map((position) => (
+              <option key={position} value={position}>
+                {position}
+              </option>
+            ))}
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              style={{
+                padding: "8px 12px",
+                border: isDarkMode
+                  ? "1px solid #4b5563"
+                  : "1px solid #d1d5db",
+                borderRadius: 6,
+                background: isDarkMode ? "#374151" : "white",
+                color: isDarkMode ? "#d1d5db" : "#374151",
+                fontSize: 14,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Clear filters
+            </button>
+          )}
 
           <select
             value={sortBy}
@@ -6443,16 +6541,18 @@ export default function Employee() {
                         : "1px solid #e5e7eb",
                     }}
                   >
-                    {searchTerm ? (
+                    {hasActiveFilters ? (
                       <>
                         No{" "}
                         {activeTab === "others"
                           ? "entities"
                           : activeTab + " employees"}{" "}
-                        found matching "{searchTerm}"
+                        {searchTerm.trim()
+                          ? `found matching "${searchTerm}"`
+                          : "match the selected filters"}
                         <br />
                         <button
-                          onClick={() => setSearchTerm("")}
+                          onClick={clearFilters}
                           style={{
                             marginTop: 8,
                             padding: "4px 8px",
@@ -6465,7 +6565,7 @@ export default function Employee() {
                             fontFamily: "inherit",
                           }}
                         >
-                          Clear search
+                          Clear filters
                         </button>
                       </>
                     ) : activeTab === "active" ? (
@@ -6930,9 +7030,11 @@ export default function Employee() {
             >
               Showing {startIndex + 1}-{Math.min(endIndex, allEmployees.length)}{" "}
               of {allEmployees.length} {activeTab} employees
-              {searchTerm && (
+              {hasActiveFilters && (
                 <span style={{ fontStyle: "italic", marginLeft: "8px" }}>
-                  (filtered by "{searchTerm}")
+                  {searchTerm.trim()
+                    ? `(filtered by "${searchTerm}")`
+                    : "(filters applied)"}
                 </span>
               )}
             </span>
