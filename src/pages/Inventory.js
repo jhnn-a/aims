@@ -4145,6 +4145,12 @@ function Inventory() {
     supplier,
     ramSize,
     salesInvoice,
+      cpuGen,
+      ram,
+      drive1,
+      drive2,
+      gpu,
+      os,
   }) => {
     // console.log(`addDevicesInBulk called with deviceType: "${deviceType}"`);
 
@@ -4231,6 +4237,12 @@ function Inventory() {
         client: client || "",
         supplier: supplier || "",
         salesInvoice: salesInvoice || "",
+        cpuGen: cpuGen || "",
+        ram: ram || "",
+        drive1: drive1 || "",
+        drive2: drive2 || "",
+        gpu: gpu || "",
+        os: os || "",
         assignedTo: "",
         assignmentDate: "",
         acquisitionDate:
@@ -4710,6 +4722,12 @@ function Inventory() {
             client: tabData.client || "",
             supplier: tabData.supplier || "",
               salesInvoice: tabData.salesInvoice || "",
+              cpuGen: tabData.cpuGen || "",
+              ram: tabData.ram || "",
+              drive1: tabData.drive1 || "",
+              drive2: tabData.drive2 || "",
+              gpu: tabData.gpu || "",
+              os: tabData.os || "",
             assignedTo: "",
             assignmentDate: "",
             acquisitionDate:
@@ -5020,6 +5038,12 @@ function Inventory() {
               salesInvoice: tabData.salesInvoice || "",
               supplier: tabData.supplier || "",
               client: tabData.client || "",
+              cpuGen: tabData.cpuGen || "",
+              ram: tabData.ram || "",
+              drive1: tabData.drive1 || "",
+              drive2: tabData.drive2 || "",
+              gpu: tabData.gpu || "",
+              os: tabData.os || "",
           });
         }
 

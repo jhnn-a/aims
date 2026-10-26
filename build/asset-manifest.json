@@ -1,7 +1,10 @@
 {
   "files": {
     "main.css": "/static/css/main.348e68af.css",
-    "main.js": "/static/js/main.8326eef7.js",
+    "main.js": "/static/js/main.229f921d.js",
+    "static/js/239.7b1f1965.chunk.js": "/static/js/239.7b1f1965.chunk.js",
+    "static/js/977.964efcbc.chunk.js": "/static/js/977.964efcbc.chunk.js",
+    "static/js/732.3946d487.chunk.js": "/static/js/732.3946d487.chunk.js",
     "static/media/Joii_Background.png": "/static/media/Joii_Background.1765e091f49872a6facf.png",
     "static/media/Maax-Mediumitalic.eot": "/static/media/Maax-Mediumitalic.81157cabedc06ff0c6e6.eot",
     "static/media/Maax-Mediumitalic.ttf": "/static/media/Maax-Mediumitalic.7f37fbbe8337c726be15.ttf",
@@ -26,10 +29,13 @@
     "static/media/Maax-Black.woff": "/static/media/Maax-Black.8c1c6177a8e3aa816330.woff",
     "index.html": "/index.html",
     "main.348e68af.css.map": "/static/css/main.348e68af.css.map",
-    "main.8326eef7.js.map": "/static/js/main.8326eef7.js.map"
+    "main.229f921d.js.map": "/static/js/main.229f921d.js.map",
+    "239.7b1f1965.chunk.js.map": "/static/js/239.7b1f1965.chunk.js.map",
+    "977.964efcbc.chunk.js.map": "/static/js/977.964efcbc.chunk.js.map",
+    "732.3946d487.chunk.js.map": "/static/js/732.3946d487.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.348e68af.css",
-    "static/js/main.8326eef7.js"
+    "static/js/main.229f921d.js"
   ]
 }

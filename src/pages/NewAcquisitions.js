@@ -646,6 +646,95 @@ export const NewAcquisitionsModal = ({
                             />
                           </div>
 
+                          {/* Conditional PC/Laptop Specifications */}
+                          {(currentData.deviceType === "PC" || currentData.deviceType === "Laptop") && (
+                            <div
+                              style={{
+                                border: isDarkMode ? "1px solid #4b5563" : "1px solid #d1d5db",
+                                borderRadius: "6px",
+                                padding: "12px",
+                                marginBottom: 12,
+                                background: isDarkMode ? "#374151" : "#f9fafb",
+                                width: "100%",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <h4
+                                style={{
+                                  margin: "0 0 10px 0",
+                                  fontSize: "13px",
+                                  fontWeight: "600",
+                                  color: isDarkMode ? "#f3f4f6" : "#374151",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                }}
+                              >
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M20 3H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h3l-1 1v1h12v-1l-1-1h3c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 13H4V5h16v11z" />
+                                </svg>
+                                {currentData.deviceType} Specifications
+                              </h4>
+
+                              <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>CPU - System Unit:</label>
+                                  <input
+                                    type="text"
+                                    name="cpuGen"
+                                    value={currentData.cpuGen || ""}
+                                    onChange={handleNewAcqInput}
+                                    placeholder="Enter CPU System Unit (e.g., i3, i5, i7, i9)"
+                                    style={styles.inventoryInput}
+                                  />
+                                </div>
+
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>RAM:</label>
+                                  <select name="ram" value={currentData.ram || ""} onChange={handleNewAcqInput} style={styles.inventoryInput}>
+                                    <option value="">Select RAM</option>
+                                    <option value="4GB">4GB</option>
+                                    <option value="8GB">8GB</option>
+                                    <option value="16GB">16GB</option>
+                                    <option value="32GB">32GB</option>
+                                    <option value="64GB">64GB</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 12 }}>
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>Drive 1:</label>
+                                  <input name="drive1" value={currentData.drive1 || ""} onChange={handleNewAcqInput} style={styles.inventoryInput} placeholder="e.g., 256 GB SSD" />
+                                </div>
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>Drive 2 (Optional):</label>
+                                  <input name="drive2" value={currentData.drive2 || ""} onChange={handleNewAcqInput} style={styles.inventoryInput} placeholder="e.g., 1 TB HDD" />
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 16, width: "100%", marginBottom: 0 }}>
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>GPU:</label>
+                                  <input name="gpu" value={currentData.gpu || ""} onChange={handleNewAcqInput} style={styles.inventoryInput} placeholder="e.g., Integrated / GTX 1650" />
+                                </div>
+                                <div style={{ ...styles.inventoryInputGroup, flex: 1, marginBottom: 0 }}>
+                                  <label style={styles.inventoryLabel}>OS:</label>
+                                  <select name="os" value={currentData.os || ""} onChange={handleNewAcqInput} style={styles.inventoryInput}>
+                                    <option value="">Select OS</option>
+                                    <option value="Windows 10">Windows 10</option>
+                                    <option value="Windows 11">Windows 11</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* ── Section: Acquisition Details ── */}
                           <div style={{
                             fontSize: 11,
